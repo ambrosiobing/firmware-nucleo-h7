@@ -1,0 +1,52 @@
+% Four layers and one seam. Everything below the shim is vendored.
+\begin{tikzpicture}[node distance=5mm and 12mm, font=\sffamily\small]
+
+% ---------------- this chapter
+\node[user, text width=36mm] (log) {logger\\{\scriptsize no polling anywhere}};
+\node[user, below=5mm of log, text width=36mm] (drop) {drop counters\\{\scriptsize overrun flag and tag gap}};
+\node[user, below=5mm of drop, text width=36mm] (board) {board layer\\{\scriptsize addresses, reset, roll call}};
+\node[user, below=5mm of board, text width=36mm] (topo) {topology choice\\{\scriptsize recorded with its reason}};
+\begin{scope}[on background layer]
+\node[layer, fit=(log)(drop)(board)(topo), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:written in this chapter}] (mine) {};
+\end{scope}
+
+% ---------------- vendored
+\node[fw, right=14mm of board, text width=34mm] (drv) {register-level drivers\\{\scriptsize BSD-3-Clause, vendored}};
+\node[fw, above=5mm of drv, text width=34mm] (tags) {buffer tag decode\\{\scriptsize and unit conversion}};
+\node[fw, below=5mm of drv, text width=34mm] (shim) {porting shim\\{\scriptsize two functions: read and write}};
+\begin{scope}[on background layer]
+\node[layer, fit=(tags)(drv)(shim), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:vendored, permissive}] (vend) {};
+\end{scope}
+
+% ---------------- silicon
+\node[hw, right=14mm of shim, text width=28mm] (i2c) {I2C at 400 kHz\\{\scriptsize repeated start}};
+\node[hw, above=5mm of i2c, text width=28mm] (exti) {external interrupt\\{\scriptsize one line, one flag}};
+
+% ---------------- the shield
+\node[hw, right=12mm of exti, text width=32mm] (imu1) {inertial unit\\{\scriptsize fusion, learning core, electrostatic channel}};
+\node[hw, below=4mm of imu1, text width=32mm] (imu2) {inertial unit\\{\scriptsize programmable core}};
+\node[hw, below=4mm of imu2, text width=32mm] (rest) {accelerometer, magnetometer, pressure, humidity, temperature};
+\begin{scope}[on background layer]
+\node[layer, fit=(imu1)(imu2)(rest), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:X-NUCLEO-IKS4A1}] (sh) {};
+\end{scope}
+
+% ---------------- edges
+\draw[flow] (log) -- (drop);
+\draw[flow] (drop) -- (board);
+\draw[flow] (board) -- (topo);
+\draw[flow] (board.east) -- node[lbl, above]{seam} (drv.west);
+\draw[flow] (drv) -- (shim);
+\draw[flow] (drv) -- (tags);
+\draw[flow] (shim.east) -- (i2c.west);
+\draw[bus] (i2c.east) -- (sh.west |- i2c);
+\draw[irq] (sh.west |- exti) -- node[lbl, above]{watermark} (exti.east);
+\draw[flow] (exti.west) -| (log.north);
+
+\node[umlnote, text width=44mm, below=8mm of topo, anchor=north]
+  {The bus arrangement is not a layer. It is a decision taken with jumpers
+   before any code runs, and it changes what the layers above are able to
+   batch together.};
+\end{tikzpicture}

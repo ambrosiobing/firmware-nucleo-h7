@@ -1,0 +1,37 @@
+% One watermark event, end to end. The handler does no bus work.
+\begin{tikzpicture}[font=\sffamily\scriptsize,
+                    ml/.style={font=\sffamily\scriptsize, fill=white, inner sep=1.5pt}]
+\foreach \x/\name/\id in {0/sensor buffer/sen, 3.6/EXTI handler/isr, 7.2/main loop/main,
+                          10.8/tag decoder/dec, 14.2/transcript/host}{
+  \node[actor, text width=20mm] (\id) at (\x,0) {\name};
+  \draw[lifeline] (\id.south) -- ++(0,-9.2);
+}
+
+\draw[msg] (0,-0.9) -- ++(0.9,0) -- ++(0,-0.45)
+  node[ml, right, xshift=1mm, align=left]{push tag\\and six data bytes} -- ++(-0.9,0);
+\draw[msg] (0,-2.2) -- node[ml, above]{watermark reached} (3.6,-2.2);
+\node[activation, minimum height=5mm] at (3.6,-2.6) {};
+\draw[msg] (3.6,-2.7) -- ++(0.7,0) -- ++(0,-0.4)
+  node[ml, right, xshift=1mm, align=left]{increment\\flag, return} -- ++(-0.7,0);
+
+\node[activation, minimum height=37mm] at (7.2,-4.9) {};
+\draw[reply] (3.6,-4.0) -- node[ml, above]{flag above zero} (7.2,-4.0);
+\draw[msg] (7.2,-4.7) -- node[ml, above, pos=0.35]{read the level register} (0,-4.7);
+\draw[reply] (0,-5.4) -- node[ml, above, pos=0.62]{words waiting} (7.2,-5.4);
+\draw[msg] (7.2,-6.1) -- node[ml, above, pos=0.35]{one burst read, clamped} (0,-6.1);
+\draw[reply] (0,-6.8) -- node[ml, above, pos=0.62]{the whole batch} (7.2,-6.8);
+\draw[msg] (7.2,-7.5) -- node[ml, above]{decode tags} (10.8,-7.5);
+\node[activation, minimum height=8mm] at (10.8,-7.8) {};
+\draw[reply] (10.8,-8.2) -- node[ml, above]{per source rings} (7.2,-8.2);
+\draw[msg] (7.2,-8.9) -- node[ml, above, pos=0.42]{counters printed by the board} (14.2,-8.9);
+
+\node[umlnote, text width=42mm, anchor=north west] at (-0.5,-10.0)
+  {The handler never starts a bus transaction. A burst at 400 kHz is long by
+   interrupt standards and would block the next watermark.};
+\node[umlnote, text width=42mm, anchor=north west] at (5.2,-10.0)
+  {The flag is incremented rather than set. A value above one means a watermark
+   arrived while the previous drain was still running.};
+\node[umlnote, text width=42mm, anchor=north west] at (10.9,-10.0)
+  {The drop counters live on the board. A host that counts the lines it received
+   proves the serial link worked and nothing else.};
+\end{tikzpicture}

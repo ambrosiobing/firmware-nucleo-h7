@@ -1,0 +1,39 @@
+% Fill against drain on one timebase. The margin is the ratio the budget requires.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+
+% ---- the buffer level
+\draw[signal] (0mm,14mm) -- (80mm,40mm) -- (84mm,41mm) -- (92mm,15mm) -- (130mm,28mm);
+\node[signame] at (-1mm,30mm) {buffer level};
+\draw[deadline] (0mm,40mm) -- (132mm,40mm);
+\node[font=\sffamily\tiny, anchor=south east] at (132mm,41mm) {watermark};
+
+% ---- the interrupt line
+\draw[signalb] (0mm,4mm) -- (80mm,4mm) -- (80mm,9mm) -- (92mm,9mm) -- (92mm,4mm) -- (130mm,4mm);
+\node[signame] at (-1mm,6mm) {INT1};
+
+% ---- the bus
+\busval{-4}{84}{8}{burst}
+\node[signame] at (-1mm,-4mm) {I2C};
+\draw[signal] (0mm,-4mm) -- (84mm,-4mm);
+\draw[signal] (92mm,-4mm) -- (130mm,-4mm);
+
+% ---- the two times being compared
+\draw[tspan] (0mm,48mm) -- (80mm,48mm);
+\node[tlabel] at (40mm,48mm) {fill time = watermark level / batch rate};
+\draw[tspan] (84mm,-11mm) -- (92mm,-11mm);
+\node[font=\sffamily\tiny, anchor=west] at (94mm,-11mm)
+  {drain time, measured with the cycle counter};
+
+\draw[taxis] (0mm,-16mm) -- (136mm,-16mm) node[right, font=\tiny] {time};
+\draw[tick] (80mm,-16mm) -- (80mm,46mm);
+\draw[tick] (92mm,-16mm) -- (92mm,46mm);
+
+\node[umlnote, text width=52mm, anchor=north west] at (0mm,-20mm)
+  {The acceptance rule is a ratio: the drain takes at most one tenth of the
+   fill. At half, the design works on the bench and drops samples in the field,
+   which looks like a sensor fault.};
+\node[umlnote, text width=52mm, anchor=north west] at (62mm,-20mm)
+  {If the ratio does not hold, lower the watermark rather than raising the bus
+   speed. More wake-ups can be priced with chapter 10's ledger; lost signal
+   margin cannot.};
+\end{tikzpicture}
