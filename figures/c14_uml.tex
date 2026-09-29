@@ -1,0 +1,33 @@
+% The event sequence: continuous fine channel, armed by the coarse one.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\foreach \x/\name/\id in {0/ISM6HG256X/imu, 3/EXTI handler/isr, 6/pre-trigger ring/ring,
+                          9/recorder/rec, 12/ILPS22QS/baro, 15/host/host}{
+  \node[actor, text width=18mm] (\id) at (\x,0) {\name};
+  \draw[lifeline] (\id.south) -- ++(0,-7.7);
+}
+
+% quiet state: the fine channel fills the ring and nothing is stored
+\draw[msg] (0,-1.0) -- node[above]{INT1 watermark} (3,-1.0);
+\node[activation, minimum height=4mm] at (3,-1.3) {};
+\draw[msg] (3,-1.5) -- ++(0.7,0) -- ++(0,-0.45)
+  node[right, xshift=1mm, font=\sffamily\tiny]{read TIM2 tick} -- ++(-0.7,0);
+\draw[msg] (3,-2.7) -- node[above]{push block} (6,-2.7);
+
+% the event
+\draw[msg] (0,-3.5) -- node[above]{INT2 high-g} (3,-3.5);
+\node[activation, minimum height=3.4mm] at (3,-3.8) {};
+\draw[msg] (3,-4.3) -- node[above]{arm at tick} (9,-4.3);
+\node[activation, minimum height=3.4mm] at (9,-4.6) {};
+\draw[msg] (9,-5.1) -- node[above]{select 4060 hPa} (12,-5.1);
+\draw[reply] (12,-5.7) -- node[below]{tagged until blanking ends} (9,-5.7);
+\draw[msg] (9,-6.4) -- node[above]{freeze window} (6,-6.4);
+\draw[msg] (9,-7.1) -- node[above]{one framed record} (15,-7.1);
+
+\node[umlnote, text width=62mm, anchor=north west] at (-0.6,-8.3)
+  {The pre-trigger window is whatever the ring already held. It is never
+   reconstructed, and if the ring was shorter than the requested window the
+   record says so in a flag.};
+\node[umlnote, text width=62mm, anchor=north west] at (7.6,-8.3)
+  {A second high-g assertion inside an open window extends that window. Two
+   overlapping records of one physical event never appear.};
+\end{tikzpicture}
