@@ -1,0 +1,627 @@
+\project{15}{Eight by eight time of flight, decided on the MCU}{NUCLEO-H7A3ZI-Q with X-NUCLEO-53L8A1}{Sensor firmware upload, zone reduction, hysteresis}
+
+\begin{keyfacts}
+\item[Board] NUCLEO-H7A3ZI-Q with X-NUCLEO-53L8A1 on the Arduino header, and no second shield
+\item[Peripherals] I2C1 in fast mode, the sensor's interrupt line on a header pin, the independent watchdog, TIM2 as the timebase, USART3 for the console
+\item[Toolchain] arm-none-eabi-gcc with CMake, and a driver taken from the redistributable republication rather than from behind a click-through
+\item[Operating system] Bare metal
+\item[Difficulty] 4 of 5
+\item[Effort] 4 evenings of about four hours
+\item[Deliverable] A ranging node that uploads an 84 kilobyte firmware image to its sensor at every power-on, reduces sixty-four zones to one status byte with hysteresis, and sends the host that byte and nothing else
+\end{keyfacts}
+
+\subsection*{Why this project}
+
+This sensor reports an eight by eight grid of distances. Sixty-four zones, each
+with a distance, a target status and a measure of how much the sensor trusts
+itself, arriving several times a second. Almost nobody wants sixty-four numbers.
+What a system wants is a decision: the way is clear, something is approaching,
+something is present. Sending sixty-four values to a host so that the host can
+compute one is the design mistake this chapter exists to avoid, and it is a
+common one because the driver makes the sixty-four values so easy to obtain.
+
+The second reason is a property of the part that changes the shape of the whole
+firmware. The sensor has volatile memory only. It holds no firmware of its own
+between power cycles, so the microcontroller stores an image of about 84
+kilobytes in its own flash and pushes it across the bus at every power-on. At
+400 kHz with nine bit times per byte that transfer is
+$86016 \times 9 / 400000$, which is about 1.94 seconds. That figure is computed
+from the bus rate and is not measured. It is also not a detail: it means the
+node is blind for seconds after reset, it means the watchdog cannot be armed
+with a short window across that period, it means 84 kilobytes of the
+microcontroller's 2 megabytes belong to a peripheral, and it means a supply
+disturbance that resets the sensor without resetting the microcontroller must be
+detected and answered rather than ignored.
+
+The third reason is that the decision belongs on the microcontroller and this
+chapter argues for that placement explicitly. Chapter 16 tests the argument by
+building the same decision in three places and measuring each. Here the choice
+is made on the grounds that a status byte crossing a link costs one transaction
+where a frame costs many, and that a policy small enough to fit in a few hundred
+lines is a policy a customer can be shown.
+
+\begin{note}{What the sensor is actually running}
+The image uploaded here is firmware for a programmable core inside the sensor,
+not a configuration blob. The core belongs to a processor family that came out
+of this vendor's many-core research work, and there is a good independent
+write-up of that lineage listed in the sources. Reading it is not required to
+finish the chapter, but it answers the question that the upload raises: this is
+a small computer being loaded, which is why the image is this large and why the
+part needs seconds rather than milliseconds before it can range.
+\end{note}
+
+\subsection*{Prior art and what to reuse}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{34mm}p{46mm}p{38mm}p{20mm}}
+\toprule
+Source & What it gives & What it does not & Licence \\
+\midrule
+The vendor's Arduino organisation, republishing the ultra-lite driver & The complete driver including the firmware image, under a licence that can be redistributed. This is the path this chapter takes & It arrives wrapped in a library for a different environment, so the wrapper is stripped and the copyright headers are kept & BSD-3-Clause \\
+The same driver from behind the click-through on the vendor's own site & The same code, and the licence a reader has to accept in a browser & No public repository, so no way to pin a version or show provenance in a build & Click-through \\
+The vendor's firmware package for this silicon & Board integration examples for the same shield & A per-file licence mix. It is audited file by file before anything is copied, and this chapter copies nothing from it & Mixed, flagged \\
+UM3120, the shield user manual & The bus selection, the interrupt routing, the header mapping and the power arrangement & Nothing about what to do with sixty-four numbers & Vendor document \\
+The independent write-up on the sensor's internal core & Why the image is this size and why it is volatile & Nothing you need to compile & Reading only \\
+\bottomrule
+\end{tabular}
+\caption{Prior art for chapter 15. The licence column is the reason this chapter exists in the form it does: one of these two identical drivers can be published in a portfolio repository with its provenance shown and one cannot.}
+\end{table}
+
+What is left to write is the port and the policy. The port means taking the
+driver out of its wrapper, writing the four platform functions it needs against
+this board's I2C driver, placing the 84 kilobyte image where the linker can see
+it, and recording in \texttt{docs/PROVENANCE.md} which upstream commit it came
+from and under which licence. The policy is everything that turns a frame into a
+byte: which zones are believed, how many have to agree, and what stops the
+output changing state every time a person shifts their weight.
+
+\subsection*{Parts from the inventory}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{40mm}p{66mm}p{40mm}}
+\toprule
+Part & Role & Interface \\
+\midrule
+NUCLEO-H7A3ZI-Q & Holds the sensor's firmware image, uploads it, reduces frames, drives the console & Micro USB to the host \\
+X-NUCLEO-53L8A1 & The ranging sensor on the Arduino header. The only shield on the board & I2C1 plus an interrupt line \\
+A USB data cable & Power, programming and console & Micro USB \\
+nRF-PPK2 & The current trace that shows the upload as a plateau, plus one digital input as a marker & IDD jumper and one digital input \\
+Host PC & Build, flash, and a terminal that receives one byte per decision & Windows with the Linux subsystem, or a Raspberry Pi \\
+\bottomrule
+\end{tabular}
+\caption{Inventory items used in chapter 15. Nothing is bought and nothing is soldered, which is why the bus selection question below has to be answered before the chapter is planned rather than after.}
+\end{table}
+
+\begin{note}{The one question that has to be answered before this chapter starts}
+Whether this shield selects its bus with a jumper or with a solder bridge is on
+this volume's confirm list and is settled by reading UM3120 and by looking at
+the board. There is no soldering iron on this bench. If the selection needs a
+bridge moved, this chapter is I2C only, the faster bus is described and not
+built, and every timing figure in it is an I2C figure. That is the assumption
+the text below is written under, and the paragraph after the wiring figure says
+what changes if the answer turns out to be a jumper.
+\end{note}
+
+\subsection*{System architecture}
+
+\diagram{c15_arch}{The image lives in the microcontroller's flash and is pushed into the sensor's volatile memory at every power-on. After that, frames come back and only a byte leaves the board.}
+
+The asymmetry in that figure is the chapter. Eighty-four kilobytes travel one
+way, once per power cycle, and one byte travels the other way, several times a
+second, for as long as the node runs. A design that got this backwards, pushing
+frames to a host that makes the decision, would move a kilobyte per frame across
+a link for the life of the product.
+
+The arithmetic makes the case better than the argument does. A result block of
+about a kilobyte at fifteen frames per second is roughly 15 kB per second
+leaving the board, continuously. A status byte at the same rate is 15 bytes per
+second. That is a factor of a thousand in link traffic, and on any link that
+costs energy per byte, which is every link in Part II of this book, it is a
+factor of a thousand in the part of the energy budget the radio owns. The
+reduction itself costs a few hundred microseconds of a core that is otherwise
+idle between frames. The trade is not close, and the only reason it is worth
+stating at all is that the opposite design is the one the driver's interface
+gently encourages.
+
+\begin{note}{The one number that decides this chapter's architecture}
+Everything above follows from the sensor having no non-volatile memory of its
+own. If it held its firmware, the board would boot in milliseconds, the flash
+would be free, the watchdog ordering would be ordinary and the re-upload state
+would not exist. One packaging decision inside a part the size of a grain of
+rice determines four separate properties of the firmware around it. That is
+worth noticing, because the next sensor you choose will have its own version of
+this and it will not be in the marketing material either.
+\end{note}
+
+\subsection*{Peripheral configuration}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{22mm}p{26mm}p{24mm}p{30mm}p{30mm}}
+\toprule
+Peripheral & Mode & Clock source & Pins and function & Interrupt and transfers \\
+\midrule
+I2C1 & Fast mode, 400 kHz & Peripheral bus, source selected in RCC & D14 and D15 on the Arduino header. Confirm in MB1363 & Interrupt-driven. The upload is the case for DMA and Chapter 4 says why \\
+GPIO input & Falling edge, external interrupt & Peripheral bus & The sensor's data-ready line, routed by the shield & EXTI, pre-emption priority 6 \\
+GPIO output & Push-pull, sensor reset & Peripheral bus & The shield's reset line if it is routed & None \\
+IWDG & Enabled after the upload completes & Low-speed internal oscillator & None & Reset source \\
+TIM2 & Free running, 32-bit, 1 MHz tick & Peripheral bus & None & Read by the handler \\
+GPIO output & Marker pin & Peripheral bus & One free Zio pin into a PPK2 digital input & None \\
+USART3 & Asynchronous, 115200 8N1 & Peripheral bus & The console pins of chapter 1 & Polled \\
+\bottomrule
+\end{tabular}
+\caption{Peripheral configuration. The watchdog row is the one that catches people: a watchdog armed before the upload with a window shorter than two seconds produces a board that resets forever and looks like a hardware fault.}
+\end{table}
+
+\subsection*{Wiring}
+
+\diagram{c15_wiring}{The shield on the header, one marker wire to the instrument, and the bus selection that has to be read rather than assumed. Nothing else is placed by hand.}
+
+If the bus selection turns out to be a jumper rather than a bridge, the faster
+serial bus becomes available and the upload time falls by roughly the ratio of
+the two bit rates, which would turn a two-second blind period into a fraction of
+a second. That is the single most valuable configuration change available in
+this chapter, which is why the question is worth an hour with UM3120 before any
+code is written. Everything else in the chapter is unchanged by the answer: the
+same driver, the same platform functions, the same policy.
+
+Safety, as everywhere in this book: 3.3 V logic only, no 5 V into a GPIO, and
+the instrument's digital inputs are logic inputs rather than an analogue
+instrument. This is also the chapter where the absence of an oscilloscope costs
+least. The event being measured lasts about two seconds, and the instrument's
+current trace resolves it directly as a plateau with a beginning and an end.
+
+\subsection*{Memory and timing budget}
+
+\diagram{c15_mem}{Where the image lives before it is uploaded and where it lives afterwards. The microcontroller's flash holds a peripheral's firmware for the whole life of the product, and the sensor holds it only until the supply is interrupted.}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{44mm}p{28mm}p{28mm}p{30mm}}
+\toprule
+Quantity & Budget & Measured & Margin \\
+\midrule
+Sensor firmware image in flash & 84 kB of 2 MB & not measured & not measured \\
+Upload time at 400 kHz & 1.94 s computed & not measured & not measured \\
+Result block per frame & about 1 kB & not measured & not measured \\
+Frame period at 15 Hz & 66.7 ms & not measured & not measured \\
+Reduction of 64 zones to a byte & 200 \textmu{}s & not measured & not measured \\
+Watchdog window after arming & 1 s & not measured & not measured \\
+Charge per decision & not budgeted & not measured & not measured \\
+\bottomrule
+\end{tabular}
+\caption{The budget table. The upload figure is arithmetic from the bus rate and the image size and is marked computed rather than measured, which is a different claim. The result block figure depends on which outputs the driver's configuration header enables and is read there rather than guessed.}
+\end{table}
+
+Two of those rows deserve a sentence. The flash row is 4.2 percent of the
+part's program memory spent on a peripheral's firmware, which on a 2 megabyte
+part is affordable and on a smaller one would not be, and that is a real
+architectural consequence of choosing this sensor. The watchdog row is a
+constraint rather than a measurement: the window is chosen after the reduction
+time is known, not before, and the watchdog is armed after the upload rather
+than across it.
+
+\subsection*{Firmware design (UML)}
+
+\diagram{c15_uml}{The node's state machine, including the hysteresis that stops the output changing state whenever a target sits on a threshold. The re-upload path exists because a supply disturbance can reset the sensor without resetting the board.}
+
+The machine has four operating states and one that most implementations omit.
+From reset the node is cold: nothing has been uploaded and no frame is
+meaningful. Uploading is a single long operation with the watchdog not yet
+armed. Ranging is the steady state, and inside it the reported decision moves
+between clear, approaching and present according to a policy with two distinct
+thresholds and a confirmation count. The state most implementations omit is the
+one entered when the sensor stops answering or answers with an implausible
+identity register: the node returns to uploading rather than reporting stale
+distances, and the status byte says so while it does.
+
+Hysteresis is not an optional refinement here. A single threshold on a distance
+that hovers near it produces an output that alternates at the frame rate, which
+is worse than useless because it looks like activity. Two thresholds and a
+confirmation count turn that into a decision that changes when something
+actually changed. The numbers in the figure, entering at 800 mm and leaving at
+950 mm with three agreeing frames out of five, are a starting point to be
+measured against a real target rather than constants to be trusted.
+
+The confirmation is counted in frames rather than in milliseconds, and that is
+deliberate. A count of frames degrades correctly: if the sensor is running more
+slowly than configured because the chosen resolution costs more than expected, a
+three of five rule still means three independent pieces of evidence, where a two
+hundred millisecond rule might mean one. It also makes the policy testable on
+the host, because a recording of frames can be replayed through the same C code
+with no clock involved at all. The cost is that decision latency becomes a
+function of the frame rate, which then has to be stated in the interface
+documentation rather than discovered by whoever integrates the node.
+
+\subsection*{Data flow (ASCII)}
+
+\begin{asciiart}
+  power-on
+     |
+     v
+  +----------------------------------------+          +--------------------------+
+  | STM32H7A3 flash                        |          | VL53L8CX                 |
+  |   vl53l8cx_fw[86016] const, read only  |--I2C1--->| volatile program memory  |
+  |   application text and data            |  1.94 s  |   no non-volatile store  |
+  +----------------------------------------+          +------------+-------------+
+                                                                   | data ready
+  +----------------------------------------+                       v
+  | frame handler                          |<------ I2C1 ----- result block, ~1 kB
+  |   validity:   status code and sigma    |
+  |   reduce:     nearest, occupancy, col  |
+  |   hysteresis: 800 / 950 mm, 3 of 5     |
+  +-------------------+--------------------+
+                      | one byte
+                      v
+  +----------------------------------------+          +--------------------------+
+  | USART3 framed link                     |--------->| host: state and count    |
+  +----------------------------------------+          +--------------------------+
+\end{asciiart}
+
+\subsection*{Repository layout}
+
+\begin{plaincode}
+nucleo-h7a3-53l8a1-zones/
+  CMakeLists.txt
+  cmake/arm-none-eabi.cmake
+  third_party/vl53l8cx/        # from the redistributable republication
+    vl53l8cx_api.[ch]          # wrapper stripped, headers untouched
+    vl53l8cx_buffers.h         # the 84 kB image, as a const array
+    LICENSE                    # BSD-3-Clause, copied verbatim
+  src/platform_i2c1.c          # the four functions the driver asks for
+  src/bringup.c                # identity check, upload, arm the watchdog
+  src/zones.c                  # validity, reduction, hysteresis
+  src/status_byte.c            # the one byte that leaves the board
+  src/timebase.c
+  src/main.c
+  tools/status_decode.py       # the host twin of the byte
+  tools/frame_dump.py          # diagnostic mode only, 64 values
+  docs/PROVENANCE.md           # upstream commit, licence, date copied
+  README.md
+\end{plaincode}
+
+\subsection*{Steps}
+
+\begin{steps}
+\item \textbf{Read UM3120 and settle the bus question before anything else.}
+Find the bus selection, whether it is a jumper or a solder bridge, which signals
+the faster bus would use, where the data-ready line lands on the header and
+whether the reset line is routed. Write the answers into the README as a table
+with the manual named as the source. If the selection is a bridge, write one
+sentence saying the chapter is I2C only and why, and move on without regret.
+
+\item \textbf{Take the driver from the path that can be republished.} Both
+copies are the same code. Only one of them can be shown in a portfolio
+repository with a pinned version.
+\begin{shellcode}
+git clone https://github.com/stm32duino/VL53L8CX vendor-src
+# keep: the driver core, the platform header, the firmware image array
+# remove: the wrapper for the other environment and its examples
+# keep untouched: every copyright header and the LICENSE file
+\end{shellcode}
+Record the upstream commit hash, the licence and the date in
+\texttt{docs/PROVENANCE.md} in the same sitting. A provenance file written later
+is a provenance file written from memory.
+
+\item \textbf{Write the four platform functions.} The driver asks for a small,
+well-defined amount from you, which is what makes it portable and what makes
+this step short.
+\begin{ccode}
+/* Multi-byte register access, a delay, and a timebase. Nothing else. */
+uint8_t VL53L8CX_RdMulti(VL53L8CX_Platform *p, uint16_t reg,
+                         uint8_t *val, uint32_t size);
+uint8_t VL53L8CX_WrMulti(VL53L8CX_Platform *p, uint16_t reg,
+                         uint8_t *val, uint32_t size);
+uint8_t VL53L8CX_WaitMs(VL53L8CX_Platform *p, uint32_t ms);
+uint8_t VL53L8CX_GetTickCount(VL53L8CX_Platform *p, uint32_t *ms);
+\end{ccode}
+The register address is sixteen bits wide rather than eight, which is the first
+thing to get right in the I2C driver and the first thing to check if the
+identity register reads as zero.
+
+\item \textbf{Place the image and prove the linker put it where you meant.} The
+array is const and belongs in flash. If it ends up in initialised data it costs
+84 kilobytes of flash and 84 kilobytes of SRAM, and the startup code copies it
+on every reset for no reason.
+\begin{shellcode}
+arm-none-eabi-size -A build/zones.elf
+arm-none-eabi-nm --size-sort -S build/zones.elf | tail -5
+\end{shellcode}
+Expect the largest symbol in the image to be the firmware array, in a read-only
+section. If it is not, the const qualifier or the section attribute is wrong.
+
+\item \textbf{Upload, and measure what the upload costs.} Pulse the marker pin
+before and after, and capture the current trace on the instrument. The upload
+appears as a plateau with a clear beginning and end, and the instrument's
+digital input puts the marker pulses on the same time axis as the current. Read
+the elapsed time from the trace and the elapsed cycles from the DWT counter, and
+put both in the README with the instruments named.
+\begin{ccode}
+marker_set(1);
+const uint32_t t0 = timebase_ticks();
+status = vl53l8cx_init(&dev);          /* this is where the 84 kB goes */
+const uint32_t t1 = timebase_ticks();
+marker_set(0);
+printf("upload %lu ticks at 1 MHz\r\n", (unsigned long)(t1 - t0));
+\end{ccode}
+Compare the measured figure against the 1.94 seconds computed above. If the
+measured value is substantially larger, the difference is bus overhead per
+transaction, clock stretching by the sensor, or a per-chunk delay in the driver,
+and finding out which is a better exercise than accepting the number.
+
+\item \textbf{Arm the watchdog after the upload and not before.} The independent
+watchdog on this part runs from its own oscillator and does not care what the
+core is doing. A window shorter than the upload produces a board that resets
+during boot, forever, with no message, which reads as a hardware fault and is
+not one.
+\begin{ccode}
+/* Order matters. Chapter 12 builds the watchdog design in full; this
+   chapter only has to avoid the one mistake that this sensor invites. */
+bringup_upload_firmware();      /* seconds, watchdog not yet running */
+iwdg_start(IWDG_WINDOW_MS);     /* only now */
+\end{ccode}
+The alternative, kicking the watchdog from inside the upload loop, is defensible
+and is also how a watchdog quietly stops protecting anything. If you take it,
+say in a comment which specific failure it still catches.
+
+\item \textbf{Configure eight by eight and read one frame.} Choose the
+resolution, the ranging frequency and the target order, then read a single frame
+and print all sixty-four values once, as a diagnostic, to prove the geometry is
+what you think it is. Hold a flat surface at a known distance, at an angle, and
+check that the grid tilts the way the geometry says it should. Then never print
+sixty-four values again outside diagnostic mode.
+
+\item \textbf{Decide which zones to believe.} Every zone carries a target status
+and a sigma, and a zone that reports a distance with a status the driver's
+header describes as unreliable is not data. This filter is the difference
+between a reduction that works in a corridor and one that works only on a bench.
+\begin{ccode}
+static bool zone_valid(const frame_t *f, unsigned z)
+{
+    if (!status_is_trusted(f->status[z])) return false;   /* from the header */
+    if (f->sigma_mm[z] > SIGMA_LIMIT_MM)  return false;   /* sensor's own doubt */
+    if (f->dist_mm[z] < DIST_MIN_MM)      return false;   /* cover glass */
+    return true;
+}
+\end{ccode}
+
+\item \textbf{Reduce, then apply hysteresis, then pack the byte.} The reduction
+is deliberately simple and deliberately explainable, which is the argument of
+this book's intelligence chapters in miniature.
+\begin{ccode}
+typedef struct {
+    uint16_t nearest_mm;     /* smallest valid distance in the frame  */
+    uint8_t  n_valid;        /* how many of the 64 zones were believed */
+    uint8_t  column;         /* occupancy centroid, 0..7               */
+} reduced_t;
+
+/* Two thresholds, never one. Three agreeing frames out of five, which
+   at 15 Hz is a decision in about 200 ms. */
+#define ENTER_MM  800u
+#define LEAVE_MM  950u
+#define CONFIRM_N 3u
+#define CONFIRM_M 5u
+
+uint8_t status_byte(const reduced_t *r, zone_state_t *st)
+{
+    zone_state_update(st, r->nearest_mm, ENTER_MM, LEAVE_MM,
+                      CONFIRM_N, CONFIRM_M);
+    return (uint8_t)((st->ready   ? 0x80u : 0u)
+                   | ((st->state  & 0x03u) << 5)
+                   | ((occupancy_bucket(r->n_valid) & 0x07u) << 2)
+                   |  (st->confidence & 0x03u));
+}
+\end{ccode}
+
+\item \textbf{Write the host twin and prove the link carries a byte.} The
+decoder is ten lines and it is the specification of the interface. Then run the
+node for an hour against a moving target and count state changes. A policy that
+produces hundreds of changes in an hour of ordinary activity has thresholds that
+are too close together, and the fix is a measurement rather than an opinion.
+\begin{pycode}
+def decode(b: int) -> dict:
+    return {
+        "ready":      bool(b & 0x80),
+        "state":      ["clear", "approaching", "present", "leaving"][(b >> 5) & 3],
+        "occupancy":  (b >> 2) & 7,
+        "confidence": b & 3,
+    }
+\end{pycode}
+\end{steps}
+
+\subsection*{Build, flash and debug}
+
+\diagram{c15_timing}{Power-on to first decision. The blind period is the upload, the watchdog is armed only after it, and the steady state that follows is short frames with a short reduction inside each one.}
+
+\begin{shellcode}
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build -j
+probe-rs run --chip STM32H7A3ZITx build/zones.elf
+python tools/status_decode.py --port /dev/ttyACM0
+\end{shellcode}
+
+Recovering a board that will not answer is Chapter 1's material: the probe
+presents a disk and a known-good binary can be copied onto it with no tools. The
+failure specific to this chapter is a board that resets every two seconds, and
+the cause is almost always the watchdog ordering above.
+
+\begin{note}{When the sensor answers once and then stops}
+In order of likelihood: the firmware was never uploaded, because the identity
+register was read before the upload and looked plausible; the register address
+was treated as eight bits when it is sixteen; the supply dipped far enough to
+reset the sensor and not the board, which is exactly the case the re-upload
+state exists for; the data-ready line is on a different header pin than assumed
+and the firmware is waiting on a pin nobody drives; and the frame rate was set
+above what the configured resolution supports, so frames are reported as not
+ready rather than as an error. Read the identity register again after the upload
+rather than before, which distinguishes the first case from the rest in one
+line.
+\end{note}
+
+\subsection*{Verification and acceptance criteria}
+
+\begin{itemize}
+\item The host receives a status byte and never sixty-four values, except in an
+explicitly named diagnostic mode that is off by default. This is the chapter's
+acceptance criterion and it is checked by reading the link, not the source.
+\item The upload time is a measured number in the README, with the instrument
+named, next to the computed figure it is being compared against.
+\item The firmware image appears in a read-only section in the size output, and
+the largest symbol in the image is that array.
+\item A deliberate supply interruption to the sensor alone, with the board still
+running, produces a re-upload and a status byte with the ready bit clear during
+it, and never a stale distance presented as current.
+\item A target held steady at the threshold distance for one minute produces at
+most one state change. A target moved across the threshold and back produces
+exactly two.
+\item The watchdog is armed after the upload, proven by a test build whose
+window is deliberately shorter than the upload and which still boots.
+\item The provenance document names the upstream commit, the licence and the
+date, and the build fails if the vendored tree has been modified without the
+document being updated.
+\end{itemize}
+
+\subsection*{Variants}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{24mm}p{26mm}p{44mm}p{22mm}p{20mm}}
+\toprule
+Axis & Variant & What changes & Cost & Built in full in \\
+\midrule
+Execution model & DMA for the upload & An 84 kilobyte transfer is the strongest argument for the transfer engine in this book, and it frees the core for the whole blind period & Cache maintenance on a buffer in main memory & Chapter 4 and Chapter 19 \\
+Peripheral substitution & The faster serial bus & The same driver and the same platform functions, with the upload time falling by the ratio of the bit rates. Available only if the selection is a jumper & Pins, and the answer to the confirm-list question & Chapter 17 \\
+Time and safety & Window watchdog instead of the independent one & A watchdog that also objects to being kicked too early, which catches a different set of faults & More thought about the steady-state period & Chapter 12 \\
+Intelligence and reach & A classifier on the frame & The reduction becomes a learned model over sixty-four zones rather than a threshold policy, which is a better fit for gesture than for occupancy & Explainability, and a training set & Chapter 16 \\
+Operating system & An RTOS task set & The upload becomes a task that blocks, rather than a function that occupies the whole boot & A scheduler to justify and a stack to size & Chapter 20 \\
+Execution model & Polled data ready & Poll the status instead of watching the line. Simpler, and it wastes the bus it is polling & Bus bandwidth and charge & Chapter 3 \\
+\bottomrule
+\end{tabular}
+\caption{Variants for chapter 15. Nothing here is built in full in this chapter; its own contribution is the upload discipline and the reduction policy, and each variant names the chapter that owns it.}
+\end{table}
+
+\subsection*{Pitfalls}
+
+\begin{itemize}
+\item Arming the watchdog before the upload. The board resets forever and the
+symptom looks like hardware.
+\item Treating the sixteen-bit register address as eight bits. Everything reads
+as zero and the sensor looks absent.
+\item Letting the firmware image land in initialised data. It costs the flash
+twice and the startup code copies 84 kilobytes on every reset.
+\item Reading the identity register before the upload, deciding the sensor is
+present, and never noticing that the upload did not happen.
+\item Sending sixty-four values to the host because the driver makes them
+convenient. The interface is the byte.
+\item One threshold instead of two. The output then changes at the frame rate
+whenever a target sits near the boundary.
+\item Believing every zone. A zone with an untrusted status code and a wide
+sigma is not a distance, and including it moves the nearest-distance result
+without any target moving.
+\item Taking the driver from behind the click-through and publishing it. Same
+code, different licence, and the repository is the thing that cannot be
+published.
+\item Assuming a per-frame time from the configured frequency. The configured
+frequency is what the sensor attempts at the chosen resolution, and the confirm
+list has the resolution and rate combinations on it for a reason.
+\end{itemize}
+
+\subsection*{Best practices applied}
+
+\begin{itemize}
+\item The dependency's licence decided which copy of identical code is used, and
+that decision is documented in the repository rather than being invisible.
+\item Provenance is written on the day the code is copied, with an upstream
+commit hash, and the build checks that the vendored tree and the document agree.
+\item A computed figure and a measured figure are labelled differently and
+printed next to each other, so that the reader can see the model and the
+measurement disagree.
+\item The interface is the smallest thing that carries the decision, and the
+diagnostic mode that violates that is named, defaulted off, and never used to
+justify the design.
+\item A failure mode that most implementations ignore, the sensor losing its
+firmware without the board noticing, is a state in the machine rather than a
+paragraph in a README.
+\end{itemize}
+
+\subsection*{Stretch goals}
+
+\begin{itemize}
+\item Compress the firmware image in flash and decompress it during the upload.
+The transfer is bus-bound rather than core-bound, so the decompression may be
+free in wall-clock terms, and measuring whether it is would be a genuinely new
+result for this part.
+\item Keep the sensor powered across a microcontroller reset and skip the
+upload, which turns a two-second boot into a fast one at the cost of a more
+complicated power design and a harder verification story.
+\item Use the occupancy centroid to report direction of travel rather than
+presence, which costs nothing extra on the bus and turns a status byte into
+something a lighting controller can act on.
+\item Run the reduction on frames captured to the host and replay them through
+the same C code compiled for the host, which is Chapter 12's testing approach
+applied to a policy that would otherwise only ever be tested by waving a hand.
+\end{itemize}
+
+\subsection*{Roadmap and next steps}
+
+Chapter 16 takes the decision built here and moves it: the same classification in
+the sensor, on the microcontroller and on the host, with latency, memory and
+charge measured for each, which is the measurement that decides whether this
+chapter's placement argument is right.
+
+For going wider, the community embedded engineering roadmap separates firmware
+from embedded Linux from hardware and says which to weight at which stage, and
+its accompanying essay on bridging the gap is the short version of the same
+argument. The free open textbook that grew out of a university course is the
+closest thing to a canonical curriculum for the sensor-intelligence direction,
+and the free-to-audit course on embedded machine learning covers the same ground
+with exercises. For the state-machine discipline this chapter leans on, the free
+course that walks one problem from a polled loop to an event-driven architecture
+across fifty-six lessons is the best companion in this volume, with the standing
+caution that its code licence makes it something to recommend and never to
+quote. Appendix H lists all of them with their licences.
+
+\subsection*{Portfolio evidence}
+
+\begin{itemize}
+\item A public repository containing a working port of a permissively licensed
+driver, with a provenance document naming the upstream commit, the licence and
+the date, and a README that explains why this copy and not the other one.
+\item An instrument capture showing the upload as a current plateau with the
+marker pulses on the same time axis, annotated with both the computed and the
+measured duration.
+\item A one-hour recording of status bytes against ordinary activity, with the
+state-change count, which is the evidence that the hysteresis was chosen rather
+than guessed.
+\item The size output showing where the 84 kilobyte array landed.
+\end{itemize}
+
+\subsection*{Sources}
+
+Normative references:
+\begin{itemize}
+\item UM3120, the user manual for the X-NUCLEO-53L8A1, for the bus selection,
+the interrupt routing, the reset line and the header mapping.
+\item The VL53L8CX datasheet and its user manual, for the resolution and rate
+combinations, the target status codes and the result block contents.
+\item Reference manual RM0455 for I2C1 and the independent watchdog on this
+part. Not RM0433, which documents its better-known sibling.
+\item The board user manual for MB1363, for which Arduino header pins reach
+which microcontroller pins.
+\end{itemize}
+
+Reusable implementations:
+\begin{itemize}
+\item The vendor's Arduino organisation, which republishes the driver under
+BSD-3-Clause. This is the copy that can be ported and published.\newline
+\url{https://github.com/stm32duino/VL53L8CX}
+\item An independent write-up of the processor lineage inside these sensors,
+which explains why the image is this size and why it is volatile.\newline
+\url{https://the6p4c.github.io/2022/06/13/stxp70-sthorm-p2012.html}
+\item The vendor's register-level driver collection, BSD-3-Clause, which is the
+model for the two-function porting shim used across the shield chapters.\newline
+\url{https://github.com/STMicroelectronics/STMems_Standard_C_drivers}
+\item Memfault's article on watchdog design, for the two-layer approach this
+chapter's ordering rule is a special case of.\newline
+\url{https://interrupt.memfault.com/blog/firmware-watchdog-best-practices}
+\item The Python interface to the power instrument, GPL-2.0. Install it from its
+package index; do not fork it into a portfolio repository.\newline
+\url{https://github.com/IRNAS/ppk2-api-python}
+\end{itemize}

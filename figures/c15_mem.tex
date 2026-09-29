@@ -1,0 +1,42 @@
+% Where a peripheral's firmware lives before and after the upload.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+
+% ---------------- left column: the microcontroller's flash, low addresses low
+\node[font=\sffamily\bfseries\small, anchor=west] at (0mm,56mm) {STM32H7A3 flash, 2 MB};
+\node[font=\sffamily\tiny, anchor=west, text width=34mm] at (0mm,51mm)
+  {The image is const and read only. If it lands in .data it costs the flash and
+   the SRAM};
+\memregion{0}{8}{mmflash}{vector table and startup}{0x0800\,0000}
+\memregion{8}{10}{mmflash}{application text and rodata}{}
+\memregion{18}{13}{mmperiph}{vl53l8cx\_fw\\{\tiny 86016 B, 4.2 percent of flash}}{}
+\memregion{31}{11}{mmres}{free}{}
+\node[mmaddr] at (-0.5mm,42mm) {0x0820\,0000};
+
+% ---------------- right column: the sensor's volatile memory
+\begin{scope}[xshift=64mm]
+\node[font=\sffamily\bfseries\small, anchor=west] at (0mm,56mm) {VL53L8CX, volatile only};
+\node[font=\sffamily\tiny, anchor=west, text width=34mm] at (0mm,51mm)
+  {Nothing here survives an interruption of the supply};
+\memregion{0}{10}{mmres}{sensor boot code}{}
+\memregion{10}{13}{mmram}{uploaded program\\{\tiny the same 86016 B}}{}
+\memregion{23}{11}{mmram}{working and result memory\\{\tiny about 1 kB read per frame}}{}
+\memregion{34}{8}{mmres}{nothing retained}{}
+\node[mmaddr, anchor=west] at (36.5mm,5mm) {on die};
+\node[mmaddr, anchor=west] at (36.5mm,16.5mm) {uploaded};
+\node[mmaddr, anchor=west] at (36.5mm,28.5mm) {per frame};
+\end{scope}
+
+% ---------------- the transfer between them
+\draw[flow, line width=1.2pt] (36mm,24.5mm) -- (62mm,24.5mm);
+\node[font=\sffamily\tiny, align=center, fill=white, inner sep=1pt] at (49mm,28mm)
+  {1.94 s computed\\at 400 kHz};
+\node[font=\sffamily\tiny, align=center, fill=white, inner sep=1pt] at (49mm,20mm)
+  {every power-on\\not measured yet};
+
+\node[umlnote, text width=100mm, anchor=north west] at (0mm,-6mm)
+  {The consequence is architectural rather than cosmetic. Four percent of a two
+   megabyte part is spent holding a peripheral's firmware for the life of the
+   product, the node is blind for the duration of the transfer at every reset,
+   and a supply disturbance that reaches the sensor and not the board leaves the
+   sensor empty while the board believes it is ranging.};
+\end{tikzpicture}

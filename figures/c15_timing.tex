@@ -1,0 +1,62 @@
+% Power-on to first decision, and one frame of the steady state.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+
+% ================================ band one: boot
+\node[font=\sffamily\bfseries\small, anchor=west] at (0mm,40mm) {Power-on to first decision};
+
+\node[signame] at (-2mm,30.5mm) {bus};
+\slice{28}{0}{7}{taskisr}{reset}
+\slice{28}{7}{72}{taskrun}{84 kB image crosses the bus}
+\slice{28}{79}{9}{taskready}{config}
+\slice{28}{88}{9}{taskready}{frame}
+\slice{28}{100}{9}{taskready}{frame}
+\slice{28}{112}{9}{taskready}{frame}
+
+\node[signame] at (-2mm,20.5mm) {IWDG};
+\slice{18}{0}{79}{taskblock}{not armed}
+\slice{18}{79}{42}{taskrun}{armed, window 1 s}
+
+\node[signame] at (-2mm,10.5mm) {status byte};
+\slice{8}{0}{88}{taskblock}{ready bit clear}
+\slice{8}{88}{33}{taskrun}{decisions leave the board}
+
+\draw[tspan] (7mm,4mm) -- (79mm,4mm);
+\node[tlabel] at (43mm,4mm) {blind period, 1.94 s computed at 400 kHz};
+
+\draw[taxis] (0mm,0mm) -- (126mm,0mm) node[right, font=\tiny]{time};
+\draw[tick] (7mm,0mm) -- (7mm,34mm);
+\draw[tick] (79mm,0mm) -- (79mm,34mm);
+\node[font=\tiny, anchor=north] at (7mm,-0.5mm) {reset};
+\node[font=\tiny, anchor=north] at (79mm,-0.5mm) {upload complete};
+
+% ================================ band two: one frame of the steady state
+\begin{scope}[yshift=-32mm]
+\node[font=\sffamily\bfseries\small, anchor=west] at (0mm,20mm) {One frame, 66.7 ms at 15 Hz};
+
+\node[signame] at (-2mm,12.5mm) {data ready};
+\draw[signal] (0mm,10mm) -- (126mm,10mm);
+\foreach \x in {6,66,126}{
+  \draw[signalb] (\x mm,10mm) -- ++(0,4mm) -- ++(2mm,0) -- ++(0,-4mm);}
+
+\node[signame] at (-2mm,2.5mm) {core};
+\slice{0}{8}{22}{taskisr}{read result block}
+\slice{0}{30}{8}{taskrun}{reduce}
+\slice{0}{38}{6}{taskready}{byte}
+\slice{0}{44}{24}{taskblock}{idle or asleep}
+\slice{0}{68}{22}{taskisr}{read result block}
+\slice{0}{90}{8}{taskrun}{reduce}
+\slice{0}{98}{6}{taskready}{byte}
+\slice{0}{104}{24}{taskblock}{idle or asleep}
+
+\draw[taxis] (0mm,-5mm) -- (132mm,-5mm) node[right, font=\tiny]{time};
+\draw[tspan] (6mm,-3mm) -- (66mm,-3mm);
+\node[tlabel] at (36mm,-3mm) {66.7 ms};
+\end{scope}
+
+\node[font=\sffamily\tiny, text width=124mm, anchor=north west] at (0mm,-44mm)
+  {Every figure drawn here is a budget. The blind period is arithmetic from the
+   image size and the bus rate; the reduction time is an allowance; the frame
+   period is what the sensor was asked for rather than what it delivered. The
+   instrument resolves the boot band directly as a current plateau, which is
+   what this bench has in place of an oscilloscope.};
+\end{tikzpicture}

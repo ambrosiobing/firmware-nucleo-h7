@@ -1,0 +1,43 @@
+% Eighty-four kilobytes one way once, one byte the other way for ever.
+\begin{tikzpicture}[node distance=4mm and 10mm, font=\sffamily\small]
+% ---------------- the target, top to bottom
+\node[hw, text width=33mm] (fl) {flash\\{\scriptsize vl53l8cx\_fw 86016 B const}};
+\node[fw, below=of fl, text width=33mm] (bring) {bring-up\\{\scriptsize identity upload arm}};
+\node[fw, below=of bring, text width=33mm] (frame) {frame handler\\{\scriptsize on data ready}};
+\node[fw, below=of frame, text width=33mm] (zones) {zone policy\\{\scriptsize validity reduce hysteresis}};
+\node[fw, below=of zones, text width=33mm] (stat) {status byte\\{\scriptsize one byte per decision}};
+\node[hw, below=of stat, text width=33mm] (wd) {IWDG and marker pin\\{\scriptsize armed after the upload}};
+\begin{scope}[on background layer]
+\node[layer, fit=(fl)(bring)(frame)(zones)(stat)(wd), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:STM32H7A3ZI}] (mcubox) {};
+\end{scope}
+
+% ---------------- the shield
+\node[hw, right=28mm of fl, text width=33mm] (sens)
+  {VL53L8CX program memory\\{\scriptsize volatile only no store}};
+\node[hw, right=28mm of frame, text width=33mm] (zarr)
+  {8 x 8 zone array\\{\scriptsize distance status sigma}};
+\begin{scope}[on background layer]
+\node[layer, fit=(sens)(zarr), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:X-NUCLEO-53L8A1}] (shbox) {};
+\end{scope}
+
+% ---------------- host and instrument
+\node[ext, wide, left=18mm of stat] (dec) {status\_decode.py\\{\scriptsize state occupancy confidence}};
+\node[ext, wide, left=18mm of wd] (ppk) {nRF-PPK2\\{\scriptsize the upload is a current plateau}};
+\begin{scope}[on background layer]
+\node[layer, fit=(dec)(ppk), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:host and instrument}] (hostbox) {};
+\end{scope}
+
+% ---------------- edges
+\draw[flow, line width=1.2pt] (fl.east) -- node[lbl, above, align=center]{86016 B\\once per power-on} (sens.west);
+\draw[flow] (zarr.west) -- node[lbl, above, align=center]{frame\\about 1 kB} (frame.east);
+\draw[flow] (fl) -- (bring);
+\draw[flow] (bring) -- (frame);
+\draw[flow] (frame) -- (zones);
+\draw[flow] (zones) -- (stat);
+\draw[bus] (stat.west) -- node[lbl, above]{one byte} (dec.east);
+\draw[bus] (ppk.east) -- node[lbl, above]{marker} (wd.west);
+\draw[irq] ([yshift=-4mm]zarr.west) -- node[lbl, below]{data ready} ([yshift=-4mm]frame.east);
+\end{tikzpicture}
