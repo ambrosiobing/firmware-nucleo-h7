@@ -1,0 +1,52 @@
+% Footprint in three placements. Not to scale between columns, and the point
+% of the figure is that only the left-hand column is actually constrained.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+
+% ---------------- in the sensor
+\node[font=\sffamily\bfseries\small, anchor=west] at (0mm,62mm) {in the sensor};
+\node[font=\sffamily\tiny, anchor=west, text width=32mm] at (0mm,55mm)
+  {The one place in this chapter where memory really binds};
+\memregion{0}{11}{mmperiph}{in-sensor program\\{\tiny features and tree together}}{}
+\memregion{11}{10}{mmres}{working memory}{}
+\node[mpu, minimum width=37mm, minimum height=24mm, anchor=south west] at (-1.5mm,-1.5mm) {};
+\node[font=\sffamily\tiny, anchor=north west, text width=34mm] at (0mm,-4mm)
+  {Size read from the sensor application note at bring-up. This book does not
+   print a figure it has not read};
+
+% ---------------- on the microcontroller
+\begin{scope}[xshift=48mm]
+\node[font=\sffamily\bfseries\small, anchor=west] at (0mm,62mm) {on the microcontroller};
+\node[font=\sffamily\tiny, anchor=west, text width=32mm] at (0mm,55mm)
+  {2048 kB of flash and 1312 kB of declared SRAM};
+\memregion{0}{8.5}{mmflash}{feature stage\\{\tiny 6 kB budget}}{}
+\memregion{8.5}{8.5}{mmflash}{decision tree\\{\tiny 4 kB budget}}{}
+\memregion{17}{8.5}{mmperiph}{neural comparison\\{\tiny 64 kB budget}}{}
+\memregion{25.5}{8.5}{mmram}{window buffer\\{\tiny 8 kB budget}}{}
+\memgap{36}
+\memregion{38}{8}{mmres}{the rest of 2 MB}{}
+\node[font=\sffamily\tiny, anchor=north west, text width=34mm] at (0mm,-4mm)
+  {The reference anomaly model from the standard suite is about 270 kB and fits
+   here several times over};
+\end{scope}
+
+% ---------------- on the host
+\begin{scope}[xshift=96mm]
+\node[font=\sffamily\bfseries\small, anchor=west] at (0mm,62mm) {on the host};
+\node[font=\sffamily\tiny, anchor=west, text width=32mm] at (0mm,55mm)
+  {A general-purpose machine with an operating system};
+\memregion{0}{21}{mmext}{not a comparable number\\{\tiny reported as a process
+  footprint and marked as a different kind of measurement}}{}
+\node[font=\sffamily\tiny, anchor=north west, text width=34mm] at (0mm,-4mm)
+  {Comparing this against a flash figure would be a category error and the
+   results table says so};
+\end{scope}
+
+\node[umlnote, text width=124mm, anchor=north west] at (0mm,-18mm)
+  {Columns are not to scale against each other and the middle column has a break
+   in it. Drawing them to a common scale would make the middle column a thousand
+   times the height of the page and would still make the same point: what binds
+   on this part is throughput and energy, not memory. This core has the
+   signal-processing instruction extension, so the optimised neural kernels help
+   through that path; it has no vector extension, and every impressive vendor
+   speed-up figure for those kernels belongs to a later core.};
+\end{tikzpicture}

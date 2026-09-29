@@ -1,0 +1,47 @@
+% The bench, and the boundary of what the instrument can see.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[board, minimum width=50mm, minimum height=27mm] (nuc) at (0,0) {};
+\node[text=white, font=\sffamily\bfseries\small] at (-0.5,-1.0) {NUCLEO-H7A3ZI-Q};
+\node[pinrow, minimum width=40mm] at (0,1.2) {};
+\node[pinrow, minimum width=40mm] at (0,-0.5) {};
+
+\node[hat, minimum width=36mm, minimum height=16mm] (sh) at (0.1,0.45) {};
+\node[text=white, font=\sffamily\bfseries\small] at (0.1,0.9) {X-NUCLEO-IKS4A1};
+\node[text=white, font=\tiny, align=center] at (0.1,0.35)
+  {inertial part with the\\in-sensor programmable core};
+
+\node[font=\tiny, align=right, anchor=south east] at (-2.95,0.9) {ST-LINK\\micro USB};
+\node[draw=black!70, fill=gray!60, minimum width=4mm, minimum height=6mm] (usb) at (-2.65,0.55) {};
+
+\node[ext, left=15mm of nuc, text width=20mm, minimum height=12mm] (pc)
+  {Host PC\\{\tiny build and train}};
+\draw[usbcable] (usb.west) to[out=180,in=0] (pc.east);
+
+% the instrument, across the board's own supply
+\node[ext, below=13mm of nuc, text width=30mm, minimum height=12mm] (ppk)
+  {nRF-PPK2\\{\tiny up to 1 A, plus digital inputs}};
+\draw[cable, draw=red!60!black] (-0.8,-1.35) -- node[left, font=\tiny, pos=0.6]{IDD} (ppk.north west);
+\draw[cable, draw=orange!70!black] (0.8,-1.35) -- node[right, font=\tiny, pos=0.6]{marker} (ppk.north east);
+
+% the host under test, outside the measurement
+\node[hat, fill=red!25!black!60, right=28mm of nuc, minimum width=30mm, minimum height=18mm] (pi) {};
+\node[text=white, font=\sffamily\bfseries\small, align=center] at (pi) {Raspberry Pi 4\\{\tiny the host under test}};
+\draw[cable, draw=blue!50!black] (2.55,0.2) -- node[above, font=\tiny, pos=0.6]{3.3 V serial} (pi.west);
+\node[font=\tiny, align=center, anchor=north] at (4.15,-0.1)
+  {red 5 V lead\\disconnected};
+
+% the boundary of the measurement
+\begin{scope}[on background layer]
+\node[layer, draw=red!70!black, fit=(nuc)(sh)(ppk), inner sep=9pt,
+      label={[layerlabel, anchor=south west, text=red!70!black]north west:inside the instrument}] {};
+\end{scope}
+
+\node[umlnote, text width=52mm, anchor=north west] at (-4.4,-4.8)
+  {The instrument measures up to 1 A. The board and shield are far below that.
+   The single-board computer is far above it and is not on the measured supply
+   at all.};
+\node[umlnote, text width=52mm, anchor=north west] at (1.5,-4.8)
+  {So the host's own energy is excluded by design rather than omitted by
+   accident, and the results table says so in the same place it reports the
+   numbers it does have.};
+\end{tikzpicture}

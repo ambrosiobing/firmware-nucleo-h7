@@ -1,0 +1,50 @@
+% One specification, three implementations, and the gate that proves they agree.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+
+% ---------------- the specification, drawn as a class with two compartments
+\node[umlclass, anchor=south, minimum width=52mm, inner sep=3pt,
+      font=\sffamily\scriptsize\bfseries] (specname) at (52mm,32mm)
+  {\makebox[48mm]{Feature definition}};
+\node[umlclass, anchor=north, minimum width=52mm, inner sep=3pt] (specbody) at (specname.south)
+  {\begin{tabular}{@{}l@{}}
+   window: 128 samples, 3 axes, 104 Hz\\
+   format: Q15, fixed at the most constrained\\
+   values: mean, rms, peak to peak, 4 bands\\
+   vectors: features/vectors, shared by all three
+   \end{tabular}};
+
+% ---------------- the model, alongside it
+\node[umlclass, anchor=south west, minimum width=40mm, inner sep=3pt,
+      font=\sffamily\scriptsize\bfseries] (mdlname) at (112mm,32mm)
+  {\makebox[36mm]{Model}};
+\node[umlclass, anchor=north west, minimum width=40mm, inner sep=3pt] (mdlbody) at (mdlname.south west)
+  {\begin{tabular}{@{}l@{}}
+   decision tree, bounded depth\\
+   4 classes, fitted once\\
+   bounded depth is bounded latency
+   \end{tabular}};
+
+% ---------------- the three implementations
+\node[fw, text width=32mm] (ispu) at (0mm,0mm) {in-sensor program\\{\scriptsize its own toolchain}};
+\node[user, text width=32mm] (cimp) at (52mm,0mm) {features.c and tree.c\\{\scriptsize signal-processing library}};
+\node[ext, text width=32mm] (pyimp) at (104mm,0mm) {features.py and tree.py\\{\scriptsize on the host}};
+
+\draw[reply] (ispu.north) |- node[lbl, above, pos=0.75]{realises} (specbody.west);
+\draw[reply] (cimp.north) -- node[lbl, right]{realises} (specbody.south);
+\draw[reply] (pyimp.north) |- node[lbl, above, pos=0.75]{realises} (specbody.east);
+
+% ---------------- the gate
+\node[state, text width=104mm, minimum height=9mm, anchor=north] (gate) at (52mm,-16mm)
+  {equivalence gate: same features and same class on every window of the held-out set};
+\draw[msg] (ispu.south) -- (ispu.south |- gate.north);
+\draw[msg] (cimp.south) -- (cimp.south |- gate.north);
+\draw[msg] (pyimp.south) -- (pyimp.south |- gate.north);
+\draw[reply] (mdlbody.south) |- node[lbl, above, pos=0.78]{exported three ways} (gate.east);
+
+\node[umlnote, text width=104mm, anchor=north] at (52mm,-30mm)
+  {The gate compares outputs and not source. That is the only comparison that
+   survives three different toolchains, and it is the reason the numeric format
+   is defined by the most constrained implementation rather than by the most
+   convenient one. Until the gate passes, the three legs are three separate
+   experiments and nothing measured from them can be compared.};
+\end{tikzpicture}
