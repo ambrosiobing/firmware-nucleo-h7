@@ -1,0 +1,60 @@
+% Bytes arriving, the transfer counter stepping down, and the idle flag.
+\begin{tikzpicture}[font=\sffamily\small]
+
+% ---------------------------------------------------------------- the line
+\node[signame] at (-2mm,50mm) {RX line};
+\foreach \x/\t in {0/02, 8/41, 16/7E, 40/02, 48/13, 56/A0, 64/55, 72/7E,
+                   96/02, 104/6C, 112/7E}
+  {\busval{50}{\x}{8}{\t}}
+\draw[hiz] (24mm,50mm) -- (40mm,50mm);
+\draw[hiz] (80mm,50mm) -- (96mm,50mm);
+\draw[hiz] (120mm,50mm) -- (128mm,50mm);
+\node[font=\sffamily\tiny, anchor=south] at (32mm,53mm) {line quiet};
+\node[font=\sffamily\tiny, anchor=south] at (88mm,53mm) {line quiet};
+
+% ---------------------------------------------------------------- idle flag
+\node[signame] at (-2mm,36mm) {IDLE flag};
+\draw[signalb] (0mm,36mm) -- (33mm,36mm) -- (33mm,41mm) -- (37mm,41mm)
+  -- (37mm,36mm) -- (89mm,36mm) -- (89mm,41mm) -- (93mm,41mm) -- (93mm,36mm)
+  -- (128mm,36mm);
+\node[sample] at (33mm,41mm) {};
+\node[sample] at (89mm,41mm) {};
+\node[font=\sffamily\tiny, anchor=west, text width=44mm, align=left]
+  at (40mm,42mm) {set one character time after the last byte; cleared by
+  writing IDLECF};
+
+% ---------------------------------------------------------------- NDTR
+\node[signame] at (-2mm,18mm) {NDTR};
+\draw[signal] (0mm,24mm) -- (8mm,24mm) -- (8mm,23mm) -- (16mm,23mm)
+  -- (16mm,22mm) -- (24mm,22mm) -- (24mm,21mm) -- (48mm,21mm) -- (48mm,20mm)
+  -- (56mm,20mm) -- (56mm,19mm) -- (64mm,19mm) -- (64mm,18mm) -- (72mm,18mm)
+  -- (72mm,17mm) -- (80mm,17mm) -- (80mm,16mm) -- (104mm,16mm) -- (104mm,15mm)
+  -- (112mm,15mm) -- (112mm,14mm) -- (120mm,14mm) -- (120mm,13mm)
+  -- (128mm,13mm);
+\node[font=\sffamily\tiny, anchor=west] at (0mm,27mm)
+  {counts down once per byte written, with no code involved};
+
+% ---- what the handler reads at the first idle
+\draw[tspan] (35mm,11.5mm) -- (35mm,21mm);
+\node[font=\sffamily\tiny, anchor=west] at (37mm,11mm)
+  {at this instant the handler reads NDTR once: pos = 512 minus NDTR, so three
+   new bytes};
+\draw[tick] (35mm,9mm) -- (35mm,44mm);
+\draw[tick] (91mm,9mm) -- (91mm,44mm);
+
+% ---------------------------------------------------------------- time axis
+\draw[taxis] (0mm,7mm) -- (130mm,7mm);
+\node[font=\sffamily\scriptsize, anchor=south east] at (130mm,7.5mm) {time};
+\node[font=\sffamily\tiny, anchor=north] at (12mm,6mm) {frame of 3};
+\node[font=\sffamily\tiny, anchor=north] at (60mm,6mm) {frame of 5};
+\node[font=\sffamily\tiny, anchor=north] at (108mm,6mm) {frame of 3};
+
+\node[umlnote, text width=58mm, anchor=north west] at (0mm,0mm)
+  {Only two things here involve the processor: the idle flag setting, which is
+   an interrupt, and the single read of the counter that follows it. Every byte
+   crossed the bus without asking anybody.};
+\node[umlnote, text width=58mm, anchor=north west] at (68mm,0mm)
+  {The half transfer and transfer complete events are not drawn, because they
+   do not line up with frames at all. They fire on buffer position, and they
+   are what bounds how long the consumer may be away.};
+\end{tikzpicture}

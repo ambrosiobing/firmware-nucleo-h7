@@ -1,0 +1,43 @@
+% The receive buffer, one cell per 32 byte cache line, in the wrapped case.
+\begin{tikzpicture}[font=\sffamily\small]
+\node[font=\sffamily\bfseries\small, anchor=west] at (0mm,52mm)
+  {rx\_buf, 512 bytes, drawn as sixteen cache lines};
+
+% ---- the cache line the invalidate actually works on
+\draw[tspan] (32mm,42mm) -- (40mm,42mm);
+\node[font=\sffamily\scriptsize, anchor=west] at (43mm,42mm)
+  {one cell is one 32 byte cache line, which is the unit the invalidate
+   discards};
+
+% ---- the two spans a wrap produces
+\draw[tspan] (0mm,34mm) -- (24mm,34mm);
+\node[tlabel] at (12mm,34mm) {span 2: 96 bytes};
+\draw[tspan] (96mm,34mm) -- (128mm,34mm);
+\node[tlabel] at (112mm,34mm) {span 1: 128 bytes};
+
+% ---- the strip
+\foreach \i in {3,...,11}
+  {\node[mmres, minimum width=8mm, text width=6mm, minimum height=8mm]
+     at ({\i*8mm},20mm) {};}
+\foreach \i in {0,1,2,12,13,14,15}
+  {\node[mmram, minimum width=8mm, text width=6mm, minimum height=8mm]
+     at ({\i*8mm},20mm) {};}
+\foreach \i/\b in {0/0, 4/128, 8/256, 12/384}
+  {\node[font=\tiny, anchor=south] at ({\i*8mm},28.5mm) {\b};}
+\node[font=\tiny, anchor=south] at (128mm,28.5mm) {512};
+
+% ---- the two positions
+\draw[flow] (24mm,8mm) -- (24mm,19.5mm);
+\node[font=\sffamily\scriptsize, align=center] at (24mm,5mm)
+  {pos = 512 minus NDTR = 96\\{\tiny read out of the engine, once}};
+\draw[flow] (96mm,8mm) -- (96mm,19.5mm);
+\node[font=\sffamily\scriptsize, align=center] at (96mm,5mm)
+  {old\_pos = 384\\{\tiny where the last check stopped}};
+
+\node[font=\sffamily\scriptsize, anchor=north west, text width=128mm] at (0mm,-4mm)
+  {The engine has wrapped since the last check, so pos is below old\_pos and the
+   new data is in two pieces. The consumer is handed each piece separately and
+   never receives a span that crosses the end of the array. Because the buffer
+   starts on a cache line and is a whole number of lines long, an invalidate
+   over either span can never discard a line that also holds something else.};
+\end{tikzpicture}

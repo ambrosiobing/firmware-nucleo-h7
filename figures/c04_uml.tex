@@ -1,0 +1,41 @@
+% The line-idle case as a sequence. The other two triggers are the same
+% messages with a different first arrow. Notes sit left of every lifeline.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\foreach \x/\name/\id in {2.6/USART3/us, 5.6/DMA1 stream 0/dma,
+                          8.6/rx\_check/chk, 11.6/consumer/con}{
+  \node[actor, text width=19mm] (\id) at (\x,0) {\name};
+  \draw[lifeline] (\id.south) -- ++(0,-8.4);
+}
+
+\draw[msg] (2.6,-1.0) -- node[above]{one request per byte} (5.6,-1.0);
+\node[activation, minimum height=7mm] at (5.6,-1.35) {};
+\draw[msg] (5.6,-1.9) -- ++(0.9,0) -- ++(0,-0.5)
+  node[right, xshift=1mm, fill=white, inner sep=1.5pt]
+  {writes rx\_buf, NDTR decrements} -- ++(-0.9,0);
+
+\draw[irq] (2.6,-3.3) -- node[above, fill=white, inner sep=1.5pt]
+  {IDLE: the line went quiet} (8.6,-3.3);
+\node[activation, minimum height=24mm] at (8.6,-4.6) {};
+\draw[msg] (8.6,-3.9) -- node[above]{read NDTR once} (5.6,-3.9);
+\draw[reply] (5.6,-4.5) -- node[below]{pos = 512 minus NDTR} (8.6,-4.5);
+\draw[msg] (8.6,-5.5) -- node[above]{invalidate, then span} (11.6,-5.5);
+\node[activation, minimum height=8mm] at (11.6,-5.85) {};
+\draw[reply] (11.6,-6.5) -- node[below]{done with the span} (8.6,-6.5);
+\draw[msg] (8.6,-7.3) -- ++(0.9,0) -- ++(0,-0.5)
+  node[right, xshift=1mm]{old\_pos = pos} -- ++(-0.9,0);
+
+\node[umlnote, text width=32mm, anchor=north east] at (1.8,-0.9)
+  {No code runs on this arrow. The processor is free for the whole of the
+   frame, which is the entire reason for the chapter.};
+\draw[dotted, draw=linecol] (1.8,-1.5) -- (2.6,-1.5);
+
+\node[umlnote, text width=32mm, anchor=north east] at (1.8,-3.2)
+  {Half transfer and transfer complete send the same message from the engine
+   instead, and everything below is identical.};
+\draw[dotted, draw=linecol] (1.8,-3.6) -- (2.6,-3.5);
+
+\node[umlnote, text width=32mm, anchor=north east] at (1.8,-5.4)
+  {A pointer and a length into the receive buffer, never a copy. The span
+   never crosses the end of the array, because a wrap is delivered as two.};
+\draw[dotted, draw=linecol] (1.8,-5.9) -- (8.6,-5.7);
+\end{tikzpicture}

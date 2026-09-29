@@ -1,0 +1,29 @@
+% The byte path costs no processor cycles. Three events call one function.
+\begin{tikzpicture}[font=\sffamily\small]
+\node[hw, text width=24mm] (usart) at (0,1.9) {USART3\\{\scriptsize receive request}};
+\node[hw, text width=24mm] (mux) at (3.1,1.9) {request multiplexer\\{\scriptsize number from RM0455}};
+\node[master, text width=24mm] (dma) at (6.3,1.9) {DMA1 stream 0\\{\scriptsize circular, NDTR}};
+\node[memblk, text width=26mm] (buf) at (9.5,1.9) {rx\_buf[512]\\{\scriptsize main memory, 32 B aligned}};
+\begin{scope}[on background layer]
+\node[layer, fit=(usart)(mux)(dma)(buf), inner ysep=7pt,
+      label={[layerlabel, anchor=south west]north west:the byte path: no processor cycles at all}] (bp) {};
+\end{scope}
+
+\node[fw, text width=32mm] (chk) at (3.8,-0.9) {rx\_check()\\{\scriptsize pos = 512 minus NDTR}};
+\node[fw, text width=28mm] (inv) at (9.5,-0.9) {invalidate by address\\{\scriptsize argued in chapter 19}};
+\node[user, text width=28mm] (cons) at (9.5,-3.2) {consumer\\{\scriptsize reads the span in place}};
+
+\draw[flow] (usart) -- (mux);
+\draw[flow] (mux) -- (dma);
+\draw[flow] (dma) -- (buf);
+\draw[irq] (usart.south) |- node[lbl, above, pos=0.72]{IDLE} (chk.west);
+\draw[irq] (dma.south) -- node[lbl, right, xshift=1mm]{HT, TC} (chk.north east);
+\draw[flow] (chk) -- node[lbl, above]{pointer, length} (inv);
+\draw[bus] (buf.south) -- (inv.north);
+\draw[flow] (inv) -- node[lbl, right, xshift=1mm]{clean bytes} (cons);
+
+\node[umlnote, text width=44mm, anchor=north west] at (-2.0,-2.3)
+  {Half transfer, transfer complete and line idle are three triggers for one
+   function. Three separate code paths would become three copies of the same
+   arithmetic, and the least used copy is the one that is wrong.};
+\end{tikzpicture}
