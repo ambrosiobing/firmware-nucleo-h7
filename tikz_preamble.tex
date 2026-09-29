@@ -1,0 +1,195 @@
+% Shared TikZ and circuitikz setup, used by main.tex and by the standalone
+% figure wrapper that build.py generates for the HTML/SVG output.
+\usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric,shapes.misc,shapes.symbols,fit,backgrounds,chains,decorations.pathreplacing,decorations.markings,patterns,shadows,matrix}
+
+% ---------------------------------------------------------------- colours
+\definecolor{hwcol}{RGB}{255,236,179}   % hardware, boards, sensors
+\definecolor{kercol}{RGB}{197,222,255}  % kernel space
+\definecolor{usrcol}{RGB}{205,240,205}  % user space
+\definecolor{extcol}{RGB}{228,228,228}  % external systems, cloud, PC
+\definecolor{fwcol}{RGB}{245,210,235}   % MCU firmware
+\definecolor{notecol}{RGB}{255,250,205} % notes
+\definecolor{linecol}{RGB}{60,60,60}
+
+% ---------------------------------------------------------------- block diagrams
+\tikzset{
+  every picture/.style={font=\sffamily\small, line width=0.6pt, >=Latex},
+  blk/.style={draw=linecol, rounded corners=2pt, align=center, minimum height=8mm,
+              inner sep=4pt, text width=28mm, fill=white},
+  hw/.style={blk, fill=hwcol},
+  kern/.style={blk, fill=kercol},
+  user/.style={blk, fill=usrcol},
+  ext/.style={blk, fill=extcol},
+  fw/.style={blk, fill=fwcol},
+  wide/.style={text width=44mm},
+  narrow/.style={text width=18mm},
+  layer/.style={draw=linecol, dashed, rounded corners=3pt, inner sep=6pt, fill=none},
+  layerlabel/.style={anchor=north west, font=\sffamily\scriptsize\bfseries, inner sep=2pt},
+  flow/.style={->, thick, draw=linecol},
+  bus/.style={<->, thick, draw=linecol},
+  lbl/.style={font=\sffamily\scriptsize, fill=white, inner sep=1.5pt, midway},
+  irq/.style={->, thick, draw=red!70!black, dashed},
+  % ---------------------------------------------------------------- UML
+  umlclass/.style={draw=linecol, fill=white, align=left, inner sep=0pt, font=\sffamily\scriptsize},
+  lifeline/.style={draw=linecol, dashed},
+  actor/.style={draw=linecol, fill=extcol, rounded corners=2pt, align=center, minimum height=7mm, inner sep=4pt, font=\sffamily\small},
+  msg/.style={->, draw=linecol, thick, font=\sffamily\scriptsize},
+  reply/.style={->, draw=linecol, dashed, font=\sffamily\scriptsize},
+  activation/.style={draw=linecol, fill=kercol, inner sep=0pt, minimum width=2.4mm},
+  state/.style={draw=linecol, rounded corners=3mm, fill=usrcol, align=center, minimum height=8mm, inner sep=5pt},
+  initial/.style={circle, fill=linecol, inner sep=0pt, minimum size=2.4mm},
+  final/.style={circle, draw=linecol, fill=white, inner sep=0pt, minimum size=3.4mm,
+                path picture={\fill[linecol] (path picture bounding box.center) circle (1mm);}},
+  trans/.style={->, draw=linecol, thick, font=\sffamily\scriptsize},
+  umlnote/.style={draw=linecol, fill=notecol, align=left, font=\sffamily\scriptsize, inner sep=3pt},
+  % ---------------------------------------------------------------- bench art
+  board/.style={draw=linecol, fill=green!25!black!60, rounded corners=1.5mm, minimum height=20mm, minimum width=32mm,
+                text=white, font=\sffamily\bfseries\small, align=center},
+  hat/.style={board, fill=blue!40!black!60},
+  breadboard/.style={draw=linecol, fill=white, minimum height=12mm, minimum width=40mm, font=\sffamily\scriptsize},
+  pinrow/.style={draw=linecol, fill=black, minimum height=1.6mm, inner sep=0pt},
+  cable/.style={line width=1.2pt},
+  usbcable/.style={line width=1.4pt, draw=black!70},
+  ledsym/.style={circle, draw=linecol, minimum size=3mm, inner sep=0pt},
+}
+
+% ================================================================ MCU figures
+% Appended for the firmware volume. Same colour vocabulary as above:
+% hwcol = silicon, kercol = RTOS and kernel, usrcol = application task,
+% fwcol = firmware module, extcol = host and debugger.
+% Solid fills only: figures are built latex -> dvi -> dvisvgm, a path on which
+% PDF transparency does not survive.
+\usetikzlibrary{shapes.multipart,decorations.pathmorphing}
+
+\tikzset{
+  % ------------------------------------------------------------ memory map
+  mmap/.style={draw=linecol, anchor=south west, align=center, inner sep=2pt,
+               minimum width=34mm, text width=34mm, font=\sffamily\scriptsize},
+  mmflash/.style={mmap, fill=hwcol},
+  mmram/.style={mmap, fill=kercol},
+  mmperiph/.style={mmap, fill=fwcol},
+  mmext/.style={mmap, fill=extcol},
+  mmres/.style={mmap, fill=black!6},
+  mmaddr/.style={font=\scriptsize\ttfamily, anchor=east, inner sep=2pt},
+  mmgap/.style={draw=linecol, dashed, line width=0.4pt},
+  mpu/.style={draw=red!70!black, line width=0.8pt, dashed, rounded corners=1pt, fill=none},
+  % ------------------------------------------------------------ register bit field
+  regcell/.style={draw=linecol, fill=white, anchor=south west, inner sep=0pt,
+                  minimum height=6mm, align=center, font=\sffamily\scriptsize},
+  regfield/.style={regcell, fill=kercol},
+  regrsvd/.style={regcell, fill=black!6},
+  regro/.style={regcell, fill=extcol},
+  regset/.style={regcell, fill=hwcol},
+  regbit/.style={font=\sffamily\tiny, anchor=south, inner sep=1pt},
+  regname/.style={font=\sffamily\bfseries\small, anchor=east, inner sep=3pt},
+  regreset/.style={font=\tiny\ttfamily, anchor=north, inner sep=1pt},
+  % ------------------------------------------------------------ clock tree
+  osc/.style={blk, fill=hwcol, text width=20mm, minimum height=7mm},
+  pll/.style={blk, fill=fwcol, text width=22mm, minimum height=9mm},
+  clkmux/.style={draw=linecol, fill=white, trapezium, trapezium angle=70,
+                 trapezium stretches body, shape border rotate=270,
+                 minimum width=9mm, minimum height=8mm, inner sep=1pt, font=\sffamily\tiny},
+  clkdiv/.style={draw=linecol, fill=kercol, minimum width=12mm, minimum height=6mm,
+                 inner sep=1pt, align=center, font=\sffamily\tiny},
+  clkgate/.style={draw=linecol, fill=white, circle, inner sep=0pt, minimum size=3.2mm,
+                  font=\sffamily\tiny},
+  clkdom/.style={blk, fill=usrcol, text width=24mm, minimum height=6mm},
+  clkline/.style={-Latex, draw=linecol, line width=0.7pt},
+  clkfreq/.style={font=\sffamily\tiny, fill=white, inner sep=1pt},
+  % ------------------------------------------------------------ NVIC and vectors
+  vecslot/.style={draw=linecol, fill=white, anchor=south west, align=left,
+                  minimum width=44mm, minimum height=5mm, inner xsep=3pt,
+                  font=\sffamily\scriptsize},
+  vecsys/.style={vecslot, fill=kercol},
+  vecirq/.style={vecslot, fill=hwcol},
+  vecfree/.style={vecslot, fill=black!6},
+  vecnum/.style={font=\tiny\ttfamily, anchor=east, inner sep=2pt},
+  prio/.style={draw=linecol, fill=fwcol, minimum width=26mm, minimum height=6mm,
+               inner sep=2pt, align=center, font=\sffamily\scriptsize},
+  prioaxis/.style={-Latex, draw=linecol, line width=0.7pt},
+  preempt/.style={-Latex, draw=red!70!black, thick},
+  tailchain/.style={-Latex, draw=linecol, dashed, thick},
+  % ------------------------------------------------------------ DMA and cache
+  master/.style={blk, fill=fwcol, text width=22mm, minimum height=7mm},
+  busmatrix/.style={draw=linecol, fill=extcol, minimum width=72mm, minimum height=7mm,
+                    align=center, font=\sffamily\small},
+  memblk/.style={blk, fill=kercol, text width=24mm, minimum height=10mm},
+  cache/.style={blk, fill=usrcol, text width=20mm, minimum height=8mm},
+  cacheword/.style={draw=linecol, fill=white, anchor=south west, inner sep=0pt,
+                    minimum width=8mm, minimum height=4.5mm, font=\sffamily\tiny},
+  cwclean/.style={cacheword, fill=usrcol},
+  cwdirty/.style={cacheword, fill=orange!35},
+  cwstale/.style={cacheword, fill=red!25},
+  dmaflow/.style={-Latex, thick, draw=blue!55!black},
+  cpuflow/.style={-Latex, thick, draw=linecol},
+  incoherent/.style={draw=red!70!black, line width=0.8pt, decorate,
+                     decoration={zigzag, amplitude=0.6mm, segment length=2mm}},
+  % ------------------------------------------------------------ timing diagram
+  signal/.style={draw=linecol, line width=0.8pt, line cap=round, line join=round},
+  signalb/.style={signal, draw=blue!55!black},
+  signame/.style={font=\sffamily\scriptsize, anchor=east, inner sep=3pt},
+  tick/.style={draw=linecol!45, dotted, line width=0.4pt},
+  tspan/.style={Latex-Latex, draw=linecol, line width=0.5pt},
+  tlabel/.style={font=\sffamily\tiny, fill=white, inner sep=1pt},
+  sample/.style={circle, fill=red!70!black, inner sep=0pt, minimum size=1.4mm},
+  hiz/.style={draw=linecol, dashed, line width=0.6pt},
+  % ------------------------------------------------------------ RTOS schedule
+  taskrun/.style={draw=linecol, fill=usrcol, anchor=south west, inner sep=1pt,
+                  minimum height=5mm, align=center, font=\sffamily\tiny},
+  taskready/.style={taskrun, fill=hwcol},
+  taskblock/.style={taskrun, fill=black!8},
+  taskisr/.style={taskrun, fill=fwcol},
+  tasklane/.style={font=\sffamily\scriptsize, anchor=east, inner sep=3pt},
+  taxis/.style={-Latex, draw=linecol, line width=0.6pt},
+  release/.style={-Latex, draw=linecol, line width=0.6pt},
+  deadline/.style={draw=red!70!black, dashed, line width=0.6pt},
+  rtstate/.style={state, fill=usrcol, text width=18mm, minimum height=7mm,
+                  font=\sffamily\scriptsize},
+}
+
+% ---------------------------------------------------------------- helper macros
+% Lengths are plain numbers in millimetres.
+
+% \memregion{<y>}{<height>}{<style>}{<name and size>}{<start address>}
+\newcommand{\memregion}[5]{%
+  \node[#3, minimum height=#2mm] at (0mm,#1mm) {#4};%
+  \node[mmaddr] at (-0.5mm,#1mm) {#5};}
+% \memgap{<y>}  a "not to scale" break across the column
+\newcommand{\memgap}[1]{\draw[mmgap] (-2mm,#1mm) -- (36mm,#1mm);}
+
+% Register bit fields. Bit \regwidth-1 is leftmost, as in every reference manual.
+\newcommand{\regwidth}{32}
+\newcommand{\regunit}{4}
+% \bitfield{<hi>}{<lo>}{<style>}{<label>}
+\newcommand{\bitfield}[4]{%
+  \node[#3, minimum width={(#1-#2+1)*\regunit mm},
+        text width={(#1-#2+1)*\regunit mm-2pt}]
+    at ({(\regwidth-1-#1)*\regunit mm},0mm) {#4};}
+\newcommand{\bitscale}{%
+  \foreach \b in {0,...,\the\numexpr\regwidth-1\relax}
+    \node[regbit] at ({(\regwidth-0.5-\b)*\regunit mm},6mm) {\b};}
+
+% \vecentry{<row from bottom>}{<style>}{<exception number>}{<handler name>}
+\newcommand{\vecentry}[4]{%
+  \node[#2] at (0mm,{#1*5mm}) {#4};%
+  \node[vecnum] at (-1mm,{#1*5mm+2.5mm}) {#3};}
+
+% \cacheline{<x>}{<y>}{<style>}{<label>}
+\newcommand{\cacheline}[4]{\node[#3] at (#1mm,#2mm) {#4};}
+
+% \clocktrain{<y>}{<x start>}{<cycles>}{<period>}  50 percent duty, 4 mm high
+\newcommand{\clocktrain}[4]{%
+  \draw[signal] (#2mm,#1mm) \foreach \i in {1,...,#3}
+      { -- ++(0,4mm) -- ++({0.5*#4mm},0) -- ++(0,-4mm) -- ++({0.5*#4mm},0) };}
+% \busval{<y centre>}{<x>}{<width>}{<text>}  the usual bus-value lozenge
+\newcommand{\busval}[4]{%
+  \draw[signal] (#2mm,#1mm) -- ++(1mm,2mm) -- ++({#3mm-2mm},0) -- ++(1mm,-2mm)
+                            -- ++(-1mm,-2mm) -- ++({-#3mm+2mm},0) -- cycle;%
+  \node[font=\sffamily\tiny] at ({#2mm+0.5*#3mm},#1mm) {#4};}
+
+% \slice{<lane y>}{<t start>}{<duration>}{<style>}{<label>}
+\newcommand{\slice}[5]{\node[#4, minimum width=#3mm] at (#2mm,#1mm) {#5};}
+% \lane{<lane y>}{<name>}
+\newcommand{\lane}[2]{\node[tasklane] at (0mm,{#1mm+2.5mm}) {#2};}
+% \deadlinemark{<t>}{<height>}
+\newcommand{\deadlinemark}[2]{\draw[deadline] (#1mm,-1mm) -- (#1mm,#2mm);}
