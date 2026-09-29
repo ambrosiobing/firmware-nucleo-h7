@@ -1,0 +1,30 @@
+% The duty cycle as a state machine, with the marker code each state asserts.
+\begin{tikzpicture}[font=\sffamily\scriptsize, node distance=9mm and 16mm]
+
+\node[initial] (i) at (0,0) {};
+\node[state, text width=20mm, right=7mm of i] (sleep) {SLEEP\\{\tiny code 000}};
+\node[state, text width=20mm, right=of sleep] (wake) {WAKE\\{\tiny code 001}};
+\node[state, text width=20mm, right=of wake] (sense) {SENSE\\{\tiny code 010}};
+\node[state, text width=20mm, below=16mm of sense] (comp) {COMPUTE\\{\tiny code 011}};
+\node[state, text width=20mm, left=of comp] (send) {SEND\\{\tiny code 100}};
+\node[state, fill=hwcol, text width=20mm, left=of send] (fault) {FAULT\\{\tiny code 111}};
+\node[final, left=10mm of fault] (f) {};
+
+\draw[trans] (i) -- (sleep);
+\draw[trans] (sleep) -- node[above]{RTC} (wake);
+\draw[trans] (wake) -- node[above]{clocks up} (sense);
+\draw[trans] (sense) -- node[right]{samples ready} (comp);
+\draw[trans] (comp) -- node[above]{feature done} (send);
+\draw[trans] (send) -- node[above]{no reply} (fault);
+\draw[trans] (fault) -- node[above]{halt} (f);
+\draw[trans] (send.north) -- ++(0,6mm) -| node[lbl, pos=0.25, above]{stub returns} (sleep.south);
+
+\node[umlnote, text width=44mm, anchor=north west] at (-0.6,-4.2)
+  {One store per transition. The code is raised on entry and never cleared
+   inside a state, so every instant of the cycle carries exactly one code and no
+   charge falls between two phases.};
+\node[umlnote, text width=44mm, anchor=north west] at (4.8,-4.2)
+  {Code 000 is also the reset state, so an unpowered or halted board decodes as
+   sleep rather than as an undefined phase. Code 111 is raised by the fault
+   handler and never cleared.};
+\end{tikzpicture}

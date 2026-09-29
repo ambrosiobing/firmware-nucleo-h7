@@ -1,0 +1,41 @@
+% The charge ledger, drawn as a shape. No numbers until the bench produces them.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+
+\newcommand{\qblock}[4]{%
+  \node[draw=linecol, fill=#3, anchor=south west, minimum width=30mm,
+        text width=30mm, align=center, inner sep=1pt, minimum height=#2mm]
+    at (0mm,#1mm) {#4};}
+
+% ---- left column: the split, bottom to top
+\node[font=\sffamily\bfseries\small, anchor=south west] at (0mm,73mm) {the split};
+\qblock{0}{9}{kercol}{Q sleep\\{\tiny not measured}}
+\qblock{9}{13}{hwcol}{Q wake\\{\tiny not measured}}
+\qblock{22}{16}{fwcol}{Q sense\\{\tiny not measured}}
+\qblock{38}{10}{usrcol}{Q compute\\{\tiny not measured}}
+\qblock{48}{22}{extcol}{Q send\\{\tiny not measured}}
+\draw[decorate, decoration={brace, amplitude=2mm}, draw=linecol]
+  (-1mm,70mm) -- (-1mm,0mm) node[midway, left=2.5mm, align=center, rotate=90, anchor=south]
+  {sum of the phases, cut at the marker edges};
+
+% ---- right column: the whole, computed without the markers
+\node[font=\sffamily\bfseries\small, anchor=south west] at (58mm,73mm) {the whole};
+\node[draw=linecol, fill=black!6, anchor=south west, minimum width=30mm,
+      text width=30mm, align=center, inner sep=1pt, minimum height=70mm]
+  at (58mm,0mm) {Q cycle\\{\tiny integrated over the whole capture}\\[6mm]{\tiny no marker used}\\[6mm]{\tiny not measured}};
+
+% ---- the reconciliation band
+\draw[tspan] (30mm,70mm) -- (58mm,70mm);
+\draw[mmgap] (30mm,0mm) -- (58mm,0mm);
+\node[tlabel, anchor=south] at (44mm,71mm) {compare};
+\node[umlnote, text width=26mm, anchor=north] at (44mm,66mm)
+  {residual\\= |whole - split| / whole\\[2pt]accepted below 5 percent\\[2pt]reported per cycle and never averaged};
+
+\node[umlnote, text width=52mm, anchor=north west] at (0mm,-4mm)
+  {The two sides are computed by different routes on purpose. The left side sums
+   intervals cut at the marker edges; the right side integrates the same samples
+   with no reference to the markers at all. A test that compared a number with
+   itself would always pass.};
+\node[umlnote, text width=32mm, anchor=north west] at (56mm,-4mm)
+  {Block heights here are the budget hypothesis of the table above, written down
+   before the measurement.};
+\end{tikzpicture}
