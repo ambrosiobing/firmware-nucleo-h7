@@ -1,0 +1,33 @@
+% The receive framer. Two states, and every rejection has a counter.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[initial] (i) at (0,0) {};
+\node[state, text width=22mm] (hunt) at (2.4,0) {Hunting\\{\tiny discarding until a delimiter}};
+\node[state, text width=22mm] (coll) at (7.8,0) {Collecting\\{\tiny appending to the frame buffer}};
+
+\draw[trans] (i) -- (hunt);
+\draw[trans] (hunt) -- node[above]{delimiter} (coll);
+
+\draw[trans] (hunt.north west) to[out=125,in=55,looseness=1.8] (hunt.north east);
+\node[anchor=south, align=center, font=\sffamily\tiny] at (2.4,1.75)
+  {any other byte:\\discard it};
+
+\draw[trans] (coll.north west) to[out=125,in=55,looseness=1.8] (coll.north east);
+\node[anchor=south, align=center, font=\sffamily\tiny] at (7.8,1.75)
+  {any other byte:\\append it};
+
+\draw[trans] (coll.north east) to[out=35,in=-35,looseness=3.5] (coll.south east);
+\node[anchor=west, align=left, font=\sffamily\tiny, text width=28mm] at (10.1,0)
+  {delimiter: complete the frame, then start the next one};
+
+\draw[trans] (coll.south) to[out=250,in=290,looseness=1.0] (hunt.south);
+\node[anchor=north, font=\sffamily\tiny] at (5.1,-1.45) {buffer full: oversize++};
+
+\node[umlnote, text width=44mm, anchor=north west] at (-0.4,-2.2)
+  {Completing a frame runs three checks in order, cheapest first, and each one
+   has its own counter: bad stuffing, too short, bad checksum. A link that is
+   failing then tells you how it is failing and not only that it is.};
+\node[umlnote, text width=44mm, anchor=north west] at (5.4,-2.2)
+  {There is no state for a partly received length and no guessing where the
+   next frame might begin. That is the whole of what the delimiter bought, and
+   it is why this machine has two states rather than five.};
+\end{tikzpicture}
