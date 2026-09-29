@@ -1,0 +1,505 @@
+\section{The wider project catalogue, scored}
+
+The twenty chapters were selected from a larger scored list written for the same
+bench. That list is a ranking document; this volume is the build manual. Every
+entry below keeps the identifier and the total score it carried in the original,
+so a reader holding both documents can move between them without a translation
+table. The score columns are impact, learnability and immediate usefulness, each
+out of five, against an effort estimate in hours; the total is the original's own
+weighting of those four and is reproduced rather than recomputed.
+
+Three classes appear. Entries beginning with Z need no extra parts. Entries
+beginning with N were added in the revision that produced the list. Entries
+beginning with B need a purchase, and this volume buys nothing, so every B entry
+stayed out for the same reason and is listed here only so that the numbering
+survives and so that the reader can see what a budget would unlock.
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{9mm}p{70mm}p{11mm}p{55mm}}
+\toprule
+ID & Project as the original named it & Total & Where it went \\
+\midrule
+Z01 & H7A3 with the IKS5A1 industrial MEMS logger & 14.5 & Chapter 14 \\
+Z02 & H7A3 with the IKS4A1 environment node & 11.5 & Chapter 13 \\
+Z03 & H7A3 with the 8 by 8 time-of-flight sensor for occupancy and level & 13.3 & Chapter 15 \\
+Z04 & IKS5A1 and the time-of-flight shield fused & 11.0 & Out: two shields at once, which the one-at-a-time rule forbids for address and supply reasons \\
+Z05 & IKS4A1 and the time-of-flight shield fused & 9.0 & Out: same reason as Z04 \\
+Z06 & STWIN.box wideband vibration logger & 18.7 & Out: the STWIN.box is the committed subject of a separate build and appears in no chapter here \\
+Z07 & In-sensor classifier wake instead of a raw stream & 18.3 & Chapter 16, moved from the STWIN.box to the IKS4A1 so that it fits this bench \\
+Z08 & Energy map of the STWIN.box modes & 18.7 & Out: STWIN.box. The method is chapters 7 and 10 \\
+Z09 & Energy map of the H7A3 with the IKS5A1 & 15.2 & Chapter 10, with N04 \\
+Z10 & Energy of time-of-flight ranging cadences & 13.3 & Referenced as a stretch goal in chapter 15 \\
+Z11 & Transform library work on streamed inertial data & 15.0 & Chapter 18 \\
+Z12 & On-box features then a small log, on the STWIN.box & 14.0 & Out: STWIN.box \\
+Z13 & Host-side Python pipeline for the vendor's logging firmware & 18.5 & Out: it teaches the host, and the sibling volume owns that side of the cable \\
+Z14 & Serial logger from the board to a Raspberry Pi, with bench notes & 13.7 & Absorbed into the rig of chapter 12 \\
+Z15 & Narrowband command bring-up without a working subscription & 9.5 & Chapter 11 \\
+Z16 & Application state machine: sense, feature, and a transmit that is a stub & 18.0 & Chapter 8 \\
+Z17 & Two benches compared: laboratory inertial against field inertial & 11.0 & Out: STWIN.box on one side \\
+Z18 & Occupancy policy engine with no camera & 12.3 & Absorbed into chapter 15, which decides on the microcontroller \\
+Z19 & Vendor layer against register level, as a kata & 16.3 & Chapter 17 \\
+Z20 & The one-page matrix of sensor, current and payload & 14.7 & Absorbed into chapter 10 and into appendix C \\
+\bottomrule
+\end{tabular}
+\caption{The Z entries, which need no extra parts. Nine became chapters, three were absorbed into a chapter that covers the same ground more completely, and the rest stayed out for a stated reason.}
+\end{table}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{9mm}p{70mm}p{11mm}p{55mm}}
+\toprule
+ID & Project as the original named it & Total & Where it went \\
+\midrule
+N01 & Bearing envelope spectrum on the STWIN.box & 17.3 & Out: STWIN.box, and it is the committed subject of the separate condition-monitoring build \\
+N02 & Energy as a regression test, in the host test framework & 17.7 & Chapter 12 \\
+N03 & Payload codec with a Python twin, protocol discipline without a radio & 17.2 & Chapter 9 \\
+N04 & Wake overhead split by labelling the current trace with marker pins & 18.2 & Chapter 10, with Z09 \\
+N05 & The open narrowband stack running on a small board with a radio module and a software-defined receiver & 17.7 & Out: it needs a purchase and a different board. It is the first purchase to make when the budget exists \\
+\bottomrule
+\end{tabular}
+\caption{The N entries, added in the revision that produced the list. Three of the five became chapters, which is the highest rate of any class and reflects that they were written later and with the bench in view.}
+\end{table}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{9mm}p{82mm}p{11mm}p{43mm}}
+\toprule
+ID & Project as the original named it & Total & Note \\
+\midrule
+B01 & Board with an 868 MHz radio module as an open narrowband endpoint & 13.3 & The radio subject this volume approaches through a modem instead \\
+B02 & The official narrowband library on a small board & 16.3 & The highest-scoring purchase in the class \\
+B03 & A subscription and a real narrowband attachment & 13.2 & Chapter 11 works without one, which is its point \\
+B04 & A licensed command-set modem on the board's serial port & 15.7 & The command engine of chapter 11 is written to accept one \\
+B05 & Industrial node with the IKS5A1 and an 868 MHz radio & 13.3 & Chapter 14 without the radio \\
+B06 & Environment node with the IKS4A1, time of flight and 868 MHz & 10.3 & Two shields, so out twice over \\
+B07 & STWIN.box with an external radio & 11.0 & STWIN.box \\
+B08 & Transmit energy of 868 MHz bursts & 15.5 & The method is chapter 10 \\
+B09 & A long-range contrast node, labelled as such & 12.2 & Useful as a comparison, not as a chapter \\
+B10 & Software-defined base station on a Linux host & 9.7 & Host-side, and the sibling volume's territory \\
+B11 & Mechanical mounting for the vibration node & 15.3 & Belongs with the condition-monitoring build \\
+B12 & Primary-cell powered node & 12.3 & Chapter 7 produces the number that would size the cell \\
+B13 & Additional sensors on the vibration board's flexible connector & 9.5 & STWIN.box \\
+B14 & A second meter, only if the power instrument turns out to limit you & 6.0 & Appendix C states where the limit actually is \\
+B15 & Radio front-end extras & 8.5 & Only after a basic radio works \\
+B16 & An industrial fieldbus sibling project & 9.0 & The part has two of those interfaces and no transceiver on the board \\
+B17 & A card socket on the expansion header, since the board has none & 13.2 & Confirms the inventory claim: there is no card socket \\
+B18 & A coin cell and real time across a power cycle & 10.7 & The crystal is fitted; the coin cell is what is missing \\
+B19 & A wireless debug bridge, labelled for debugging only & 9.5 & The coprocessor route named in the front matter \\
+B20 & A complete ten-minute demonstration kit & 16.0 & What the twenty chapters add up to anyway \\
+\bottomrule
+\end{tabular}
+\caption{The B entries, every one of which needs a purchase. This volume buys nothing, so all twenty stayed out. They are printed with their scores because the ranking is still useful the day a budget appears, and because the numbering has to survive.}
+\end{table}
+
+\section{Board reference}
+
+Everything in this appendix is marked confirmed or to be confirmed. Confirmed
+means it was read in a source that names this exact board, and two independent
+machine-readable sources were used wherever possible. To be confirmed means it
+is the convention of this board family and has not yet been read in the board
+manual for MB1363. Nothing marked to be confirmed is written as fact anywhere
+else in this book.
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{44mm}p{44mm}p{62mm}}
+\toprule
+Item & Value & Status \\
+\midrule
+Microcontroller & STM32H7A3ZIT6Q & Confirmed \\
+Core and clock & Cortex-M7 at 280 MHz & Confirmed \\
+Flash & 2 MB & Confirmed, dual bank to be confirmed \\
+Static memory & Several regions, see chapter 19 & Sizes to be confirmed in the datasheet \\
+Reference manual & RM0455, not RM0433 & Confirmed \\
+Supply variant & Switched-mode, the Q suffix & Confirmed \\
+Debug probe & ST-LINK V3E on board & Confirmed \\
+High-speed clock & From the probe, bypass mode, 8 MHz & Confirmed from a working board definition \\
+Low-speed crystal & 32.768 kHz, fitted & Confirmed from two independent sources \\
+Ethernet & None. No controller and no media access controller & Confirmed from the upstream board description \\
+Card socket & None & Confirmed \\
+External flash & None & Confirmed \\
+Bus transceiver for the automotive bus & None on the board & Confirmed \\
+Cryptographic accelerator & None on this part & Confirmed from the peripheral list \\
+Random number generator & Present & Confirmed from the peripheral list \\
+\bottomrule
+\end{tabular}
+\caption{Board and silicon summary. The three entries that say none are the ones that most often surprise a reader arriving from material about the better-known member of this family.}
+\end{table}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{34mm}p{30mm}p{44mm}p{42mm}}
+\toprule
+Function & Pin & Note & Status \\
+\midrule
+LD1, green & PB0 & User LED & Confirmed, two sources agreeing \\
+LD2, yellow & PE1 & User LED & Confirmed, two sources agreeing \\
+LD3, red & PB14 & User LED & Confirmed, two sources agreeing \\
+B1, user button & PC13 & Pull direction to be confirmed & Confirmed as the pin \\
+Virtual COM port & USART3 & The peripheral is settled & Confirmed \\
+Virtual COM port pins & PD8 and PD9 & The convention of this board family & To be confirmed in the board manual \\
+Trace output & PB3 & Whether it reaches the probe at all & To be confirmed \\
+\bottomrule
+\end{tabular}
+\caption{User interface and console. The peripheral is confirmed and its pins are not, which is exactly the distinction this book insists on.}
+\end{table}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{26mm}p{26mm}p{50mm}p{48mm}}
+\toprule
+Header pin & Expected port pin & Function used in this book & Status \\
+\midrule
+D14 and D15 & PB9 and PB8 & I2C1 to all three shields & To be confirmed \\
+D13 & To be confirmed & Serial clock for the SPI chapters & To be confirmed \\
+D12 & To be confirmed & Master in, slave out & To be confirmed \\
+D11 & To be confirmed & Master out, slave in & To be confirmed \\
+D10 & To be confirmed & Chip select, driven in software & To be confirmed \\
+D0 and D1 & To be confirmed & A serial port for the modem chapters & To be confirmed \\
+D2 to D7 & To be confirmed & Interrupt lines from the shields & To be confirmed \\
+A0 to A5 & To be confirmed & Converter channels for chapter 6 & To be confirmed \\
+Free Zio pins & To be confirmed & Marker pins for the power instrument & To be confirmed \\
+IDD jumper & To be confirmed & What it isolates and whether the probe's own current is excluded & To be confirmed \\
+\bottomrule
+\end{tabular}
+\caption{The Arduino-compatible header. Every row is unconfirmed, which is an honest statement of where this book currently stands: the chapters that depend on these rows say so, and the confirm list in the authoring contract carries the same items.}
+\end{table}
+
+\section{The two instruments}
+
+This bench has no oscilloscope, no logic analyser and no Joulescope, confirmed on
+Sunday 20 September 2026. Every timing and energy claim in this book therefore
+comes from one of the two instruments below or from the board's own timers and
+cycle counter.
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{44mm}p{58mm}p{48mm}}
+\toprule
+Property & nRF-PPK2 & MCC 118 on a Raspberry Pi \\
+\midrule
+What it is & Ammeter and source meter & Analogue acquisition hat \\
+Channels & One current path & Eight single-ended inputs \\
+Ceiling & 1 A, and that is a hard limit & Input range to be confirmed against the manual \\
+Resolution & Dynamic across several ranges & 12 bit \\
+Rate & About 100 thousand samples a second, to be confirmed & 100 thousand samples a second aggregate across the channels in use \\
+Digital inputs & Eight, time-aligned with the current trace & None. The external trigger is a separate question \\
+Supply mode & Can power the target, voltage to be confirmed against the board's needs & Powered from the host board \\
+Host software & A Python interface under GPL-2.0: install it, do not fork it into a portfolio repository & The vendor's own library on the host board \\
+Used in & Chapters 7, 10 and 12 & Chapters 6 and 12 \\
+\bottomrule
+\end{tabular}
+\caption{The two instruments and their limits. The digital inputs of the power instrument are what make it this book's logic recorder for slow signals, which is the substitute wherever a chapter would otherwise want an oscilloscope.}
+\end{table}
+
+The traps are worth stating plainly, because each of them produces a plausible
+number rather than an error.
+
+\begin{itemize}
+\item \textbf{Leakage through the debug probe.} With the probe connected, current
+reaches the target through the debug connection as well as through the measured
+path. A measurement taken with the probe attached is not the node's consumption.
+Either isolate the target or state clearly that the figure includes the probe,
+and never compare one of those numbers with the other.
+\item \textbf{The one amp ceiling.} The power instrument measures up to 1 A. The
+cellular modems on this bench ask for peaks of about 2 A. They are never fed
+through it and never fed from the board; they get their own supply, and the
+transmit energy question is answered by other means or not at all.
+\item \textbf{Aggregate against per-channel rate.} The acquisition hat's hundred
+thousand samples a second are shared across the channels in use. Eight channels
+are eight times slower each, which is the arithmetic that turns a proof of a
+1 kHz sampling rate into a measurement of something else.
+\item \textbf{Time alignment.} The digital inputs are aligned with the current
+trace by the instrument, not by the host clock. That alignment is what makes the
+phase splitting of chapter 10 possible and is the reason a marker pin is worth
+more here than a print statement.
+\item \textbf{The export.} Whether the digital lines survive into the exported
+file is to be confirmed before a chapter depends on post-processing them.
+\end{itemize}
+
+\section{Vocabulary, German and English}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{40mm}p{40mm}p{72mm}}
+\toprule
+German & English & Note \\
+\midrule
+Taktbaum & clock tree & Chapter 1 draws this part's \\
+Zwischenspeicher & cache & Chapter 19. Often left untranslated \\
+Speicherabbild & memory map & Chapter 19 \\
+Speicherschutzeinheit & memory protection unit & Chapter 19 \\
+Direktspeicherzugriff & direct memory access & Chapters 4, 6 and 19 \\
+Unterbrechung & interrupt & Chapter 3 \\
+Unterbrechungsvektor & interrupt vector & Chapter 1 writes the table by hand \\
+Ringpuffer & ring buffer & Chapter 2 \\
+Warteschlange & queue & Chapter 20 \\
+Stapelspeicher & stack & Chapter 20 budgets one per task \\
+Halde & heap & Chapter 20 does not link one \\
+Ablaufplaner & scheduler & Chapter 20 \\
+Aufgabe & task & Usually left as the English word \\
+Priorit\"atsumkehr & priority inversion & Chapter 20, measured as a stretch goal \\
+Priorit\"atsvererbung & priority inheritance & Chapter 20, and only a basic form \\
+Semaphor & semaphore & Chapter 20 \\
+Ereignisgruppe & event group & Chapter 20 \\
+Zeitgeber & timer & Chapter 6 \\
+Abtastrate & sample rate & Chapter 6 proves this externally \\
+Aufl\"osung & resolution & Chapter 6 \\
+Wandler & converter & Chapter 6 \\
+Quantisierung & quantisation & Chapter 18 \\
+Festkommazahl & fixed-point number & Chapter 18 \\
+Gleitkommazahl & floating-point number & Chapter 18 \\
+Filterentwurf & filter design & Chapter 18, done on the host \\
+Pr\"ufsumme & checksum & Chapter 5 \\
+Rahmen & frame & Chapter 5 \\
+Baudrate & baud rate & Chapter 3 \\
+Latenz & latency & Chapter 20 measures a distribution of it \\
+Echtzeit & real time & Chapter 20 \\
+Betriebssystem & operating system & Chapter 20 builds two \\
+Wachhund & watchdog & Chapter 12. Usually left as the English word \\
+Stromaufnahme & current consumption & Chapters 7 and 10 \\
+Ladung & charge & Chapter 7 reports charge per cycle \\
+Ruhezustand & stop mode & Chapter 7 \\
+Aufwachen & wake-up & Chapter 7 \\
+Schwingquarz & crystal oscillator & Fitted on this board at 32.768 kHz \\
+Steckverbinder & connector & Appendix B \\
+Steckbrett & breadboard & Chapter 19 \\
+L\"otbr\"ucke & solder bridge & Nothing here needs one moved \\
+Datenblatt & datasheet & The part-specific document \\
+Referenzhandbuch & reference manual & RM0455, not RM0433 \\
+Anwendungshinweis & application note & Several, listed in appendix E \\
+Abnahmekriterium & acceptance criterion & Every chapter has a list of them \\
+Messger\"at & instrument & Appendix C \\
+Sensorknoten & sensor node & Chapters 8 to 12 \\
+Nutzlast & payload & Chapter 9 \\
+Funkmodul & radio module & Not on this bench; chapter 11 uses a modem \\
+\bottomrule
+\end{tabular}
+\caption{Working vocabulary, extended from the workbook's glossary. The terms that a German-speaking engineer normally leaves in English are marked, because using the German word where nobody does sounds stranger than the loan word.}
+\end{table}
+
+\section{The reference library}
+
+Grouped by subject, and every entry was checked on Sunday 20 September 2026.
+Three domains block automated checking, namely the silicon vendor's own site,
+its wiki and the core designer's documentation site; the rows drawn from those
+are marked as opened by hand on the same day. Licence categories follow the
+provenance document: A is safe to depend on and to vendor, B is safe to depend
+on but not to copy, C is read and do not copy, D is recommend and never quote at
+length, and E means no licence file at all, which is all rights reserved.
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{28mm}p{80mm}p{22mm}p{18mm}}
+\toprule
+Subject & Source & Licence & Checked \\
+\midrule
+Normative & RM0455, the reference manual for this part & C & By hand \\
+Normative & The STM32H7A3xI datasheet & C & By hand \\
+Normative & The MB1363 board user manual & C & By hand \\
+Normative & The Armv7-M architecture reference manual, and the Cortex-M7 technical reference manual & C & By hand \\
+Toolchain & Lyubka's bare-metal programming guide & A, MIT & Yes \\
+Toolchain & Oblaukhov's CMake package layer for this family & A, MIT & Yes \\
+Toolchain & Majerle's configurator and editor template & A, MIT & Yes \\
+Toolchain & The flashing and debugging tool whose manifest names this die & A & Yes \\
+Toolchain & Two register-level projects for this exact board & E, none stated & Yes \\
+Console & Memfault's article on printf for embedded systems & D & Yes \\
+Buffering & Majerle's lightweight ring buffer & A, MIT & Yes \\
+Buffering & Quantum Leaps' lock-free ring buffer with its test suite & A, MIT & Yes \\
+Buffering & The bounded queue paper that gives the exact barrier placement & C & Yes \\
+Transfers & Majerle's serial port and transfer-engine examples & A, MIT & Yes \\
+Framing & Majerle's lightweight packet library & A, MIT & Yes \\
+Framing & McQueen's byte stuffing library & A, MIT & Yes \\
+Framing & The application note on the checksum unit's reversal settings & C & By hand \\
+Timing & Ross's timer, converter and transfer progression on a Cortex-M7 board & A, MIT & Yes \\
+\bottomrule
+\end{tabular}
+\caption{The reference library, part one: normative documents, toolchain, buffering, framing and timing. Checked Sunday 20 September 2026.}
+\end{table}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{28mm}p{80mm}p{22mm}p{18mm}}
+\toprule
+Subject & Source & Licence & Checked \\
+\midrule
+Power & The vendor's three power examples for this exact board & C & By hand \\
+Power & The Python interface to the power instrument & B, GPL-2.0 & Yes \\
+Power & A published method for measuring with that instrument & D & Yes \\
+Codec & The smallest encoder, effectively public domain & A, CC0 & Yes \\
+Codec & A schema-driven generator used in production & A, Apache-2.0 & Yes \\
+Codec & A minimalist alternative & A, MIT & Yes \\
+Modem & Majerle's cellular library, which requires an operating system & A, MIT & Yes \\
+Test rig & The host unit test framework and its build tool & A & Yes \\
+Test rig & The header-only fake framework, with its documented limits & A, MIT & Yes \\
+Test rig & The published series on hardware-in-the-loop testing & D & Yes \\
+Watchdogs & The two-layer watchdog article, and Ganssle on why naive ones fail & D & Yes \\
+Sensors & The register-level driver collection for every sensor on both shields & A, BSD-3-Clause & Yes \\
+Sensors & The other operating system's shield definitions, clearer than the manual & A, Apache-2.0 & Yes \\
+Sensors & Ready-made in-sensor classifier and state-machine configurations & A, BSD-3-Clause & Yes \\
+Sensors & The in-sensor processor examples, with no licence at the root & E & Yes \\
+Sensors & The time-of-flight driver republished permissively & A, BSD-3-Clause & Yes \\
+\bottomrule
+\end{tabular}
+\caption{The reference library, part two: power, the codec, the modem, the test rig and the shields. Checked Sunday 20 September 2026.}
+\end{table}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{28mm}p{80mm}p{22mm}p{18mm}}
+\toprule
+Subject & Source & Licence & Checked \\
+\midrule
+Transforms & The signal-processing library and its Python wrapper & A, Apache-2.0 & Yes \\
+Transforms & The learning path that builds a pipeline against a reference & D & Yes \\
+Transforms & The neural kernels that reach this core through the instruction extension & A, Apache-2.0 & Yes \\
+Transforms & The small-model library for the statistical alternative & A, MIT & Yes \\
+Cache & The application notes on the cache, on the protection unit and on cache performance & C & By hand \\
+Cache & The vendor engineer's article putting the three fixes side by side & C & Yes \\
+Cache & The vendor's own write-up of the fourth failure & C & Yes \\
+Cache & The three-part written series on this core's cache & D & Yes \\
+Cache & The open report against the vendor's own examples & A & Yes \\
+Kernels & The kernel and its free official book & A, MIT & Yes \\
+Kernels & The other operating system's in-tree port for this exact board & A, Apache-2.0 & Yes \\
+Kernels & The tick-based measurement library & A, Apache-2.0 & Yes \\
+Kernels & The two-part study whose method transfers and whose numbers do not & D & Yes \\
+Kernels & The active-object framework and its video course & D, GPL and AGPL-3.0 & Yes \\
+Reach & The coprocessor firmware that exposes messaging commands directly & A, Apache-2.0 & Yes \\
+Reach & The transport-agnostic messaging client & A, MIT & Yes \\
+Reach & The framed remote-call generator and the small payload encoder & A & Yes \\
+Rust & The hardware crate, which routes this part through its twin & A, 0BSD & Yes \\
+Rust & The asynchronous framework, which names this exact package & A & Yes \\
+\bottomrule
+\end{tabular}
+\caption{The reference library, part three: inside the core, reach, and language support. Checked Sunday 20 September 2026. A row marked E has no licence file, which means all rights reserved: read it, do not vendor it.}
+\end{table}
+
+\section{The variant matrix}
+
+Each variant is built in full exactly once, in the chapter where it teaches
+most, and is referenced from everywhere else it applies. This table is the index
+to that rule. A cell reading \emph{built} means that chapter builds that axis in
+full; a number is a pointer to the chapter that does; a dash means the axis does
+not apply to that chapter. The chapter's own variants table gives the detail
+this one has no room for.
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{9mm}p{17mm}p{17mm}p{17mm}p{17mm}p{17mm}p{17mm}p{17mm}}
+\toprule
+No. & Execution & Sync & Time and safety & Peripheral & Operating system & Language & Reach \\
+\midrule
+1 & built & flag & SysTick & probe disk & bare metal & built & local \\
+2 & built & built & 3 & 3 & bare metal & 9 & local \\
+3 & built & built & 6 & 17 & bare metal & built & local \\
+4 & built & 2 & 6 & 17 & bare metal & 9 & local \\
+5 & 4 & 2 & 6 & built & bare metal & 9 & local \\
+6 & built & 2 & built & 17 & bare metal & 9 & local \\
+7 & 4 & 2 & built & 17 & bare metal & 9 & local \\
+8 & 3 & 2 & 6 & 17 & bare metal & 9 & local \\
+9 & 4 & 2 & 6 & 17 & bare metal & built & built \\
+10 & 4 & 2 & 7 & 17 & bare metal & 9 & 9 \\
+11 & 3 & 2 & 7 & 17 & bare metal & 9 & built \\
+12 & 4 & 20 & built & 17 & bare metal & built & 9 \\
+13 & 4 & 2 & 6 & built & 20 & 9 & 16 \\
+14 & 4 & 2 & 6 & 17 & bare metal & 9 & 16 \\
+15 & 4 & 2 & 6 & 17 & bare metal & 9 & 16 \\
+16 & 4 & 2 & 6 & 17 & bare metal & 9 & built \\
+17 & 3 & 2 & 6 & built & bare metal & built & local \\
+18 & 3 & 2 & 6 & 16 & bare metal & 17 & 16 \\
+19 & 4 & 2 & 6 & 17 & bare metal & 17 & local \\
+20 & built & built & 7 & 17 & built & 9 & 16 \\
+\bottomrule
+\end{tabular}
+\caption{The variant matrix. Read a column downward to follow one axis across the book; read a row across to see what one chapter touches. Chapter 20 carries more of this matrix than any other chapter, which is why it is last and why it is six evenings rather than four.}
+\end{table}
+
+What the \emph{built} cells mean, column by column. Execution: the polled loop
+and the flag are chapter 3, the ring buffer is chapters 2 and 3, transfers are
+chapter 4, double buffering is chapter 6, and the kernel task set is chapter 20.
+Synchronisation: the volatile flag is chapters 2 and 3, and every kernel object,
+from the semaphore to the stream buffer, is chapter 20. Time and safety: the
+tick and the general timer are chapter 6, the low-power timer, the real-time
+clock and tickless idle are chapter 7, and the two watchdogs are chapter 12.
+Peripheral substitution is chapter 17, with the checksum unit in chapter 5 and
+the shield bus topologies in chapter 13. Operating system: bare metal
+throughout, and both kernels in chapter 20. Language: the interpreter path is
+chapter 1, C++ and the host twin are chapter 9, Rust is chapter 17, and the
+second host language is chapter 12. Reach: the framed link to an edge host is
+chapters 9 and 11, and the three classifier placements are chapter 16.
+
+\section{Languages on this part}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{26mm}p{22mm}p{54mm}p{42mm}}
+\toprule
+Language & On this part & What is actually true & The board that does work \\
+\midrule
+C & Runs & The baseline of this book, verified on this exact device & This one \\
+C++ & Runs & Same toolchain. Exceptions cost roughly 10 to 30 kB of tables, which on 2 MB of flash is a choice rather than a necessity & This one \\
+Rust & Runs & The hardware crate routes this part through its twin's peripheral module and selects the right manual, and the asynchronous framework names this exact package and pin count & This one, although no worked example exists for it yet \\
+MicroPython & Runs & The board definition is in the main branch with its own linker script, and prebuilt firmware is published. Its declared feature list is empty, so do not promise networking or host mode without building it & This one \\
+Go & Sibling only & It compiles well, but the only board it offers in this family hardcodes a different member's memory size in its only linker script, and its own comments admit two memory domains are unmapped and therefore skipped by cache maintenance & The better-known member of this family, the H743 board, to be confirmed \\
+Ada & Sibling only & The free toolchain and driver library support the previous generation of this core, on two development boards, and not this one & The two discovery boards of the previous generation, to be confirmed \\
+C sharp & Sibling only & The small framework reaches this family only through a different member, so the family is supported and this part is not & The H743 board, to be confirmed \\
+JavaScript & Does not & There is no board in this family at all, and the nearest supported parts are not even the same core & None in this family \\
+Java & Does not & No free maintained virtual machine ports it here, and the one serious commercial option may not be used in a shipped product without terms this book will not assume & None that may be shipped \\
+\bottomrule
+\end{tabular}
+\caption{What runs on this part, what runs only on a sibling, and what does not run at all. The middle group is the dangerous one: a search finds a project that names this family, and the linker script inside it is written for a different member.}
+\end{table}
+
+Two remarks on the middle group. First, a project that supports the family is
+not the same as a project that supports this part, and the distinction is the
+same one the front matter is about. Second, where a language reaches only a
+sibling, the sibling named in the last column is the board to buy or borrow if
+that language is the requirement, and the gap is worth filling: writing the
+missing linker script and board definition for this part is a small, visible
+contribution in every one of those three projects.
+
+\section{Courses and learning paths}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{62mm}p{44mm}p{46mm}}
+\toprule
+Course or path & Licence & How to use it \\
+\midrule
+The free course that walks one problem from a superloop to an event-driven architecture across fifty-six lessons & Code AGPL-3.0 & The best free companion to chapter 20. Recommend it, watch it, and never quote its code \\
+The free course whose code is 0BSD and whose slides are CC BY 4.0 & 0BSD and CC BY 4.0 & The safest material in the pool to build an exercise on, although its examples are not on this board \\
+The best free course on the other operating system, from a different silicon vendor & Free to register & Its concepts transfer directly. Chapter 20's second half is easier after it \\
+The university specialisation that teaches the mathematics of real-time scheduling & Paid, audit available & Almost nothing else teaches this. Worth it before making a scheduling claim \\
+The free-to-audit course on embedded machine learning & Free to audit & Background for chapter 16 \\
+The free open textbook that grew out of a university course & Open & The closest thing to a canonical curriculum for the machine-learning chapters \\
+The learning path that builds a signal-processing pipeline in Python against a reference & Vendor learning material & The shortest route to fluency with the wrapper chapter 18 uses \\
+The most recommended paid course on this kernel and this silicon family & Paid & Thorough, and written against a different member of the family. Read it with the front-matter warning in mind \\
+The silicon vendor's own free training modules & Vendor terms & They cover this family well, and there is no course specific to this part \\
+\bottomrule
+\end{tabular}
+\caption{Courses, with their licences. Two of the best free courses in this list carry terms that forbid reproduction in a commercial work. They are recommended here and never quoted, and where this book needed what they teach it re-derived it.}
+\end{table}
+
+\section{Roadmaps}
+
+Three roadmaps matter for a reader who finishes this volume, and they point in
+different directions on purpose.
+
+\begin{itemize}
+\item \textbf{The community roadmap} separates firmware from embedded Linux from
+hardware and says which to weight. It is the map to read before choosing what to
+learn next, and its central claim, that projects teach what reading does not, is
+this book's own thesis. The accompanying essay on bridging the gap between
+reading and shipping is the shorter version of the same argument.
+\item \textbf{The machine-learning curriculum.} The free open textbook that grew
+out of a university course and its certificate is the closest thing to a
+canonical path for what chapters 16 and 18 open up. With this part sitting at
+the large end of the small-model envelope, memory is rarely the binding
+constraint; throughput and energy are, and that reframing is what the textbook
+supplies.
+\item \textbf{The standards a reader eventually meets.} The consumer device
+security baseline, the industrial component security series, the two evaluation
+schemes, and the coding standard that matters once safety enters. None of them
+is needed to build any chapter here. All of them appear in a job description
+sooner or later, and knowing which one governs which question is worth an
+afternoon.
+\end{itemize}
+
+Beyond the roadmaps there are the gaps this book would fill if its chapters were
+built and published. There is no rigorous comparison of the two numeric formats
+for transforms on this core; no peer-reviewed work measures all three placements
+of a classifier on one task on one set of hardware; nobody has measured six
+execution models against one problem on one board with a stated method; there is
+no published measurement of priority-inversion blocking on this core; nobody has
+implemented the active-object pattern twice and compared it honestly; no
+maintained permissive library offers a declarative region table with cache
+attributes; and no published method exists for the power instrument on this
+bench. Each of those falls inside a chapter that is already planned, which is
+the difference between a list of open questions and a list of excuses.
