@@ -6,8 +6,15 @@ and a drawer of cables. Nothing here needs to be bought.
 
 **312 pages, 101 figures, 20 chapters.** Each chapter stands on its own: it
 names its prior art and what it takes from it, configures its peripherals,
-states a memory and timing budget, and ends in a number. Build any one of them
-by itself:
+states a memory and timing budget, and ends in a number.
+
+**Read it.** The whole volume is in [`chapters/`](chapters/) as Markdown
+with its figures beside it. Start with
+[About this volume](chapters/00-about-this-volume.md), or take a chapter
+from the table below.
+
+**Or build it.** The PDF and a single self-contained HTML file come from
+the same source and stay local:
 
     python build.py --chapter 19
 
@@ -15,6 +22,7 @@ That writes `chapter-19-caches.pdf` and a matching self-contained `.html` with
 its five figures inlined.
 
 **Contents**
+[Read it](chapters/) ·
 [The trap](#the-trap-that-runs-through-this-book) ·
 [The twenty chapters](#the-twenty-chapters) ·
 [Building](#building) ·
@@ -60,26 +68,26 @@ sensor shields, and the inside of the Cortex-M7.
 
 | # | Chapter | Theme | Diff. | Effort |
 |---|---|---|---|---|
-| 1 | [The toolchain, first light, and printf over the ST-LINK](sections/c01.tex) | Cross toolchain, startup, linker script, flashing | 3/5 | 3 evenings |
-| 2 | [A single producer, single consumer ring buffer](sections/c02.tex) | Lock-free buffering, memory ordering on the M7 | 3/5 | 2 evenings |
-| 3 | [Receiving on interrupt without losing bytes](sections/c03.tex) | Interrupt-driven receive, overrun, two documented library failure modes | 3/5 | 3 evenings |
-| 4 | [Circular DMA and the idle line](sections/c04.tex) | Transfer-driven receive, variable length frames, the transfer counter | 4/5 | 3 evenings |
-| 5 | [Framing and the hardware CRC unit](sections/c05.tex) | Byte stuffing against a length prefix, CRC-16, the peripheral's reversal settings | 3/5 | 3 evenings |
-| 6 | [Sampling on a timer at exactly 1 kHz](sections/c06.tex) | Timer-triggered acquisition, proving the rate externally | 4/5 | 4 evenings |
-| 7 | [Stop mode, RTC wake, and a battery number](sections/c07.tex) | Low-power modes, clock restore after wake, charge per cycle | 5/5 | 4 evenings |
-| 8 | [The node's state machine: sense, feature, and a transmit that is a stub](sections/c08.tex) | Application state machine, bare metal | 3/5 | 3 evenings |
-| 9 | [The payload codec and its Python twin](sections/c09.tex) | Bit packing, CBOR, round-trip property tests | 3/5 | 3 evenings |
-| 10 | [Where the energy goes: wake, sense, compute, send](sections/c10.tex) | Marker pins, per-phase charge accounting | 4/5 | 3 evenings |
-| 11 | [An AT engine that never blocks](sections/c11.tex) | Asynchronous command queue, unsolicited results, timeouts, backoff | 4/5 | 4 evenings |
-| 12 | [Energy as a regression test, and the rig that runs it](sections/c12.tex) | Host unit tests, size gate, hardware in the loop, watchdogs | 4/5 | 4 evenings |
-| 13 | [The IKS4A1: FIFO, watermark, interrupt](sections/c13.tex) | Sensor FIFO, watermark interrupt, the three bus topologies | 4/5 | 4 evenings |
-| 14 | [The IKS5A1: low and high g at once, wide pressure](sections/c14.tex) | Simultaneous acceleration ranges, dual full-scale barometer | 4/5 | 4 evenings |
-| 15 | [Eight by eight time of flight, decided on the MCU](sections/c15.tex) | Sensor firmware upload, zone reduction, hysteresis | 4/5 | 4 evenings |
-| 16 | [Where the classifier runs: sensor, MCU or host](sections/c16.tex) | In-sensor engine against on-MCU model against host, measured | 5/5 | 6 evenings |
-| 17 | [The same driver twice: vendor layer against registers](sections/c17.tex) | Abstraction layers, code size and cycles, and the Rust variant | 4/5 | 5 evenings |
-| 18 | [Transforms and filters with a numerical acceptance test](sections/c18.tex) | CMSIS-DSP, float32 against Q15, cycles, memory placement | 4/5 | 4 evenings |
-| 19 | [Caches, the MPU, and why DMA reads stale bytes](sections/c19.tex) | D-cache maintenance, MPU regions, which engine reaches which memory | 5/5 | 4 evenings |
-| 20 | [Three jobs at once: the node as an RTOS application](sections/c20.tex) | Static allocation, synchronisation, measured latency distribution | 5/5 | 6 evenings |
+| 1 | [The toolchain, first light, and printf over the ST-LINK](chapters/01-the-toolchain.md) | Cross toolchain, startup, linker script, flashing | 3/5 | 3 evenings |
+| 2 | [A single producer, single consumer ring buffer](chapters/02-a-single-producer.md) | Lock-free buffering, memory ordering on the M7 | 3/5 | 2 evenings |
+| 3 | [Receiving on interrupt without losing bytes](chapters/03-receiving-on-interrupt-without-losing-bytes.md) | Interrupt-driven receive, overrun, two documented library failure modes | 3/5 | 3 evenings |
+| 4 | [Circular DMA and the idle line](chapters/04-circular-dma-and-the-idle-line.md) | Transfer-driven receive, variable length frames, the transfer counter | 4/5 | 3 evenings |
+| 5 | [Framing and the hardware CRC unit](chapters/05-framing-and-the-hardware-crc-unit.md) | Byte stuffing against a length prefix, CRC-16, the peripheral's reversal settings | 3/5 | 3 evenings |
+| 6 | [Sampling on a timer at exactly 1 kHz](chapters/06-sampling-on-a-timer-at-exactly-1-khz.md) | Timer-triggered acquisition, proving the rate externally | 4/5 | 4 evenings |
+| 7 | [Stop mode, RTC wake, and a battery number](chapters/07-stop-mode.md) | Low-power modes, clock restore after wake, charge per cycle | 5/5 | 4 evenings |
+| 8 | [The node's state machine: sense, feature, and a transmit that is a stub](chapters/08-the-nodes-state-machine.md) | Application state machine, bare metal | 3/5 | 3 evenings |
+| 9 | [The payload codec and its Python twin](chapters/09-the-payload-codec-and-its-python-twin.md) | Bit packing, CBOR, round-trip property tests | 3/5 | 3 evenings |
+| 10 | [Where the energy goes: wake, sense, compute, send](chapters/10-where-the-energy-goes.md) | Marker pins, per-phase charge accounting | 4/5 | 3 evenings |
+| 11 | [An AT engine that never blocks](chapters/11-an-at-engine-that-never-blocks.md) | Asynchronous command queue, unsolicited results, timeouts, backoff | 4/5 | 4 evenings |
+| 12 | [Energy as a regression test, and the rig that runs it](chapters/12-energy-as-a-regression-test.md) | Host unit tests, size gate, hardware in the loop, watchdogs | 4/5 | 4 evenings |
+| 13 | [The IKS4A1: FIFO, watermark, interrupt](chapters/13-the-iks4a1.md) | Sensor FIFO, watermark interrupt, the three bus topologies | 4/5 | 4 evenings |
+| 14 | [The IKS5A1: low and high g at once, wide pressure](chapters/14-the-iks5a1.md) | Simultaneous acceleration ranges, dual full-scale barometer | 4/5 | 4 evenings |
+| 15 | [Eight by eight time of flight, decided on the MCU](chapters/15-eight-by-eight-time-of-flight.md) | Sensor firmware upload, zone reduction, hysteresis | 4/5 | 4 evenings |
+| 16 | [Where the classifier runs: sensor, MCU or host](chapters/16-where-the-classifier-runs.md) | In-sensor engine against on-MCU model against host, measured | 5/5 | 6 evenings |
+| 17 | [The same driver twice: vendor layer against registers](chapters/17-the-same-driver-twice.md) | Abstraction layers, code size and cycles, and the Rust variant | 4/5 | 5 evenings |
+| 18 | [Transforms and filters with a numerical acceptance test](chapters/18-transforms-and-filters-with-a-numerical-acceptance-test.md) | CMSIS-DSP, float32 against Q15, cycles, memory placement | 4/5 | 4 evenings |
+| 19 | [Caches, the MPU, and why DMA reads stale bytes](chapters/19-caches.md) | D-cache maintenance, MPU regions, which engine reaches which memory | 5/5 | 4 evenings |
+| 20 | [Three jobs at once: the node as an RTOS application](chapters/20-three-jobs-at-once.md) | Static allocation, synchronisation, measured latency distribution | 5/5 | 6 evenings |
 
 Every chapter has the same sections: why it exists, the prior art and what to
 reuse, the parts it uses, a system architecture figure, the peripheral
@@ -94,11 +102,14 @@ its sources.
     python build.py --chapter 19     one chapter, PDF and self-contained HTML
     python build.py --chapters       all twenty, one file each
     python build.py                  the whole book, PDF and one HTML file
+    python mdbuild.py                the Markdown edition, chapters and figures
 
-Built output is not committed. The book and the individual chapters are
-artefacts of this source, they are regenerated in a couple of minutes, and
-keeping them out of the history keeps the repository small and every published
-file traceable to the commit it came from.
+Built output is not committed, with one deliberate exception. The PDF and the
+HTML are artefacts of this source, they are regenerated in a couple of minutes,
+and keeping them out of the history keeps the repository small and every
+published file traceable to the commit it came from. The figures are the
+exception: they are committed as SVG, because the Markdown edition cannot draw
+a single diagram in a browser without them.
 
 ## Checks
 
@@ -118,17 +129,21 @@ date is written in full. Both run on every push, see
 
 | Path | What it is |
 |---|---|
+| `chapters/NN-title.md` | the Markdown edition, one file per chapter, generated from `sections/` |
+| `figures/NAME.svg` | every figure rendered, committed so the Markdown draws in a browser |
 | `sections/cNN.tex` | one file per chapter, 01 to 20 |
 | `sections/front.tex` | about, the board, the trap, conventions |
 | `sections/appendix.tex` | the scored project catalogue, board reference, instruments, vocabulary, reference library, variant matrix, languages, courses, roadmaps |
 | `figures/cNN_{arch,wiring,uml,mem,timing}.tex` | five figures per chapter |
 | `main.tex` | preamble, authoring macros, four parts |
 | `tikz_preamble.tex` | shared TikZ and circuitikz styles, including the memory map, register field, clock tree, interrupt vector, cache and timing styles |
+| `mdbuild.py` | the Markdown converter, which reuses `build.py`'s parser |
 | `build.py` | figures to SVG, PDF, per-chapter builds, and the HTML converter |
 | `lint.py` | house-style check |
 | `crosscheck.py` | book-level consistency |
 | `AUTHORING.md` | the contract every chapter follows, and the confirm-before-writing list |
 | `SOURCE.md` | the prior-art pool, with what each source gives, what it does not, and its licence |
+| `CONTENTS.md` | the chapter table, generated, which the table above follows |
 | `build/` | scratch output, ignored, safe to delete |
 
 Chapter files use a `c` prefix so that a cross-reference or a copied figure can
