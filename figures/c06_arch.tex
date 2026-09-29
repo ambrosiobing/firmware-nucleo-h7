@@ -1,0 +1,53 @@
+% Two independent clocks, one marker signal between them.
+% Coordinates are explicit so that no edge crosses a block.
+\begin{tikzpicture}[font=\sffamily\small]
+% ---------------- the acquisition chain, no software in it
+\node[hw,  text width=30mm] (tim) at (0,0)     {TIM6\\{\scriptsize update, TRGO}};
+\node[hw,  text width=30mm] (adc) at (0,-1.35) {ADC1\\{\scriptsize hardware trigger}};
+\node[hw,  text width=30mm] (dma) at (0,-2.7)  {DMA1 stream\\{\scriptsize double buffer}};
+\node[fw,  text width=30mm] (buf) at (0,-4.2)  {half A / half B\\{\scriptsize 128 samples each}};
+\node[fw,  text width=30mm] (app) at (0,-5.55) {application\\{\scriptsize feature over one half}};
+\begin{scope}[on background layer]
+\node[layer, fit=(tim)(adc)(dma)(buf)(app), inner xsep=7pt, inner ysep=10pt,
+      label={[layerlabel, anchor=south west]north west:acquisition on the NUCLEO-H7A3ZI-Q}] {};
+\end{scope}
+
+% ---------------- the instruments this chapter builds, left column
+\node[fw, text width=28mm] (fc)   at (-5.1,0)     {gated counter\\{\scriptsize TIM5 and TIM7}};
+\node[fw, text width=28mm] (mark) at (-5.1,-2.7)  {marker GPIO\\{\scriptsize toggled in the ISR}};
+\node[fw, text width=28mm] (cyc)  at (-5.1,-5.55) {cycle counter\\{\scriptsize DWT or TIM2}};
+\begin{scope}[on background layer]
+\node[layer, fit=(fc)(mark)(cyc), inner xsep=7pt, inner ysep=10pt,
+      label={[layerlabel, anchor=south west]north west:instruments}] {};
+\end{scope}
+
+% ---------------- the witness, right column
+\node[ext, text width=30mm] (hat) at (5.3,-1.35) {MCC 118 DAQ HAT\\{\scriptsize 100 kS/s aggregate}};
+\node[ext, text width=30mm] (pi)  at (5.3,-2.7)  {Raspberry Pi 4\\{\scriptsize scan.py}};
+\node[ext, text width=30mm] (an)  at (5.3,-4.05) {rate.py\\{\scriptsize edges, fit, uncertainty}};
+\begin{scope}[on background layer]
+\node[layer, fit=(hat)(pi)(an), inner xsep=7pt, inner ysep=10pt,
+      label={[layerlabel, anchor=south west]north west:the witness}] {};
+\end{scope}
+
+% ---------------- edges inside the chain
+\draw[flow] (tim) -- node[lbl, right]{trigger} (adc);
+\draw[flow] (adc) -- node[lbl, right]{request} (dma);
+\draw[flow] (dma) -- node[lbl, right]{writes} (buf);
+\draw[flow] (buf) -- (app);
+\draw[flow] (hat) -- (pi);
+\draw[flow] (pi)  -- (an);
+
+% ---------------- instruments to the chain, each on a clear horizontal line
+\draw[flow] (fc.east)  -- node[lbl, above]{gate} (tim.west);
+\draw[irq]  (dma.west) -- node[lbl, above]{ISR} (mark.east);
+\draw[flow] (cyc.east) -- node[lbl, above]{cost} (app.west);
+
+% ---------------- the one wire between the two sides, routed under everything
+\draw[flow] (mark.west) -- (-7.4,-2.7) -- (-7.4,-7.3)
+   -- node[lbl, above]{3.3 V marker, 220 \textohm{} in series} (7.9,-7.3)
+   -- (7.9,-1.35) -- (hat.east);
+
+\node[umlnote, text width=74mm, anchor=north] at (0.6,-7.9)
+  {The two sides share no oscillator and neither triggers the other. That is what makes the comparison worth making: two synchronised clocks cannot check each other.};
+\end{tikzpicture}

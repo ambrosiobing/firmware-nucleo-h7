@@ -1,0 +1,60 @@
+% One millisecond as the timer, the converter, the marker and the witness see it.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+% ---- vertical guides at the three update instants
+\foreach \x in {0,36,72,108}{\draw[tick] (\x mm,-10mm) -- (\x mm,44mm);}
+
+% ---- TIM6 update
+\node[signame] at (-3mm,40mm) {TIM6 update};
+\draw[signal] (0mm,38mm) \foreach \x in {0,36,72,108}
+   { -- (\x mm - 1mm,38mm) -- (\x mm - 1mm,42mm) -- (\x mm + 1mm,42mm)
+     -- (\x mm + 1mm,38mm) } -- (114mm,38mm);
+
+% ---- ADC1 conversion, started by the trigger with no software in the path
+\node[signame] at (-3mm,29mm) {ADC1};
+\draw[signal] (0mm,29mm) -- (114mm,29mm);
+\busval{29}{0}{11}{convert}
+\busval{29}{36}{11}{convert}
+\busval{29}{72}{11}{convert}
+
+% ---- the transfer, one word per conversion, 128 per half
+\node[signame] at (-3mm,21mm) {DMA1 stream};
+\draw[signal] (0mm,19mm) \foreach \x in {0,36,72,108}
+   { -- (\x mm + 11mm,19mm) -- (\x mm + 11mm,23mm) -- (\x mm + 14mm,23mm)
+     -- (\x mm + 14mm,19mm) } -- (114mm,19mm);
+\node[font=\sffamily\tiny, anchor=west] at (16mm,25mm) {word 127 of half A};
+\node[font=\sffamily\tiny, anchor=west] at (52mm,25mm) {word 0 of half B};
+
+% ---- the marker pin, which is all the witness can see
+\node[signame] at (-3mm,11mm) {marker GPIO};
+\draw[signalb] (0mm,9mm) -- (0mm,13mm) -- (36mm,13mm)
+   -- (36mm,9mm) -- (72mm,9mm) -- (72mm,13mm) -- (108mm,13mm) -- (108mm,9mm)
+   -- (114mm,9mm);
+\draw[tspan] (0mm,5.5mm) -- node[tlabel]{1.000000 ms by construction} (36mm,5.5mm);
+
+% ---- the witness, sampling on its own clock at a rate that divides nothing
+\node[signame] at (-3mm,-2mm) {MCC 118};
+\draw[signal] (2mm,-2mm) -- (114mm,-2mm);
+\foreach \k in {0,...,34}{\node[sample] at ({(3+\k*3.2)*1mm},-2mm) {};}
+\node[font=\sffamily\tiny, anchor=north west] at (2mm,-4.5mm)
+  {sample instants at 100 kS/s, never aligned to the board};
+
+% ---- the interpolation, drawn large and well clear of everything above
+\begin{scope}[yshift=-40mm, xshift=4mm]
+\draw[draw=linecol, line width=0.4pt] (0mm,0mm) rectangle (72mm,24mm);
+\draw[signalb] (6mm,19mm) -- (28mm,19mm) -- (40mm,5mm) -- (66mm,5mm);
+\draw[hiz] (6mm,12mm) -- (66mm,12mm);
+\node[font=\sffamily\tiny, anchor=east] at (64mm,14mm) {threshold};
+\node[sample] at (31mm,15.2mm) {};
+\node[sample] at (37mm,8.2mm) {};
+\node[font=\sffamily\tiny, anchor=east] at (29.4mm,15.2mm) {$v_k$};
+\node[font=\sffamily\tiny, anchor=west] at (38.6mm,9.6mm) {$v_{k+1}$};
+\draw[draw=red!70!black, line width=0.5pt] (34mm,3mm) -- (34mm,24mm);
+\node[font=\sffamily\tiny, text=red!70!black, anchor=south] at (34mm,25.2mm)
+  {interpolated crossing};
+\draw[tspan] (31mm,2mm) -- (37mm,2mm);
+\node[font=\sffamily\tiny, anchor=west] at (38.5mm,2mm) {one sample interval};
+\end{scope}
+
+\node[umlnote, text width=42mm, anchor=north west] at (82mm,-13mm)
+  {The rate comes from a straight-line fit through several thousand of these crossings. The spread about that line is the jitter and is reported with it.};
+\end{tikzpicture}

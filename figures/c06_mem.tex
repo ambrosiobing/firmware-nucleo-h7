@@ -1,0 +1,33 @@
+% Where 1 kHz comes from: the divider chain is exact, the oscillator is not.
+\begin{tikzpicture}[font=\sffamily\small, node distance=6mm and 9mm]
+\node[osc, text width=22mm] (src) {SYSCLK\\{\tiny 280 MHz, chapter 1}};
+
+% ---- the timer branch
+\node[clkdiv, right=10mm of src] (ppre) {D2 PPRE1\\/2};
+\node[clkdiv, right=8mm of ppre] (x2) {timer\\$\times$2};
+\node[clkdiv, right=8mm of x2] (psc) {TIM6 PSC\\/280};
+\node[clkdiv, right=8mm of psc] (arr) {TIM6 ARR\\/1000};
+\node[clkdom, right=9mm of arr, text width=22mm] (trgo) {TRGO\\{\tiny 1000.000 Hz}};
+
+\draw[clkline] (src) -- (ppre);
+\draw[clkline] (ppre) -- node[clkfreq, above]{140 MHz} (x2);
+\draw[clkline] (x2) -- node[clkfreq, above]{280 MHz} (psc);
+\draw[clkline] (psc) -- node[clkfreq, above]{1 MHz} (arr);
+\draw[clkline] (arr) -- (trgo);
+
+% ---- the tick branch, below, from the same source
+\node[clkdiv, below=11mm of psc] (ld) {SysTick LOAD\\/280000};
+\node[clkdom, right=9mm of ld, text width=22mm] (tick) {tick exception\\{\tiny 1000.000 Hz}};
+\draw[clkline] (src.south) |- node[clkfreq, above, pos=0.75]{core clock, 280 MHz} (ld);
+\draw[clkline] (ld) -- (tick);
+
+% ---- the instrument branch, below that
+\node[clkdiv, below=9mm of ld] (i1) {TIM2 PSC\\/1};
+\node[clkdom, right=9mm of i1, text width=22mm] (cnt) {32-bit count\\{\tiny 3.571 ns per tick}};
+\draw[clkline] (src.south) |- (i1);
+\draw[clkline] (i1) -- (cnt);
+
+% ---- what is not exact, kept on the far left and clear of the chain
+\node[umlnote, text width=34mm, below=13mm of src, anchor=north west] at ($(src.south west)+(0,-13mm)$)
+  {Every division above is integer, so the rate is exact in terms of its source. The source is 8 MHz from the probe, and its tolerance is not in this volume. That number is what the witness reports.};
+\end{tikzpicture}

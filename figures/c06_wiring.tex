@@ -1,0 +1,41 @@
+% Two wires: the marker and a common ground. Nothing else is connected.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+% ---------------- the Nucleo, left
+\node[board, minimum width=42mm, minimum height=24mm] (nuc) at (0,0) {};
+\node[text=white, font=\sffamily\bfseries\small] at (0,0.72) {NUCLEO-H7A3ZI-Q};
+\node[pinrow, minimum width=34mm] at (0,1.05) {};
+\node[draw=black!70, fill=black!80, minimum width=9mm, minimum height=7mm] at (-0.2,0.05) {};
+\node[text=white, font=\tiny] at (-0.2,0.05) {H7A3};
+\node[draw=black!70, fill=gray!60, minimum width=3.5mm, minimum height=6mm] (usb) at (-2.25,0.4) {};
+\node[left=0.5mm of usb, font=\tiny, align=right] {ST-LINK\\micro USB};
+
+% the two pins used, on the lower edge, each labelled directly above itself
+\node[ledsym, fill=orange!80!black, minimum size=2.2mm] (mk) at (0.5,-0.85) {};
+\node[ledsym, fill=black!45, minimum size=2.2mm] (gn) at (1.5,-0.85) {};
+\node[font=\tiny, text=white] at (0.5,-0.52) {marker};
+\node[font=\tiny, text=white] at (1.5,-0.52) {GND};
+
+% ---------------- the HAT above the Pi, right
+\node[hat, minimum width=38mm, minimum height=14mm] at (7.4,0.95) {};
+\node[text=white, font=\sffamily\bfseries\small] at (7.6,1.42) {MCC 118 DAQ HAT};
+\node[board, minimum width=38mm, minimum height=15mm] at (7.4,-0.55) {};
+\node[text=white, font=\sffamily\bfseries\small] at (7.4,-0.9) {Raspberry Pi 4};
+\node[pinrow, minimum width=26mm] at (7.4,0.22) {};
+
+% screw terminals on the left edge of the HAT, labelled inside beside each
+\node[draw=black!70, fill=gray!75, minimum width=4mm, minimum height=3.5mm] (chin) at (5.9,0.95) {};
+\node[draw=black!70, fill=gray!75, minimum width=4mm, minimum height=3.5mm] (cgnd) at (5.9,0.45) {};
+\node[font=\tiny, text=white, anchor=west] at (6.15,0.95) {CH0};
+\node[font=\tiny, text=white, anchor=west] at (6.15,0.45) {AGND};
+
+% ---------------- the series resistor, on the signal wire
+\node[draw=linecol, fill=white, minimum width=7mm, minimum height=3mm] (r) at (3.4,-1.75) {};
+\node[above=0.6mm of r, font=\tiny] {220 \textohm{}};
+
+\draw[cable, draw=orange!70!black] (mk.south) -- (0.5,-1.75) -- (r.west);
+\draw[cable, draw=orange!70!black] (r.east) -- (4.9,-1.75) -- (4.9,0.95) -- (chin.west);
+\draw[cable, draw=black!55] (gn.south) -- (1.5,-2.45) -- (5.2,-2.45) -- (5.2,0.45) -- (cgnd.west);
+
+\node[umlnote, text width=56mm, anchor=north west] at (-2.7,-3.0)
+  {Ground first. The marker is an output on the board and an input on the HAT and stays that way: nothing from the Pi is driven back into a board pin. The HAT's input range is item 35 on the confirm list.};
+\end{tikzpicture}
