@@ -1,0 +1,37 @@
+% The main experiment wires nothing. The optional control path is the only
+% place a wire appears, and its 5 V lead stays disconnected.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[board, minimum width=46mm, minimum height=26mm] (nuc) at (0,0) {};
+\node[text=white, font=\sffamily\bfseries\small] at (0.2,0.85) {NUCLEO-H7A3ZI-Q};
+\node[pinrow, minimum width=38mm] at (0,1.2) {};
+\node[pinrow, minimum width=38mm] at (0,-1.2) {};
+\foreach \x in {-1.85,-1.65,...,1.85}{%
+  \fill[yellow!80!black] (\x,1.2) circle (0.35mm);
+  \fill[yellow!80!black] (\x,-1.2) circle (0.35mm);}
+\node[draw=black!70, fill=black!80, minimum width=9mm, minimum height=7mm] (soc) at (0.3,0.1) {};
+\node[text=white, font=\tiny] at (0.3,0.1) {H7A3};
+\node[draw=black!70, fill=gray!60, minimum width=4mm, minimum height=6mm] (usb) at (-2.45,0.5) {};
+\node[text=white, font=\tiny, anchor=west] at (-2.05,-0.6) {USART3 to the bridge};
+
+\node[ext, left=27mm of nuc, text width=26mm, minimum height=14mm] (pc)
+  {Host PC\\{\tiny loadgen.py, pyserial}\\{\tiny reads the counters}};
+\draw[usbcable] (usb.west) to[out=180,in=0] node[lbl, above]{one USB lead} (pc.east);
+
+% ---------------- the optional control path
+\node[ext, right=22mm of nuc, text width=24mm, minimum height=13mm] (ttl)
+  {USB to serial cable\\{\tiny optional control run}\\{\tiny on a second USART}};
+\draw[cable, draw=black!55] (1.9,-1.2) -- (2.9,-1.2) -- (2.9,-0.35) -- (ttl.west);
+\node[font=\tiny, anchor=north west] at (1.55,-1.35) {RX, TX, GND only};
+
+% the lead that is left off, marked as not connected
+\draw[cable, draw=red!75!black] (2.7,1.05) -- (3.25,1.05);
+\draw[draw=red!75!black, line width=0.8pt] (3.15,0.9) -- (3.45,1.2);
+\draw[draw=red!75!black, line width=0.8pt] (3.15,1.2) -- (3.45,0.9);
+\node[font=\tiny, anchor=west, text width=20mm, align=left] at (3.6,1.05)
+  {red 5 V lead\\left off};
+
+\node[umlnote, text width=56mm, below=13mm of nuc]
+  {The main measurement needs no wiring at all. The optional cable answers one
+   question and one only: when a rate fails, was it the target or the bridge?
+   Its signal lines are 3.3 V and the red lead is left off the header.};
+\end{tikzpicture}

@@ -1,0 +1,45 @@
+% Where a byte can be while it waits, and what each stage buys in time.
+\begin{tikzpicture}[font=\sffamily\small]
+\node[hw, text width=40mm] (pin) at (0,4.15)
+  {USART3 receive pin\\{\scriptsize pin number confirmed in the board manual}};
+\node[hw, text width=40mm] (shift) at (0,2.75)
+  {shift register\\{\scriptsize 1 byte, always in motion}};
+\node[hw, text width=40mm] (fifo) at (0,1.35)
+  {receive FIFO\\{\scriptsize depth read from RM0455 for this part}};
+\node[hw, text width=40mm] (rdr) at (0,-0.05)
+  {RDR\\{\scriptsize reading it clears the flag}};
+\node[kern, text width=40mm] (ring) at (0,-1.55)
+  {ring buffer\\{\scriptsize 256 bytes, tightly coupled memory}};
+\node[user, text width=40mm] (app) at (0,-2.95)
+  {main loop\\{\scriptsize consumes and counts}};
+
+\draw[flow] (pin) -- (shift);
+\draw[flow] (shift) -- (fifo);
+\draw[flow] (fifo) -- (rdr);
+\draw[flow] (rdr) -- node[lbl, right, xshift=1mm]{the handler} (ring);
+\draw[flow] (ring) -- (app);
+
+% ---- who moves the byte, on the left
+\node[anchor=east, align=right, font=\sffamily\scriptsize] at (-2.6,2.75)
+  {the line moves this one,\\and waits for nobody};
+\node[anchor=east, align=right, font=\sffamily\scriptsize] at (-2.6,1.35)
+  {the peripheral moves this one};
+\node[anchor=east, align=right, font=\sffamily\scriptsize] at (-2.6,-0.8)
+  {the handler moves this one,\\and this is the only stage\\whose timing you control};
+\node[anchor=east, align=right, font=\sffamily\scriptsize] at (-2.6,-2.95)
+  {the main loop moves this one};
+
+% ---- what each stage buys, on the right
+\node[anchor=west, align=left, font=\sffamily\scriptsize] at (2.6,2.75)
+  {1 byte time\\{\tiny 86.8 \textmu{}s at 115200, 10.9 \textmu{}s at 921600}};
+\node[anchor=west, align=left, font=\sffamily\scriptsize] at (2.6,1.35)
+  {depth times one byte time\\{\tiny the headroom for interrupt latency}};
+\node[anchor=west, align=left, font=\sffamily\scriptsize] at (2.6,-1.55)
+  {256 byte times\\{\tiny 22 ms at 115200, 2.8 ms at 921600}};
+
+\node[umlnote, text width=62mm, anchor=north west] at (-5.6,-3.9)
+  {Each stage is a time budget and not only a capacity. Overrun means the shift
+   register finished a byte before anything took the previous one, so the
+   headroom that matters is the FIFO depth in byte times and not the size of
+   the ring buffer behind it.};
+\end{tikzpicture}

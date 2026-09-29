@@ -1,0 +1,653 @@
+\project{03}{Receiving on interrupt without losing bytes}{NUCLEO-H7A3ZI-Q}{Interrupt-driven receive, overrun, and two documented library failure modes}
+
+\begin{keyfacts}
+\item[Board] NUCLEO-H7A3ZI-Q, and nothing else
+\item[Peripherals] USART3 receive with its interrupt, the NVIC, the cycle counter, one spare pin as a marker
+\item[Toolchain] arm-none-eabi-gcc with CMake on the target, Python with pyserial on the host
+\item[Operating system] Bare metal
+\item[Difficulty] 3 of 5
+\item[Effort] 3 evenings of about four hours
+\item[Deliverable] Three receive paths built in full and compared on one board: a polled loop, an interrupt with a flag, and an interrupt into chapter 2's ring buffer. Both documented library failure modes reproduced on purpose and then repaired. A host harness that raises the rate until loss begins, and a measured number for where that is
+\end{keyfacts}
+
+\subsection*{Why this project}
+
+This is the only chapter in the book with no clean reference implementation to
+start from. What exists instead is better: a well documented set of failure
+modes in the silicon vendor's own community, reported repeatedly over years,
+with the register-level explanation in the threads. Two of them matter here.
+The first is that the blocking-free receive call disables its own receive
+interrupt when the requested count completes, so every byte that arrives between
+the completion callback and the next call to re-arm it is lost, and the loss is
+silent. The second is that the overrun path returns the peripheral to its ready
+state without clearing the overrun flag, so the interrupt re-asserts
+immediately and the handler runs continuously, which presents as a board that
+has stopped rather than as an error.
+
+Reproducing a documented bug on purpose and then repairing it teaches more than
+starting from working code, because the repair is only convincing once you have
+seen the symptom. This chapter therefore has two halves. The first half builds
+three receive paths and the failure modes, all on one board with one switch
+between them. The second half measures: a host harness raises the line rate in
+steps and reports where bytes first go missing, and the counters on the target
+separate loss inside the target from loss in the bridge between the host and the
+board. Without that separation the measurement means nothing, because the most
+common finding, that a link fails above some rate, is usually a statement about
+the bridge.
+
+The chapter also owns four entries in the book's variant matrix. The polled loop
+and the interrupt with a flag are built in full here and referenced from
+everywhere else. The interrupt into a ring buffer is shared with chapter 2,
+which built the structure; this chapter supplies the producer. And the host side
+in Python is built in full here, so later chapters that need a host script have
+a pattern to follow rather than a new invention each time.
+
+\begin{note}{Two failure modes are reproduced here and they are documented not invented}
+Both come from the vendor's own community and both are register-level
+consequences of how the library's receive path is written, not of the silicon.
+Neither is reproduced from library source in this book. The call pattern that
+triggers each one is shown, the symptom is described, and the repair is written
+at register level so that it can be read and checked. Never present generated
+or vendor-supplied code as reviewed source; name the behaviour, then show the
+code you wrote.
+\end{note}
+
+\subsection*{Prior art and what to reuse}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{34mm}p{46mm}p{38mm}p{20mm}}
+\toprule
+Source & What it gives & What it does not & Licence \\
+\midrule
+controllerstech's interrupt ring buffer for this vendor & The most widely read worked example of exactly this problem, and a clear statement of the shape of the solution & It has \textbf{no licence file}, so default copyright applies and it cannot be vendored or adapted. It is also written for an older family whose flag clearing procedure differs from this one & None stated \\
+The vendor's community threads on the two failure modes & The reproduction conditions, the register-level cause, and the confirmation that these are known rather than local & No fix you can depend on. Thread code is unreviewed and often written for a different family & Forum posts \\
+The vendor's basic example tree for this board & A working receive example at both the library and the register level, permissively licensed, which is the precedent for this book's variants format & Its receive is a fixed count, which is the shape that loses bytes between calls. It is a starting point and not an answer & BSD-3-Clause \\
+pyserial & The host side: a portable serial port with settable rate, timeouts and buffer control & No measurement method. The rate ramp, the counter reconciliation and the separation of target loss from bridge loss are the author's & BSD-3-Clause \\
+Chapter 2 of this book & The ring buffer, its ordering argument and its drop counter & Nothing about the peripheral, the flags or the NVIC & This volume \\
+\bottomrule
+\end{tabular}
+\caption{Prior art for chapter 3. The most useful repository in this row has no licence file, which means all rights reserved. It is read as a worked example and re-derived, and that is stated here rather than discovered later.}
+\end{table}
+
+What is left to write is the handler, the flag handling, the switch between the
+three paths, and the whole of the measurement. The handler is fifteen lines. The
+measurement is the chapter.
+
+\subsection*{Parts from the inventory}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{40mm}p{66mm}p{40mm}}
+\toprule
+Part & Role & Interface \\
+\midrule
+NUCLEO-H7A3ZI-Q & The receiver under test, and its own counters & Micro USB to the host \\
+A USB data cable & Power, programming and the console under test & Micro USB \\
+Host PC & Runs the load harness and reads the counters & Python with pyserial \\
+Renkforce USB/TTL cable, optional & A second serial path when the question is whether the on-board bridge is the limit. \textbf{Disconnect the red 5 V lead} & 3.3 V logic only \\
+\bottomrule
+\end{tabular}
+\caption{Inventory items used in chapter 3. The USB to serial cable is optional and is the control experiment: if a rate fails on the on-board bridge and passes on the cable, the bridge was the limit.}
+\end{table}
+
+\subsection*{System architecture}
+
+\diagram{c03_arch}{The three receive paths share everything except the block in the middle. One build switch selects which one is compiled, so the comparison is between three programs that differ in one place.}
+
+The switch matters more than it looks. A comparison between three
+implementations that also differ in their initialisation, their console output
+and their counters is not a comparison. Everything outside the marked block is
+identical across the three builds, including the status line format, so the
+harness on the host does not know or care which path is running.
+
+\subsection*{Peripheral configuration}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{22mm}p{26mm}p{24mm}p{30mm}p{30mm}}
+\toprule
+Peripheral & Mode & Clock source & Pins and function & Interrupt and transfers \\
+\midrule
+USART3 & Asynchronous receive, 8N1, rate set by the harness & Peripheral bus & Confirm in the board manual before printing them & Receive interrupt enabled once and never disabled \\
+USART3 receive FIFO & Present on this generation; depth and threshold encoding checked in RM0455 & Peripheral bus & None & Drained in a loop inside the handler \\
+NVIC & Priority grouping set once at startup & Not applicable & None & USART3 at a middle priority, chosen in the last step \\
+DWT cycle counter & Free running & Core clock & None & Measures the handler, entry to exit \\
+GPIO, one Zio pin & Push-pull output & Peripheral bus & Chosen from the pins a shield leaves free & Raised on handler entry, lowered on exit \\
+\bottomrule
+\end{tabular}
+\caption{Peripheral configuration. The FIFO row is written as a check rather than as a fact: this family added a receive FIFO to the USART and the threshold encoding is not inherited from an older part. Confirm it in RM0455 for this device, not in a document for the H743.}
+\end{table}
+
+\subsection*{Wiring}
+
+\diagram{c03_wiring}{Nothing is wired for the main experiment. The optional second path, drawn faintly, is the control: a separate USB to serial cable on a second USART, used only to answer the question of whether the on-board bridge is the limit. Its red 5 V lead is disconnected.}
+
+\begin{note}{Three point three volt logic only}
+If the optional cable is used, its signal lines are 3.3 V and its red lead
+carries 5 V. Disconnect the red lead before the cable is anywhere near the
+header. Nothing in this chapter needs 5 V, the board supplies its own power over
+the debug connection, and a 5 V line into a general purpose pin damages the
+part in a way no software repairs.
+\end{note}
+
+\subsection*{Memory and timing budget}
+
+\diagram{c03_mem}{Where a byte can be while it waits, and how long each place buys you. The shift register holds one byte, the peripheral FIFO holds a few, and the ring buffer holds the rest. Each stage is a time budget, not just a capacity.}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{44mm}p{28mm}p{28mm}p{30mm}}
+\toprule
+Quantity & Budget & Measured & Margin \\
+\midrule
+Byte time at 115200 8N1 & 86.8 \textmu{}s & computed, not measured & not applicable \\
+Byte time at 921600 8N1 & 10.9 \textmu{}s & computed, not measured & not applicable \\
+Core cycles per byte at 921600 & 3038 & computed at 280 MHz & not applicable \\
+Handler duration, entry to exit & 200 cycles & not measured & not measured \\
+Worst case interrupt latency & 1000 cycles & not measured & not measured \\
+Highest rate with zero loss & 921600 & not measured & not measured \\
+Overruns in a ten minute run & 0 & not measured & not measured \\
+\bottomrule
+\end{tabular}
+\caption{The budget table. The first three rows are arithmetic and are marked as such; the rest wait for the cycle counter and the harness. The headroom is the story: at the highest rate on the list the handler has about three thousand cycles per byte, so the handler's own length is not the limit and the latency under a longer interrupt is.}
+\end{table}
+
+\subsection*{Firmware design (UML)}
+
+\diagram{c03_uml}{The receive path as a state machine, with the two documented failure modes drawn as the transitions that should not exist. The repaired path never leaves the enabled state and never returns to ready with a flag still set.}
+
+The state machine is worth drawing because the repair is a statement about
+states rather than about lines of code. The library's receive call is a
+transaction: it moves to a receiving state, counts down a requested number of
+bytes, and on reaching zero moves back to ready and disables the interrupt that
+was feeding it. Everything about that is reasonable for a protocol where you
+know the length in advance. For a console, a command line or any stream whose
+length is not known, it is the wrong shape, and the bytes that arrive during the
+ready state are not delayed, they are gone.
+
+The repaired path has one state. The receive interrupt is enabled at
+initialisation and is never disabled. There is no count, no completion and no
+re-arming, so there is no window. The handler drains whatever the peripheral
+holds into the ring buffer and returns. The overrun condition is not an error
+that ends a transaction; it is a counter that goes up.
+
+\subsection*{Data flow (ASCII)}
+
+\begin{asciiart}
+  host                          bridge                target
+  +--------------------+       +---------+      +-----------------------------+
+  | loadgen.py         |       | ST-LINK |      | USART3 shift register       |
+  |  9600 -> 921600    | ----> | V3E     | ---> |   |                         |
+  |  known pattern     |  USB  | virtual |      |   v                         |
+  |  counts bytes sent |       | COM     |      | receive FIFO, drained in a  |
+  +--------------------+       +---------+      | loop inside the handler     |
+           ^                                    |   |                         |
+           |                                    |   v                         |
+           |   status line once a second        | ring_put -> ring buffer     |
+           +------------------------------------+   |                         |
+                                                |   v                         |
+   sent == accepted + drops + overruns ?        | main loop consumes, counts  |
+   no  -> the bytes never reached the target    +-----------------------------+
+   yes -> the target is where they were lost
+\end{asciiart}
+
+\subsection*{Repository layout}
+
+\begin{plaincode}
+nucleo-h7a3-rx/
+  CMakeLists.txt                 # -DRX_PATH=polled|flag|ring selects one
+  cmake/arm-none-eabi.cmake      # reused unchanged from chapter 1
+  src/ring.c, src/ring.h         # reused unchanged from chapter 2
+  src/usart3_ll.c                # register level: init, flags, ICR, NVIC
+  src/rx_polled.c                # variant 1, built in full
+  src/rx_flag.c                  # variant 2, built in full
+  src/rx_ring.c                  # variant 3, the one that keeps the bytes
+  src/faults.c                   # the two documented failure modes, on purpose
+  src/stats.c                    # one status line format for all three
+  src/main.c
+  host/loadgen.py                # the rate ramp, pyserial
+  host/report.py                 # turns a run into the results table
+  docs/results.md                # the measured table, with the date of each run
+  README.md
+\end{plaincode}
+
+\subsection*{Steps}
+
+\begin{steps}
+\item \textbf{Build the polled loop first and make it lose bytes.} This is the
+first of the two variants this chapter owns, and it is worth building properly
+rather than as a straw figure, because it is genuinely the right answer when the
+loop has nothing else to do.
+\begin{ccode}
+/* rx_polled.c: correct as long as the loop returns here in under one byte
+ * time. At 115200 that is 86.8 us. At 921600 it is 10.9 us. */
+void rx_poll_step(void)
+{
+    if (USART3->ISR & USART_RXNE_FLAG) {      /* see the note on the name */
+        uint8_t b = (uint8_t) USART3->RDR;    /* the read clears the flag */
+        stats.accepted++;
+        consume(b);
+    }
+    if (USART3->ISR & USART_ISR_ORE) {
+        USART3->ICR = USART_ICR_ORECF;        /* clear it or it re-asserts */
+        stats.overruns++;
+    }
+}
+\end{ccode}
+Now add the line that is present in every real program and absent from every
+tutorial: some other work in the loop. A single blocking print at 115200 takes
+longer than a byte time at any rate above about 9600, and the polled loop starts
+losing bytes at exactly that point. Measure it rather than asserting it.
+\begin{ccode}
+while (1) {
+    rx_poll_step();
+    housekeeping();        /* 2 ms: a print, a sensor read, anything real */
+}
+\end{ccode}
+
+\item \textbf{Confirm the flag name before you rely on it.} This family added a
+receive FIFO to the USART, and the device header renamed the receive-not-empty
+flag when it did. Both the older name and the newer combined name appear in
+published code for parts in this family, and the wrong one is a compile error
+rather than a silent fault, which is the one piece of luck in this chapter.
+Define it once and check it against the device header and RM0455.
+\begin{ccode}
+/* One place for the name, because it differs across this family's headers. */
+#if defined(USART_ISR_RXNE_RXFNE)
+#define USART_RXNE_FLAG USART_ISR_RXNE_RXFNE   /* parts with the receive FIFO */
+#else
+#define USART_RXNE_FLAG USART_ISR_RXNE
+#endif
+\end{ccode}
+
+\item \textbf{Build the interrupt with a flag, the second variant this chapter
+owns.} It is the smallest step away from polling and it is where most projects
+stop. It is also the version that loses data at any rate, silently, and the
+point of building it is to see that.
+\begin{ccode}
+/* rx_flag.c. One byte of storage and one flag. */
+static volatile uint8_t rx_byte;
+static volatile uint8_t rx_ready;
+
+void USART3_IRQHandler(void)                  /* the flag variant */
+{
+    if (USART3->ISR & USART_RXNE_FLAG) {
+        rx_byte  = (uint8_t) USART3->RDR;
+        rx_ready = 1;                         /* the previous byte is gone */
+    }
+}
+\end{ccode}
+There is no counter that can be added here without changing the design, and
+that is the lesson. The handler cannot tell whether the byte it is overwriting
+had been read, because a flag carries one bit of state and the question needs
+two. A version that counts the loss is a version that has a queue of length two,
+which is a ring buffer with the capacity written badly.
+
+\item \textbf{Build the interrupt into the ring buffer.} Chapter 2 built the
+structure and argued its ordering. This is its producer, and it is the shortest
+of the three.
+\begin{ccode}
+/* rx_ring.c. The receive interrupt is enabled once, at init, and never
+ * disabled. There is no transaction, no count and no re-arming, so there
+ * is no window in which bytes arrive with the interrupt switched off. */
+void USART3_IRQHandler(void)
+{
+    uint32_t isr = USART3->ISR;
+
+    if (isr & USART_ISR_ORE) {                /* check before draining */
+        USART3->ICR = USART_ICR_ORECF;        /* write one, clear it     */
+        stats.overruns++;
+    }
+    while (USART3->ISR & USART_RXNE_FLAG) {   /* drain the whole FIFO    */
+        if (!ring_put(&rx, (uint8_t) USART3->RDR))
+            break;                            /* full: counted in ring   */
+    }
+}
+\end{ccode}
+Three details carry the repair. The interrupt is enabled once and never
+disabled. The flag is drained in a loop rather than once, because a FIFO may
+hold several bytes by the time the handler runs. And the overrun is cleared
+through the clear register, which is how this generation of the peripheral
+works: on older parts the flag was cleared as a side effect of reading the
+status register and then the data register, and code copied from those parts
+leaves the flag set here.
+
+\item \textbf{Reproduce the first documented failure mode on purpose.} The
+receive call that takes a count disables the receive interrupt when the count
+reaches zero and calls a completion callback. The usual pattern is to re-arm it
+inside that callback. Between the disable and the re-arm there is a window, and
+at any rate where a byte can arrive inside that window, it is lost with no
+indication.
+\begin{ccode}
+/* faults.c, mode 1. The call pattern is shown; the library's internals are
+ * described in prose above and are not reproduced here. */
+void on_receive_complete(void)        /* runs from the library's handler */
+{
+    stats.accepted++;
+    consume(one_byte);
+    start_receive(&one_byte, 1);      /* re-arm: the window is above this */
+}
+\end{ccode}
+Run the harness at a low rate and then raise it. The loss is not gradual in the
+way a buffer overflow is; it appears as a steady fraction of bytes missing that
+grows with the rate, because the window is a fixed length of time and the byte
+time is shrinking. Record the fraction at three rates, because that shape is the
+signature that distinguishes this failure mode from a full buffer.
+
+\item \textbf{Reproduce the second documented failure mode.} Send a burst faster
+than the handler is allowed to run, so the overrun flag sets, and then take the
+error path that returns the peripheral to a ready state without writing the
+clear register. The flag stays set, the interrupt condition stays asserted, and
+the handler is entered again immediately on return. The board stops making
+progress in the main loop and the console goes quiet.
+\begin{ccode}
+/* faults.c, mode 2. Removing one line is the whole reproduction. */
+void USART3_IRQHandler(void)
+{
+    uint32_t isr = USART3->ISR;
+    if (isr & USART_ISR_ORE) {
+        /* USART3->ICR = USART_ICR_ORECF;   <- the line that is missing */
+        state = STATE_READY;                 /* back to ready, flag still set */
+        return;
+    }
+    while (USART3->ISR & USART_RXNE_FLAG)
+        ring_put(&rx, (uint8_t) USART3->RDR);
+}
+\end{ccode}
+Confirm it is the condition you think it is rather than a fault elsewhere: halt
+the target and read the status register. The overrun bit is set, and the
+interrupt is pending in the NVIC, and the main loop's counter has stopped
+advancing. That is three independent observations of the same cause, which is
+the standard to hold yourself to before writing a repair.
+\begin{shellcode}
+(gdb) print/x USART3->ISR
+(gdb) print/x NVIC->ISPR[1]
+(gdb) print loop_counter
+\end{shellcode}
+
+\item \textbf{Write the host harness.} This is the Python variant, built in full
+here and referenced from every later chapter that needs a host script. It walks
+the rate upwards, sends a known pattern for a fixed time at each rate, and reads
+the target's own counters afterwards.
+\begin{pycode}
+#!/usr/bin/env python3
+"""loadgen.py: raise the line rate until bytes go missing, and say where."""
+import argparse, sys, time
+import serial
+
+RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600]
+PATTERN = bytes(range(256))          # one lap of every byte value
+
+def status(port, timeout=2.0):
+    """Ask the target for its counters. One line: ok=N drops=N ovr=N."""
+    port.reset_input_buffer()
+    port.write(b"?\n")
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        line = port.readline().decode("ascii", "replace").strip()
+        if line.startswith("ok="):
+            return dict(kv.split("=") for kv in line.split())
+    return None
+
+def run_one(dev, baud, seconds):
+    with serial.Serial(dev, baud, timeout=0.5, write_timeout=5.0) as p:
+        time.sleep(0.2)                       # let the bridge settle
+        before = status(p)
+        sent, end = 0, time.time() + seconds
+        while time.time() < end:
+            p.write(PATTERN)
+            sent += len(PATTERN)
+        p.flush()
+        time.sleep(0.3)                       # drain the bridge
+        after = status(p)
+    got  = int(after["ok"])   - int(before["ok"])
+    drop = int(after["drops"])- int(before["drops"])
+    ovr  = int(after["ovr"])  - int(before["ovr"])
+    return sent, got, drop, ovr
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("device")
+    ap.add_argument("--seconds", type=float, default=5.0)
+    a = ap.parse_args()
+    print(f"{'baud':>8} {'sent':>9} {'accepted':>9} {'drops':>7} "
+          f"{'overruns':>9} {'lost':>7} verdict")
+    for baud in RATES:
+        sent, got, drop, ovr = run_one(a.device, baud, a.seconds)
+        lost = sent - got - drop
+        if lost == 0 and ovr == 0:
+            verdict = "clean"
+        elif ovr > 0:
+            verdict = "target overran"
+        else:
+            verdict = "never arrived: suspect the bridge"
+        print(f"{baud:>8} {sent:>9} {got:>9} {drop:>7} {ovr:>9} "
+              f"{lost:>7} {verdict}")
+
+if __name__ == "__main__":
+    sys.exit(main())
+\end{pycode}
+The three-way verdict is the part worth keeping. A run where bytes are missing
+and the target reports no overrun and no drop did not lose them in the target at
+all, and reporting that as a target limit would be wrong.
+
+\item \textbf{Separate the target from the bridge.} If any rate produces the
+third verdict, repeat that rate on the optional USB to serial cable, on a second
+USART, with the red lead disconnected. If the same rate is clean there, the
+on-board bridge was the limit. Write both numbers in the results file with the
+full date of each run, because the bridge's behaviour is a property of the host,
+its driver and its operating system as much as of the board, and a number
+without a date and a host is not a result.
+
+\item \textbf{Set the interrupt priority deliberately and measure the
+handler.} Set the priority grouping once at startup and give the receive
+interrupt a middle priority, so that a faster interrupt added later can preempt
+it and a slower one cannot delay it. Then measure the handler with the cycle
+counter and the marker pin together: the counter gives the duration, and the pin
+gives the power instrument something to align against in chapter 10.
+\begin{ccode}
+NVIC_SetPriorityGrouping(3);                 /* fix the split once, at boot */
+NVIC_SetPriority(USART3_IRQn, 6);            /* middle: room either side    */
+NVIC_EnableIRQ(USART3_IRQn);
+
+void USART3_IRQHandler(void)                 /* instrumented build only     */
+{
+    MARKER_GPIO->BSRR = MARKER_PIN;          /* pin high on entry           */
+    uint32_t t0 = DWT->CYCCNT;
+    rx_drain();
+    stats.handler_cycles = DWT->CYCCNT - t0;
+    MARKER_GPIO->BSRR = MARKER_PIN << 16;    /* pin low on exit             */
+}
+\end{ccode}
+Compare the measured duration against the byte time in the budget table. If the
+handler is two hundred cycles and a byte at the highest rate is three thousand,
+the handler is not the constraint, and the thing to look at next is the longest
+interrupt in the system that can delay it.
+
+\item \textbf{Publish the results table.} Three paths, eight rates, one table,
+with the date of the run and the host named. This is the deliverable, and it is
+the thing that does not exist anywhere else for this board.
+\begin{shellcode}
+python host/loadgen.py /dev/ttyACM0 --seconds 5 | tee docs/results_ring.md
+\end{shellcode}
+\end{steps}
+
+\subsection*{Build, flash and debug}
+
+\diagram{c03_timing}{The vector table and the priority axis. Only the entries this chapter uses are drawn. The preemption arrow shows a higher priority interrupt interrupting the receive handler, and the tail chain shows the case that costs less than a full exit and entry.}
+
+One switch selects the path, so a full comparison is three builds and three
+runs.
+
+\begin{shellcode}
+for p in polled flag ring; do
+  cmake -B build/$p -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -DRX_PATH=$p
+  cmake --build build/$p -j
+done
+probe-rs run --chip STM32H7A3ZITx build/ring/firmware.elf
+\end{shellcode}
+
+\begin{note}{When the board goes quiet and the debugger still connects}
+That is the signature of the second failure mode: the processor is alive and is
+spending all of its time entering one handler. Halt and read the peripheral's
+status register and the NVIC pending register. If a flag is set that nothing
+clears, you have found it. If instead the debugger cannot connect at all, that
+is a different fault: hold the reset, connect under reset, and erase. Nothing in
+this chapter writes option bytes, and nothing does until the question on the
+confirm list about unrecoverable option-byte writes is settled.
+\end{note}
+
+\subsection*{Verification and acceptance criteria}
+
+\begin{itemize}
+\item The three paths produce the same status line format, so the host harness
+does not know which is running. Verified by running the harness against all
+three without editing it.
+\item At the highest rate that is clean, bytes sent equals bytes accepted plus
+drops plus overruns, exactly, over a ten minute run.
+\item The polled loop's loss threshold is measured with the housekeeping work
+present and again with it removed, and the two numbers differ, which is the
+demonstration that the loop's other work is the variable.
+\item Both documented failure modes are reproduced deliberately, each behind a
+build switch, each with the symptom recorded: a growing fraction of missing
+bytes for the first, and a stalled main loop with a set flag for the second.
+\item The repaired path runs for ten minutes at the highest clean rate with zero
+overruns and zero drops.
+\item The handler duration is a measured number from the cycle counter, and it
+is compared in the results file against the byte time at each rate.
+\item Every row of the results file carries the full date of the run and the
+name of the host machine.
+\end{itemize}
+
+\subsection*{Variants}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{24mm}p{26mm}p{44mm}p{22mm}p{20mm}}
+\toprule
+Axis & Variant & What changes & Cost & Built in full in \\
+\midrule
+Execution model & Polled loop & The loop reads the flag itself. Correct while the loop returns within one byte time, and the measurement here says where that stops being true & Nothing else can run & Here \\
+Execution model & Interrupt with a flag & One byte and one flag. The smallest step from polling, and it loses data at any real rate with no way to count the loss & Silent data loss & Here \\
+Execution model & Interrupt into a ring buffer & The handler is the producer of chapter 2's structure. The interrupt is enabled once and never disabled & A structure to reason about & Here and chapter 2 \\
+Execution model & DMA, circular, idle line & The handler disappears and a transfer engine writes the buffer. Variable length frames come from the idle line rather than from a count & Cache maintenance appears & Chapter 4 \\
+Execution model & RTOS task & The handler gives a notification and a task drains the buffer, which moves the work out of interrupt context & A scheduler & Chapter 20 \\
+Synchronisation & A volatile flag & Built here as the second variant, and shown to be sufficient for exactly one byte & Correct only at one byte & Here \\
+Language & Host in Python & The harness, pyserial, the rate ramp and the three-way verdict. Every later host script follows this pattern & None & Here \\
+Language & Host in Node.js or Java & The same harness on a different runtime, which is worth doing once to prove the target does not care & A second runtime & Chapter 12 \\
+Peripheral substitution & A different USART & The same three paths on another instance, which changes the pins and nothing else & A second set of pins & Chapter 17 \\
+\bottomrule
+\end{tabular}
+\caption{Variants for chapter 3. Four entries in the book's matrix are built in full here, which is why this chapter is longer in code than its neighbours.}
+\end{table}
+
+\subsection*{Pitfalls}
+
+\begin{itemize}
+\item Re-arming a counted receive call inside its own completion callback. The
+window between the disable and the re-arm is where the bytes are lost, and
+nothing reports it.
+\item Returning from an error path without clearing the flag that caused it. On
+this generation the overrun flag is cleared through the clear register, not by
+reading the status and data registers as on older parts.
+\item Reading the flag once per handler entry instead of draining in a loop.
+With a receive FIFO the peripheral may hold several bytes, and a handler that
+takes one leaves the rest to become an overrun.
+\item Copying the flag and clearing procedure from a tutorial written for an
+older family. The registers have the same names and different semantics, which
+is worse than having different names.
+\item Concluding that a rate is the target's limit when the target's own
+counters say the bytes never arrived. Measure both ends before naming a cause.
+\item Printing from inside the handler while debugging the handler. A blocking
+print is longer than several byte times and creates the overrun you are looking
+for.
+\item Leaving the instrumented build's marker pin code in the shipping build.
+It is two instructions, but it is two instructions you did not intend to ship.
+\end{itemize}
+
+\subsection*{Best practices applied}
+
+\begin{itemize}
+\item The receive interrupt is enabled once and never disabled, so there is no
+window in which bytes arrive with the peripheral quiet.
+\item Every loss has a counter: drops in the buffer, overruns in the peripheral,
+and the difference between bytes sent and bytes accounted for on the host.
+\item The three paths differ in exactly one file, so the comparison is a
+comparison.
+\item A failure mode is reproduced before it is repaired, and the reproduction
+stays in the repository behind a build switch so the next reader can see it.
+\item A claim about the register names is written as a check against the
+reference manual for this part, not as a fact inherited from a sibling.
+\item Every published number carries its instrument, its full date and its host.
+\end{itemize}
+
+\subsection*{Stretch goals}
+
+\begin{itemize}
+\item Add the receive timeout, which fires after a chosen number of idle bit
+times and gives a natural frame boundary without the line-idle interrupt that
+chapter 4 uses. Compare the two on the same traffic.
+\item Drive the harness from the Raspberry Pi rather than the Windows host and
+see whether the bridge result moves. If it does, the earlier number was about
+the host and the results file should say so.
+\item Add a deliberate long interrupt at a higher priority and find the duration
+at which the receive path begins to overrun. That number is the real headroom
+and nobody publishes it for this part.
+\item Run the same three paths at the register level and through the vendor
+library and compare code size and handler duration, which is the measurement
+chapter 17 generalises.
+\end{itemize}
+
+\subsection*{Roadmap and next steps}
+
+Chapter 4 removes the handler entirely: a transfer engine writes into the buffer
+and the write position comes from the transfer counter rather than from code,
+and the line-idle condition gives frame boundaries for variable length data.
+Chapter 5 puts a frame format and a checksum on top of this byte stream.
+Chapter 12 turns the harness written here into a rig that runs on every commit.
+
+For the material behind the two failure modes, the vendor's community threads
+are the primary source and are cited individually in the repository rather than
+in this book, because thread addresses move. The community roadmap referenced in
+appendix H places interrupt handling and the vendor library's shape squarely in
+the firmware track, and the free course that walks one problem from a polled
+loop to an event-driven architecture covers this same progression across its
+early lessons; its code licence means it is recommended and never quoted.
+
+\subsection*{Portfolio evidence}
+
+\begin{itemize}
+\item A repository with three receive paths behind one build switch and both
+documented failure modes reproducible on demand.
+\item The results table: three paths, eight rates, with the drop, overrun and
+never-arrived columns filled in, each row carrying its full date and host.
+\item A short written finding on where loss begins on this board and whether the
+limit is the target or the bridge, which is a number that is asserted in several
+places and measured in none.
+\item The handler duration from the cycle counter, next to the byte time at each
+rate, so the headroom is visible rather than claimed.
+\end{itemize}
+
+\subsection*{Sources}
+
+Normative references:
+\begin{itemize}
+\item Reference manual RM0455, for this part: the USART register set, the
+receive FIFO, the flag clearing procedure through the clear register, and the
+receive timeout. Not RM0433, which is its sibling and differs.
+\item The board user manual for MB1363, for the console pins and for what the
+on-board bridge does and does not guarantee about rate.
+\item The architecture reference manual for this profile, for interrupt
+priority, preemption and tail chaining.
+\item The device header for this part, for the flag name that changed when the
+receive FIFO was added.
+\end{itemize}
+
+Reusable implementations:
+\begin{itemize}
+\item pyserial, BSD-3-Clause, the host side of the harness.\newline
+\url{https://github.com/pyserial/pyserial}
+\item The silicon vendor's basic example tree for this board, BSD-3-Clause,
+which carries the same problem solved polled, on interrupt and by transfer
+engine in sibling directories.
+\item controllerstech's interrupt receive ring buffer, which has \textbf{no
+licence file} and is therefore read as a worked example and never vendored.\newline
+\url{https://github.com/controllerstech/stm32-uart-ring-buffer}
+\item Chapter 2 of this volume, for the ring buffer this chapter fills.
+\end{itemize}
