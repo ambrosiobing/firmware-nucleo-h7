@@ -1,0 +1,31 @@
+% The duty cycle as a state machine, with the state most projects omit.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[initial] (i) at (0,0) {};
+\node[state, text width=20mm] (boot)  at (1.9,0)    {reset and configure};
+\node[state, text width=20mm] (wake)  at (5.0,0)    {wake\\{\tiny HSI, PLL1 off}};
+\node[state, text width=22mm, fill=hwcol] (rest) at (8.6,0)
+      {restore\\{\tiny scale, latency, PLL, switch}};
+\node[state, text width=20mm] (sense) at (12.2,0)   {sense\\{\tiny sample and feature}};
+\node[state, text width=20mm] (prep)  at (12.2,-2.6){prepare\\{\tiny markers low, tick off}};
+\node[state, text width=20mm] (stop)  at (8.6,-2.6) {stop\\{\tiny SLEEPDEEP, WFI}};
+
+\draw[trans] (i) -- (boot);
+\draw[trans] (boot) -- (wake);
+\draw[trans] (wake) -- node[lbl, above]{always} (rest);
+\draw[trans] (rest) -- node[lbl, above]{280 MHz} (sense);
+\draw[trans] (sense) -- node[lbl, right]{done} (prep);
+\draw[trans] (prep) -- node[lbl, above]{arm} (stop);
+\draw[trans] (stop.south) -- (8.6,-4.0)
+   -- node[lbl, above]{RTC alarm or LPTIM match} (5.0,-4.0) -- (wake.south);
+
+% ---- the edge that is actually taken in most projects on this family
+\draw[trans, draw=red!70!black, dashed] (wake.north) -- (5.0,1.5)
+   -- node[lbl, above]{the omitted edge} (12.2,1.5) -- (sense.north);
+
+\node[umlnote, text width=44mm, anchor=north west] at (0,3.7)
+  {Skipping the restore does not produce a failure. The application runs, the wake completes, and the current afterwards simply stays higher than it should while the core runs slower than it should.};
+\draw[dotted, draw=linecol] (4.4,2.6) -- (6.4,1.6);
+
+\node[umlnote, text width=58mm, anchor=north west] at (5.0,-4.7)
+  {The cycle marker rises on entry to wake and falls on entry to the stop state, so the analysis segments the trace without a human looking at it. The other two markers enclose the restore and the sense phases.};
+\end{tikzpicture}
