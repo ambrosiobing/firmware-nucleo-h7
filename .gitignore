@@ -1,0 +1,25 @@
+# LaTeX build artifacts and scratch renders (regenerate with: python build.py)
+build/
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# The built book stays local. Rebuild it with: python build.py
+firmware-nucleo-h7.pdf
+firmware-nucleo-h7.html
+
+# Per-chapter deliverables, built on demand with: python build.py --chapter N
+chapter-*.pdf
+chapter-*.html
+
+# Local virtual environments and editor state
+.venv/
+venv/
+.vscode/
+.idea/
+__pycache__/
+*.pyc

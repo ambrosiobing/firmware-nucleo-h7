@@ -1,0 +1,12 @@
+# Normalize text line endings in the repository, check out native on Windows.
+* text=auto
+
+# Text formats, diffable
+*.md   text
+*.tex  text
+*.py   text
+*.html text
+
+# Binary formats, never diff or merge these as text
+*.pdf  binary
+*.png  binary
