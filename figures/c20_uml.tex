@@ -1,0 +1,39 @@
+% One event through the system, and where latency is defined.
+\begin{tikzpicture}[font=\sffamily\scriptsize,
+  mlab/.style={fill=white, inner sep=1.5pt, font=\sffamily\scriptsize}]
+\foreach \x/\name/\id in {0/timer ISR/isr, 3.2/scheduler/sch, 6.4/sensor task/sen,
+                          9.6/feature task/fea, 12.8/link task/lnk}{
+  \node[actor, text width=20mm] (\id) at (\x,0) {\name};
+  \draw[lifeline] (\id.south) -- ++(0,-8.4);
+}
+
+\draw[msg] (-1.4,-1.0) -- node[mlab, above]{release edge} (0,-1.0);
+\node[activation, minimum height=4mm] at (0,-1.3) {};
+\draw[msg] (0,-1.5) -- ++(0.9,0) -- ++(0,-0.4)
+  node[mlab, right, xshift=1mm]{timestamp, then notify} -- ++(-0.9,0);
+\draw[msg] (0,-2.5) -- node[mlab, above]{yield from ISR} (3.2,-2.5);
+\node[activation, minimum height=4mm] at (3.2,-2.8) {};
+\draw[msg] (3.2,-3.3) -- node[mlab, above]{context switch} (6.4,-3.3);
+\node[activation, minimum height=6mm] at (6.4,-3.6) {};
+\draw[msg] (6.4,-3.9) -- ++(0.9,0) -- ++(0,-0.4)
+  node[mlab, right, xshift=1mm]{timestamp, then read the FIFO} -- ++(-0.9,0);
+\draw[msg] (6.4,-5.2) -- node[mlab, above]{bytes into the stream buffer} (9.6,-5.2);
+\node[activation, minimum height=5mm] at (9.6,-5.5) {};
+\draw[msg] (9.6,-6.4) -- node[mlab, above]{payload into the queue} (12.8,-6.4);
+\node[activation, minimum height=4mm] at (12.8,-6.7) {};
+\draw[reply] (12.8,-7.6) -- node[mlab, below]{result line, from a task} (0,-7.6);
+
+% the measured interval
+\draw[tspan] (-1.1,-1.0) -- (-1.1,-3.9);
+\node[mlab, rotate=90, anchor=south] at (-1.25,-2.45) {the measured interval};
+
+\node[umlnote, text width=54mm, anchor=north west] at (-1.6,-9.2)
+  {Latency is defined from the release edge to the first instruction of the
+   task body, so it includes the handler, the scheduler and the context switch.
+   Measuring only to the end of the handler reports a smaller number that no
+   deadline depends on.};
+\node[umlnote, text width=54mm, anchor=north west] at (7.2,-9.2)
+  {The result line is printed from a task and never from inside the interval
+   being measured. Printing from the handler is the fourth most likely cause of
+   a tail that looks wrong.};
+\end{tikzpicture}

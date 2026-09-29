@@ -1,0 +1,35 @@
+% Static allocation as a picture: every byte the kernel uses has a name.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[font=\sffamily\bfseries\small, anchor=west] at (-6mm,101mm)
+  {What static allocation puts in SRAM};
+
+\memregion{86}{9}{mmres}{kernel heap: absent\\{\tiny not linked at all}}{}
+\memgap{84}
+\memregion{72}{11}{mmperiph}{static objects, 2 kB\\{\tiny queue, stream buffer, semaphores, event group}}{}
+\memregion{63}{9}{mmperiph}{task control blocks\\{\tiny four, one per task}}{}
+\memregion{57}{6}{mmram}{supervisor stack, 512 B}{}
+\memregion{45}{12}{mmram}{link task stack, 2 kB}{}
+\memregion{21}{24}{mmram}{feature task stack, 4 kB\\{\tiny the biquad and its state live here}}{}
+\memregion{9}{12}{mmram}{sensor task stack, 1 kB}{}
+\memregion{0}{9}{mmflash}{application .data and .bss}{}
+
+\node[anchor=west, font=\tiny, text width=52mm] at (38mm,90.5mm)
+  {With dynamic allocation disabled the allocator is not linked. If anything
+   calls it the link fails, which is the correct place for that to happen.};
+\node[anchor=west, font=\tiny, text width=52mm] at (38mm,70mm)
+  {Five of those bytes per task are the notification storage. That is the hard
+   number this chapter states as a fact, in place of the speed claim it
+   retires.};
+\node[anchor=west, font=\tiny, text width=52mm] at (38mm,33mm)
+  {Every stack size here is a budget until the kernel's high-water mark has
+   been read. A budget that has never been checked is a guess with a number
+   next to it.};
+\node[anchor=west, font=\tiny, text width=52mm] at (38mm,4.5mm)
+  {Unchanged from the bare-metal chapters. The scheduler adds stacks, not
+   globals.};
+
+\node[umlnote, text width=74mm, anchor=north west] at (-6mm,-6mm)
+  {The heights are proportional to the budgets in the table, not to the
+   measured use, and the whole column is drawn from the linker map file rather
+   than from intention. Redraw it after the first high-water reading.};
+\end{tikzpicture}
