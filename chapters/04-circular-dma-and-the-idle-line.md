@@ -1,0 +1,436 @@
+# Chapter 4. Circular DMA and the idle line
+
+> **Target board:** NUCLEO-H7A3ZI-Q  
+> **Theme:** Transfer-driven receive, variable length frames, the transfer counter
+
+> **Key facts**
+>
+> - **Board:** NUCLEO-H7A3ZI-Q, and nothing else
+> - **Peripherals:** USART3 receive, DMA1 stream 0 through the request multiplexer, the line-idle interrupt, the cycle counter
+> - **Toolchain:** arm-none-eabi-gcc with CMake on the target, the chapter 3 harness on the host
+> - **Operating system:** Bare metal
+> - **Difficulty:** 4 of 5
+> - **Effort:** 3 evenings of about four hours
+> - **Deliverable:** A receive path in which no interrupt runs per byte, frames of any length arrive whole, the write position is read out of a hardware counter, the wraparound is handled as two spans rather than as a special case, and the cache maintenance that the canonical reference leaves out is present and argued
+
+## Why this project
+
+Chapter 3 ended with a handler that runs once per byte. At 115200 that is about eleven thousand interrupt entries a second, each one costing the entry, the drain and the exit. It works, and the measurement in that chapter says by how much. This chapter removes the per-byte cost entirely: a transfer engine writes every byte into memory with no processor involvement at all, and the processor finds out where the engine has got to by reading a hardware counter.
+
+Two ideas carry the chapter, and neither is obvious the first time. The first is that in circular mode the transfer counter is the write position: it counts down from the buffer size, so the number of bytes written since the engine last restarted is the buffer size minus the counter. Nothing writes a head index; the head index is a register you read. The second idea is that the peripheral's line-idle condition is a frame boundary for free. A protocol with a length prefix tells you when a frame ends, and chapter 5 builds one; a line that goes quiet tells you the same thing without any protocol at all, which is what makes this the right path for a command line, a modem's replies, or anything whose length you do not know in advance.
+
+The third thing this chapter carries is a gap in its own prior art, and it is worth naming at the top rather than in a footnote. The canonical reference implementation for this problem is excellent, permissively licensed, and has no cache handling of any kind. With the data cache on and the buffer in main memory, the processor can read a line it cached before the engine wrote it. The maintenance step that fixes that is this chapter's work, the argument for it is chapter 19's, and a chapter that copied the reference and said nothing would have shipped a fault.
+
+> [!NOTE]
+> **This chapter reverses a decision from chapter 2**
+>
+> Chapter 2 put the ring buffer in tightly coupled memory, which is the right place while the producer is code on the core. It is the wrong place now. The main transfer engines are expected not to reach the tightly coupled memories at all on this part, and the symptom is a transfer that never starts or never completes rather than an error. Which engine reaches which memory is item 16 on the confirm list, is settled against RM0455 and not against a document for the H743, and is the subject of chapter 19. The buffer moves to the main memory in step 1 and a comment in the linker script says why.
+
+## Prior art and what to reuse
+
+| Source | What it gives | What it does not | Licence |
+| --- | --- | --- | --- |
+| Majerle's transfer-driven receive and transmit examples | The canonical treatment of this exact problem, with working examples across eight silicon families, the position arithmetic, the wraparound split and the three-event structure all laid out clearly | **No cache handling anywhere**, and its H7 example is for a different member of this family, not for this board. Under the rule in the front matter, nothing from it is inherited without being checked against RM0455 | MIT |
+| Majerle's lightweight ring buffer | The zero-copy pair of functions that hand out a contiguous span, which is the shape this chapter's consumer wants | The same coherence assumption as above | MIT |
+| The silicon vendor's basic example tree for this board | A transfer-driven receive at both abstraction levels, permissively licensed, and the request multiplexer configuration for this part | Fixed length transfers, no idle line, no frame concept | BSD-3-Clause |
+| Chapters 2 and 3 of this book | The consumer side, the drop accounting and the measurement harness | Nothing about transfer engines | This volume |
+| Chapter 19 of this book | The cache argument in full, with the region attributes and the three ways to make a buffer safe | Nothing until you read it; this chapter uses the narrowest of the three fixes and says so | This volume |
+
+*Table 4.1. Prior art for chapter 4. The first row is close to the whole chapter in a box and is worth reading before writing a line. What it does not give is the part that matters most on this silicon, which is why this chapter exists as more than a summary.*
+
+What is left to write is the cache maintenance, the placement argument, the lap guard described in step 7, and the measurement that compares this path against chapter 3's on the same board with the same harness. That comparison does not exist anywhere for this part.
+
+## Parts from the inventory
+
+| Part | Role | Interface |
+| --- | --- | --- |
+| NUCLEO-H7A3ZI-Q | The receiver, the transfer engine and the counters | Micro USB to the host |
+| A USB data cable | Power, programming and the link under test | Micro USB |
+| Host PC | Sends frames of deliberately varied length with deliberate gaps | Python with pyserial, from chapter 3 |
+
+*Table 4.2. Inventory items used in chapter 4. Nothing is wired and nothing is bought. The host script is chapter 3's with one new mode.*
+
+## System architecture
+
+![Figure 4.1. Nothing on the byte path touches the processor.](../figures/c04_arch.svg)
+
+*Figure 4.1. Nothing on the byte path touches the processor. The engine writes, the counter records where it got to, and three different events cause the same function to run and work out what is new.*
+
+The structure worth noticing is that the three events are not three code paths. Half transfer, transfer complete and line idle all call one function, which reads the counter, compares it with what it saw last time, and hands the new span to the consumer. A design that handles the three separately acquires three subtly different copies of the same arithmetic, and the one that is used least is the one that is wrong.
+
+## Peripheral configuration
+
+| Peripheral | Mode | Clock source | Pins and function | Interrupt and transfers |
+| --- | --- | --- | --- | --- |
+| USART3 | Asynchronous receive, 8N1, receive request to the engine enabled | Peripheral bus | Confirm in the board manual | Line-idle interrupt only. No per-byte interrupt at all |
+| Request multiplexer | USART3 receive request routed to the chosen stream | Peripheral bus | None | Request number read from RM0455 for this part |
+| DMA1 stream 0 | Circular, peripheral to memory, byte width, memory address incrementing | Bus clock | None | Half transfer and transfer complete |
+| Buffer memory | Main memory, not tightly coupled | Not applicable | None | Reachable by this engine: confirm in RM0455 |
+| Data cache | On, which is the interesting case | Core clock | None | Invalidated by address over the span before each read |
+| DWT cycle counter | Free running | Core clock | None | Measures the check function and the invalidate |
+
+*Table 4.3. Peripheral configuration. Two rows are written as checks rather than as facts: the request number and the reachability of the chosen memory. Both are read from RM0455 for this device. A request number copied from the H743 lands on a different peripheral.*
+
+## Wiring
+
+![Figure 4.2. Nothing is wired.](../figures/c04_wiring.svg)
+
+*Figure 4.2. Nothing is wired. The only change from chapter 3's bench is on the host, which now sends frames of varied length with deliberate gaps between them, because a link that is never quiet never produces an idle condition and the chapter's main event would never fire.*
+
+## Memory and timing budget
+
+![Figure 4.3. The buffer, the two positions, and the two spans a wraparound produces.](../figures/c04_mem.svg)
+
+*Figure 4.3. The buffer, the two positions, and the two spans a wraparound produces. Above the strip, the cache line grid that the invalidate operates on, which is why the buffer is aligned and its size is a whole number of lines.*
+
+| Quantity | Budget | Measured | Margin |
+| --- | --- | --- | --- |
+| Buffer size | 512 bytes | not applicable | not applicable |
+| Cache line length | 32 bytes | from the architecture manual | not applicable |
+| Longest frame that fits | 512 bytes | not applicable | not applicable |
+| Idle detection delay | one character time | 86.8 µs at 115200, computed | not applicable |
+| Interrupts per second at 115200 | about 25 | not measured | not measured |
+| Interrupts per second, chapter 3 | about 11520 | not measured | not measured |
+| Cycles in the check function | 120 | not measured | not measured |
+| Cycles in the invalidate | 60 | not measured | not measured |
+| Last byte to consumer | 100 µs | not measured | not measured |
+
+*Table 4.4. The budget table. The two interrupt-rate rows are the headline of the chapter and the reason to build it, and both are estimates until the cycle counter and a counting build have produced them. The idle delay is arithmetic from the line rate and is marked as computed.*
+
+## Firmware design (UML)
+
+![Figure 4.4. Three events, one function.](../figures/c04_uml.svg)
+
+*Figure 4.4. Three events, one function. The sequence shows the line-idle case, which is the one that delivers a short frame promptly; the other two are the same messages with a different trigger.*
+
+The consumer contract is worth stating before the code. The check function hands the consumer a pointer and a length into the receive buffer, not a copy. That is deliberate: copying every byte a second time would give back a large part of what the transfer engine just saved. It also means the consumer must finish with the span before the engine laps the buffer and writes over it, which is the constraint that replaces chapter 2's full-buffer test and is the subject of step 7.
+
+## Data flow (ASCII)
+
+```text
+  USART3        DMA1 stream 0            rx_buf[512] in main memory
+  +--------+    +---------------+        +---------------------------------+
+  | RDR    |--->| circular      |------->| .....DATA DATA DATA.............|
+  +--------+    | NDTR counts   |        +---------------------------------+
+      |         | down from 512 |          ^              ^
+      |         +---------------+          |              |
+      |                 |               old_pos     pos = 512 - NDTR
+      | IDLE            | HT, TC           |              |
+      v                 v                  +---- new ----+
+  +-------------------------------+                |
+  | rx_check(): pos = 512 - NDTR  |                v
+  |   if pos == old_pos: return   |   invalidate the cache over the span
+  |   if pos >  old_pos: one span |                |
+  |   else:              two spans|                v
+  +-------------------------------+        consumer reads in place
+```
+
+## Repository layout
+
+```text
+nucleo-h7a3-dma-rx/
+  CMakeLists.txt
+  cmake/arm-none-eabi.cmake       # reused unchanged from chapter 1
+  ld/stm32h7a3zi.ld               # gains one section for the buffer
+  src/dma_rx.c                    # stream setup, the check function, the spans
+  src/dma_rx.h
+  src/cache.c                     # invalidate by address, aligned and argued
+  src/usart3_ll.c                 # from chapter 3, minus the per-byte handler
+  src/frames.c                    # the consumer: counts frames and lengths
+  src/main.c
+  host/framegen.py                # chapter 3's harness with a frame mode
+  docs/compare_c03_c04.md         # the two paths, same harness, same board
+  README.md
+```
+
+## Steps
+
+**Step 1.** **Move the buffer and say why in the linker script.** A comment in the file is the only place this decision survives a year. The alignment and the size are both driven by the cache line length, which is read from the architecture manual for this core rather than assumed.
+
+```ld
+/* The transfer engine writes here, so it cannot be tightly coupled memory:
+   the main engines are not expected to reach DTCM on this part. Confirm the
+   reachable regions in RM0455, not in a document for the H743. The buffer is
+   also cache-line aligned and a whole number of lines long, so that an
+   invalidate over it can never touch a line shared with anything else. */
+SECTIONS
+{
+  .dma_rx (NOLOAD) : ALIGN(32) { KEEP(*(.dma_rx)) . = ALIGN(32); } > AXISRAM
+}
+```
+
+```c
+#define RX_BUF_SIZE 512u                    /* a whole number of 32 B lines */
+__attribute__((section(".dma_rx"), aligned(32)))
+static volatile uint8_t rx_buf[RX_BUF_SIZE];
+```
+
+**Step 2.** **Route the request and start the stream in circular mode.** Three settings make this chapter work and each of them is the one people leave out. Circular mode, so the engine restarts at the end instead of stopping. Memory address incrementing and peripheral address fixed, because one end moves and the other does not. And the receive request enabled in the peripheral, because the engine waits to be asked.
+
+```c
+/* Request number read from RM0455 for this device. A number copied from a
+ * sibling part selects a different peripheral and the transfer never moves. */
+DMAMUX1_Channel0->CCR = (USART3_RX_DMA_REQUEST << DMAMUX_CxCR_DMAREQ_ID_Pos);
+
+DMA1_Stream0->CR  = 0;                       /* stop before configuring    */
+while (DMA1_Stream0->CR & DMA_SxCR_EN) { }   /* the disable is not instant */
+DMA1_Stream0->PAR = (uint32_t) &USART3->RDR;
+DMA1_Stream0->M0AR= (uint32_t) rx_buf;
+DMA1_Stream0->NDTR= RX_BUF_SIZE;
+DMA1_Stream0->CR  = DMA_SxCR_CIRC            /* wrap, do not stop          */
+                  | DMA_SxCR_MINC            /* memory address advances    */
+                  | DMA_SxCR_HTIE            /* half transfer interrupt    */
+                  | DMA_SxCR_TCIE;           /* transfer complete too      */
+DMA1_Stream0->CR |= DMA_SxCR_EN;
+USART3->CR3 |= USART_CR3_DMAR;               /* now the peripheral asks    */
+```
+
+The wait loop on the enable bit is not decoration. Disabling a stream is a request, not an instruction, and configuring registers while the bit is still set produces a stream that runs with a mixture of the old and new settings.
+
+**Step 3.** **Enable the line-idle interrupt and nothing else on the peripheral.** There is no receive interrupt any more. That is the point.
+
+```c
+USART3->ICR = USART_ICR_IDLECF;              /* clear a stale flag first   */
+USART3->CR1 |= USART_CR1_IDLEIE;
+NVIC_SetPriority(USART3_IRQn, 6);
+NVIC_EnableIRQ(USART3_IRQn);
+NVIC_SetPriority(DMA1_Stream0_IRQn, 6);      /* same level: they tail chain */
+NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+```
+
+Giving the two sources the same priority is deliberate. They never need to preempt each other, they call the same function, and at equal priority two pending interrupts tail chain rather than paying a full exit and entry, which chapter 3's figure shows.
+
+**Step 4.** **Read the write position out of the counter.** This is the idea the chapter turns on and it is one line.
+
+```c
+static inline uint16_t dma_write_pos(void)
+{
+    /* The counter counts down from the size, so the number of bytes written
+     * since the last wrap is the size minus the counter. There is no head
+     * index anywhere in this program: the head index is a register. */
+    return (uint16_t)(RX_BUF_SIZE - (uint16_t) DMA1_Stream0->NDTR);
+}
+```
+
+Read it once into a local. Reading it twice in one function gives you two different answers, because the engine does not stop while you think.
+
+**Step 5.** **Handle the wraparound as two spans and not as a special case.** The whole of the difficult part is nine lines, and it is difficult only until it is written down.
+
+```c
+static uint16_t old_pos;
+
+void rx_check(void)                     /* called from all three events */
+{
+    uint16_t pos = dma_write_pos();     /* read once, exactly once      */
+
+    if (pos == old_pos)
+        return;                         /* nothing new: the common case */
+
+    if (pos > old_pos) {                /* one contiguous span          */
+        rx_deliver(&rx_buf[old_pos], (uint16_t)(pos - old_pos));
+    } else {                            /* wrapped: the tail, then the head */
+        rx_deliver(&rx_buf[old_pos], (uint16_t)(RX_BUF_SIZE - old_pos));
+        if (pos > 0u)
+            rx_deliver(&rx_buf[0], pos);
+    }
+    old_pos = pos;
+}
+```
+
+Note what is absent. There is no modulo, no mask and no test for the buffer being full, because the engine does not ask permission. There is also no case in which the consumer is handed a span that crosses the end of the array, which is the property that lets it work on a plain pointer and length.
+
+**Step 6.** **Invalidate before you read, and know why the alignment matters.** This is the step the canonical reference does not have, and on this part with the data cache on it is the difference between a receive path that works and one that delivers whatever the processor happened to cache earlier.
+
+```c
+static void rx_deliver(volatile uint8_t *p, uint16_t len)
+{
+    /* The engine wrote this span through the bus, not through the cache.
+     * Anything the core already holds for these addresses is out of date,
+     * so discard it before reading. The operation works on whole cache
+     * lines; the buffer is aligned and a whole number of lines long, so a
+     * line is never shared with a variable whose newer value would be
+     * discarded with it. Chapter 19 argues this properly and gives two
+     * other ways to arrive at the same guarantee. */
+    SCB_InvalidateDCache_by_Addr((uint32_t *)(uintptr_t) p, (int32_t) len);
+    consume((const uint8_t *) p, len);
+}
+```
+
+The sharing hazard is worth one more sentence because it is the part that produces a fault somewhere else entirely. An invalidate discards whole lines. If the last line of the buffer also holds an ordinary variable, and the core had written that variable but the write was still in the cache, the invalidate discards it and the variable reverts. The alignment and the size are what make that impossible, and they are declared in two places so that neither can drift alone.
+
+**Step 7.** **Face the counter you cannot have.** Chapter 3 had an overrun flag: the peripheral told you when a byte was lost. Here there is no such flag. If the consumer falls behind, the engine simply writes over data that was never read, and the counter arithmetic cannot tell a lap from no movement at all. That is a real loss of visibility and the honest response is a guard rather than a claim.
+
+```c
+/* Two guards, neither of which is a detector, because a detector is not
+ * available. The first bounds how long the consumer may be away; the second
+ * reports how close the system came. */
+uint16_t advance = (uint16_t)((pos - old_pos) & (RX_BUF_SIZE - 1u));
+if (advance > stats.peak_advance)
+    stats.peak_advance = advance;              /* publish this every second */
+if (advance > (RX_BUF_SIZE / 2u))
+    stats.near_lap++;                          /* half a buffer in one gap  */
+```
+
+The half transfer and transfer complete interrupts are the other half of the guard. Between them they guarantee the function runs at least twice per lap of the buffer whatever the traffic looks like, so a lap can only happen if the consumer is blocked for longer than half a buffer's worth of line time. At 115200 with a 512 byte buffer that is about twenty two milliseconds, which is a number to put in the README rather than a hope.
+
+**Step 8.** **Add the three handlers, which are all the same handler.** Clear the flag that caused the entry, then call the one function.
+
+```c
+void USART3_IRQHandler(void)
+{
+    if (USART3->ISR & USART_ISR_IDLE) {
+        USART3->ICR = USART_ICR_IDLECF;   /* clear, or it re-asserts */
+        rx_check();
+    }
+}
+
+void DMA1_Stream0_IRQHandler(void)
+{
+    uint32_t lisr = DMA1->LISR;           /* stream 0 flags live in LISR */
+    if (lisr & DMA_LISR_HTIF0) { DMA1->LIFCR = DMA_LIFCR_CHTIF0; rx_check(); }
+    if (lisr & DMA_LISR_TCIF0) { DMA1->LIFCR = DMA_LIFCR_CTCIF0; rx_check(); }
+    if (lisr & DMA_LISR_TEIF0) { DMA1->LIFCR = DMA_LIFCR_CTEIF0;
+                                 stats.transfer_errors++; }
+}
+```
+
+The transfer error flag is in that handler for a reason. It is the one thing that fires when the address you gave the engine is not reachable from it, which is exactly the fault the note at the top of this chapter is about, and without this branch it presents as silence.
+
+**Step 9.** **Send frames whose length varies, with gaps.** Chapter 3's harness gains one mode. The gaps are what produce the idle condition, and a test that sends a continuous stream never exercises the chapter's main event.
+
+```python
+def frames(dev, baud, lengths, gap_s=0.005, rounds=200):
+    """Send frames of varied length with a quiet gap after each one.
+    The gap must exceed one character time or no idle condition occurs."""
+    with serial.Serial(dev, baud, timeout=0.5) as p:
+        for _ in range(rounds):
+            for n in lengths:
+                p.write(bytes((i & 0xff) for i in range(n)))
+                p.flush()
+                time.sleep(gap_s)
+        return status(p)          # ok, frames, lengths seen, near_lap
+```
+
+Use lengths that cross the interesting boundaries deliberately: one byte, the cache line length, one byte more than a cache line, half the buffer, and one byte less and one byte more than the whole buffer. The last two are the ones that find a wraparound fault.
+
+**Step 10.** **Measure both paths with the same harness.** This is the deliverable. Run chapter 3's build and this one against the same host script at the same rates, and record interrupts per second, processor time spent in interrupt context, and the delay from the last byte of a frame to the consumer seeing it.
+
+```bash
+python host/framegen.py /dev/ttyACM0 --baud 115200 --mode frames \
+  | tee docs/compare_c03_c04.md
+```
+
+Expect the interrupt count to fall by roughly three orders of magnitude and the latency for a short frame to rise by about one character time, because the idle condition cannot be known until the line has been quiet for that long. Both directions are the point: this path is not better, it is a different trade, and the table is what lets a reader choose.
+
+## Build, flash and debug
+
+![Figure 4.5. Bytes arriving, the transfer counter stepping down as each one lands, and the line-idle flag setting once the line has been quiet for a character time.](../figures/c04_timing.svg)
+
+*Figure 4.5. Bytes arriving, the transfer counter stepping down as each one lands, and the line-idle flag setting once the line has been quiet for a character time. The counter is the only thing in this picture the processor reads.*
+
+```bash
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build -j && probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+```
+
+Three things are worth looking at on a halted target, in this order. The stream enable bit, because a stream that was configured while it was still running does not report that. The transfer counter, which should be somewhere between one and the buffer size and never zero on a circular stream. And the buffer itself, which tells you at a glance whether the engine is writing at all.
+
+```bash
+(gdb) print/x DMA1_Stream0->CR
+(gdb) print DMA1_Stream0->NDTR
+(gdb) x/64xb rx_buf
+```
+
+> [!NOTE]
+> **When the buffer stays empty and nothing reports an error**
+>
+> In order of likelihood: the receive request was never enabled in the peripheral, so the engine is armed and nobody is asking; the request number in the multiplexer belongs to a different peripheral, which is what happens when it is copied from a sibling part; the buffer is in a memory this engine cannot reach, which the transfer error branch in step 8 turns from silence into a counter; or the stream was configured while its enable bit was still set. Read the enable bit and the counter before changing anything, because three of these four leave a distinct signature in those two registers.
+
+## Verification and acceptance criteria
+
+- Every frame the host sends arrives whole and in order, for a length set that includes one byte, one cache line, one more than a cache line, half the buffer, one less than the buffer and one more than the buffer.
+- A frame that straddles the end of the buffer is delivered as two spans and reassembled correctly by the consumer, proven by sending a length set whose running total is chosen to land the boundary inside a frame.
+- With the data cache on, the delivered bytes match what the host sent. The same test with the invalidate removed is run once, deliberately, and its failure is recorded, because a cache fix that has never been seen to be necessary tends to be removed later.
+- Interrupts per second at 115200 is measured in a counting build and is compared in one table against chapter 3's figure for the same rate.
+- The delay from the last byte of a frame to the consumer is measured and is within a character time of the computed idle delay.
+- Over a ten minute run at the highest rate chapter 3 found clean, the near-lap counter stays at zero and the peak advance stays below half the buffer.
+- The transfer error counter is zero, and has been seen to be non-zero once on purpose by pointing the engine at a memory it cannot reach.
+
+## Variants
+
+| Axis | Variant | What changes | Cost | Built in full in |
+| --- | --- | --- | --- | --- |
+| Execution model | DMA, circular, idle line | The baseline here. No per-byte interrupt, the write position comes from the counter, and frame boundaries come from the quiet line | Cache maintenance, and no overrun flag | Here |
+| Execution model | DMA double buffered | Two buffers with the engine swapping between them, so the consumer always owns a whole one and the span arithmetic disappears | Twice the memory | Chapter 6 |
+| Execution model | Interrupt into a ring buffer | Chapter 3's path. Lower latency on a short frame, far more interrupts, and an overrun flag you do not get here | About eleven thousand entries a second at 115200 | Chapters 2 and 3 |
+| Execution model | Polled loop | Read the counter from the main loop with no interrupt at all, which works when the loop is fast and predictable | Latency is the loop period | Chapter 3 |
+| Time and safety | Receiver timeout instead of the idle line | The peripheral counts a programmable number of idle bit times rather than one character, which lets the frame gap be tuned to the protocol | One more register to configure | Here, as the stretch goal |
+| Synchronisation | A volatile flag | The check function sets a flag and the main loop does the delivery, moving work out of interrupt context | Latency of one loop | Chapter 3 |
+| Operating system | RTOS task | The handler notifies a task which does the delivery and the cache maintenance | A scheduler | Chapter 20 |
+| Language | Host in Python | The frame generator is chapter 3's harness with one mode added | None | Chapter 3 |
+
+*Table 4.5. Variants for chapter 4. Only the first row is built in full here. The double buffered case belongs with the timer sampling of chapter 6, where the fixed block size makes it the natural shape rather than an extra buffer for its own sake.*
+
+## Pitfalls
+
+- Leaving the buffer in tightly coupled memory. The engine cannot reach it, and without the transfer error branch the symptom is silence.
+- Copying the request number from a sibling part. It selects a different peripheral and the engine waits for a request that never comes.
+- Configuring a stream while its enable bit is still set. Disabling is a request that completes when the engine is ready, not when you wrote the zero.
+- Reading the transfer counter twice in one function. The two reads give different answers and the arithmetic between them is wrong in a way that appears once an hour.
+- Omitting the cache maintenance because the reference implementation does. It is correct there because those examples run with the cache off or on parts without one. It is not correct here.
+- Invalidating a span that shares a cache line with something else. The invalidate discards whole lines, and the fault appears in the other variable.
+- Assuming an overrun flag exists. It does not on this path, and a program that waits for one waits forever while data is quietly replaced.
+- Testing with a continuous stream. The line never goes quiet, the idle condition never fires, and the chapter's main event is never exercised.
+
+## Best practices applied
+
+- The placement decision is recorded in the linker script, in a comment, next to the thing it constrains.
+- The alignment and the size are both tied to the cache line length and are declared in two places that cannot drift apart without a build failure.
+- Three events call one function, so there is one copy of the arithmetic.
+- The absence of an overrun flag is named and answered with a bounded guard and a published worst case, rather than left as an assumption.
+- The cache fix is proven necessary once, on purpose, so that its removal later is a visible regression rather than a tidy-up.
+- The comparison with the previous chapter uses the same harness, the same board and the same rates, so it is a comparison.
+
+## Stretch goals
+
+- Replace the idle line with the peripheral's receiver timeout, which counts a programmable number of idle bit times, and measure how short the inter-frame gap can be before frames start merging. That number is a property of the protocol you are about to design in chapter 5.
+- Add the zero-copy commit interface from the maintained ring buffer library so the consumer can take a span and release it later, and measure whether the extra bookkeeping costs more than the copy it removes.
+- Run the same path with the data cache off and measure the throughput and the latency. The result feeds chapter 18's question about whether memory placement matters more than anything else on this core.
+- Move the buffer into each memory the part offers in turn and record which ones this engine reaches. That table does not exist for this device and it is chapter 19's central artefact.
+
+## Roadmap and next steps
+
+Chapter 5 puts a frame format on this byte stream: a length prefix, byte stuffing, and a checksum computed by the hardware unit. It takes the span this chapter delivers and turns it into messages, and it is where the idle line stops being the only thing that says a frame has ended.
+
+Chapter 6 uses the same engine in its double buffered form for timer-triggered sampling, where the block size is fixed and the wraparound arithmetic of this chapter is unnecessary. Chapter 19 is where the cache argument used in step 6 is made properly, with the region attributes and the two alternatives to invalidating by address.
+
+The canonical reference in the prior art table is the best single piece of writing on this topic and is worth reading in full before and after this chapter. The community roadmap referenced in appendix H puts transfer engines and cache coherency in the firmware track and weights them heavily, and the written series on this core's cache, listed in chapter 19's sources, is the clearest teaching treatment of why step 6 exists.
+
+## Portfolio evidence
+
+- A repository in which the linker script, the alignment and the invalidate are visibly one decision, with the reason written where the decision is.
+- The comparison table: interrupts per second, processor time in interrupt context, and short-frame latency, for chapter 3's path and this one, on the same board with the same harness and the full date of the run.
+- A recorded failure: the same build with the invalidate removed, showing the delivered bytes disagreeing with what was sent, which is the evidence that the fix is load bearing.
+- The near-lap and peak-advance counters over a ten minute run, with the computed worst case next to them.
+
+## Sources
+
+Normative references:
+
+- Reference manual RM0455, for this part: the transfer engine's registers and flag groups, the request multiplexer numbering, the memories each engine can reach, the line-idle flag and its clear bit, and the receiver timeout. Not RM0433, which is its sibling and differs in the memory map.
+- The architecture reference manual and the core's technical reference, for the cache line length and the invalidate-by-address operation.
+- The STM32H7A3xI datasheet, for the memory sizes and base addresses the linker script places the buffer in.
+
+Reusable implementations:
+
+- Majerle's transfer-driven receive and transmit examples, MIT, the canonical reference for this problem, with examples across eight families and none for this exact board.  
+  <https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx>
+- Majerle's lightweight ring buffer, MIT, for the zero-copy span interface.  
+  <https://github.com/MaJerle/lwrb>
+- pyserial, BSD-3-Clause, for the frame generator on the host.  
+  <https://github.com/pyserial/pyserial>
+- Chapters 2, 3 and 19 of this volume, for the consumer, the harness and the cache argument respectively.
+
+---
+
+[Previous](03-receiving-on-interrupt-without-losing-bytes.md) &nbsp;&nbsp;|&nbsp;&nbsp; [Contents](../README.md) &nbsp;&nbsp;|&nbsp;&nbsp; [Next](05-framing-and-the-hardware-crc-unit.md)

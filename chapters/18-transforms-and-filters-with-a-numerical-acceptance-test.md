@@ -1,0 +1,449 @@
+# Chapter 18. Transforms and filters with a numerical acceptance test
+
+> **Target board:** NUCLEO-H7A3ZI-Q  
+> **Theme:** CMSIS-DSP, float32 against Q15, cycles, memory placement
+
+> **Key facts**
+>
+> - **Board:** NUCLEO-H7A3ZI-Q, and nothing else. The signal is a stored vector, so the result is reproducible on any desk
+> - **Peripherals:** RCC and PWR for 280 MHz, the floating-point unit, the cycle counter in the debug block, the two L1 caches, USART3 for the result stream
+> - **Toolchain:** arm-none-eabi-gcc with CMake, CMSIS-DSP built from source, and a host Python environment with SciPy, NumPy and the library's own Python wrapper
+> - **Operating system:** Bare metal
+> - **Difficulty:** 4 of 5
+> - **Effort:** 4 evenings of about four hours
+> - **Deliverable:** A filter and spectrum module whose output is proved equal to a host reference within a tolerance stated before the first run, and a table of cycles per transform in which every row names its numeric format, its code placement, its data placement and the state of both caches
+
+## Why this project
+
+Every earlier chapter moved bytes. This one computes with them, and it is the first chapter where being fast and being correct are separate claims that need separate evidence. A transform that is quick and wrong is worse than no transform at all, because the wrongness arrives as a plausible number rather than as an error. So the order here is fixed: the acceptance test is written first, the tolerance is written down before anything is measured, and only then does anyone look at cycle counts.
+
+The second reason this chapter exists is that the obvious question about this part has no published answer. Ask whether a filter and a spectrum should be computed in single-precision floating point or in 16-bit fixed point on a Cortex-M7 at 280 MHz, and the answer that comes back is a ratio measured on a Cortex-M4, on a part with a different memory system, quoted without its conditions. That number does not transfer. A Cortex-M4 has no cache, no tightly coupled memories worth the name in this sense, and a different floating-point unit. On this part the interesting variable is probably not the numeric format at all but where the code and the data sit, and that expectation is itself the finding the chapter sets out to confirm or overturn.
+
+The third reason is portfolio-shaped. A repository that says "runs an FFT" proves nothing. A repository that says "the float32 path matches a double-precision host reference to a relative root-mean-square error below 1e-5 on the shipped vector, the Q15 path reaches at least 55 dB signal to error ratio on the same vector, and here are the cycle counts for eight placements with the cache state named in every row" is an engineering artefact. The work is the same. Only the reporting is different, and the reporting is the part that is usually missing.
+
+> [!NOTE]
+> **The widely repeated ratio is not for this core**
+>
+> The figure everyone quotes for fixed point against floating point on a microcontroller transform comes from a Cortex-M4 measurement. It is not wrong there; it simply does not describe this part. This chapter treats it as a hypothesis rather than a result, and the acceptance criteria below require the measurement to name its own conditions so that the next reader does not inherit the same problem from this book.
+
+## Prior art and what to reuse
+
+| Source | What it gives | What it does not | Licence |
+| --- | --- | --- | --- |
+| CMSIS-DSP | The whole computational layer: cascaded biquads in float32 and Q15, real FFTs in both formats, complex magnitude, statistics. Maintained, tested, and the reference implementation for this architecture | It does no filter design at all. Coefficients arrive from somewhere else, and choosing them is the engineering | Apache-2.0, entirely clean |
+| The library's Python wrapper | The same functions callable from Python with an API that mirrors the C API, so one set of test vectors drives both sides and a disagreement is localised immediately | It is a wrapper, not a specification. Where the C API is awkward the Python is awkward in the same way | Apache-2.0 |
+| The maintainer's learning path on building a pipeline against a reference implementation | The method this chapter follows: design in Python, check against a reference, then move the same computation to the device | It targets the development flow rather than any one part, so nothing in it is about this silicon | Vendor learning material, read and cite |
+| The vendor's application note on system architecture and performance | Exactly the benchmark shape this chapter wants: one transform run with code and data in each memory, with the cache on and off, and a companion package that ships the linker scripts for those placements | It does not cover this part. Its numbers are the shape of the answer and not the answer, and its linker scripts are checked against RM0455 before use | Vendor documentation, read do not copy |
+| SciPy and NumPy on the host | Filter design, the double-precision reference output, and the statistics that turn two arrays into a pass or fail | Nothing runs on the device. The host is the judge, not the subject | BSD-3-Clause |
+
+*Table 18.1. Prior art for chapter 18. The computational library is clean enough to vendor outright, which is unusual in this book and worth saying plainly.*
+
+What is left to write is the part that decides whether the result is trustworthy: the coefficient design and its export, the test vector and its reference output, the comparison and its stated tolerance, the cycle harness that reports a placement and a cache state alongside every count, and the linker script sections that put code and data where the experiment wants them. The library supplies arithmetic. It supplies no evidence, and evidence is the deliverable.
+
+## Parts from the inventory
+
+| Part | Role | Interface |
+| --- | --- | --- |
+| NUCLEO-H7A3ZI-Q | The whole chapter. The transform runs here and the cycle counter lives here | Micro USB to the host |
+| A USB data cable | Power, programming and the result stream on one lead | Micro USB |
+| Host PC | Filter design, reference computation, the Python wrapper, and the comparison that decides pass or fail | Python with NumPy, SciPy and the wrapper |
+| Chapter 6's sampler, optionally | Replaces the stored vector with real samples at a proven rate when you want an end to end demonstration rather than a reproducible test | Already on the board |
+
+*Table 18.2. Inventory items used in chapter 18. Nothing is wired and nothing is bought. The stored vector is deliberate: an acceptance test that depends on a live signal is not an acceptance test.*
+
+## System architecture
+
+![Figure 18.1. The host owns design and judgement, the board owns computation and measurement.](../figures/c18_arch.svg)
+
+*Figure 18.1. The host owns design and judgement, the board owns computation and measurement. The same test vector crosses the link in one direction and a result block plus a cycle count comes back in the other.*
+
+Three things run on the host and two on the board, and the split matters. On the host: the filter design, which produces coefficients; the reference computation in double precision, which produces the array the board must match; and the same computation through the library's Python wrapper, which is the second opinion. On the board: the computation under test, and the cycle counter that times it. The reason for two host references rather than one is that they answer different questions. A disagreement with the double-precision reference means the arithmetic has drifted. A disagreement with the wrapper, which is the same library, means the port is wrong: a coefficient order, a state buffer size, a scaling shift.
+
+## Peripheral configuration
+
+| Peripheral | Mode | Clock source | Pins and function | Interrupt and transfers |
+| --- | --- | --- | --- | --- |
+| RCC and PWR | Bypass input then phase-locked loop, 280 MHz | 8 MHz from the probe | None | None |
+| Floating-point unit | Enabled in the coprocessor access register before any float runs | Core clock | None | None |
+| Cycle counter | Trace enable then counter enable, read directly | Core clock | None | None. Confirm it counts with no probe attached |
+| L1 instruction cache | On or off, named in every row of the result table | Core clock | None | None |
+| L1 data cache | On or off, named in every row of the result table | Core clock | None | Write-back by default |
+| USART3 | Asynchronous, 115200 8N1 | Peripheral bus | Board manual pins | Polled here, the ring buffer of chapter 2 if the block stream grows |
+
+*Table 18.3. Peripheral configuration. The last four rows are the experiment: everything else is scaffolding. Whether the cycle counter runs without a debug probe attached is item 25 of the confirm list and is checked before any number in this chapter is believed.*
+
+## Wiring
+
+![Figure 18.2. Nothing is wired.](../figures/c18_wiring.svg)
+
+*Figure 18.2. Nothing is wired. The signal is a vector compiled into flash, which is what makes the acceptance test reproducible on a different desk on a different day.*
+
+## Memory and timing budget
+
+![Figure 18.3. The experiment as a grid.](../figures/c18_mem.svg)
+
+*Figure 18.3. The experiment as a grid. Code lives in flash or in instruction-side tightly coupled memory, data lives in the main AXI region or in data-side tightly coupled memory, and each cell is run with the caches on and off. Every cell is a measurement that has not been taken.*
+
+| Quantity | Budget | Measured | Margin |
+| --- | --- | --- | --- |
+| Flash for the library modules used | 24 kB | not measured | not measured |
+| Flash for twiddle and coefficient tables | 16 kB | not measured | not measured |
+| Static memory for buffers, float32 | 12 kB | not measured | not measured |
+| Static memory for buffers, Q15 | 6 kB | not measured | not measured |
+| Cycles per 1024-point real FFT, float32 | 40000 | not measured | not measured |
+| Cycles per 1024-point real FFT, Q15 | 40000 | not measured | not measured |
+| Cycles per 1024-sample biquad cascade | 20000 | not measured | not measured |
+| Block period at the node's own rate | 256 ms | not measured | not measured |
+
+*Table 18.4. The budget table. The two cycle budgets are deliberately identical: this chapter has no prior belief about which format wins on this part, and writing the same number in both rows is the honest statement of that. The instrument for the cycle rows is the core's own cycle counter; the flash and memory rows are read from the linker map file.*
+
+The node's real workload has enormous margin and is not the interesting case. A 256-sample block at the 1 kHz rate proven in chapter 6 arrives every 256 ms, and even a pessimistic transform finishes in under a millisecond. The benchmark workload is different on purpose: the same transform repeated back to back with nothing else running, which is the only way to get a cycles-per- transform number that means anything. Both are reported, because a reader who sees only the benchmark will over-engineer and a reader who sees only the node workload will learn nothing about the part.
+
+## Firmware design (UML)
+
+![Figure 18.4. One case of the acceptance run.](../figures/c18_uml.svg)
+
+*Figure 18.4. One case of the acceptance run. The host sends a case identifier, the board runs the pipeline, times it and returns the output block with its cycle count, and the host decides.*
+
+The board side is a table of cases and a loop. A case names a numeric format, a placement for code, a placement for data and a cache state; the runner configures what it can configure at run time, runs the pipeline over the compiled-in vector, reads the cycle counter before and after, and streams the result block back as hexadecimal words with the case identifier in front of it. Placement is not a run-time choice, so the placement half of the grid is a build-time matrix: the same source compiled several times with different section attributes and linked with different scripts. Saying that plainly in the design is better than pretending one image can do everything.
+
+## Data flow (ASCII)
+
+```text
+  host                                             board
+  +----------------------------------+             +-------------------------------------+
+  | scipy.signal.butter -> sos       |             | const float32_t vec[1024]  (.rodata) |
+  |   |                              |             |   |                                 |
+  |   v  export 5 coeffs per stage   |  build      |   v                                 |
+  | coeffs.h --------------------------------->    | biquad cascade (df2T f32 / df1 q15) |
+  |                                  |             |   |                                 |
+  | numpy float64 reference          |             |   v                                 |
+  |   |                              |             | rfft 1024 (f32 / q15)               |
+  |   |  cmsisdsp wrapper, same API  |             |   |                                 |
+  |   v                              |  USART3     |   v                                 |
+  | compare: rel RMS, SNR, tolerance | <---------- | cmplx mag + DWT cycle count         |
+  +----------------------------------+             +-------------------------------------+
+        pass or fail, printed with the tolerance it was judged against
+```
+
+## Repository layout
+
+```text
+nucleo-h7a3-dsp-acceptance/
+  CMakeLists.txt
+  cmake/arm-none-eabi.cmake
+  ld/placement_flash_axi.ld     # code in flash, data in the AXI region
+  ld/placement_itcm_dtcm.ld     # code and data in tightly coupled memory
+  third_party/CMSIS-DSP/        # vendored, Apache-2.0, LICENSE kept
+  src/dsp_pipeline.c            # biquad + rfft + magnitude, one entry point
+  src/dsp_pipeline_q15.c        # the fixed-point twin, same entry shape
+  src/cycles.c                  # cycle counter enable and read
+  src/cases.c                   # the case table: format, placement, cache
+  src/main.c                    # runner and result stream
+  gen/coeffs.h                  # generated by tools/design_filter.py
+  gen/testvec.h                 # generated by tools/make_vector.py
+  tools/design_filter.py        # SciPy design, export in library layout
+  tools/make_vector.py          # the vector and the float64 reference
+  tools/reference_wrapper.py    # the same pipeline through the Python wrapper
+  tools/accept.py               # compares, prints the tolerance, exits nonzero
+  results/cycles.csv            # one row per case, cache state in every row
+  README.md
+```
+
+## Steps
+
+**Step 1.** **Vendor the library and build only what you use.** The licence is Apache-2.0, which means it can be copied into the repository with its licence file intact. Build it from source rather than linking a prebuilt archive, so the compiler flags are yours and visible.
+
+```bash
+git -C third_party clone --depth 1 https://github.com/ARM-software/CMSIS-DSP
+ls third_party/CMSIS-DSP/LICENSE     # keep it, it is a condition of the licence
+```
+
+Add only the source groups the pipeline touches. Pulling the whole library in costs flash for nothing and makes the size rows of the budget table meaningless.
+
+```make
+set(DSP_SRC
+  Source/FilteringFunctions/arm_biquad_cascade_df2T_f32.c
+  Source/FilteringFunctions/arm_biquad_cascade_df1_q15.c
+  Source/TransformFunctions/arm_rfft_fast_f32.c
+  Source/TransformFunctions/arm_rfft_fast_init_f32.c
+  Source/ComplexMathFunctions/arm_cmplx_mag_f32.c)
+```
+
+**Step 2.** **Enable the floating-point unit and the cycle counter, and say which cache state you are in.** Without the first, every float is a fault. Without the second there is no instrument. Without the third the numbers are not comparable to anything, including to themselves a week later.
+
+```c
+#include "stm32h7xx.h"      /* CMSIS device header, for SCB and DWT */
+
+void cycles_init(void)
+{
+    SCB->CPACR |= (3UL << 20) | (3UL << 22);    /* CP10 and CP11 full access */
+    __DSB(); __ISB();
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL  |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+static inline uint32_t cycles_now(void) { return DWT->CYCCNT; }
+```
+
+Confirm on the bench that the counter increments with no debug probe attached. If it does not, this chapter loses its cheapest instrument and the fallback is a general-purpose timer at the core clock divided down, which is coarser and must be said so in the results.
+
+**Step 3.** **Design the filter on the host.** The library does not do design, and that is not a shortcoming: design is a modelling decision and belongs where the model is. A fourth-order Butterworth low pass as second-order sections is enough to make the point.
+
+```python
+import numpy as np
+from scipy import signal
+
+FS, FC, ORDER = 1000.0, 40.0, 4
+sos = signal.butter(ORDER, FC / (FS / 2.0), btype="low", output="sos")
+
+# CMSIS biquads want 5 coefficients per stage: b0, b1, b2, -a1, -a2.
+# SciPy gives 6 per section: b0, b1, b2, 1, a1, a2. The sign of the
+# denominator terms is the single most common porting mistake.
+rows = [(s[0], s[1], s[2], -s[4], -s[5]) for s in sos]
+with open("gen/coeffs.h", "w") as f:
+    f.write("#define NSTAGE %d\n" % len(rows))
+    f.write("static const float32_t coeffs[5 * NSTAGE] = {\n")
+    for r in rows:
+        f.write("    %.9ef, %.9ef, %.9ef, %.9ef, %.9ef,\n" % r)
+    f.write("};\n")
+```
+
+**Step 4.** **Generate the vector and the reference output.** The vector is compiled into flash so the test is reproducible; the reference is computed in double precision so the comparison has somewhere to stand.
+
+```python
+N = 1024
+t = np.arange(N) / FS
+x = (np.sin(2 * np.pi * 12.0 * t)
+     + 0.35 * np.sin(2 * np.pi * 180.0 * t)
+     + 0.02 * np.random.default_rng(20260920).standard_normal(N))
+
+y_ref = signal.sosfilt(sos, x.astype(np.float64))
+mag_ref = np.abs(np.fft.rfft(y_ref))
+np.savez("gen/reference.npz", x=x, y=y_ref, mag=mag_ref)
+```
+
+The seed is fixed and written down. A test vector that changes between runs turns a regression into an argument.
+
+**Step 5.** **Run the same pipeline through the library's Python wrapper.** This is the step that saves an evening. The wrapper's API mirrors the C API, so if the wrapper agrees with the double-precision reference and the board does not, the problem is in the port and not in the arithmetic.
+
+```python
+import cmsisdsp as dsp
+
+biquad = dsp.arm_biquad_casd_df1_inst_f32()
+dsp.arm_biquad_cascade_df1_init_f32(biquad, len(rows),
+                                    np.array(rows, dtype=np.float32).flatten(),
+                                    np.zeros(4 * len(rows), dtype=np.float32))
+y_wrap = dsp.arm_biquad_cascade_df1_f32(biquad, x.astype(np.float32))
+print("wrapper against float64 reference:",
+      np.sqrt(np.mean((y_wrap - y_ref) ** 2)) / np.sqrt(np.mean(y_ref ** 2)))
+```
+
+Read the exact instance and initialiser spelling from the wrapper's own documentation and from the learning path rather than from memory: the names track the C names closely but not blindly, and the transposed direct form has a different state size from the direct form.
+
+**Step 6.** **Write the board pipeline once, twice.** One entry point, two implementations, the same shape. The float32 side uses the transposed direct form, which needs two state words per stage. The Q15 side uses the direct form, which needs four, and carries a post shift because the coefficients live in 1.15 with headroom.
+
+```c
+#include "arm_math.h"
+#include "coeffs.h"
+
+static arm_biquad_cascade_df2T_instance_f32 bq;
+static float32_t bq_state[2 * NSTAGE];
+static arm_rfft_fast_instance_f32 fft;
+static float32_t spec[1024];        /* packed real spectrum, in place */
+static float32_t mag[513];
+
+void dsp_init(void)
+{
+    arm_biquad_cascade_df2T_init_f32(&bq, NSTAGE, coeffs, bq_state);
+    arm_rfft_fast_init_f32(&fft, 1024);
+}
+
+uint32_t dsp_run(const float32_t *in, float32_t *out_mag)
+{
+    uint32_t t0 = cycles_now();
+    arm_biquad_cascade_df2T_f32(&bq, in, spec, 1024);
+    arm_rfft_fast_f32(&fft, spec, spec, 0);   /* 0 = forward */
+    /* The packed layout puts the two purely real bins first. */
+    out_mag[0]   = fabsf(spec[0]);
+    out_mag[512] = fabsf(spec[1]);
+    arm_cmplx_mag_f32(&spec[2], &out_mag[1], 511);
+    return cycles_now() - t0;
+}
+```
+
+The packed output of the real transform catches everyone once. The first two floats are not a complex pair: they are the zero-frequency bin and the Nyquist bin, both purely real, packed together to keep the output the same length as the input.
+
+**Step 7.** **Report a cycle count that carries its conditions.** A bare number is not a measurement. Each row names the format, where the code is, where the data is and what both caches were doing.
+
+```c
+printf("case=%s fmt=%s code=%s data=%s icache=%s dcache=%s cycles=%lu\n",
+       c->name, c->fmt, c->code_where, c->data_where,
+       c->icache ? "on" : "off", c->dcache ? "on" : "off",
+       (unsigned long) cycles);
+```
+
+Run each case at least thirty-two times and report the median rather than the minimum. The minimum is the best case with a warm cache and flatters exactly the configurations this chapter is trying to tell apart.
+
+**Step 8.** **Move the code and the data.** This is the half of the experiment that the run-time switches cannot reach. Give the pipeline its own sections and let the linker script decide where they land.
+
+```c
+__attribute__((section(".itcm_text"))) uint32_t dsp_run(const float32_t *in,
+                                                        float32_t *out_mag);
+__attribute__((section(".dtcm_bss"))) static float32_t spec[1024];
+```
+
+```ld
+SECTIONS
+{
+  .itcm_text : { *(.itcm_text*) } > ITCM AT> FLASH
+  .dtcm_bss (NOLOAD) : { *(.dtcm_bss*) } > DTCM
+}
+```
+
+Every region name, origin and length in that script is checked against RM0455 for this part. The application note that inspired this experiment ships linker scripts for the family, and they are read as a template and retyped against the right manual, never inherited.
+
+**Step 9.** **Write the acceptance test and give it a tolerance before you run it.** The tolerance is a decision, not an observation, and writing it after the fact is how a test becomes a rubber stamp.
+
+```python
+TOL_F32_REL_RMS = 1e-5      # float32 path against the float64 reference
+TOL_Q15_SNR_DB  = 55.0      # Q15 path, after undoing the transform's scaling
+
+def rel_rms(a, b):
+    return float(np.sqrt(np.mean((a - b) ** 2)) / np.sqrt(np.mean(b ** 2)))
+
+def snr_db(a, b):
+    err = a - b
+    return float(10.0 * np.log10(np.sum(b ** 2) / np.sum(err ** 2)))
+
+ok = rel_rms(board_f32, mag_ref) <= TOL_F32_REL_RMS
+print("float32 rel RMS %.3e, tolerance %.3e -> %s"
+      % (rel_rms(board_f32, mag_ref), TOL_F32_REL_RMS, "pass" if ok else "fail"))
+```
+
+The Q15 comparison needs one extra step that the float comparison does not: the fixed-point real transform scales its output down as it goes, stage by stage, so the board result is rescaled before it is compared. Doing that rescaling inside the acceptance script, where it is visible, is better than hiding it in the firmware where it becomes folklore.
+
+**Step 10.** **Collect the grid.** Eight cases at minimum: two formats, two code placements, two data placements, with the cache state swept inside each. Put them in a CSV file and let a script make the table, so the table cannot drift from the data.
+
+```bash
+python tools/accept.py --port /dev/ttyACM0 --cases all --out results/cycles.csv
+python tools/table.py results/cycles.csv > results/table.md
+```
+
+## Build, flash and debug
+
+![Figure 18.5. The two workloads on one time axis.](../figures/c18_timing.svg)
+
+*Figure 18.5. The two workloads on one time axis. The node workload leaves most of the block period idle; the benchmark workload removes the idle so that a cycles-per-transform figure means something. Every interval marked with a question mark is unmeasured.*
+
+Four builds come out of one source tree, one per placement combination, and the build system names them rather than leaving the reader to guess which image is on the board.
+
+```bash
+cmake -B build/flash_axi -DPLACEMENT=flash_axi \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build/flash_axi -j
+arm-none-eabi-size -A build/flash_axi/firmware.elf | grep -E 'itcm|dtcm|text'
+probe-rs run --chip STM32H7A3ZITx build/flash_axi/firmware.elf
+```
+
+When a placement build produces a board that does not start, the cause is almost always the linker script rather than the code: a region that does not exist on this part, a load address that was never set so the tightly coupled code is never copied out of flash, or a section marked to be loaded when it should not be. Recovery is the usual sequence, namely hold the reset, connect under reset, and flash a known good image; the drag-and-drop disk of chapter 1 is the fastest way back to a working board when the debug connection itself has become unreliable.
+
+> [!NOTE]
+> **When the fast placement is slower**
+>
+> If moving the pipeline into tightly coupled memory makes it slower rather than faster, check three things in order. The instruction cache may have been left on, in which case flash was already fast and you have added a copy at startup for nothing. The data may still be in the main region while only the code moved, so every sample still crosses the bus matrix. Or the transform's tables, which are constant data in flash, may now be the slowest thing in the loop because everything else moved away from them. The third case is the interesting one and it is why the table has a column for where the data is.
+
+## Verification and acceptance criteria
+
+- The float32 pipeline matches the double-precision host reference on the shipped vector to a relative root-mean-square error at or below the tolerance written in the script before the first run, and the script prints both the value and the tolerance whether it passes or fails.
+- The Q15 pipeline reaches at least the stated signal to error ratio on the same vector after the transform's own scaling has been undone, and the rescaling is done in the visible part of the code.
+- The library's Python wrapper and the board agree to within the float32 tolerance on the same input, which separates a porting error from an arithmetic one. A failure here names which of the two it is.
+- Every cycle figure carries its format, its code placement, its data placement and the state of both caches. A row missing any of the four is not reported.
+- Each case is run at least thirty-two times and the median is reported, with the minimum and maximum alongside it, using the core's cycle counter as the instrument. If the counter is found not to run without a probe attached, the substitute instrument is named in the same table.
+- The size rows of the budget table are filled from the linker map file and reconcile with the size output, in the same way as chapter 1.
+- The comparison script exits with a nonzero status on failure, so it can become a regression test in chapter 12's rig without being rewritten.
+
+## Variants
+
+| Axis | Variant | What changes | Cost | Built in full in |
+| --- | --- | --- | --- | --- |
+| Execution model | Polled loop | The baseline here. The pipeline runs when called and nothing else is happening, which is what makes the cycle count clean | Nothing else runs | Chapter 3 |
+| Execution model | DMA double buffered | Real samples arrive while the previous block is still being transformed, which is the shape any deployed version takes | A coherency problem, which is chapter 19 | Chapter 6 |
+| Operating system | An RTOS task | The pipeline becomes one task among three and the cycle count acquires a distribution rather than a value | Scheduling jitter enters the measurement | Chapter 20 |
+| Language | C++ | Templates over the block length and the numeric format remove the duplicated entry point, at the cost of reading generated assembly to confirm nothing was added | A decision to justify | Chapter 9 |
+| Language | Rust | The computation moves to a pure-Rust transform crate or to bindings over this same library, and the acceptance script does not change at all | The library's test coverage is left behind | Chapter 17 |
+| Language | MicroPython | The design and the reference can run on the board itself for exploration, which is pleasant and is not the measurement | Two orders of magnitude of speed | Chapter 1 and 9 |
+| Peripheral substitution | The transform on the host | Send the block over the link and let the host compute, which is the honest comparison for a node with a host twenty centimetres away | Link energy replaces compute energy | Chapter 16 |
+| Intelligence and reach | Transform plus a small statistical model | The spectrum feeds a decision tree or an anomaly score rather than a display, which for most sensor problems on this part beats a neural network per kilobyte | Accuracy on hard problems | Chapter 16 |
+
+*Table 18.5. Variants for chapter 18. Only the first row is built here; the rest are named so that a reader can follow one axis across the book rather than reading front to back.*
+
+## Pitfalls
+
+- The denominator sign. The design tool gives the transfer function's coefficients; the library wants the two feedback coefficients negated. A filter built from unnegated coefficients does not fail loudly. It rings, or it grows without bound after a few hundred samples, which looks like a data problem.
+- The state buffer size. The transposed direct form needs two words per stage and the direct form needs four. Getting it wrong overwrites whatever is next in memory, and the symptom appears in an unrelated variable.
+- The packed real spectrum. The first two outputs are the zero-frequency and Nyquist bins, not a complex pair. Treating them as a pair puts a large false value in the first magnitude bin and shifts everything after it.
+- The fixed-point transform's internal scaling. It divides as it goes. A comparison against an unscaled reference reports a failure that is arithmetic doing exactly what it documents.
+- Reporting the minimum cycle count. The minimum is the warm-cache case and it hides the differences this chapter exists to expose. Report the median with the range.
+- Measuring with the debugger halted between runs, or with a breakpoint inside the timed region. Both perturb the cache and the pipeline.
+- Quoting a fixed-point against floating-point ratio measured on a different core. It is the single most repeated error in this subject area.
+- Inheriting a linker script for the tightly coupled regions from the better-known member of this family. The regions differ, and the failure looks like a hardware fault.
+- Feeding the pipeline from a buffer that a transfer engine just filled without the maintenance step. That is chapter 19, and it produces a spectrum of stale data that looks entirely plausible.
+
+## Best practices applied
+
+- The tolerance is written before the first measurement and printed on every run, pass or fail.
+- Two independent references, one in double precision and one through the same library on the host, so a failure is localised rather than merely detected.
+- Every measurement names its instrument and its conditions, and a condition that is unknown is written as unknown rather than omitted.
+- A maintained, permissively licensed library does the arithmetic, and the chapter says clearly what the library does not do, which is design.
+- The experiment's build matrix is in the build system, not in a comment, so a result can be reproduced by name.
+- The test vector is fixed, seeded and committed, which is what makes this a regression test rather than a demonstration.
+
+## Stretch goals
+
+- Add the optimised neural kernels from the same maintainer and measure a small classifier on the spectrum. This core has the signal-processing instruction extension but no vector extension, so the speed-ups reported for later cores do not apply here; measuring that gap is a result worth having.
+- Compare the spectrum plus a small statistical model against a neural network of the same flash budget on one real task, which is the argument chapter 16 tests and the thesis this book returns to.
+- Take the window function and the magnitude calculation out of the loop by folding the window into the biquad's final stage, and report whether the saving survives the placement sweep.
+- Run the same acceptance script against the Rust implementation of chapter 17 without changing the script, which proves the acceptance test is about the numbers and not about the language.
+- Extend the grid with the block length as a third axis, from 128 to 4096 samples, and plot cycles per sample rather than cycles per transform.
+
+## Roadmap and next steps
+
+Chapter 19 is the direct sequel and should be read next by anyone who intends to feed this pipeline from a transfer engine rather than from a compiled-in array, because the cache behaviour this chapter treats as a performance variable becomes a correctness problem the moment a second bus master writes the input buffer.
+
+For going deeper, the maintainer's own learning path on building a pipeline in Python against a reference implementation is the shortest route to fluency with the wrapper, and it is written by the person who maintains both sides. The vendor's application note on system architecture and performance is the model for the placement grid; read it for its method and not for its numbers, which belong to a different part. For the argument that a transform plus a statistical model beats a small neural network on accuracy per kilobyte, there is one peer-reviewed paper making the case directly, and the open textbook that grew out of a university course is the closest thing to a canonical curriculum for the machine-learning chapters that follow. Appendix H lists the courses and their licences, including the two whose terms forbid reproduction in a commercial work.
+
+## Portfolio evidence
+
+- A public repository whose README opens with the placement grid and states the tolerance in the first paragraph, before any performance claim.
+- The acceptance output for both numeric formats, showing the measured value next to the tolerance it was judged against.
+- The cycle table with one row per case, every row naming format, placements and both cache states, generated from the CSV file rather than typed.
+- A short written note on what the placement sweep found, including the case where the expected answer did not hold, because a sweep that confirms everything was not a sweep.
+- The generated coefficient header next to the design script that produced it, so a reader can regenerate rather than trust.
+
+## Sources
+
+Normative references:
+
+- Reference manual RM0455, for the memory regions, their addresses and which bus each sits behind. Not RM0433, which is its sibling.
+- The STM32H7A3xI datasheet, for the flash and memory sizes, and for whether the floating-point unit on this part is double precision.
+- The Armv7-M architecture reference manual and the Cortex-M7 technical reference manual, for the cycle counter, the caches and the signal-processing instruction set extension.
+- The vendor's application note on system architecture and performance, for the benchmark method and for the shape of the placement result. It does not cover this part.
+
+Reusable implementations:
+
+- The computational library, Apache-2.0, vendored with its licence file.  
+  <https://github.com/ARM-software/CMSIS-DSP>
+- The learning path that builds a pipeline in Python against a reference implementation, written by the library's maintainer.  
+  <https://learn.arm.com/learning-paths/embedded-and-microcontrollers/cmsisdsp-dev-with-python/>
+- The optimised neural kernels for this architecture, Apache-2.0, which reach this core through the signal-processing extension rather than through vectors.  
+  <https://github.com/ARM-software/CMSIS-NN>
+- The small-model library for the statistical alternative, MIT, which does decision trees, naive Bayes and anomaly detection from a very small flash budget.  
+  <https://github.com/emlearn/emlearn>
+- The peer-reviewed argument for classical features over small neural networks on parts of this class.  
+  <https://arxiv.org/pdf/2107.09448>
+
+---
+
+[Previous](17-the-same-driver-twice.md) &nbsp;&nbsp;|&nbsp;&nbsp; [Contents](../README.md) &nbsp;&nbsp;|&nbsp;&nbsp; [Next](19-caches.md)
