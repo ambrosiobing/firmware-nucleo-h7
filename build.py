@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
-"""Build the PDF and the single-file HTML edition of the firmware volume.
+"""Build the PDF and the single-file HTML edition of this volume.
 
     python build.py                     figures -> SVG, pdflatex x2, HTML
     python build.py --pdf               PDF only
     python build.py --html              figures + HTML only
     python build.py --figures           figures only (latex + dvisvgm)
-    python build.py --drift ../EmbeddedLinux_Top20/build.py
+    python build.py --chapter 7         one chapter, its own PDF and HTML
+    python build.py --chapters          every chapter, one file each
+    python build.py --drift ../<sibling>/build.py
                                         prove the two toolchain copies are identical
                                         outside their DOC blocks
-    python build.py --check sections/c07.tex
+    python build.py --check sections/<pfx>07.tex
                                         compile that section alone (pdflatex), render
                                         its figures to SVG, run the HTML converter on it
                                         and report unknown macros / non-ASCII in code
+
+Everything that names the volume lives in the DOC block below, and the file is
+byte-identical to its siblings outside it. The section file prefix, the unit
+word, the metadata labels and the accent colours are all read from there, which
+is what lets one converter serve every volume and what --drift polices.
 
 The HTML converter understands the LaTeX subset defined in main.tex (see the
 authoring macros there).  Unknown commands are dropped and reported.
@@ -1062,7 +1069,13 @@ def preamble_of(main_text):
 
 
 def chapter_slug(text, number):
-    """chapter-07-the-actuator-you-do-not-have, from the \\project title."""
+    """07-the-actuator-you-do-not-have, from the \\project title.
+
+    The unit word is not in the slug. A file named after one unit of this
+    volume prepends DOC["unit"], so the same function serves a volume of
+    chapters and a volume of projects without either borrowing the other's
+    vocabulary.
+    """
     m = re.search(r"\\project\{(\d+)\}\{([^}]*)\}", text)
     title = m.group(2) if m else ""
     title = title.split(":")[0].split(",")[0].lower()
@@ -1075,7 +1088,7 @@ def chapter_slug(text, number):
             "or", "the", "to", "with", "you"}
     while words and words[-1] in stop:
         words.pop()
-    return f"chapter-{number:02d}" + ("-" + "-".join(words) if words else "")
+    return f"{number:02d}" + ("-" + "-".join(words) if words else "")
 
 
 def build_chapter(which):
@@ -1104,7 +1117,7 @@ def build_chapter(which):
         print(f"{path.name} has no \\project line, so it is not a chapter")
         return False
     number, title = int(m.group(1)), m.group(2)
-    stem = chapter_slug(text, number)
+    stem = f'{DOC["unit"].lower()}-{chapter_slug(text, number)}'
     check_ascii_in_code(text, path.name)
     BUILD.mkdir(exist_ok=True)
 
@@ -1131,7 +1144,7 @@ def build_chapter(which):
         return False
     shutil.copy2(BUILD / f"{stem}.pdf", ROOT / f"{stem}.pdf")
     pages = re.search(r"\((\d+) pages?,", logtext)
-    print(f"== chapter {number}: {title}")
+    print(f'== {DOC["unit"].lower()} {number}: {title}')
     print(f"   PDF  -> {stem}.pdf  ({pages.group(1) if pages else '?'} pages)")
 
     names = all_figure_names(text)

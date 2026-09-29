@@ -90,7 +90,11 @@ class MarkdownRenderer(build.Renderer):
         for kind, key in order:
             if kind == "fig":
                 fig += 1
-                self.fig_names[key] = self.label_for("Figure", fig)
+                label = self.label_for("Figure", fig)
+                # Under both keys: block_cmd knows the figure by its bare name,
+                # a \ref knows it by its LaTeX label.
+                self.fig_names[key] = label
+                self.fig_names[f"fig:{key}"] = label
             else:
                 tab += 1
                 if key:
@@ -208,7 +212,11 @@ class MarkdownRenderer(build.Renderer):
         def flush():
             s = "".join(para).strip()
             if s:
-                out.append(re.sub(r"[ \t]+\n", "  \n", re.sub(r"(?<!\n)[ \t]{2,}", " ", s)))
+                s = re.sub(r"(?<!\n)[ \t]{2,}", " ", s)
+                s = re.sub(r"[ \t]+\n", "  \n", s)
+                # "Figure~\ref{fig:x}" would otherwise read "Figure Figure 3".
+                s = re.sub(r"\b(Figure|Table)\s+(\*\*\1 )", r"\2", s)
+                out.append(s)
             para.clear()
 
         for nd in nodes:
@@ -467,7 +475,7 @@ def chapter_index():
         if not m:
             continue
         num = int(m.group(1))
-        slug = build.chapter_slug(text, num).replace(f"chapter-{num:02d}", f"{num:02d}", 1)
+        slug = build.chapter_slug(text, num)
         out[num] = (f"{slug}.md", m.group(2), m.group(4))
     return out
 

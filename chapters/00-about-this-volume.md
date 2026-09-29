@@ -38,7 +38,7 @@ Four facts about the board are settled from two independent machine-readable sou
 
 ## How to read and how to work
 
-- **Order.** Chapter 1 gates everything, because nothing else is meaningful without a build you trust. Chapters 2 to 7 are the workbook and prepare the node. Chapters 8 to 12 build the node, which chapter 20 then rebuilds on a kernel. Chapter 19 gates every chapter that moves a buffer with a transfer engine, which is 13, 15 and 18. Figure the figure above shows those dependencies and nothing else, because the rest of the order is a preference.
+- **Order.** Chapter 1 gates everything, because nothing else is meaningful without a build you trust. Chapters 2 to 7 are the workbook and prepare the node. Chapters 8 to 12 build the node, which chapter 20 then rebuilds on a kernel. Chapter 19 gates every chapter that moves a buffer with a transfer engine, which is 13, 15 and 18. **Figure 1** shows those dependencies and nothing else, because the rest of the order is a preference.
 - **Effort.** Each chapter's key-facts box gives a difficulty from 1 to 5 and an estimate in evenings of about four hours. The total is roughly eighty evenings. Pick by interest and by what the next application asks for.
 - **Evidence first.** Every chapter ends with the artefacts to publish: a repository whose README opens with a figure, a console log, a measurement table generated from data rather than typed, and a short note on what the measurement found. A chapter is finished when the evidence exists, not when the code runs once.
 - **Measurements carry their instrument.** Every number in this book names the instrument that produced it, or says "not measured". There are no invented microamps and no borrowed cycle counts.
