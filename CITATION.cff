@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+title: "Twenty Firmware Projects on the NUCLEO-H7A3ZI-Q"
+message: "If you refer to this work, please cite it as below."
+type: software
+authors:
+  - family-names: Pagaran
+    given-names: Joseph Ambrose
+    orcid: ""
+abstract: >-
+  Twenty self-contained firmware projects on one STM32H7A3 board, built from a
+  fixed bench inventory with no oscilloscope and no logic analyser, so every
+  timing and energy claim comes from the board's own counters or from a named
+  instrument. Covers a cross toolchain and linker script owned end to end,
+  lock-free buffering and memory ordering on the Cortex-M7, interrupt and
+  transfer-driven receive, framing with the hardware CRC unit, low-power modes
+  with a measured charge per cycle, a payload codec with a host twin, three
+  sensor shields and their bus topologies, the placement question for a
+  classifier, the vendor abstraction layer against the registers, transforms
+  with a numerical acceptance test, the cache and memory protection trap this
+  family is known for, and a real-time kernel application with a measured
+  latency distribution. Written against this part's own reference manual rather
+  than the better known member of its family, whose documentation most published
+  material assumes.
+keywords:
+  - embedded firmware
+  - STM32H7A3
+  - Cortex-M7
+  - low power
+  - DMA
+  - cache coherency
+  - FreeRTOS
+  - sensor fusion
+license: MIT
+repository-code: "https://github.com/ambrosiobing/firmware-nucleo-h7"
+version: "1.0.0"
+date-released: "2026-09-29"
