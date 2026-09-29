@@ -1,0 +1,31 @@
+% Bench layout: one shield for the read, one pin for the toggle, one marker.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[board, minimum width=52mm, minimum height=28mm] (nuc) at (0,0) {};
+\node[text=white, font=\sffamily\bfseries\small] at (-0.55,-1.05) {NUCLEO-H7A3ZI-Q};
+\node[pinrow, minimum width=42mm] at (0,1.25) {};
+\node[pinrow, minimum width=42mm] at (0,-0.55) {};
+
+\node[hat, minimum width=38mm, minimum height=15mm] (sh) at (0.1,0.5) {};
+\node[text=white, font=\sffamily\bfseries\small] at (0.1,0.85) {one sensor shield};
+\node[text=white, font=\tiny, align=center] at (0.1,0.32)
+  {either shield serves: the operation\\under test is a bus transaction};
+
+\node[font=\tiny, align=right, anchor=south east] at (-3.05,0.95) {ST-LINK\\micro USB};
+\node[draw=black!70, fill=gray!60, minimum width=4mm, minimum height=6mm] (usb) at (-2.75,0.6) {};
+\node[ext, left=16mm of nuc, text width=22mm, minimum height=14mm] (pc)
+  {Host PC\\{\tiny two toolchains\\one comparison script}};
+\draw[usbcable] (usb.west) to[out=180,in=0] (pc.east);
+
+\node[ext, right=18mm of nuc, text width=25mm, minimum height=17mm] (ppk)
+  {nRF-PPK2\\{\tiny the marker recorder, and charge per operation if wanted}};
+\draw[cable, draw=orange!70!black] (2.6,0.2) -- node[above, font=\tiny]{marker} (ppk.west);
+\draw[cable, draw=blue!50!black] (2.6,-0.25)
+  -- node[below, font=\tiny]{toggled pin} ($(ppk.west)+(0,-0.45)$);
+
+\node[umlnote, text width=88mm, anchor=north west] at (-4.6,-2.0)
+  {The toggled pin drives nothing but a logic input, so there is no load to
+   argue about. There is no oscilloscope on this bench and a toggle at these
+   rates cannot be observed externally with what is here, so the cycle counter
+   is the instrument, its own cost is measured and subtracted in the harness,
+   and the substitution is stated rather than implied. 3.3 V logic only.};
+\end{tikzpicture}

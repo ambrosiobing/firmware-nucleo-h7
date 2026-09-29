@@ -1,0 +1,40 @@
+% The two GPIO registers a pin toggle can go through. Atomicity first, speed
+% second. Bit 31 is leftmost, as in the reference manual.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+
+% ---------------- the set and reset register
+\begin{scope}[yshift=26mm]
+\node[regname] at (-1mm,3mm) {GPIOx\_BSRR};
+\bitscale
+\bitfield{31}{16}{regset}{BR15 to BR0, write 1 to clear that pin}
+\bitfield{15}{0}{regfield}{BS15 to BS0, write 1 to set that pin}
+\node[regreset, anchor=north west] at (0mm,-0.5mm)
+  {write only, reset value 0x0000 0000, one store changes one pin};
+\end{scope}
+
+% ---------------- the output data register
+\begin{scope}[yshift=6mm]
+\node[regname] at (-1mm,3mm) {GPIOx\_ODR};
+\bitscale
+\bitfield{31}{16}{regrsvd}{reserved}
+\bitfield{15}{0}{regfield}{OD15 to OD0, the current output level}
+\node[regreset, anchor=north west] at (0mm,-0.5mm)
+  {read and write, so a toggle here is read, modify, write: three accesses};
+\end{scope}
+
+% ---------------- what the difference actually is
+\node[umlnote, text width=60mm, anchor=north west] at (0mm,-6mm)
+  {One store to the set and reset register changes a pin with no read at all.
+   Nothing else in the port is touched and there is no window between reading
+   and writing.};
+\node[umlnote, text width=60mm, anchor=north west] at (68mm,-6mm)
+  {A read, modify and write of the output register produces the same waveform
+   and is not atomic. An interrupt landing inside the window writes back a stale
+   value for every other pin in the port.};
+
+\node[font=\sffamily\tiny, text width=128mm, anchor=north west] at (0mm,-26mm)
+  {So the difference between the two rungs of the ladder is a correctness
+   difference before it is a speed difference, and which one you get depends on
+   which call you make. That is the strongest argument available for knowing
+   what a layer does, and it is a better argument than any cycle count.};
+\end{tikzpicture}
