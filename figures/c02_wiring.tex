@@ -1,0 +1,35 @@
+% Bench layout: nothing is wired. The second build is the other half of the bench.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[board, minimum width=46mm, minimum height=26mm] (nuc) at (0,0) {};
+\node[text=white, font=\sffamily\bfseries\small] at (0.3,0.8) {NUCLEO-H7A3ZI-Q};
+\node[pinrow, minimum width=38mm] at (0,1.15) {};
+\node[pinrow, minimum width=38mm] at (0,-1.15) {};
+\foreach \x in {-1.85,-1.65,...,1.85}{%
+  \fill[yellow!80!black] (\x,1.15) circle (0.35mm);
+  \fill[yellow!80!black] (\x,-1.15) circle (0.35mm);}
+
+\node[draw=black!70, fill=black!80, minimum width=9mm, minimum height=7mm] (soc) at (0.4,0.05) {};
+\node[text=white, font=\tiny] at (0.4,0.05) {H7A3};
+\node[draw=black!70, fill=gray!60, minimum width=4mm, minimum height=6mm] (usb) at (-2.45,0.45) {};
+
+% the one pin this chapter reserves and does not use yet
+\fill[red!80!black] (1.05,-1.15) circle (0.6mm);
+\draw[draw=linecol, line width=0.4pt] (1.05,-1.15) -- (2.1,-1.9);
+\node[anchor=west, font=\tiny] at (2.1,-1.9) {one Zio pin left free};
+
+\node[ext, left=22mm of nuc, text width=30mm, minimum height=9mm] (tgtb)
+  {target build\\{\tiny arm-none-eabi-gcc, ring.c}};
+\node[ext, below=4mm of tgtb, text width=30mm, minimum height=9mm] (hostb)
+  {host build\\{\tiny cc, the same ring.c}};
+\node[ext, above=4mm of tgtb, text width=30mm, minimum height=9mm] (term)
+  {terminal at 115200\\{\tiny reads the drop counter}};
+
+\draw[usbcable] (usb.west) to[out=180,in=0] (tgtb.east);
+\draw[flow] (hostb.south) -- ++(0,-6mm) node[below, font=\tiny, align=center]
+  {./test\_ring\\{\tiny one second, no board}};
+
+\node[umlnote, text width=52mm, below=13mm of nuc]
+  {Nothing is wired in this chapter. The two builds are the bench: the target one
+   proves the interrupt path and the host one proves the logic. Neither can prove
+   the memory ordering, and the chapter says so rather than implying otherwise.};
+\end{tikzpicture}

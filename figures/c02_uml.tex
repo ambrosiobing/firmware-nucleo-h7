@@ -1,0 +1,39 @@
+% put and get as a sequence. Notes sit left of every lifeline, never on one.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\foreach \x/\name/\id in {2.2/USART3 ISR/isr, 6.2/ring\_t/ring, 10.2/main loop/main}{
+  \node[actor, text width=20mm] (\id) at (\x,0) {\name};
+  \draw[lifeline] (\id.south) -- ++(0,-9.6);
+}
+
+% ---- producer half
+\draw[msg] (2.2,-1.2) -- node[above]{read tail} (6.2,-1.2);
+\node[activation, minimum height=4mm] at (6.2,-1.5) {};
+\draw[reply] (6.2,-2.2) -- node[below]{tail, possibly stale} (2.2,-2.2);
+\draw[msg] (2.2,-3.4) -- node[above]{buf[head \& MASK] = b} (6.2,-3.4);
+\node[activation, minimum height=8mm] at (6.2,-3.9) {};
+\draw[msg] (2.2,-4.4) -- node[above]{head = head + 1} (6.2,-4.4);
+
+% ---- consumer half
+\draw[msg] (10.2,-5.9) -- node[above]{read head} (6.2,-5.9);
+\node[activation, minimum height=4mm] at (6.2,-6.2) {};
+\draw[reply] (6.2,-6.9) -- node[below]{head, possibly stale} (10.2,-6.9);
+\draw[msg] (10.2,-8.1) -- node[above]{b = buf[tail \& MASK]} (6.2,-8.1);
+\node[activation, minimum height=8mm] at (6.2,-8.6) {};
+\draw[msg] (10.2,-9.1) -- node[above]{tail = tail + 1} (6.2,-9.1);
+
+% ---- notes, all left of the leftmost lifeline
+\node[umlnote, text width=31mm, anchor=north east] at (1.4,-1.1)
+  {A full buffer refuses the byte here and counts it. Refusing is the policy;
+   counting is what makes it a decision.};
+\draw[dotted, draw=linecol] (1.4,-1.8) -- (2.2,-1.8);
+
+\node[umlnote, text width=31mm, anchor=north east] at (1.4,-3.3)
+  {The release sits between these two messages. Swap them and the consumer can
+   read a slot that was never filled.};
+\draw[dotted, draw=linecol] (1.4,-3.9) -- (2.2,-3.9);
+
+\node[umlnote, text width=31mm, anchor=north east] at (1.4,-6.0)
+  {The acquire sits between these two. Both sides may read an old value and
+   both errors are conservative.};
+\draw[dotted, draw=linecol] (1.4,-6.5) -- (6.2,-6.5);
+\end{tikzpicture}
