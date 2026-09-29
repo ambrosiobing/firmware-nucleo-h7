@@ -1,0 +1,43 @@
+% Two watchdog layers on one timeline. The gap between them is why a record exists.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+
+% ---- lanes of liveness
+\lane{48}{activity A}
+\foreach \t in {0,24,48}{\slice{48}{\t}{8}{taskrun}{alive}}
+\lane{38}{activity B}
+\foreach \t in {0,24,48,72,96}{\slice{38}{\t}{8}{taskrun}{alive}}
+\lane{28}{liveness check}
+\foreach \t in {10,34,58}{\slice{28}{\t}{10}{taskisr}{refresh}}
+\slice{28}{82}{10}{taskblock}{held}
+\slice{28}{106}{10}{taskblock}{held}
+
+% ---- the watchdog layers
+\lane{16}{watchdogs}
+\slice{16}{100}{18}{taskisr}{write record}
+\slice{16}{118}{16}{taskblock}{reset}
+
+% ---- the two expiries
+\draw[deadline] (100mm,12mm) -- (100mm,56mm);
+\draw[deadline] (118mm,12mm) -- (118mm,56mm);
+\node[font=\sffamily\tiny, anchor=south, align=center] at (100mm,57mm)
+  {software watchdog expires};
+\node[font=\sffamily\tiny, anchor=south, align=center] at (130mm,57mm)
+  {hardware watchdog resets};
+\draw[tspan] (100mm,9mm) -- (118mm,9mm);
+\node[tlabel] at (109mm,9mm) {lead time, 250 ms budgeted};
+
+% ---- axis
+\draw[taxis] (0mm,2mm) -- (140mm,2mm) node[right, font=\tiny] {time};
+\node[font=\sffamily\tiny, anchor=north, align=center] at (56mm,1mm)
+  {activity A stops checking in here};
+\draw[tick] (56mm,2mm) -- (56mm,54mm);
+
+\node[umlnote, text width=52mm, anchor=north west] at (0mm,-6mm)
+  {The check refreshes the hardware watchdog only when every registered
+   liveness bit is set, then clears them all. Refreshing from a timer with no
+   condition keeps a part alive while it does nothing useful.};
+\node[umlnote, text width=52mm, anchor=north west] at (60mm,-6mm)
+  {What deadline to give an activity that is correctly blocked for a long time
+   is the question nothing published answers well. A per-activity deadline is
+   the only shipping answer and it lives in the other operating system.};
+\end{tikzpicture}
