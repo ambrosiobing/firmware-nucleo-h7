@@ -1,0 +1,47 @@
+% One specification, two generated headers, three consumers, and the vectors
+% that sit outside the generator on purpose.
+\begin{tikzpicture}[font=\sffamily\small]
+% ---------------- the specification and what it produces
+\node[fw, text width=32mm] (spec) at (0,0) {codec/fields.py\\{\scriptsize the specification}};
+\node[fw, text width=32mm] (gen)  at (0,-1.6) {tools/gen\_codec.py};
+\node[hw, text width=30mm] (hdrc) at (-4.2,-3.4) {payload\_fields.h};
+\node[ext, text width=30mm] (hdrp) at (4.2,-3.4) {payload\_fields.py};
+\draw[flow] (spec) -- node[lbl, right]{read} (gen);
+\draw[flow] (gen.south) -- (0,-2.6) -| (hdrc.north);
+\draw[flow] (gen.south) -- (0,-2.6) -| (hdrp.north);
+
+% ---------------- the board side
+\node[hw, text width=30mm] (enc)  at (-4.2,-5.2) {payload.c\\{\scriptsize encoder in C}};
+\node[hw, text width=30mm] (cpp)  at (-4.2,-6.8) {payload.hpp\\{\scriptsize the C++ variant}};
+\node[hw, text width=30mm] (frame) at (-4.2,-8.4) {framing, chapter 5\\{\scriptsize COBS and CRC-16}};
+\begin{scope}[on background layer]
+\node[layer, fit=(hdrc)(enc)(cpp)(frame), inner xsep=7pt, inner ysep=10pt,
+      label={[layerlabel, anchor=south west]north west:on the board}] {};
+\end{scope}
+\draw[flow] (hdrc) -- (enc);
+\draw[flow] (hdrc.west) -- (-6.1,-3.4) -- (-6.1,-6.8) -- (cpp.west);
+\draw[flow] (enc) -- node[lbl, right]{5 bytes} (cpp);
+\draw[flow] (cpp) -- (frame);
+
+% ---------------- the host side
+\node[ext, text width=30mm] (dec)  at (4.2,-5.2) {payload.py\\{\scriptsize decoder in Python}};
+\node[ext, text width=30mm] (mpy)  at (4.2,-6.8) {the same file\\{\scriptsize under MicroPython}};
+\node[ext, text width=30mm] (host) at (4.2,-8.4) {host/listen.py\\{\scriptsize edge host over the link}};
+\begin{scope}[on background layer]
+\node[layer, fit=(hdrp)(dec)(mpy)(host), inner xsep=7pt, inner ysep=10pt,
+      label={[layerlabel, anchor=south west]north west:on the host and back on the board}] {};
+\end{scope}
+\draw[flow] (hdrp) -- (dec);
+\draw[flow] (dec) -- (mpy);
+\draw[flow] (dec.east) -- (6.1,-5.2) -- (6.1,-8.4) -- (host.east);
+\draw[bus] (frame.east) -- node[lbl, above]{9 bytes at 115200} (host.west);
+
+% ---------------- the vectors, outside the generator
+\node[hw, text width=32mm, fill=notecol] (vec) at (0,-6.4)
+  {test/vectors.json\\{\scriptsize computed by hand}};
+\draw[flow, draw=red!70!black] (vec.west) -- node[lbl, above]{checks} (enc.east);
+\draw[flow, draw=red!70!black] (vec.east) -- node[lbl, above]{checks} (dec.west);
+
+\node[umlnote, text width=62mm, anchor=north] at (0,-9.6)
+  {Two outputs of one generator agreeing proves the generator is self-consistent and nothing more. The vectors are the independence the generator removed, put back by hand.};
+\end{tikzpicture}

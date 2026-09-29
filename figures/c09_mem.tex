@@ -1,0 +1,40 @@
+% The 40-bit payload, drawn the way a reference manual draws a register.
+% This is a payload layout, not a peripheral register: chapters 5 and 17 draw those.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\renewcommand{\regwidth}{20}
+\renewcommand{\regunit}{5}
+
+% ================= bits 39 down to 20
+\begin{scope}[yshift=16mm]
+\node[regname] at (-2mm,3mm) {bits 39 to 20};
+\foreach \b in {0,...,19}{
+  \node[regbit] at ({(19.5-\b)*5mm},6mm) {\the\numexpr\b+20\relax};}
+\bitfield{19}{17}{regset}{version}
+\bitfield{16}{13}{regfield}{flags}
+\bitfield{12}{4}{regro}{sequence}
+\bitfield{3}{0}{regfield}{feat.}
+\end{scope}
+
+% ================= bits 19 down to 0
+\begin{scope}
+\node[regname] at (-2mm,3mm) {bits 19 to 0};
+\bitscale
+\bitfield{19}{6}{regfield}{feature, continued}
+\bitfield{5}{0}{regset}{battery}
+\end{scope}
+
+% ================= the field table, beside the drawing and not on it
+\node[draw=linecol, fill=white, anchor=north west, align=left, font=\tiny,
+      inner sep=3pt] at (0mm,-6mm)
+  {\textbf{fields, most significant bit first}\\[2pt]
+   version \quad 3 bits \quad unsigned \quad format version 0 to 7\\
+   flags \quad\ \ 4 bits \quad unsigned \quad bit 0 retry, bit 1 forced\\
+   sequence \ \ 9 bits \quad unsigned \quad wraps at 512\\
+   feature \quad 18 bits \quad signed \quad\ \ two's complement, scaled by 1/16\\
+   battery \quad 6 bits \quad unsigned \quad units of 50 mV above 2.00 V};
+
+\node[umlnote, text width=44mm, anchor=north west] at (0mm,-28mm)
+  {Bit 39 is the first bit on the wire. No padding sits between fields, so only the first field is byte aligned. That is the whole reason the bit order has to be written down.};
+\node[umlnote, text width=48mm, anchor=north west] at (52mm,-28mm)
+  {Five bytes. The same content in a self-describing format is about seventeen, which is the argument for packing bits on a link where air time is the budget and the argument against it everywhere else.};
+\end{tikzpicture}

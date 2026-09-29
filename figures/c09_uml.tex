@@ -1,0 +1,32 @@
+% Components and what each is allowed to know.
+\begin{tikzpicture}[font=\sffamily\scriptsize, node distance=6mm]
+% ---- a class-style box: name bar, then contents
+\newcommand{\umlbox}[5]{%
+  \node[umlclass, text width=#4] (#1) at #2 {%
+    \begin{tabular}{@{\hspace{3pt}}p{#4}@{}}
+    \textbf{#3}\\ \hline #5
+    \end{tabular}};}
+
+\umlbox{spec}{(0,0)}{fields.py}{30mm}{name, width, signedness\\ order, nothing else\\[2pt] TOTAL\_BITS = 40}
+\umlbox{gen}{(4.6,0)}{gen\_codec.py}{30mm}{emits payload\_fields.h\\ emits payload\_fields.py\\[2pt] run in CI, diff checked}
+\umlbox{enc}{(0,-2.8)}{payload.c}{30mm}{payload\_encode()\\ payload\_decode()\\[2pt] knows the field table\\ knows no peripheral}
+\umlbox{cpp}{(4.6,-2.8)}{payload.hpp}{30mm}{Field<W, Signed>\\ static\_assert on the total\\[2pt] same bytes, C++17\\ exceptions disabled}
+\umlbox{dec}{(9.2,-2.8)}{payload.py}{30mm}{decode(bytes) $\rightarrow$ dict\\ encode(dict) $\rightarrow$ bytes\\[2pt] runs on CPython\\ runs on MicroPython}
+\umlbox{frm}{(0,-6.0)}{framing, chapter 5}{30mm}{COBS stuffing\\ CRC-16 in hardware\\[2pt] knows only bytes}
+\umlbox{vec}{(4.6,-6.0)}{vectors.json}{30mm}{three cases\\ computed by hand\\[2pt] no generator wrote it}
+\umlbox{tst}{(9.2,-6.0)}{test\_roundtrip.py}{30mm}{ctypes into the encoder\\ 100000 seeded cases\\[2pt] no board attached}
+
+\draw[flow] (spec) -- node[lbl, above]{reads} (gen);
+\draw[flow] (gen.south) -- (4.6,-1.5) -| node[lbl, above, pos=0.25]{generates} (enc.north);
+\draw[flow] (gen.south) -- (4.6,-1.5) -| (cpp.north);
+\draw[flow] (gen.south) -- (4.6,-1.5) -| (dec.north);
+\draw[flow] (enc) -- node[lbl, right]{5 bytes} (frm);
+\draw[flow, draw=red!70!black] (vec.west) -- node[lbl, above]{checks} (enc.east);
+\draw[flow, draw=red!70!black] (vec.north east) -- node[lbl, above]{checks} (dec.south);
+\draw[flow] (tst.west) -- node[lbl, above]{drives} (vec.east);
+
+\node[umlnote, text width=44mm, anchor=north west] at (0,-8.2)
+  {The interface is two functions and a buffer. Anything that widens it, an allocator or a logging call, costs the chapter its best property: that the encoder can be called from a host test.};
+\node[umlnote, text width=44mm, anchor=north west] at (5.6,-8.2)
+  {The framing layer knows it was handed some bytes and nothing about what they mean. That is why the same frame carries a classifier output in chapter 16 unchanged.};
+\end{tikzpicture}

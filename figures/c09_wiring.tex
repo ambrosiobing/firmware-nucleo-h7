@@ -1,0 +1,25 @@
+% Nothing is wired. The frame crosses the cable the debugger is already on.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[board, minimum width=46mm, minimum height=24mm] (nuc) at (0,0) {};
+\node[text=white, font=\sffamily\bfseries\small] at (0.3,0.78) {NUCLEO-H7A3ZI-Q};
+\node[pinrow, minimum width=38mm] at (0,1.05) {};
+\node[draw=black!70, fill=black!80, minimum width=9mm, minimum height=7mm] at (1.3,0.1) {};
+\node[text=white, font=\tiny] at (1.3,0.1) {H7A3};
+\node[draw=black!70, fill=gray!60, minimum width=3.5mm, minimum height=6mm] (usb) at (-2.45,0.35) {};
+
+\node[draw=black!60, fill=black!62, minimum width=18mm, minimum height=6mm] at (-1.0,0.1) {};
+\node[text=white, font=\tiny] at (-1.0,0.1) {ST-LINK V3E};
+\node[font=\tiny, text=white, align=center] at (-1.0,-0.55) {debug and\\virtual COM};
+
+\node[ext, left=30mm of nuc, text width=26mm, minimum height=17mm] (pc)
+  {Host PC\\{\tiny libpayload.so via ctypes}\\{\tiny pytest, listen.py}};
+\draw[usbcable] (usb.west) to[out=180,in=0] (pc.east);
+\node[font=\tiny, anchor=north] at (-3.9,-0.15) {one micro USB cable};
+
+% the two logical channels on that one cable, drawn clear of everything
+\draw[flow] (-7.4,-2.3) -- node[lbl, above]{SWD: flash and halt} (-1.2,-2.3);
+\draw[bus]  (-7.4,-3.0) -- node[lbl, above]{USART3 at 115200: the frames} (-1.2,-3.0);
+
+\node[umlnote, text width=56mm, anchor=north west] at (0.0,-1.8)
+  {The property test needs no board at all: it calls the same C encoder through a foreign function interface on the host. The board appears only in the edge-host variant and in the interpreter variant.};
+\end{tikzpicture}
