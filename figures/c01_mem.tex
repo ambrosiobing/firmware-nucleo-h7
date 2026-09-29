@@ -1,0 +1,30 @@
+% The clock tree that chapter 1 configures, with the verified numbers.
+\begin{tikzpicture}[font=\sffamily\small, node distance=6mm and 11mm]
+\node[osc] (mco) {ST-LINK MCO\\{\tiny 8 MHz}};
+\node[osc, below=8mm of mco] (lse) {LSE crystal\\{\tiny 32.768 kHz}};
+\node[osc, above=8mm of mco] (hsi) {HSI\\{\tiny internal}};
+
+\node[clkmux, right=8mm of mco] (mux) {sel};
+\node[clkdiv, right=7mm of mux] (m) {DIVM\\/2};
+\node[pll, right=7mm of m] (pll) {PLL1\\{\tiny $\times$140}};
+\node[clkdiv, right=7mm of pll] (pdiv) {DIVP\\/2};
+\node[clkdom, right=8mm of pdiv] (sys) {SYSCLK\\{\tiny 280 MHz}};
+
+\node[clkdom, above right=3mm and 10mm of sys] (cpu) {CPU and ITCM};
+\node[clkdom, below right=3mm and 10mm of sys] (apb) {peripheral buses};
+\node[clkdom, below=9mm of apb] (rtc) {RTC\\{\tiny from LSE}};
+
+\draw[clkline] (hsi) -- (mux);
+\draw[clkline] (mco) -- node[clkfreq, above]{bypass} (mux);
+\draw[clkline] (mux) -- (m);
+\draw[clkline] (m) -- node[clkfreq, above]{4 MHz} (pll);
+\draw[clkline] (pll) -- node[clkfreq, above]{560} (pdiv);
+\draw[clkline] (pdiv) -- (sys);
+\draw[clkline] (sys) -- (cpu);
+\draw[clkline] (sys) -- (apb);
+\draw[clkline] (lse) -| (rtc);
+
+\node[clkgate] (g) at ($(sys)!0.5!(apb)$) {};
+\node[umlnote, text width=40mm, below=8mm of pll]
+  {8 / 2 $\times$ 140 / 2 = 280 MHz. Each peripheral also has its own enable bit; forgetting one is the most common first-day fault.};
+\end{tikzpicture}

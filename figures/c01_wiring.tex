@@ -1,0 +1,33 @@
+% Bench layout: one board, one cable. Chapter 1 wires nothing.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[board, minimum width=46mm, minimum height=26mm] (nuc) at (0,0) {};
+\node[text=white, font=\sffamily\bfseries\small] at (0.3,0.75) {NUCLEO-H7A3ZI-Q};
+\node[pinrow, minimum width=38mm] at (0,1.15) {};
+\foreach \x in {-1.85,-1.65,...,1.85}{\fill[yellow!80!black] (\x,1.15) circle (0.35mm);}
+
+% the three user LEDs, with their verified pins
+\node[ledsym, fill=green!70!black] (l1) at (-1.3,-0.35) {};
+\node[ledsym, fill=yellow!80!black] (l2) at (-0.75,-0.35) {};
+\node[ledsym, fill=red!80!black] (l3) at (-0.2,-0.35) {};
+\node[below=0.5mm of l1, font=\tiny, text=white] {PB0};
+\node[below=0.5mm of l2, font=\tiny, text=white] {PE1};
+\node[below=0.5mm of l3, font=\tiny, text=white] {PB14};
+
+\node[draw=black!70, fill=blue!30!black!70, minimum width=6mm, minimum height=4mm] (btn) at (1.5,-0.5) {};
+\node[below=0.5mm of btn, font=\tiny, text=white] {B1 PC13};
+
+\node[draw=black!70, fill=black!80, minimum width=9mm, minimum height=7mm] (soc) at (0.55,0.05) {};
+\node[text=white, font=\tiny] at (0.55,0.05) {H7A3};
+
+\node[draw=black!70, fill=gray!60, minimum width=4mm, minimum height=6mm] (usb) at (-2.45,0.45) {};
+\node[left=0.5mm of usb, font=\tiny, align=right] {ST-LINK\\micro USB};
+
+\node[ext, left=20mm of nuc, text width=24mm, minimum height=13mm] (pc)
+  {Host PC\\{\tiny build, flash, terminal}};
+\draw[usbcable] (usb.west) to[out=180,in=0] (pc.east);
+
+\node[umlnote, text width=44mm, below=9mm of nuc]
+  {One cable carries power, programming and the serial console. A charge-only
+   cable powers the board and never enumerates, which is the first thing to
+   suspect when nothing appears.};
+\end{tikzpicture}

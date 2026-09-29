@@ -1,0 +1,29 @@
+% From power-on to the first printed line.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\foreach \x/\name/\id in {0/boot ROM/rom, 2.9/Reset\_Handler/rst, 5.8/SystemInit/si,
+                          8.7/main/main, 11.6/USART3/uart, 14.3/terminal/term}{
+  \node[actor, text width=19mm] (\id) at (\x,0) {\name};
+  \draw[lifeline] (\id.south) -- ++(0,-7.4);
+}
+\draw[msg] (0,-1.0) -- node[above]{fetch MSP and PC from 0x0800\,0000} (2.9,-1.0);
+\node[activation, minimum height=5.2mm] at (2.9,-1.35) {};
+% self-message: the startup code's own work, before it calls anything
+\draw[msg] (2.9,-1.55) -- ++(0.9,0) -- ++(0,-0.45)
+  node[right, xshift=1mm]{copy .data, zero .bss} -- ++(-0.9,0);
+\draw[msg] (2.9,-2.3) -- node[above]{SystemInit} (5.8,-2.3);
+\node[activation, minimum height=4mm] at (5.8,-2.6) {};
+\draw[reply] (5.8,-3.1) -- node[below]{280 MHz, flash latency set} (2.9,-3.1);
+\draw[msg] (2.9,-3.8) -- node[above]{main} (8.7,-3.8);
+\node[activation, minimum height=3.4mm] at (8.7,-4.1) {};
+\draw[msg] (8.7,-4.6) -- node[above]{enable clock, configure pins} (11.6,-4.6);
+\node[activation, minimum height=3mm] at (11.6,-4.9) {};
+\draw[msg] (11.6,-5.6) -- node[above]{"hello" at 115200} (14.3,-5.6);
+\draw[reply] (14.3,-6.5) -- node[below]{operator sees a line} (8.7,-6.5);
+
+\node[umlnote, text width=30mm, anchor=north east] at (-0.4,-1.6)
+  {Nothing here comes from a code generator. The vector table, the startup code and the linker script are all written by hand in this chapter.};
+\draw[dotted, draw=linecol] (-0.4,-2.2) -- (2.9,-2.0);
+\node[umlnote, text width=26mm, anchor=north east] at (-0.4,-4.6)
+  {If the first bytes after reset are rubbish, the probe buffered output from before the reset.};
+\draw[dotted, draw=linecol] (-0.4,-5.2) -- (11.6,-5.6);
+\end{tikzpicture}

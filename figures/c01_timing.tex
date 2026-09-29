@@ -1,0 +1,29 @@
+% Where the image comes from, and where the time goes before main.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+% ---- the link map, as stacked sections
+\node[font=\sffamily\bfseries\small, anchor=west] at (0,34mm) {What the linker placed, and where};
+\memregion{24}{8}{mmflash}{.isr\_vector\\{\tiny 640 B}}{0x0800\,0000}
+\memregion{14}{10}{mmflash}{.text and .rodata}{0x0800\,0280}
+\memregion{4}{10}{mmram}{.data copied here\\.bss zeroed here}{0x2400\,0000}
+\node[mmaddr, anchor=west] at (36mm,9mm) {AXI SRAM};
+\node[mmaddr, anchor=west] at (36mm,19mm) {flash};
+\node[font=\sffamily\tiny, anchor=west, text width=34mm] at (36mm,29mm)
+  {The startup code is what moves the middle box into the bottom one.};
+
+% ---- the boot timeline
+\begin{scope}[yshift=-16mm]
+\draw[taxis] (0mm,-3mm) -- (86mm,-3mm) node[right, font=\tiny] {time};
+\lane{4}{boot}
+\slice{4}{0}{8}{taskisr}{ROM}
+\slice{4}{8}{10}{taskready}{startup}
+\slice{4}{18}{14}{taskready}{clocks}
+\slice{4}{32}{6}{taskrun}{main}
+\slice{4}{38}{12}{taskrun}{USART3}
+\slice{4}{50}{20}{taskrun}{first line printed}
+\foreach \x/\t in {0/0, 18/?, 32/?, 50/?}{
+  \draw[tick] (\x mm,-3mm) -- (\x mm,11mm);
+  \node[font=\tiny, anchor=north] at (\x mm,-3.5mm) {\t};}
+\node[font=\sffamily\tiny, text width=34mm, anchor=west] at (72mm,7mm)
+  {Every interval here is a question mark until chapter 6 gives you an instrument. Do not guess them.};
+\end{scope}
+\end{tikzpicture}
