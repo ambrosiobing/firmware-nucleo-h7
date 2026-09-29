@@ -1,0 +1,48 @@
+% The transition table drawn. Every row above appears here and nothing else does.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[initial] (i) at (-0.3,0) {};
+\node[state, text width=18mm] (init) at (1.2,0)     {S\_INIT};
+\node[state, text width=18mm] (idle) at (4.5,0)     {S\_IDLE};
+\node[state, text width=18mm] (sens) at (7.5,0)     {S\_SENSE};
+\node[state, text width=18mm] (feat) at (10.5,0)    {S\_FEATURE};
+\node[state, text width=18mm] (enc)  at (10.5,-2.8) {S\_ENCODE};
+\node[state, text width=18mm] (tx)   at (7.5,-2.8)  {S\_TX};
+\node[state, text width=18mm] (back) at (3.6,-2.8)  {S\_BACKOFF};
+\node[state, text width=18mm, fill=hwcol] (flt) at (13.2,-1.4) {S\_FAULT};
+
+% ---- the ordinary path
+\draw[trans] (i) -- (init);
+\draw[trans] (init) -- node[lbl, above]{tick} (idle);
+\draw[trans] (idle) -- node[lbl, above]{tick} (sens);
+\draw[trans] (sens) -- node[lbl, above]{block} (feat);
+\draw[trans] (feat) -- node[lbl, right]{feature} (enc);
+\draw[trans] (enc)  -- node[lbl, above]{frame} (tx);
+
+% ---- the two arcs above row one
+\draw[trans] (idle) to[out=42,in=138] node[lbl, above]{button} (sens);
+\draw[trans] (sens) to[out=158,in=22] node[lbl, above]{timeout} (idle);
+
+% ---- what happens when the transmit does not complete
+\draw[trans] (tx) -- node[lbl, below]{fail [$n<3$]} (back);
+\draw[trans] (back.south) -- (3.6,-3.6)
+   -- node[lbl, above]{timeout} (7.5,-3.6) -- (tx.south);
+\draw[trans] (back.north) -- node[lbl, rotate=90]{button} (3.6,-0.45);
+\draw[trans] (tx.west) -- (5.9,-2.8) -- node[lbl, rotate=90]{tx ok} (5.9,-1.0)
+   -- (5.3,-1.0) -- (5.3,-0.45);
+\draw[trans] (tx.east) -- (9.2,-2.8) -- (9.2,-4.4)
+   -- node[lbl, above]{fail and give up} (2.4,-4.4) -- (2.4,0) -- (idle.west);
+
+% ---- the fault edges, one per state that can raise a fault
+\draw[trans, draw=red!70!black] (feat.east)
+   -- node[font=\sffamily\scriptsize, fill=white, inner sep=1.5pt,
+           text=red!70!black, midway, above]{fault} (13.2,0) -- (flt.north);
+\draw[trans, draw=red!70!black] (enc.east) -- (11.9,-2.8)
+   -- node[lbl, rotate=90, text=red!70!black]{fault} (11.9,-1.4) -- (flt.west);
+\draw[trans] (flt.south) -- (13.2,-5.4)
+   -- node[lbl, above]{button} (1.2,-5.4) -- (init.south);
+
+\node[umlnote, text width=56mm, anchor=north west] at (-0.6,-6.1)
+  {The first matching row wins, so the guarded row is written before the unguarded fallback. Reordering those two makes the guarded row unreachable and nothing reports it until the reachability test runs.};
+\node[umlnote, text width=56mm, anchor=north west] at (7.0,-6.1)
+  {A flat table needs one fault edge per state that can raise a fault. Two are cheap; at six it is worth a superstate, which is what the stretch goals point at.};
+\end{tikzpicture}

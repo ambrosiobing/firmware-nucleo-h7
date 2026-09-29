@@ -1,0 +1,25 @@
+% Every byte this chapter owns. Not the silicon map: chapter 19 draws that one.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+% ================= constant side
+\node[font=\sffamily\bfseries\small, anchor=west] at (0mm,46mm) {constant, in flash};
+\begin{scope}
+\memregion{0}{11}{mmflash}{node\_sm.o and node\_actions.o\\{\tiny code}}{.text}
+\memregion{12}{9}{mmflash}{TABLE\\{\tiny 15 rows, constant}}{.rodata}
+\memregion{22}{9}{mmflash}{log format strings\\{\tiny one per transition}}{.rodata}
+\end{scope}
+
+% ================= mutable side
+\begin{scope}[xshift=62mm]
+\node[font=\sffamily\bfseries\small, anchor=west] at (0mm,46mm) {mutable, in memory};
+\memregion{0}{11}{mmram}{node\_ctx\_t\\{\tiny 96 B including frame[64]}}{.bss}
+\memregion{12}{9}{mmram}{event queue\\{\tiny 32 slots of one byte}}{.bss}
+\memregion{22}{9}{mmram}{coverage counters\\{\tiny 15 rows of four bytes}}{.bss}
+\memregion{33}{9}{mmres}{no heap\\{\tiny the allocator is not linked}}{absent}
+\end{scope}
+
+% ================= the total, stated rather than implied
+\node[umlnote, text width=44mm, anchor=north west] at (0mm,-4mm)
+  {188 bytes of mutable memory for the whole application layer. The number is exact because every buffer has a declared size and nothing is allocated at run time.};
+\node[umlnote, text width=44mm, anchor=north west] at (62mm,-4mm)
+  {This is the application's footprint and not the silicon's memory map. Chapter 19 draws that one and explains which transfer engine reaches which region.};
+\end{tikzpicture}

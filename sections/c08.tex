@@ -1,0 +1,625 @@
+\project{08}{The node's state machine: sense, feature, and a transmit that is a stub}{NUCLEO-H7A3ZI-Q, and nothing else}{Application state machine, bare metal}
+
+\begin{keyfacts}
+\item[Board] NUCLEO-H7A3ZI-Q alone. No shield, no radio, no instrument
+\item[Peripherals] The three on-board LEDs as a state display, USART3 for the event log, the periodic wake of chapter 7, the user button as a forced event
+\item[Toolchain] arm-none-eabi-gcc with CMake as in chapter 1, plus a host build of the same source with a C compiler and a test runner
+\item[Operating system] Bare metal, run to completion, no dynamic allocation
+\item[Difficulty] 3 of 5
+\item[Effort] 3 evenings of about four hours
+\item[Deliverable] A transition table whose every row is proven reachable by a test, a dispatcher that cannot block, and a transmit step that logs exactly the bytes a radio would have been handed
+\end{keyfacts}
+
+\subsection*{Why this project}
+
+The seven chapters before this one produce bytes, samples, frames and energy.
+None of them decides anything. This chapter builds the part of the node that
+does: the control flow that says what happens next, in what order, and what
+happens instead when a step does not complete. It is the smallest chapter in
+the book by line count and the one that is hardest to get back if it is written
+badly, because a control flow that has grown out of a set of boolean flags
+cannot be tested, cannot be drawn, and cannot be explained to anybody who did
+not write it.
+
+The transmit step is a stub on purpose, and the purpose is not that the radio
+is missing. It is that a node whose transmit is a stub can be run to completion
+on a host, in continuous integration, with no hardware attached, and the frame
+it would have sent can be compared byte for byte against the encoder that
+produces it. That comparison is this chapter's acceptance criterion and it is
+what makes chapter 9 and this chapter verify each other rather than merely
+agreeing. The bench has no mioty radio and none is bought, so the stub is also
+the honest representation of what exists.
+
+\begin{note}{There is no prior art worth the name and that is the finding}
+This is the only chapter in the volume whose technical work has no source to
+start from, and it is worth saying plainly rather than padding a table. What
+exists is either a framework whose licence excludes it from a permissively
+published portfolio, or a thin wrapper around a switch statement that costs
+more as a dependency than the code it replaces. Nobody publishes a sensor
+node's application state machine, because the application layer is the one
+layer that encodes the product, and a product is exactly what nobody gives
+away. So the state machine here is the author's, and the chapter's contribution
+is the discipline around it: a transition table that can be walked, a coverage
+count that proves every row runs, and a stub that is verified against a real
+encoder.
+\end{note}
+
+The third reason this chapter exists is that it is the fixed point of the
+variants matrix. Every other chapter varies how something is executed: polled,
+on interrupt, by transfer engine, in a task, in another language. This chapter
+varies nothing. It is the application that each of those execution models
+hosts, and it is written once so that chapters 11, 12, 16 and 20 can re-host it
+without rewriting it. That is why the variants table below claims nothing as
+built in full here. It is the only such table in the book, and the reason is
+structural rather than an omission.
+
+\subsection*{Prior art and what to reuse}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{32mm}p{46mm}p{40mm}p{20mm}}
+\toprule
+Source & What it gives & What it does not & Licence \\
+\midrule
+The active-object framework and its free video course & A complete hierarchical state machine framework with modelling tools, and a fifty-six lesson course that walks one problem from a superloop to an event-driven architecture. It is the best teaching material on this subject anywhere & Its licence excludes it from a permissively published portfolio, and the course code is the most restrictive item in this book's pool. Read it, do not paste it & GPL-3.0 or commercial; course code AGPL-3.0 \\
+Small permissive state machine libraries in general & A dispatcher, a table type and sometimes a code generator & None of them is a standard, and the dispatcher below is twelve lines. A dependency that replaces twelve lines costs more than it saves, and it has to be justified rather than assumed & Various \\
+The vendor's example tree for this board & Working peripheral bring-up for everything this chapter drives & No application layer at all. Every example demonstrates one peripheral and then stops, which is precisely the gap & Mixed \\
+Majerle's lightweight ring buffer & The event queue, unchanged from chapter 2, with its atomicity assumptions stated & Nothing about what an event means or who may post one & MIT \\
+The host test runner and the fake-function framework & A test harness for the same source compiled for the host, and function fakes for the drivers & The fake framework's default history silently discards calls past ten arguments and seventeen calls, which is a trap worth knowing before a test passes for the wrong reason & MIT \\
+\bottomrule
+\end{tabular}
+\caption{Prior art for chapter 8. Four of the five rows are infrastructure. The row that would carry the chapter does not exist, which is the finding rather than a gap to apologise for.}
+\end{table}
+
+What is left to write is the state machine, the dispatcher, the event queue
+discipline, the coverage instrumentation and the stub. That is the whole
+chapter. The reuse here is honest and small: the ring buffer from chapter 2 and
+a test runner. Everything else is written, and the repository says so in its
+first paragraph.
+
+\subsection*{Parts from the inventory}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{40mm}p{66mm}p{40mm}}
+\toprule
+Part & Role & Interface \\
+\midrule
+NUCLEO-H7A3ZI-Q & The whole chapter. Its three LEDs are the state display and its button is a forced event & Micro USB to the host \\
+A USB data cable & Power, programming and the event log on one lead & Micro USB \\
+Host PC & Builds the firmware, and builds the same state machine source natively to run the tests & Windows with the Linux subsystem, or a Raspberry Pi \\
+\bottomrule
+\end{tabular}
+\caption{Inventory items used in chapter 8. Nothing is wired, nothing is bought, and no instrument is needed, which is unusual in this volume and is the point: this chapter's acceptance is a test result rather than a measurement.}
+\end{table}
+
+\subsection*{System architecture}
+
+\diagram{c08_arch}{The state machine sits between the drivers below it and the codec beside it, and has no knowledge of either. The same source file is compiled twice: once for the board and once for the host, where the drivers are fakes and the test drives the events.}
+
+Three properties of that arrangement are worth stating because they are what
+make the chapter testable. The state machine calls no driver directly; it calls
+action functions, and the actions are the only code that knows about hardware.
+Events arrive only through the queue, never as function calls, so there is one
+place where the order of events is decided. And no action blocks, so a
+dispatch always completes and the loop always returns to the queue.
+
+\subsection*{Peripheral configuration}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{22mm}p{26mm}p{24mm}p{30mm}p{30mm}}
+\toprule
+Peripheral & Mode & Clock source & Pins and function & Interrupt and transfers \\
+\midrule
+GPIOB, GPIOE & Push-pull outputs, the state display & Peripheral bus & LD1 PB0, LD2 PE1, LD3 PB14, all confirmed & None \\
+GPIOC & Input with the wake line & Peripheral bus & PC13, user button & Posts a forced event \\
+USART3 & Asynchronous, 115200 8N1, the event log & Peripheral bus & Console pins, confirmed in the board manual & Interrupt driven as in chapter 3 \\
+The periodic wake & The real-time clock alarm or the low-power timer of chapter 7 & The fitted 32.768 kHz crystal & None & Posts the tick event \\
+The acquisition & Whichever of chapter 6's three builds is linked & As chapter 6 & As chapter 6 & Posts the block event \\
+\bottomrule
+\end{tabular}
+\caption{Peripheral configuration. Everything here is already built in an earlier chapter; this chapter adds only the three LEDs as a display and the button as an event source.}
+\end{table}
+
+\subsection*{Wiring}
+
+\diagram{c08_wiring}{Nothing is wired. The three LEDs are on the board and their pins are confirmed from two independent sources, which is what makes it safe to spend them on a state display.}
+
+The state display is worth the three pins. Eight states fit in three LEDs
+exactly, and a node whose current state is visible from across the room can be
+diagnosed without a debugger, without a terminal and without stopping it. That
+matters most in the chapters where the board is sealed inside a measurement
+setup and stopping it would change the measurement. It is not a substitute for
+the event log, and the chapter says so twice: the LEDs show where the node is,
+the log shows how it got there.
+
+\subsection*{Memory and timing budget}
+
+\diagram{c08_mem}{Every byte this chapter owns, and where it lives. The transition table is constant and stays in flash; the context, the queue and the frame buffer are the whole of its static memory. There is no allocator in this node at all.}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{44mm}p{28mm}p{28mm}p{30mm}}
+\toprule
+Quantity & Budget & Measured & Margin \\
+\midrule
+Transition table & under 1 kB in flash & not measured & not measured \\
+Node context with frame[64] & 96 B of static memory & 96 B by construction & none needed \\
+Event queue & 32 events of 1 B each & 32 B by construction & none needed \\
+Coverage counters & 15 rows of 4 B & 60 B by construction & none needed \\
+Dynamic allocation & zero bytes & zero by construction & not applicable \\
+Worst dispatch, excluding actions & under 200 cycles & not measured & not measured \\
+Worst action, the feature step & under 20000 cycles & not measured & not measured \\
+Transition rows covered by test & all of them & not measured & not measured \\
+\bottomrule
+\end{tabular}
+\caption{The budget for chapter 8. Three rows are exact because they are static allocations rather than measurements. The two cycle rows are measured with the wrapper built in chapter 6, and the last row is the chapter's acceptance criterion.}
+\end{table}
+
+\subsection*{Firmware design (UML)}
+
+\diagram{c08_uml}{The state machine proper. Eight states, nine events, and every edge drawn, including the ones that are only taken when something does not complete. An edge that is not drawn here does not exist in the table either.}
+
+The design rule that makes the rest of the chapter work is that the diagram and
+the table are the same object. The table is the source of truth, the diagram is
+generated from it or checked against it by hand at every change, and any
+behaviour that is not a row in the table is a defect rather than a special
+case. The most common way an embedded application becomes untestable is that
+one condition is handled with an early return inside an action instead of as a
+transition, and after five of those the diagram no longer describes the
+program.
+
+\subsection*{Data flow (ASCII)}
+
+\begin{asciiart}
+             posted by ISRs                          dispatched in the loop
+  +---------------------------+            +-------------------------------------------+
+  | tick     (RTC or LPTIM)   |            | for each event in the queue:              |
+  | block    (acquisition)    |            |   find the row: (state, event, guard)     |
+  | tx_ok / tx_fail (stub)    |  --------> |   run its action, which must not block    |
+  | timeout  (guard timer)    |  ring      |   set the next state                      |
+  | button   (EXTI PC13)      |  buffer    |   count the row as hit                    |
+  | fault    (any action)     |  32 slots  |   show the state on LD1 LD2 LD3           |
+  +---------------------------+            +-------------------------------------------+
+                                                     |
+                                                     v
+          +------------------+   feature    +------------------+   frame   +-------------+
+          | block of samples | -----------> | one scalar       | --------> | codec, ch 9 |
+          +------------------+              +------------------+           +------+------+
+                                                                                  |
+                                                                                  v
+                                          +-----------------------------------------------+
+                                          | transmit stub: log the exact bytes, no radio   |
+                                          | the host test compares them with the encoder   |
+                                          +-----------------------------------------------+
+\end{asciiart}
+
+\subsection*{Repository layout}
+
+\begin{plaincode}
+nucleo-h7a3-node/
+  CMakeLists.txt                  # two builds: the board, and the host tests
+  cmake/arm-none-eabi.cmake       # unchanged from chapter 1
+  node/node_sm.c                  # the table and the dispatcher, no hardware
+  node/node_sm.h                  # states, events, the context type
+  node/node_actions.c             # the actions, the only code that knows drivers
+  node/node_actions.h             # the interface the host build fakes
+  port/board/drivers.c            # real drivers, from chapters 3, 4, 6 and 7
+  port/board/leds.c               # three LEDs as a three-bit state display
+  port/host/fakes.c               # the same interface, faked, for the tests
+  test/test_reachability.c        # every row of the table is exercised
+  test/test_payload.c             # the stub's bytes against chapter 9's encoder
+  test/events.txt                 # scripted event sequences, one per line
+  tools/table_to_dot.py           # the diagram is generated from the table
+  docs/states.md                  # the states and events, written before the code
+  README.md
+\end{plaincode}
+
+\subsection*{Steps}
+
+\begin{steps}
+\item \textbf{Write down the states and the events before any code.} This is a
+step, not advice. Eight states and nine events, each with one sentence saying
+what it means and who may post it, in a file that is committed before
+\texttt{node\_sm.c} exists. If a state cannot be described in one sentence it
+is two states, and if an event has two meanings it is two events.
+
+\item \textbf{Declare the table types.} A row is a from-state, an event, an
+optional guard, an action and a to-state. Nothing else. Putting a timeout value
+or a retry count in the row is the first step towards a table that describes
+half the behaviour.
+\begin{ccode}
+/* node_sm.h */
+typedef enum { S_INIT, S_IDLE, S_SENSE, S_FEATURE, S_ENCODE,
+               S_TX, S_BACKOFF, S_FAULT, S_COUNT } node_state_t;
+
+typedef enum { E_TICK, E_BLOCK, E_FEATURE_DONE, E_FRAME_READY,
+               E_TX_OK, E_TX_FAIL, E_TIMEOUT, E_BUTTON, E_FAULT,
+               E_COUNT } node_event_t;
+
+typedef struct {
+    node_state_t state;
+    uint32_t     tx_attempts;
+    uint32_t     cycles_ok;
+    uint32_t     cycles_dropped;
+    int32_t      feature;
+    uint8_t      frame[64];
+    uint8_t      frame_len;
+} node_ctx_t;
+
+typedef struct {
+    node_state_t from;
+    node_event_t on;
+    bool  (*guard)(const node_ctx_t *);
+    void  (*action)(node_ctx_t *);
+    node_state_t to;
+} node_row_t;
+\end{ccode}
+
+\item \textbf{Write the table.} It is the specification. Read it top to bottom
+and you have read the node's behaviour, which is a property no set of boolean
+flags ever has.
+\begin{ccode}
+/* node_sm.c */
+static const node_row_t TABLE[] = {
+  { S_INIT,    E_TICK,          NULL,        act_arm,       S_IDLE    },
+  { S_IDLE,    E_TICK,          NULL,        act_start_acq, S_SENSE   },
+  { S_IDLE,    E_BUTTON,        NULL,        act_force,     S_SENSE   },
+  { S_SENSE,   E_BLOCK,         NULL,        act_feature,   S_FEATURE },
+  { S_SENSE,   E_TIMEOUT,       NULL,        act_note_lost, S_IDLE    },
+  { S_FEATURE, E_FEATURE_DONE,  NULL,        act_encode,    S_ENCODE  },
+  { S_ENCODE,  E_FRAME_READY,   NULL,        act_tx_stub,   S_TX      },
+  { S_TX,      E_TX_OK,         NULL,        act_done,      S_IDLE    },
+  { S_TX,      E_TX_FAIL,       guard_retry, act_backoff,   S_BACKOFF },
+  { S_TX,      E_TX_FAIL,       NULL,        act_drop,      S_IDLE    },
+  { S_BACKOFF, E_TIMEOUT,       NULL,        act_tx_stub,   S_TX      },
+  { S_BACKOFF, E_BUTTON,        NULL,        act_drop,      S_IDLE    },
+  { S_FEATURE, E_FAULT,         NULL,        act_fault,     S_FAULT   },
+  { S_ENCODE,  E_FAULT,         NULL,        act_fault,     S_FAULT   },
+  { S_FAULT,   E_BUTTON,        NULL,        act_reset_ctx, S_INIT    },
+};
+\end{ccode}
+The last three rows are where a flat table starts to cost something. A fault
+can be raised from more than one state, and a flat table needs one row per
+state that can raise it. Two are enough here; at six it would be worth the
+hierarchical states the stretch goals point at, where the fault edge is drawn
+once from a superstate. Say which of the two you chose and why, because the
+reader will otherwise assume the rows were forgotten.
+
+Two rows share a from-state and an event and are separated only by a guard.
+That is deliberate and is the only place ordering matters: the first matching
+row wins, so the guarded row comes first and the unguarded row is the fallback.
+Write that rule as a comment above the table, because a reader who does not
+know it will reorder the rows one day.
+
+\item \textbf{Write the dispatcher.} Twelve lines. If it grows, something that
+belongs in the table has been put here instead.
+\begin{ccode}
+/* node_sm.c */
+static uint32_t hit[sizeof TABLE / sizeof TABLE[0]];
+
+void node_dispatch(node_ctx_t *c, node_event_t ev)
+{
+    for (size_t i = 0; i < sizeof TABLE / sizeof TABLE[0]; i++) {
+        const node_row_t *r = &TABLE[i];
+        if (r->from != c->state || r->on != ev) continue;
+        if (r->guard && !r->guard(c))           continue;
+        if (r->action) r->action(c);            /* must not block */
+        c->state = r->to;
+        hit[i]++;                               /* the coverage counter */
+        leds_show_state(c->state);
+        log_transition(i, r->from, ev, r->to);
+        return;
+    }
+    log_unhandled(c->state, ev);   /* not an error, but it is never silent */
+}
+\end{ccode}
+An event with no matching row is logged and discarded. That is a deliberate
+choice and the alternative is worse: a node that faults on an unexpected event
+stops in the field for a reason nobody can reconstruct, while a node that
+counts them can be asked afterwards how often it happened.
+
+\item \textbf{Post events through one queue and nowhere else.} The queue is the
+ring buffer of chapter 2, one byte per event, written by interrupt handlers and
+read by the loop. Actions may post events too, and that is the only recursion
+risk in the design: an action that dispatches directly instead of posting can
+re-enter the dispatcher with a half-updated context.
+\begin{ccode}
+/* node_actions.c: actions post, they never dispatch. */
+void node_post_from_isr(node_event_t ev)
+{
+    if (!rb_write(&evq, (uint8_t) ev, 1)) {
+        overflow++;            /* counted, never silently discarded */
+    }
+}
+
+int main(void)
+{
+    node_ctx_t ctx = { .state = S_INIT };
+    for (;;) {
+        uint8_t ev;
+        while (rb_read(&evq, &ev, 1)) node_dispatch(&ctx, (node_event_t) ev);
+        enter_idle();          /* chapter 7 decides how deeply */
+    }
+}
+\end{ccode}
+
+\item \textbf{Write the transmit stub so that it is worth verifying.} It logs
+exactly the bytes a radio would have been handed, in order, and nothing else.
+No summary, no pretty printing, no field names.
+\begin{ccode}
+/* node_actions.c */
+void act_tx_stub(node_ctx_t *c)
+{
+    /* There is no radio on this bench. The stub is not a placeholder for
+       one: it is the interface a radio would sit behind, and the bytes
+       below are the contract chapter 9's encoder has to satisfy. */
+    log_hex("TX", c->frame, c->frame_len);
+    c->tx_attempts++;
+    node_post(c->frame_len > 0 ? E_TX_OK : E_TX_FAIL);
+}
+\end{ccode}
+The log line is machine readable on purpose, because the host test parses it.
+A stub that prints something a human likes and a parser does not is a stub that
+will be verified once and then trusted forever.
+
+\item \textbf{Show the state on the three LEDs.} Eight states and three LEDs is
+an exact fit, which is a small piece of luck worth taking.
+\begin{ccode}
+/* port/board/leds.c: LD1 PB0, LD2 PE1, LD3 PB14, all confirmed. */
+void leds_show_state(node_state_t s)
+{
+    uint32_t v = (uint32_t) s;                 /* 0 to 7, three bits */
+    GPIOB->BSRR = (v & 1u) ? (1u << 0)  : (1u << (0 + 16));
+    GPIOE->BSRR = (v & 2u) ? (1u << 1)  : (1u << (1 + 16));
+    GPIOB->BSRR = (v & 4u) ? (1u << 14) : (1u << (14 + 16));
+}
+\end{ccode}
+
+\item \textbf{Prove every row is reachable.} This is the acceptance criterion
+and it is a test, not an inspection. The same state machine source is compiled
+for the host with faked actions, driven by scripted event sequences, and the
+coverage array is checked at the end.
+\begin{ccode}
+/* test/test_reachability.c, host build, no hardware */
+void test_every_row_is_reachable(void)
+{
+    node_ctx_t c = { .state = S_INIT };
+    for (int line = 0; line < script_count(); line++) {
+        node_event_t ev;
+        node_state_t force;
+        script_read(line, &force, &ev);
+        c.state = force;               /* the script may place the machine */
+        node_dispatch(&c, ev);
+    }
+    for (size_t i = 0; i < node_row_count(); i++) {
+        TEST_ASSERT_MESSAGE(node_row_hits(i) > 0, node_row_name(i));
+    }
+}
+\end{ccode}
+Allowing the script to place the machine in a state is a compromise and it is
+worth naming: it proves each row runs, not that each row is reachable from
+reset. The stronger property is a breadth-first walk of the table from
+\texttt{S\_INIT}, which finds rows no sequence of events can ever reach. Write
+that walk as a second test; it is twenty lines and it finds real defects.
+
+\item \textbf{Make the stub agree with the encoder byte for byte.} This is the
+test that ties the two chapters together, and it fails loudly when either side
+changes.
+\begin{ccode}
+/* test/test_payload.c */
+void test_stub_matches_encoder(void)
+{
+    node_ctx_t c = { .state = S_ENCODE, .feature = -1234 };
+    node_dispatch(&c, E_FRAME_READY);            /* runs act_tx_stub */
+
+    uint8_t expect[64];
+    size_t n = payload_encode(expect, sizeof expect, -1234);  /* chapter 9 */
+
+    TEST_ASSERT_EQUAL_size_t(n, c.frame_len);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expect, c.frame, n);
+}
+\end{ccode}
+
+\item \textbf{Decide what the node does when it cannot proceed.} The fault
+state exists and it has exactly one way out, which is the button, and one other
+way out which belongs to chapter 12: the watchdog. Write down which conditions
+enter it and make sure each of them is one of the rows.
+\end{steps}
+
+\subsection*{Build, flash and debug}
+
+\diagram{c08_timing}{The bare-metal dispatch timeline. One event is handled to completion before the next is taken, interrupts only post, and the queue depth is what absorbs a burst. Chapter 20 draws the schedule that replaces this one when a kernel is introduced.}
+
+Two builds from one source tree, and the host build is the one that runs on
+every commit.
+
+\begin{shellcode}
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build -j && probe-rs run --chip STM32H7A3ZITx build/node.elf
+
+cmake -B hostbuild -DNODE_HOST_TESTS=ON
+cmake --build hostbuild -j && ctest --test-dir hostbuild --output-on-failure
+\end{shellcode}
+
+The diagram is generated from the table rather than drawn beside it, so the two
+cannot drift.
+
+\begin{shellcode}
+python tools/table_to_dot.py node/node_sm.c > docs/states.dot
+dot -Tsvg docs/states.dot > docs/states.svg
+\end{shellcode}
+
+\begin{note}{When the node stops in a state and the log says nothing}
+Read the LEDs first: three bits give you the state without stopping the board.
+Then check, in this order, whether the event that should have moved it was ever
+posted, whether the queue overflowed, and whether a row exists for that state
+and event at all. The unhandled counter answers the third question directly,
+which is why the dispatcher logs it rather than ignoring it. If the node is in
+the fault state, the log line that preceded the entry names the action that
+posted the fault event.
+\end{note}
+
+\subsection*{Verification and acceptance criteria}
+
+\begin{itemize}
+\item Every row of the transition table is exercised by the host test suite,
+proven by the coverage counters and not by reading the code. A row with zero
+hits stops the build.
+\item A breadth-first walk of the table from the initial state reaches every
+state, and any row it cannot reach is either removed or given a reachable path.
+\item The bytes the transmit stub logs are identical to the bytes chapter 9's
+encoder produces for the same input, compared as an array and not as a string.
+\item No action blocks. This is checked by a test that asserts an upper bound
+on the cycles spent inside each action, measured with chapter 6's cycle counter
+on the board.
+\item There is no dynamic allocation anywhere in the node. Proven by linking
+without the allocator and observing that the link succeeds.
+\item The event queue overflow counter is exercised deliberately by flooding
+the queue, and is observed to increment rather than to lose events silently.
+\item The three-bit LED display matches the state reported in the log over a
+scripted run, checked once by hand and then trusted.
+\end{itemize}
+
+\subsection*{Variants}
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{24mm}p{26mm}p{44mm}p{22mm}p{20mm}}
+\toprule
+Axis & Variant & What changes & Cost & Built in full in \\
+\midrule
+Execution model & Polled loop or an interrupt with a flag & The events arrive differently. The table does not change at all, which is the property being demonstrated & Latency and jitter & Chapter 3 \\
+Execution model & DMA double buffered & The block event carries a whole half buffer instead of one sample & Cache maintenance & Chapter 6 \\
+Execution model & RTOS task set & The dispatcher becomes a task blocking on a queue, and the actions may then block, which changes the design rule & A kernel and its assumptions & Chapter 20 \\
+Synchronisation & Queue or direct task notification & The ring buffer is replaced by a kernel object with the same single producer and single consumer contract & Five bytes per task & Chapter 20 \\
+Language & C++ & The table becomes a constant array of structures with member function pointers, and the states become a scoped enumeration & A decision about exceptions & Chapter 9 \\
+Intelligence and reach & Edge host over a framed link & The transmit stub is replaced by a framed link to a host, and the same bytes cross it & A link and its errors & Chapter 9 and 11 \\
+Intelligence and reach & Classifier on the MCU & The feature action becomes a model evaluation and the frame carries a class rather than a scalar & Flash and cycles & Chapter 16 \\
+Time and safety & Watchdog over the state machine & A software watchdog fed only from the dispatcher, so a stuck action is caught rather than a stuck loop & A crash record to keep & Chapter 12 \\
+\bottomrule
+\end{tabular}
+\caption{Variants for chapter 8. This is the only variants table in the volume with nothing in the last column pointing here, and that is deliberate: this chapter is the application that all of those variants host, so it is written once and re-hosted rather than rebuilt.}
+\end{table}
+
+The thing to notice across those rows is how little the table changes. The
+execution model rows change who posts an event and when; the operating system
+row changes what the dispatcher blocks on; the language row changes the
+syntax. None of them changes the states, the events or the edges between them,
+and that is the return on writing the control flow as data rather than as
+control flow.
+
+\subsection*{Pitfalls}
+
+\begin{itemize}
+\item Keeping a state in a boolean. Two booleans are four states, three are
+eight, and none of them appears in the diagram. This is the single most common
+way an embedded application becomes untestable.
+\item Handling a condition with an early return inside an action instead of as
+a transition. After five of those the diagram no longer describes the program.
+\item An action that blocks. It does not break anything visibly until the next
+chapter adds a second source of events, and then it loses them.
+\item An action that calls the dispatcher directly instead of posting an event.
+The dispatcher re-enters with a half-updated context.
+\item Reordering the table so that an unguarded row precedes a guarded row with
+the same from-state and event. The guarded row becomes unreachable and nothing
+reports it until the reachability test runs.
+\item A stub that prints something readable instead of the exact bytes. It will
+be verified once and trusted forever, and it will diverge.
+\item Treating an unhandled event as a fault. A node that stops in the field
+for an unexpected event cannot be diagnosed; one that counts them can.
+\item Using the LED display as the only observability. Three bits say where the
+node is and nothing about how it got there.
+\end{itemize}
+
+\subsection*{Best practices applied}
+
+\begin{itemize}
+\item The control flow is data. The table is the specification, the diagram is
+generated from it, and behaviour that is not a row is a defect.
+\item The acceptance criterion is a test result rather than an inspection, and
+the test fails the build when a row is never reached.
+\item Two chapters verify each other. The stub's bytes and the encoder's bytes
+are compared as arrays, so a change on either side is caught immediately.
+\item Nothing is allocated at run time and every buffer has a stated size, so
+the memory figure in the budget table is exact rather than estimated.
+\item Every discarded event is counted. There is no silent loss anywhere in
+this chapter.
+\item The layer boundary is real: the state machine knows no drivers, the
+actions know no states, and the host build replaces one side without touching
+the other.
+\end{itemize}
+
+\subsection*{Stretch goals}
+
+\begin{itemize}
+\item Write the breadth-first reachability walk and run it over a deliberately
+broken table to confirm it finds the unreachable row.
+\item Generate the transition table from the written specification rather than
+the other way round, so that the document and the code cannot disagree.
+\item Add hierarchical states, so that the fault entry is one edge from a
+superstate rather than one edge from each state, and measure what that costs in
+table size and in dispatcher complexity. The framework named above solves this
+properly and is worth reading before deciding.
+\item Record the last sixteen transitions in a small ring in memory that
+survives a reset, so a node that faulted can say what it was doing. Whether the
+backup memory survives a power cycle without a coin cell is item 10 on the
+confirm list.
+\item Run the same table under the kernel of chapter 20 without modification
+and publish the diff, which should be confined to the dispatcher and the queue.
+\end{itemize}
+
+\subsection*{Roadmap and next steps}
+
+Chapter 9 writes the encoder whose output this chapter's stub has been
+comparing itself against, and closes the loop: the two chapters are accepted
+together or not at all.
+
+For going deeper, the free video course that walks one problem from a superloop
+to an event-driven architecture across fifty-six lessons is the best companion
+to this chapter anywhere, and its author's framework is the most serious
+treatment of hierarchical state machines on small parts. Its code licence means
+it is recommended here and never quoted, and Appendix H records that. The
+community embedded roadmap makes the same point this chapter makes, that
+projects settle questions reading leaves open, and the university specialisation
+on real-time embedded systems listed there is where the scheduling mathematics
+lives once the dispatcher becomes a task set in chapter 20.
+
+\subsection*{Portfolio evidence}
+
+\begin{itemize}
+\item A repository whose README opens with the generated state diagram and
+states, in one sentence, that the diagram is generated from the table rather
+than drawn beside it.
+\item A continuous integration run on a machine with no board attached, showing
+the reachability test and the payload comparison passing.
+\item The coverage output listing every transition row and its hit count, with
+no zeros.
+\item A short written specification of the states and events, committed before
+the code, so that the order of work is visible in the history.
+\end{itemize}
+
+\subsection*{Sources}
+
+Normative references:
+\begin{itemize}
+\item The board user manual for MB1363, for the LED and button pins and for the
+console pins.
+\item Reference manual RM0455, for the wake line the button event uses and for
+the port configuration registers.
+\item The C language standard for the ordering guarantees the dispatcher
+relies on, and Arm's application note on memory barrier instructions for
+M-profile, which is where chapter 2's queue gets its rules.
+\end{itemize}
+
+Reusable implementations:
+\begin{itemize}
+\item Majerle's lightweight ring buffer, MIT, reused unchanged as the event
+queue.\newline
+\url{https://github.com/MaJerle/lwrb}
+\item The host test runner, MIT, and the fake-function framework, MIT, for the
+host build.\newline
+\url{https://github.com/ThrowTheSwitch/Unity}\newline
+\url{https://github.com/meekrosoft/fff}
+\item The active-object framework, GPL-3.0 or commercial, and its free video
+course, whose code is AGPL-3.0. Both are recommended reading and neither is
+quoted or vendored anywhere in this volume.\newline
+\url{https://www.state-machine.com/products/qp}\newline
+\url{https://www.state-machine.com/video-course}
+\end{itemize}

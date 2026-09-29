@@ -1,0 +1,42 @@
+% Nothing is wired. The three LEDs become a three-bit state display.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[board, minimum width=50mm, minimum height=26mm] (nuc) at (0,0) {};
+\node[text=white, font=\sffamily\bfseries\small] at (0.3,0.82) {NUCLEO-H7A3ZI-Q};
+\node[pinrow, minimum width=42mm] at (0,1.15) {};
+\node[draw=black!70, fill=black!80, minimum width=9mm, minimum height=7mm] at (0.9,0.3) {};
+\node[text=white, font=\tiny] at (0.9,0.3) {H7A3};
+\node[draw=black!70, fill=gray!60, minimum width=3.5mm, minimum height=6mm] (usb) at (-2.75,0.5) {};
+\node[anchor=south, align=center, font=\tiny] at (-3.35,0.95) {ST-LINK\\micro USB};
+
+% the three LEDs, each labelled directly above and below itself
+\foreach \x/\pin/\bit/\col in {-1.7/PB0/bit 0/{green!70!black},
+                               -1.0/PE1/bit 1/{yellow!80!black},
+                               -0.3/PB14/bit 2/{red!80!black}}{
+  \node[ledsym, fill=\col] at (\x,-0.5) {};
+  \node[font=\tiny, text=white] at (\x,-0.13) {\bit};
+  \node[font=\tiny, text=white] at (\x,-0.92) {\pin};}
+
+\node[draw=black!70, fill=blue!30!black!70, minimum width=6mm, minimum height=4mm] at (1.75,-0.6) {};
+\node[font=\tiny, text=white] at (1.75,-1.02) {B1 PC13};
+\node[font=\tiny, text=white, align=center] at (1.75,-0.13) {forced};
+
+\node[ext, left=22mm of nuc, text width=24mm, minimum height=13mm] (pc)
+  {Host PC\\{\tiny build, flash, event log}};
+\draw[usbcable] (usb.west) to[out=180,in=0] (pc.east);
+
+% the state table, placed beside the board and not on it
+\node[draw=linecol, fill=white, anchor=north west, align=left, font=\tiny,
+      inner sep=3pt] at (3.3,1.4)
+  {\textbf{state display}\\[2pt]
+   0 0 0 \quad S\_INIT\\
+   1 0 0 \quad S\_IDLE\\
+   0 1 0 \quad S\_SENSE\\
+   1 1 0 \quad S\_FEATURE\\
+   0 0 1 \quad S\_ENCODE\\
+   1 0 1 \quad S\_TX\\
+   0 1 1 \quad S\_BACKOFF\\
+   1 1 1 \quad S\_FAULT};
+
+\node[umlnote, text width=58mm, anchor=north west] at (-4.6,-1.9)
+  {Eight states and three LEDs is an exact fit. A node whose state is visible from across the room can be diagnosed without stopping it, which matters in the chapters where stopping it would change the measurement.};
+\end{tikzpicture}

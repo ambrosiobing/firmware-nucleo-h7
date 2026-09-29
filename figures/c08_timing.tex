@@ -1,0 +1,42 @@
+% Bare-metal run to completion. Chapter 20 draws the schedule that replaces it.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\draw[taxis] (0mm,-4mm) -- (116mm,-4mm) node[right, font=\tiny] {time};
+\foreach \x in {30,50,80}{\draw[tick] (\x mm,-4mm) -- (\x mm,27mm);}
+
+% ---- what the interrupts do: post, and nothing else
+\lane{20}{interrupts}
+\slice{20}{0}{3}{taskisr}{}
+\slice{20}{28}{3}{taskisr}{}
+\slice{20}{44}{3}{taskisr}{}
+\node[font=\sffamily\tiny, anchor=south] at (1.5mm,25.5mm) {tick};
+\node[font=\sffamily\tiny, anchor=south] at (29.5mm,25.5mm) {block};
+\node[font=\sffamily\tiny, anchor=south] at (45.5mm,25.5mm) {button};
+
+% ---- what waits in the queue
+\lane{10}{event queue}
+\slice{10}{0}{2}{taskready}{}
+\slice{10}{28}{2}{taskready}{}
+\slice{10}{44}{6}{taskready}{}
+\node[font=\sffamily\tiny, anchor=west] at (51mm,12.5mm)
+  {the button waits for the dispatch in progress};
+
+% ---- the loop, one event handled to completion at a time
+\lane{0}{main loop}
+\slice{0}{2}{14}{taskrun}{tick}
+\slice{0}{16}{14}{taskblock}{idle}
+\slice{0}{30}{20}{taskrun}{feature}
+\slice{0}{50}{4}{taskisr}{}
+\slice{0}{54}{8}{taskrun}{encode}
+\slice{0}{62}{12}{taskrun}{tx stub}
+\slice{0}{74}{6}{taskrun}{done}
+\slice{0}{80}{30}{taskblock}{idle, chapter 7 decides how deeply}
+
+\draw[tspan] (30mm,-1.5mm) -- node[tlabel]{the worst dispatch} (50mm,-1.5mm);
+
+% ---- the annotation for the four-millimetre slice, placed clear of it
+\node[umlnote, text width=40mm, anchor=north west] at (0mm,-8mm)
+  {The button has no row in state S\_FEATURE, so the dispatcher logs it and counts it. It is not a fault and the node does not stop.};
+\draw[dotted, draw=linecol] (20mm,-8mm) -- (52mm,0mm);
+\node[umlnote, text width=56mm, anchor=north west] at (48mm,-8mm)
+  {Interrupts post and return. One event is handled to completion before the next is taken, so an action that blocks does not slow the node down: it loses the events that arrive while it blocks.};
+\end{tikzpicture}
