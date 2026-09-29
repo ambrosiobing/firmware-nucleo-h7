@@ -1,0 +1,53 @@
+% Where the engine's bytes live. Everything static, every size stated.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+
+\newcommand{\memblkA}[5]{%
+  \node[draw=linecol, fill=#3, anchor=south west, minimum width=34mm,
+        text width=34mm, align=center, inner sep=2pt, minimum height=#2mm]
+    (#5) at (0mm,#1mm) {#4};}
+\newcommand{\memblkB}[5]{%
+  \node[draw=linecol, fill=#3, anchor=south west, minimum width=34mm,
+        text width=34mm, align=center, inner sep=2pt, minimum height=#2mm]
+    (#5) at (46mm,#1mm) {#4};}
+
+% ---- static RAM
+\node[font=\sffamily\bfseries\small, anchor=south west] at (0mm,74mm) {static RAM};
+\memblkA{0}{15}{kercol}{receive ring\\{\tiny 1 kB, sized for the longest burst}}{ring}
+\memblkA{17}{13}{kercol}{line assembly buffer\\{\tiny 256 B, truncation reported}}{line}
+\memblkA{32}{13}{usrcol}{command queue\\{\tiny 8 slots, 512 B, no heap}}{queue}
+\memblkA{47}{11}{usrcol}{engine state and deadline\\{\tiny 64 B}}{st}
+\memblkA{60}{11}{extcol}{engine stack use\\{\tiny 512 B budgeted}}{stk}
+
+% ---- flash
+\node[font=\sffamily\bfseries\small, anchor=south west] at (46mm,74mm) {flash};
+\memblkB{0}{15}{hwcol}{engine code\\{\tiny 6 kB budgeted}}{code}
+\memblkB{17}{13}{hwcol}{unsolicited table\\{\tiny 256 B, const}}{urct}
+\memblkB{32}{13}{hwcol}{command text and timeouts\\{\tiny const, one file per module}}{cmds}
+\memblkB{47}{11}{fwcol}{final result code lists\\{\tiny const}}{final}
+
+% ---- placement
+\node[blk, fill=usrcol, text width=32mm, anchor=south west, minimum height=11mm]
+  (axi) at (94mm,0mm) {main SRAM region\\{\tiny reachable by the transfer engines}};
+\node[blk, fill=kercol, text width=32mm, anchor=south west, minimum height=11mm]
+  (dtcm) at (94mm,34mm) {tightly coupled memory\\{\tiny fast, close to the core}};
+
+\draw[flow] (ring.east) -- ++(4mm,0) |- (axi.west);
+\draw[decorate, decoration={brace, amplitude=1.6mm}, draw=linecol]
+  (34.5mm,45mm) -- (34.5mm,17mm);
+\draw[flow] (37mm,31mm) -- ++(4mm,0) |- (dtcm.west);
+
+\node[umlnote, text width=44mm, anchor=north west] at (92mm,32mm)
+  {The receive ring is the one block the transfer engine writes, so it goes
+   where that engine can reach. Which engine reaches which memory on this part
+   is an open item and chapter 19 settles it.};
+\node[umlnote, text width=42mm, anchor=north west] at (0mm,-4mm)
+  {The ring is sized for the longest burst between two visits to the engine and
+   not for the longest reply. Confusing the two is how a generous-looking ring
+   overflows.};
+\node[umlnote, text width=42mm, anchor=north west] at (46mm,-4mm)
+  {Nothing is allocated at run time. An engine whose failure mode is heap
+   exhaustion has replaced one unbounded behaviour with another.};
+\node[umlnote, text width=38mm, anchor=north west] at (94mm,-4mm)
+  {Porting to another module touches the command file and the unsolicited
+   table. The engine itself does not change.};
+\end{tikzpicture}

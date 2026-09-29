@@ -1,0 +1,55 @@
+% Two supplies, one ground, and the cross between transmit and receive.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+
+% ---- the board
+\node[board, minimum width=44mm, minimum height=32mm] (nuc) at (0,0) {};
+\node[text=white, font=\sffamily\bfseries\small] at (0,1.25) {NUCLEO-H7A3ZI-Q};
+\node[draw=black!70, fill=black!80, minimum width=9mm, minimum height=7mm] (soc) at (-1.1,0.35) {};
+\node[text=white, font=\tiny] at (-1.1,0.35) {H7A3};
+\node[text=white, font=\tiny, anchor=east] at (2.05,0.80) {Zio header};
+\foreach \y/\p in {0.40/TX, 0.00/RX, -0.40/PWRKEY, -0.80/GND}{
+  \node[pinrow, minimum width=3mm, minimum height=1.6mm] (b\p) at (2.05,\y) {};
+  \node[text=white, font=\tiny, anchor=east] at (1.90,\y) {\p};}
+
+% ---- the module
+\node[hat, minimum width=40mm, minimum height=38mm, right=40mm of nuc] (mdm) {};
+\node[text=white, font=\sffamily\bfseries\small] at ($(mdm.north)+(0,-0.40)$) {Waveshare SIM7020E};
+\node[text=white, font=\tiny, align=center] at ($(mdm.north)+(0,-1.05)$)
+  {narrow-band module\\no point-to-point protocol};
+\foreach \y/\p in {0.40/TX, 0.00/RX, -0.40/PWRKEY, -0.80/GND}{
+  \node[pinrow, minimum width=3mm, minimum height=1.6mm] (m\p) at (5.95,\y) {};
+  \node[text=white, font=\tiny, anchor=west] at (6.10,\y) {\p};}
+
+% ---- the crossed pair, drawn as a cross
+\draw[cable, draw=blue!60!black, -Latex] (bTX.east) -- (mRX.west);
+\draw[cable, draw=green!35!black, -Latex] (mTX.west) -- (bRX.east);
+\node[font=\tiny, fill=white, inner sep=1pt] at (4.0,0.62) {TX to RX};
+\node[font=\tiny, fill=white, inner sep=1pt] at (4.0,-0.22) {RX from TX};
+\draw[cable, draw=black!60, -Latex] (bPWRKEY.east) -- ++(0.5,0) -- ++(0,-0.55)
+  -- ++(2.35,0) -- ++(0,0.55) -- (mPWRKEY.west);
+
+% ---- common ground and the module's own supply
+\draw[cable, draw=black!80] (bGND.east) -- ++(0.35,0) -- ++(0,-1.55) -- ++(3.05,0)
+  -- ++(0,0.75) -- (mGND.west);
+\node[font=\tiny, fill=white, inner sep=1pt] at (4.0,-2.35) {GND made common};
+\node[ext, below=16mm of mdm, text width=34mm, minimum height=10mm] (sup)
+  {its own supply\\{\tiny 2 A peaks, never from the board}};
+\draw[cable, draw=red!75!black, -Latex] (sup.north) -- (mdm.south);
+
+% ---- hosts
+\node[ext, above=10mm of nuc, text width=28mm, minimum height=9mm] (dbg)
+  {ST-LINK on the board\\{\tiny flash and console}};
+\node[ext, above=10mm of mdm, text width=32mm, minimum height=9mm] (pc)
+  {Host PC\\{\tiny terminal then fault injector}};
+\draw[usbcable] (dbg.south) -- (nuc.north);
+\draw[usbcable] (pc.south) -- node[font=\tiny, fill=white, inner sep=1pt, midway, align=center]
+  {USB to serial\\red 5 V lead disconnected} (mdm.north);
+
+\node[umlnote, text width=54mm, anchor=north west] at (-2.6,-4.5)
+  {Transmit goes to receive and receive comes from transmit. Wiring them
+   straight through is the most common fault on this bench, and it produces a
+   module that answers the host perfectly and the board not at all.};
+\node[umlnote, text width=42mm, anchor=north west] at (4.4,-4.5)
+  {The power instrument of chapters 7 and 10 stops at 1 A and stays out of this
+   path entirely.};
+\end{tikzpicture}

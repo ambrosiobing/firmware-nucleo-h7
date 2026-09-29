@@ -1,0 +1,53 @@
+% Four layers, each with one job. Collapsing any two of them is a known failure.
+\begin{tikzpicture}[node distance=5mm and 12mm, font=\sffamily\small]
+
+% ---------------- application
+\node[user, text width=34mm] (app) {sensor loop\\{\scriptsize chapter 8, never waits}};
+\node[user, below=5mm of app, text width=34mm] (cb) {done callback\\{\scriptsize once per command always}};
+\begin{scope}[on background layer]
+\node[layer, fit=(app)(cb), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:application}] (appbox) {};
+\end{scope}
+
+% ---------------- engine
+\node[fw, right=14mm of app, text width=36mm] (queue) {command queue\\{\scriptsize 8 static slots one in flight}};
+\node[fw, below=5mm of queue, text width=36mm] (sm) {state machine\\{\scriptsize submit poll cancel}};
+\node[fw, below=5mm of sm, text width=36mm] (wheel) {timeout wheel\\{\scriptsize deadline per command}};
+\node[fw, below=5mm of wheel, text width=36mm] (cls) {line classifier\\{\scriptsize final intermediate unsolicited}};
+\node[fw, below=5mm of cls, text width=36mm] (urc) {unsolicited table\\{\scriptsize dispatched in any state}};
+\begin{scope}[on background layer]
+\node[layer, fit=(queue)(sm)(wheel)(cls)(urc), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:AT engine}] (engbox) {};
+\end{scope}
+
+% ---------------- byte path
+\node[hw, right=14mm of queue, text width=30mm] (tx) {USART transmit\\{\scriptsize DMA}};
+\node[hw, below=5mm of tx, text width=30mm] (rx) {USART receive\\{\scriptsize circular DMA plus idle line}};
+\node[hw, below=5mm of rx, text width=30mm] (ring) {ring buffer\\{\scriptsize chapter 2}};
+\begin{scope}[on background layer]
+\node[layer, fit=(tx)(rx)(ring), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:byte path}] (bytebox) {};
+\end{scope}
+
+% ---------------- module
+\node[ext, right=14mm of rx, text width=28mm] (mod) {SIM7020E\\{\scriptsize command set only}};
+\node[ext, below=6mm of mod, text width=28mm] (sup) {its own supply\\{\scriptsize 2 A peaks}};
+\node[ext, above=6mm of mod, text width=28mm] (net) {narrow-band network};
+
+% ---------------- edges
+\draw[flow] (app.east) -- node[lbl, above]{submit} (engbox.west |- app);
+\draw[flow] (engbox.west |- sm) -- node[lbl, above]{poll} (app.east |- sm);
+\draw[flow] (engbox.west |- cls) -| (cb.south);
+\draw[flow] (queue.east) -- (tx.west);
+\draw[flow] (ring.west) -- (cls.east |- ring);
+\draw[flow] (tx.east) -- (mod.west |- tx);
+\draw[flow] (mod.west |- rx) -- (rx.east);
+\draw[flow] (sup) -- (mod);
+\draw[bus] (mod) -- (net);
+\draw[flow] (rx) -- (ring);
+
+\node[umlnote, text width=40mm, below=8mm of urc, anchor=north]
+  {Two collapses are common and both are expensive: parsing inside the receive
+   interrupt puts unbounded work at high priority, and a send-and-wait call in
+   the application puts the module's latency into the sensor loop.};
+\end{tikzpicture}
