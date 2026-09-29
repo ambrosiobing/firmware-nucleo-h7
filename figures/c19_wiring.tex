@@ -1,0 +1,40 @@
+% Six wires from the Arduino header to the ADXL345 breakout, plus the
+% interrupt line. 3.3 V only.
+\begin{circuitikz}[font=\sffamily\scriptsize]
+
+\node[draw=linecol, fill=hwcol, minimum width=32mm, minimum height=62mm,
+      align=center, rounded corners=2pt] (nuc) at (0,-0.2) {};
+\node[font=\sffamily\bfseries\scriptsize, align=center] at (0,2.5)
+  {NUCLEO-H7A3ZI-Q\\{\tiny Arduino header}};
+
+\node[draw=linecol, fill=extcol, minimum width=30mm, minimum height=54mm,
+      align=center, rounded corners=2pt] (brk) at (8.0,-0.4) {};
+\node[font=\sffamily\bfseries\scriptsize, align=center] at (8.0,2.1)
+  {SEN0032\\{\tiny ADXL345 breakout}};
+
+\foreach \y/\l/\r/\sig in {
+   1.4/{3V3}/{VCC}/{supply 3.3 V},
+   0.7/{D13}/{SCK}/{serial clock},
+   0.0/{D11}/{SDI}/{master out slave in},
+  -0.7/{D12}/{SDO}/{master in slave out},
+  -1.4/{D10}/{CS}/{chip select},
+  -2.1/{D2}/{INT1}/{watermark interrupt},
+  -2.8/{GND}/{GND}/{common return}}{
+  \node[font=\tiny, anchor=west] at (-1.5,\y) {\l};
+  \node[font=\tiny, anchor=west] at (6.65,\y) {\r};
+  \draw[cable] (1.6,\y) -- (6.5,\y);
+  \node[font=\tiny, fill=white, inner sep=1.2pt] at (4.05,\y+0.21) {\sig};
+}
+
+% the common return, dropped from the lowest wire so it crosses nothing
+\draw[cable] (4.05,-2.8) -- (4.05,-3.7);
+\node[ground] at (4.05,-3.7) {};
+
+\node[umlnote, text width=54mm, anchor=north west] at (-1.9,-4.5)
+  {Nothing here sees more than 3.3 V and the 5V pin is not used. Nothing on
+   this bench can be soldered, so if the breakout's bus selection turns out to
+   need a bridge moved, the chapter uses the other bus instead.};
+\node[umlnote, text width=46mm, anchor=north west] at (5.2,-4.5)
+  {Every header pin above is the Nucleo-144 convention until it has been read
+   in the board manual. That is confirm item 12.};
+\end{circuitikz}
