@@ -2,7 +2,8 @@ name: checks
 
 # The house rules and the book-level consistency checks need nothing but a
 # Python interpreter, so they run on every push and on every pull request.
-# Building the book itself needs a TeX installation and is done locally.
+# Building the book itself needs a TeX installation and is done locally, so
+# the Markdown check regenerates the chapters only, not the figures.
 
 on:
   push:
@@ -44,6 +45,17 @@ jobs:
           test -f sections/appendix.tex
           test -f figures/front_map.tex
           exit $fail
+
+      - name: The Markdown edition is in step with the source
+        run: |
+          set -e
+          python mdbuild.py >/dev/null
+          if ! git diff --quiet -- chapters; then
+            echo "chapters/ is behind sections/; run python mdbuild.py and commit"
+            git --no-pager diff --stat -- chapters
+            exit 1
+          fi
+          echo "chapters/ matches sections/"
 
       - name: No built artefacts committed
         run: |
