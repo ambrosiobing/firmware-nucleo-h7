@@ -1,0 +1,30 @@
+% One case of the acceptance run, end to end.
+\begin{tikzpicture}[font=\sffamily\scriptsize,
+  mlab/.style={fill=white, inner sep=1.5pt, font=\sffamily\scriptsize}]
+\foreach \x/\name/\id in {0/accept.py/host, 3.1/USART3/uart, 6.2/case runner/run,
+                          9.3/dsp\_run/dsp, 12.4/cycle counter/dwt}{
+  \node[actor, text width=20mm] (\id) at (\x,0) {\name};
+  \draw[lifeline] (\id.south) -- ++(0,-8.6);
+}
+\draw[msg] (0,-1.1) -- node[mlab, above]{case id: format, placement, cache} (6.2,-1.1);
+\node[activation, minimum height=6.4mm] at (6.2,-1.5) {};
+\draw[msg] (6.2,-2.1) -- node[mlab, above]{start} (12.4,-2.1);
+\draw[msg] (6.2,-3.0) -- node[mlab, above]{run over the flash vector} (9.3,-3.0);
+\node[activation, minimum height=5mm] at (9.3,-3.4) {};
+\draw[msg] (9.3,-3.8) -- ++(1.0,0) -- ++(0,-0.5)
+  node[mlab, right, xshift=1mm]{biquad, rfft, magnitude} -- ++(-1.0,0);
+\draw[reply] (9.3,-5.0) -- node[mlab, below]{513 magnitudes} (6.2,-5.0);
+\draw[msg] (6.2,-5.9) -- node[mlab, above]{stop and read} (12.4,-5.9);
+\draw[reply] (12.4,-6.6) -- node[mlab, below]{elapsed cycles} (6.2,-6.6);
+\draw[msg] (6.2,-7.4) -- node[mlab, above]{block and count} (3.1,-7.4);
+\draw[reply] (3.1,-8.1) -- node[mlab, below]{hexadecimal words} (0,-8.1);
+
+\node[umlnote, text width=52mm, anchor=north west] at (0,-9.4)
+  {The loop repeats the case at least thirty-two times and the host reports the
+   median with the range. Placement is not a run-time choice: the code and data
+   halves of the grid come from four separate builds of the same source.};
+\node[umlnote, text width=52mm, anchor=north west] at (7.4,-9.4)
+  {Pass or fail is decided on the host, against a tolerance that was written
+   into the script before the first run and is printed on every run whatever
+   the outcome.};
+\end{tikzpicture}

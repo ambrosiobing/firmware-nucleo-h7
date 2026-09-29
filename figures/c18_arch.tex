@@ -1,0 +1,41 @@
+% Host owns design and judgement; the board owns computation and measurement.
+\begin{tikzpicture}[node distance=4mm and 10mm, font=\sffamily\small]
+% ---------------- host side
+\node[ext, wide] (design) {SciPy design\\{\scriptsize butter, second-order sections}};
+\node[ext, wide, below=of design] (ref) {NumPy float64 reference\\{\scriptsize the array to match}};
+\node[ext, wide, below=of ref] (wrap) {Python wrapper\\{\scriptsize same library, same API}};
+\node[ext, wide, below=of wrap] (cmp) {accept.py\\{\scriptsize prints value and tolerance}};
+\begin{scope}[on background layer]
+\node[layer, fit=(design)(ref)(wrap)(cmp), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:host}] (hostbox) {};
+\end{scope}
+
+% ---------------- generated files
+\node[fw, right=12mm of design, text width=24mm] (gen)
+  {coeffs.h\\testvec.h\\{\scriptsize generated, committed}};
+
+% ---------------- the board
+\node[hw, right=12mm of gen, text width=30mm] (vec) {const vector in flash\\{\scriptsize 1024 samples}};
+\node[hw, below=4mm of vec, text width=30mm] (bq) {biquad cascade\\{\scriptsize df2T f32 or df1 q15}};
+\node[hw, below=4mm of bq, text width=30mm] (fft) {real FFT 1024\\{\scriptsize packed output}};
+\node[hw, below=4mm of fft, text width=30mm] (mag) {complex magnitude};
+\node[fw, below=4mm of mag, text width=30mm] (dwt) {cycle counter\\{\scriptsize reads before and after}};
+\begin{scope}[on background layer]
+\node[layer, fit=(vec)(bq)(fft)(mag)(dwt), inner ysep=8pt,
+      label={[layerlabel, anchor=south west]north west:STM32H7A3ZI at 280 MHz}] (tgt) {};
+\end{scope}
+
+% ---------------- edges
+\draw[flow] (design) -- (ref);
+\draw[flow] (ref) -- (wrap);
+\draw[flow] (design.east) -- (gen.west);
+\draw[flow] (gen.east) -- node[lbl, above]{build} (vec.west);
+\draw[flow] (vec) -- (bq);
+\draw[flow] (bq) -- (fft);
+\draw[flow] (fft) -- (mag);
+\draw[flow] (mag) -- (dwt);
+\draw[flow] (dwt.south) -- ++(0,-6mm) -| node[lbl, below, pos=0.25]{USART3 at 115200} (cmp.south);
+\draw[flow] (wrap) -- (cmp);
+\node[umlnote, text width=36mm, below=11mm of hostbox.south, anchor=north]
+  {Two references answer two questions. A disagreement with float64 means the arithmetic drifted; a disagreement with the wrapper means the port is wrong.};
+\end{tikzpicture}

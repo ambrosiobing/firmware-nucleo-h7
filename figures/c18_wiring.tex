@@ -1,0 +1,32 @@
+% Bench layout: nothing is wired. The signal is compiled into flash.
+\begin{tikzpicture}[font=\sffamily\scriptsize]
+\node[board, minimum width=46mm, minimum height=28mm] (nuc) at (0,0) {};
+\node[text=white, font=\sffamily\bfseries\small] at (0.3,1.0) {NUCLEO-H7A3ZI-Q};
+\node[pinrow, minimum width=38mm] at (0,1.4) {};
+\foreach \x in {-1.85,-1.65,...,1.85}{\fill[yellow!80!black] (\x,1.4) circle (0.35mm);}
+
+\node[draw=black!70, fill=black!80, minimum width=12mm, minimum height=9mm] (soc) at (0.3,0.05) {};
+\node[text=white, font=\tiny] at (0.3,0.05) {H7A3};
+
+\node[ledsym, fill=green!70!black] (l1) at (-1.6,-0.9) {};
+\node[text=white, font=\tiny, anchor=west] at (-1.4,-0.9) {LD1 PB0, run indicator};
+
+\node[draw=black!70, fill=gray!60, minimum width=4mm, minimum height=6mm] (usb) at (-2.45,0.55) {};
+\node[ext, left=34mm of nuc, text width=26mm, minimum height=16mm] (pc)
+  {Host PC\\{\tiny SciPy, NumPy,\\the Python wrapper}};
+\draw[usbcable] (usb.west) to[out=180,in=0]
+  node[font=\tiny, fill=white, inner sep=1.5pt, pos=0.5, above]{one micro USB lead}
+  node[font=\tiny, fill=white, inner sep=1.5pt, pos=0.5, below]{flash, then results back}
+  (pc.east);
+
+\node[umlnote, text width=32mm, anchor=west] at (3.1,0.3)
+  {The 1024-sample test vector is a constant array in this flash, with the
+   generator seed written down.};
+\draw[flow] (3.05,0.3) -- (soc.east);
+
+\node[umlnote, text width=62mm, below=12mm of nuc]
+  {Nothing is wired and nothing is sampled. A fixed vector is what lets the
+   same pass or fail be reproduced on another desk on another day. Chapter 6's
+   sampler replaces it only for the end to end demonstration, never for the
+   acceptance run.};
+\end{tikzpicture}
