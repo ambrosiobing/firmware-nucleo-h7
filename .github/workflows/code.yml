@@ -71,6 +71,20 @@ jobs:
       - name: P06, the witness analysis on synthetic input
         run: python -m pytest python/tests/test_rate.py -q
 
+      - name: P08, every transition row reachable
+        run: python -m pytest python/tests/test_node_sm.py -q -s
+
+      - name: P05, the frame rejects every single-bit corruption
+        run: python -m pytest python/tests/test_frame.py -q
+
+      - name: P03, every lost byte attributed to the target or the bridge
+        run: python -m pytest python/tests/test_report.py -q
+
+      # Gate 1 of P12's three gates is every step above: host tests on a runner
+      # with no board. This is gate 2 and gate 3 proving they can fail.
+      - name: P12, the size and charge gates refuse what they must
+        run: python -m pytest python/tests/test_gates.py -q
+
       - name: What CBOR would have cost P09, measured
         run: cd python && python -m firmkit.cbor
 

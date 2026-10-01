@@ -1,0 +1,9 @@
+{
+  "_note": "Flash and static RAM limits per firmware target, in bytes. These are BUDGETS, which are design decisions, not measurements: nothing here has been compiled for the target. They were chosen from the chapter's stated figures and from the memory map, and the gate fails a build that exceeds one. When the first real build exists these may need revising, and revising a budget is a visible commit with a reason rather than a quiet edit.",
+  "_memory": "2048 kB flash, 128 kB DTCM, 1024 kB AXI SRAM. A target using more than a quarter of flash on this bench is doing something that wants explaining.",
+  "p01-first-light":      { "flash":  16384, "static_ram":  12288 },
+  "p06-sampling-systick": { "flash":  32768, "static_ram":  24576 },
+  "p06-sampling-timer":   { "flash":  32768, "static_ram":  24576 },
+  "p06-sampling-dma":     { "flash":  32768, "static_ram":  40960 },
+  "p09-codec":            { "flash":  20480, "static_ram":  12288 }
+}

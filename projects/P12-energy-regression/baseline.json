@@ -1,0 +1,13 @@
+{
+  "_note": "The charge baseline, per phase of one duty cycle, in microcoulombs. EVERY NUMBER HERE IS A PLACEHOLDER AND NONE IS A MEASUREMENT. Nothing in this repository has run on hardware, so there is no measured baseline to commit. These exist so the gate itself can be written and proven on synthetic input; the first real run replaces them, and that replacement is the commit that makes this gate mean something.",
+  "_instrument": "nRF PPK2, ampere-meter mode, with GPIO markers on its digital inputs dividing the cycle into phases. P10 is the project that establishes the phases; P07 establishes the cycle.",
+  "_tolerance": "Five percent, from the chapter. A phase exceeding its baseline by more than that turns the build red.",
+  "phases": {
+    "wake":    120.0,
+    "sense":   480.0,
+    "compute":  95.0,
+    "send":    610.0,
+    "sleep":    18.0
+  },
+  "total_uc": 1323.0
+}
