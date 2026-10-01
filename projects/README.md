@@ -13,26 +13,26 @@ of the volume is visible here rather than appearing a project at a time.
 
 | Project | What it is | State |
 | --- | --- | --- |
-| [P01](projects/P01-toolchain-first-light/) | The toolchain, startup and linker script every other project needs | not started, and it blocks every target build |
-| [P02](projects/P02-ring-buffer/) | A single producer, single consumer ring buffer | written, host tested, never on the target |
-| [P03](projects/P03-interrupt-receive/) | Receiving on interrupt without losing bytes | not started |
-| [P04](projects/P04-dma-idle-line/) | Circular DMA and the idle line | not started |
-| [P05](projects/P05-framing-crc/) | Framing and the hardware CRC unit | not started |
-| [P06](projects/P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | witness written and proven, firmware never compiled |
-| [P07](projects/P07-stop-mode/) | Stop mode, RTC wake, and a battery number | not started |
-| [P08](projects/P08-node-state-machine/) | The node's state machine, transmit as a stub | not started |
-| [P09](projects/P09-payload-codec/) | The payload codec and its Python twin | written and proven, host half complete |
-| [P10](projects/P10-energy-phases/) | Where the energy goes, by phase | not started |
-| [P11](projects/P11-at-engine/) | An AT engine that never blocks | not started |
-| [P12](projects/P12-energy-regression/) | Energy as a regression test, and the rig | not started |
-| [P13](projects/P13-iks4a1-fifo/) | The IKS4A1: FIFO, watermark, interrupt | not started |
-| [P14](projects/P14-iks5a1-dual-range/) | The IKS5A1: low and high g at once | not started |
-| [P15](projects/P15-time-of-flight/) | Eight by eight time of flight on the MCU | not started |
-| [P16](projects/P16-classifier-placement/) | Where the classifier runs: sensor, MCU or host | not started |
-| [P17](projects/P17-hal-against-registers/) | The same driver twice | not started |
-| [P18](projects/P18-transforms-filters/) | Transforms with a numerical acceptance test | not started |
-| [P19](projects/P19-caches-mpu-dma/) | Caches, the MPU, and stale DMA reads | not started |
-| [P20](projects/P20-rtos-task-set/) | Three jobs at once, as an RTOS application | not started |
+| [P01](P01-toolchain-first-light/) | The toolchain, startup and linker script every other project needs | not started, and it blocks every target build |
+| [P02](P02-ring-buffer/) | A single producer, single consumer ring buffer | written, host tested, never on the target |
+| [P03](P03-interrupt-receive/) | Receiving on interrupt without losing bytes | not started |
+| [P04](P04-dma-idle-line/) | Circular DMA and the idle line | not started |
+| [P05](P05-framing-crc/) | Framing and the hardware CRC unit | not started |
+| [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | witness written and proven, firmware never compiled |
+| [P07](P07-stop-mode/) | Stop mode, RTC wake, and a battery number | not started |
+| [P08](P08-node-state-machine/) | The node's state machine, transmit as a stub | not started |
+| [P09](P09-payload-codec/) | The payload codec and its Python twin | written and proven, host half complete |
+| [P10](P10-energy-phases/) | Where the energy goes, by phase | not started |
+| [P11](P11-at-engine/) | An AT engine that never blocks | not started |
+| [P12](P12-energy-regression/) | Energy as a regression test, and the rig | not started |
+| [P13](P13-iks4a1-fifo/) | The IKS4A1: FIFO, watermark, interrupt | not started |
+| [P14](P14-iks5a1-dual-range/) | The IKS5A1: low and high g at once | not started |
+| [P15](P15-time-of-flight/) | Eight by eight time of flight on the MCU | not started |
+| [P16](P16-classifier-placement/) | Where the classifier runs: sensor, MCU or host | not started |
+| [P17](P17-hal-against-registers/) | The same driver twice | not started |
+| [P18](P18-transforms-filters/) | Transforms with a numerical acceptance test | not started |
+| [P19](P19-caches-mpu-dma/) | Caches, the MPU, and stale DMA reads | not started |
+| [P20](P20-rtos-task-set/) | Three jobs at once, as an RTOS application | not started |
 
 ## Why there are shared directories
 
