@@ -129,6 +129,7 @@ them.
 
     python lint.py                             house rules over every chapter
     python crosscheck.py                       book-level consistency
+    python tools/check_links.py                every relative link and anchor
     python build.py --check sections/c19.tex   compile one chapter and report on it
 
 `lint.py` checks prose for em and en dashes, non-ASCII characters, violent
