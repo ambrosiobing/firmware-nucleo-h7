@@ -21,7 +21,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "codec"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "firmkit"))
 
 import payload  # noqa: E402
 
@@ -31,35 +31,28 @@ except ImportError:
     serial = None
 
 
-def decode_cobs(frame: bytes) -> bytes:
-    """Chapter 5 owns this. Not reimplemented here from memory.
+# P05 owns the framing, and it is now written and tested, so this imports it
+# rather than reimplementing it. Writing a byte-stuffing decoder a second time
+# from recollection of the first is how two implementations of one format come to
+# disagree, which is the failure P09's whole chapter is arranged against.
+#
+# Until Thursday 1 October 2026 the two functions below raised NotImplementedError
+# with a note saying exactly that. P05's twin replaced them, and
+# python/tests/test_frame.py holds it against the C the board links, over 3000
+# random payloads, with every single-bit corruption rejected.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "P05"))
 
-    When chapter 5's repository exists, this import replaces the stub:
+import twin  # noqa: E402
 
-        from cobs_c5 import decode_cobs
 
-    Writing a byte-stuffing decoder a second time, in a second repository, from
-    recollection of the first, is how two implementations of one format come to
-    disagree. That is the failure mode this whole chapter is arranged against,
-    so the stub refuses rather than approximates.
+def decode_frame(stuffed: bytes):
+    """What lay between two delimiters, to (verdict, payload).
+
+    The verdict is P05's, and the distinct values matter: a stuffing error means
+    the receiver lost its place, a checksum error means the line corrupted a byte,
+    and counting them together would hide which.
     """
-    raise NotImplementedError(
-        "chapter 5's COBS decoder is not available yet. See the docstring."
-    )
-
-
-def crc16(body: bytes) -> int:
-    """Chapter 5 owns this too, and the polynomial must match the hardware unit.
-
-    The CRC peripheral's reversal and initial-value settings are the documented
-    trap here, and getting them wrong produces a checksum that is
-    self-consistent on the host and disagrees with the board. So this is not
-    guessed either.
-    """
-    raise NotImplementedError(
-        "chapter 5's CRC-16 is not available yet, and its polynomial must match "
-        "the peripheral's configuration. See the docstring."
-    )
+    return twin.decode(stuffed)
 
 
 def main(argv: list[str]) -> int:
@@ -73,23 +66,27 @@ def main(argv: list[str]) -> int:
 
     port = serial.Serial(argv[1], 115200, timeout=1)
     buf = bytearray()
+    counts: dict[str, int] = {}
     while True:
         b = port.read(1)
         if not b:
             continue
         if b == b"\x00":                      # the frame delimiter
-            try:
-                frame = decode_cobs(bytes(buf))
-            except NotImplementedError as exc:
-                print(exc)
-                return 1
-            finally:
-                buf.clear()
-            body, got = frame[:-2], int.from_bytes(frame[-2:], "big")
-            if crc16(body) != got:
-                print("checksum mismatch, frame discarded")
+            verdict, body = decode_frame(bytes(buf))
+            buf.clear()
+
+            if verdict == "empty":
+                continue                      # an idle line, not an error
+
+            counts[verdict] = counts.get(verdict, 0) + 1
+            if verdict != "ok":
+                # Named rather than totalled. A stuffing error means the receiver
+                # lost its place and a checksum error means the line corrupted a
+                # byte, and one combined count would hide which.
+                print("frame discarded: {}   totals {}".format(verdict, counts))
                 continue
-            print(payload.decode(body))
+
+            print("{}   totals {}".format(payload.decode(body), counts))
         else:
             buf += b
 
