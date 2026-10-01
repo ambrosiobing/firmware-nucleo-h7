@@ -4,22 +4,21 @@ Twenty self-contained firmware projects on one board that is already on the
 bench, with three sensor shields, one power instrument, one data acquisition hat
 and a drawer of cables. Nothing here needs to be bought.
 
-**312 pages, 101 figures, 20 chapters.** Each chapter stands on its own: it
-names its prior art and what it takes from it, configures its peripherals,
-states a memory and timing budget, and ends in a number.
+**20 chapters, 101 figures.** Each chapter stands on its own: it names its prior
+art and what it takes from it, configures its peripherals, states a memory and
+timing budget, and ends in a number. Each has a project beside it that is the
+code for the same subject.
 
-**Read it.** The whole volume is in [`chapters/`](chapters/) as Markdown
-with its figures beside it. Start with
-[About this volume](chapters/00-about-this-volume.md), or take a chapter
-from the table below.
+**Read a chapter.** Everything here is Markdown with its figures beside it, so it
+reads in the browser with nothing to install and nothing to download. Start with
+[About this volume](chapters/00-about-this-volume.md), or take a chapter from
+[the table below](#the-twenty-chapters) and its project from
+[`projects/`](projects/README.md).
 
-**Or build it.** The PDF and a single self-contained HTML file come from
-the same source and stay local:
-
-    python build.py --chapter 19
-
-That writes `chapter-19-caches.pdf` and a matching self-contained `.html` with
-its five figures inlined.
+One chapter and one project at a time is how this is meant to be read. There is
+no assembled volume here to download, by design: no PDF, no single HTML file, no
+concatenated edition. The PDF and the HTML are build products that stay on the
+authoring machine and are never committed, and `.gitignore` enforces that.
 
 **Contents**
 [Read it](chapters/) ·
@@ -99,17 +98,32 @@ its sources.
 
 ## Building
 
-    python build.py --chapter 19     one chapter, PDF and self-contained HTML
-    python build.py --chapters       all twenty, one file each
-    python build.py                  the whole book, PDF and one HTML file
+What is published is the Markdown, one file per chapter, and that is what
+`mdbuild.py` writes:
+
     python mdbuild.py                the Markdown edition, chapters and figures
 
-Built output is not committed, with one deliberate exception. The PDF and the
-HTML are artefacts of this source, they are regenerated in a couple of minutes,
-and keeping them out of the history keeps the repository small and every
-published file traceable to the commit it came from. The figures are the
-exception: they are committed as SVG, because the Markdown edition cannot draw
-a single diagram in a browser without them.
+The PDF and the HTML are for the author's own proofreading on the authoring
+machine. They are **never committed and never published**, in whole or per
+chapter:
+
+    python build.py --chapter 19     one chapter, PDF and HTML, local only
+    python build.py                  the whole volume, PDF and HTML, local only
+
+Three reasons, and the first is the binding one. A single assembled volume is not
+what this repository offers: a reader takes one chapter and its project, which is
+how the material is written and how it is meant to be used. A PDF also renders
+nowhere in a repository view, so it would be a download rather than a page. And
+both are artefacts of this source, regenerated in a couple of minutes, so keeping
+them out of the history keeps every published file traceable to the commit it
+came from.
+
+`.gitignore` enforces it rather than leaving it to discipline: `*.pdf`, `*.html`,
+the named whole-volume files and the per-chapter ones are all refused.
+
+The figures are the one deliberate exception to not committing built output. They
+are committed as SVG, because the Markdown draws no diagram in a browser without
+them.
 
 ## Checks
 

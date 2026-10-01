@@ -57,11 +57,15 @@ jobs:
           fi
           echo "chapters/ matches sections/"
 
-      - name: No built artefacts committed
+      - name: No assembled volume and no PDF is published
         run: |
           set -e
           if git ls-files | grep -E '\.(pdf|html|aux|log|toc|out)$'; then
-            echo "built artefacts must not be committed; they are rebuilt from source"
+            echo "A PDF or an HTML file is committed, and neither is ever published."
+            echo "What this repository offers is one Markdown chapter and one project"
+            echo "at a time, which is what mdbuild.py writes. There is deliberately no"
+            echo "assembled volume to download. The PDF and the HTML are for the"
+            echo "author's own proofreading and stay on the authoring machine."
             exit 1
           fi
-          echo "none committed, as intended"
+          echo "no PDF, no HTML, no assembled volume. Markdown chapters only, as intended"

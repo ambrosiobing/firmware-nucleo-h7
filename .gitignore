@@ -8,11 +8,16 @@ build/
 *.fdb_latexmk
 *.synctex.gz
 
-# The built book stays local. Rebuild it with: python build.py
+# No assembled volume and no PDF is ever published. Only the Markdown chapters
+# and the projects are, which is what mdbuild.py writes. These are blanket rules
+# rather than named files, so a new output name cannot slip through: the whole
+# volume, a single chapter, or anything else.
+*.pdf
+*.html
+
+# Named explicitly as well, so the intent survives anyone relaxing the rules above.
 firmware-nucleo-h7.pdf
 firmware-nucleo-h7.html
-
-# Per-chapter deliverables, built on demand with: python build.py --chapter N
 chapter-*.pdf
 chapter-*.html
 
