@@ -18,6 +18,7 @@ What it builds:
   cpp_filter              P09's C++ variant, as a filter the tests drive
   ring0..ring3.{dll,so}   P02's ring, once per ordering mode
   frame.{dll,so}          P05's COBS, CRC-16 and frame, host and target alike
+  node_sm.{dll,so}        P08's state machine, linking P09's codec
   soak_threads            P02's two-thread soak
   object sizes            for the tables in the project READMEs
 """
@@ -409,6 +410,11 @@ def main() -> int:
                [C_DIR / "P05" / "frame.c", C_DIR / "P05" / "cobs.c",
                 C_DIR / "P05" / "crc16.c"],
                includes=[C_DIR / "P05"])
+
+    print("P08, the node's state machine, with P09's codec linked in:")
+    shared_lib("node_sm",
+               [C_DIR / "P08" / "node_sm.c", C_DIR / "payload" / "payload.c"],
+               includes=[C_DIR / "P08", C_DIR / "payload"])
 
     print("P02, the ring, once per ordering mode so all four can be compared:")
     for mode in (0, 1, 2, 3):
