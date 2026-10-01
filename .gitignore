@@ -23,3 +23,22 @@ venv/
 .idea/
 __pycache__/
 *.pyc
+
+# Host build output for the code half. Kept out of build/, which is the LaTeX
+# scratch directory, so neither can delete the other's work.
+build-host/
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+*.elf
+*.map
+*.stale-*
+.pytest_cache/
+
+# Captures. A capture without its build identity is not evidence, and one with
+# it is too large and too specific to belong in the history.
+*.csv
+*.npz
+captures/

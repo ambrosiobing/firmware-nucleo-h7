@@ -1,0 +1,14 @@
+# Everything the test suite needs, and nothing else.
+#
+# Install into the repository's own .venv:
+#
+#   python -m venv .venv
+#   .\.venv\Scripts\activate
+#   python -m pip install -r requirements.txt
+#
+# The suite runs on a laptop with no board, no probe and no Raspberry Pi, so this
+# list is deliberately short. A dependency that only matters when hardware is
+# attached belongs in requirements-hardware.txt, which the suite never needs and
+# the CI runner never installs.
+
+pytest==8.3.4

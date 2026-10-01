@@ -144,7 +144,26 @@ date is written in full. Both run on every push, see
 | `AUTHORING.md` | the contract every chapter follows, and the confirm-before-writing list |
 | `SOURCE.md` | the prior-art pool, with what each source gives, what it does not, and its licence |
 | `CONTENTS.md` | the chapter table, generated, which the table above follows |
-| `build/` | scratch output, ignored, safe to delete |
+| `build/` | LaTeX scratch output, ignored, safe to delete |
+
+The code lives in the same repository as the book, and these are its paths.
+Chapter NN is the written design for project PNN.
+
+| Path | What it is |
+|---|---|
+| [`projects/`](projects/README.md) | twenty project directories, `P01` to `P20`, each with its own README and state |
+| `shared/` | C that more than one project compiles: the ring buffer and its four ordering modes, the payload codec, the on-chip instruments |
+| `firmkit/` | Python that more than one project imports: the codec twin, the rate analysis, the serialisation-size arithmetic |
+| `tests/` | every suite, central, and none of which touches a device |
+| `tools/` | the codec generator, the host build, and the checks that prove the checks work |
+| `requirements.txt` | `pytest`, and nothing else |
+| `requirements-hardware.txt` | what only matters when something is plugged in; the suite and the runner never install it |
+| `build-host/` | code build output, ignored, deliberately not `build/` so the two cannot delete each other's work |
+
+Three projects are written: P02, P06 and P09. The rest carry a README naming what
+they are and that they have not started. The whole suite runs on a laptop with no
+board, no probe and no Raspberry Pi, which is why it is the half that could be
+finished first.
 
 Chapter files use a `c` prefix so that a cross-reference or a copied figure can
 never silently resolve against a sibling volume's files. The book's identity

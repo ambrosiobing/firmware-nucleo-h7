@@ -1,0 +1,92 @@
+/* main.c: byte identical across all three builds.
+ *
+ * That is the whole discipline of this chapter. If this file had to know which
+ * acquisition back end it was talking to, the comparison in
+ * docs/measurement.md would be comparing three programs rather than three
+ * mechanisms, and the result would mean nothing.
+ *
+ * It does almost nothing on purpose: start the acquisition, drain blocks,
+ * report. The interesting code is behind acq.h and the interesting numbers
+ * come from the witness on the Raspberry Pi, not from here.
+ */
+#include <stdint.h>
+#include <stdio.h>
+
+#include "acq.h"
+#include "cyccnt.h"
+
+/* Provided by chapter 1: the clock tree, the console and the printf retarget.
+ * Chapter 6 adds nothing to any of them. */
+extern void board_init(void);
+
+static void banner(void)
+{
+    /* Everything the witness metadata needs to match a capture to a build.
+     * The back end name matches the --build argument of witness/scan.py
+     * exactly, so the firmware and the capture cannot disagree about what was
+     * running. */
+    printf("\r\n");
+    printf("nucleo-h7a3-sampling\r\n");
+    printf("  acquisition   %s\r\n", acq_name());
+    printf("  nominal rate  %u Hz\r\n", (unsigned) ACQ_RATE_HZ);
+    printf("  instrument    %s\r\n", cyccnt_backend_name());
+
+    uint32_t hz = cyccnt_tick_hz();
+    if (hz == 0u) {
+        /* Refusing to print a rate is correct. A tick count without its rate
+         * is not a time, and a guessed rate would scale every measured figure
+         * by an unknown factor. */
+        printf("  tick rate     not established, timings not measured\r\n");
+    } else {
+        printf("  tick rate     %u Hz\r\n", (unsigned) hz);
+    }
+}
+
+int main(void)
+{
+    board_init();
+    cyccnt_init();
+    banner();
+
+    int rc = acq_start();
+    if (rc != 0) {
+        /* Every back end returns a negative value rather than running with a
+         * guessed peripheral setting. Say which and stop: a board that runs
+         * and lies is worse than one that refuses. */
+        printf("acq_start failed: %d\r\n", rc);
+        printf("a value is unconfirmed against RM0455. See the TO BE CONFIRMED\r\n");
+        printf("comments in the selected back end before running again.\r\n");
+        for (;;) { }
+    }
+
+    uint32_t blocks = 0u;
+    uint32_t last_report = 0u;
+
+    for (;;) {
+        acq_block_t b;
+        if (acq_take(&b) == 0) {
+            continue;              /* nothing ready; the tight loop is fine here */
+        }
+        blocks++;
+
+        /* The application does something with the samples, because a build
+         * that discards them would not be exercising the path under test. The
+         * cheapest honest thing is a running sum, which the compiler cannot
+         * remove because it is reported. */
+        uint32_t sum = 0u;
+        for (uint32_t i = 0u; i < b.count; i++) {
+            sum += b.samples[i];
+        }
+
+        /* Report about once a second, computed from the nominal rate rather
+         * than from a delay, so the reporting cadence does not itself depend
+         * on the thing being measured. */
+        if (blocks - last_report >= (ACQ_RATE_HZ / b.count)) {
+            last_report = blocks;
+            printf("seq %lu  blocks %lu  mean %lu  overruns %lu\r\n",
+                   (unsigned long) b.seq, (unsigned long) blocks,
+                   (unsigned long) (sum / b.count),
+                   (unsigned long) acq_overruns());
+        }
+    }
+}

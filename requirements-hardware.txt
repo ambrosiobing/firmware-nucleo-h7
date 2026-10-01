@@ -1,0 +1,22 @@
+# Only needed when something is actually plugged in. Never installed by the CI
+# runner, and the test suite does not import any of it.
+#
+#   python -m pip install -r requirements-hardware.txt
+#
+# Keeping these out of requirements.txt is the point rather than tidiness. If a
+# module in firmkit/ or tests/ ever needs one of these, that module is in the
+# wrong half of the project: it needs a device, so it belongs in a project
+# directory behind a command the suite does not call.
+
+# The host end of a serial link. P09's listen.py and P11's AT engine need it.
+# The suite does not: listen.py guards the import and refuses cleanly without it.
+pyserial==3.5
+
+# The MCC 118 DAQ HAT, for P06's witness capture. This wheel exists only on a
+# Raspberry Pi with the HAT fitted, so the line is commented out: uncommenting it
+# on win11 aquamarine will fail, and it is recorded here so the dependency is
+# written down rather than remembered.
+#
+#   on the Raspberry Pi 4 only:
+#     pip install daqhats
+# daqhats

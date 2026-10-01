@@ -1,0 +1,38 @@
+[
+  {
+    "name": "minimum, version 1",
+    "why": "the simplest case that is not all zeros, so a dead encoder fails it",
+    "fields": {"version": 1, "flags": 0, "sequence": 0, "feature": 0, "battery": 0},
+    "bytes": "2000000000"
+  },
+  {
+    "name": "unsigned fields at maximum, feature at its maximum positive value",
+    "why": "catches a width error, and catches reading 131071 as eighteen set bits",
+    "fields": {"version": 7, "flags": 15, "sequence": 511, "feature": 131071, "battery": 63},
+    "bytes": "FFFF7FFFFF"
+  },
+  {
+    "name": "every bit set",
+    "why": "forty set bits decode to feature -1, which is a different case from the one above",
+    "fields": {"version": 7, "flags": 15, "sequence": 511, "feature": -1, "battery": 63},
+    "bytes": "FFFFFFFFFF"
+  },
+  {
+    "name": "negative feature, everything else ordinary",
+    "why": "catches a missing sign extension, which is invisible for positive values",
+    "fields": {"version": 1, "flags": 2, "sequence": 5, "feature": -1, "battery": 40},
+    "bytes": "2405FFFFE8"
+  },
+  {
+    "name": "most negative feature",
+    "why": "only the sign bit of the field is set, which catches an off-by-one in the width",
+    "fields": {"version": 0, "flags": 0, "sequence": 0, "feature": -131072, "battery": 0},
+    "bytes": "0000800000"
+  },
+  {
+    "name": "sequence alone, at maximum",
+    "why": "sequence straddles a byte boundary, so a one-bit misplacement cannot produce this",
+    "fields": {"version": 0, "flags": 0, "sequence": 511, "feature": 0, "battery": 0},
+    "bytes": "01FF000000"
+  }
+]
