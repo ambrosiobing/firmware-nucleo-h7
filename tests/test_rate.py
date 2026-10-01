@@ -21,8 +21,15 @@ from __future__ import annotations
 import math
 import random
 import sys
+from pathlib import Path
 
-from rate import PASS, analyse
+# The analysis lives in firmkit/. Under pytest that is already on the path, put
+# there by tests/conftest.py, but the usage line above promises this file also
+# runs as a plain script, and as a script nothing has added it. Both entry
+# points have to work or the promise is decoration.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "firmkit"))
+
+from rate import PASS, analyse  # noqa: E402  (after the path is arranged)
 
 FS = 100_000.0          # the witness rate, 100 kS/s on one channel
 HIGH, LOW = 3.3, 0.0    # volts, as the marker pin actually swings
@@ -77,67 +84,100 @@ def case_wrong(duration=2.0, rate=1002.0):
     return square(edges, duration, FS, period_s=p, noise_v=0.005, seed=44)
 
 
+# ---------------------------------------------------------------- the claims
+# One table, two readers. run() prints the human report and test_scenario
+# asserts the same claims, so an expectation cannot be changed in one place and
+# forgotten in the other. Each claim is a label, a predicate on the analysis
+# result, and a detail to print when it does not hold.
+
+def _empty_input():
+    """Eight samples that never cross a threshold, so there is no edge at all."""
+    return [0.0] * 8
+
+
+SCENARIOS = [
+    ("clean 1 kHz train, must pass", case_clean, [
+        ("verdict is pass",
+         lambda r: r["pass"] is True,
+         lambda r: str(r["checks"])),
+        ("rate within 0.5 Hz of 1000",
+         lambda r: abs(r["fit_rate_hz"] - 1000.0) < 0.5,
+         lambda r: f"{r['fit_rate_hz']:.4f} Hz"),
+        ("no missing edges reported",
+         lambda r: r["missing_edges"] == 0,
+         lambda r: str(r["missing_edges"])),
+        ("the two routes agree",
+         lambda r: r["routes_agree"] is True,
+         lambda r: str(r.get("routes_agree"))),
+        ("spread recognised as instrument limited",
+         lambda r: "note" in r,
+         lambda r: "no note in the result"),
+    ]),
+    ("1 kHz with 4 us jitter, inside the limit, must pass", case_jittered, [
+        ("verdict is pass",
+         lambda r: r["pass"] is True,
+         lambda r: str(r["checks"])),
+        ("rate still within 0.5 Hz",
+         lambda r: abs(r["fit_rate_hz"] - 1000.0) < 0.5,
+         lambda r: f"{r['fit_rate_hz']:.4f} Hz"),
+        ("spread is measured, not zero",
+         lambda r: r["interval_sd_s"] > 1e-6,
+         lambda r: f"{r['interval_sd_s'] * 1e6:.2f} us"),
+        ("spread is under the 10 us limit",
+         lambda r: r["interval_sd_s"] <= PASS["jitter_sd_max_s"],
+         lambda r: f"{r['interval_sd_s'] * 1e6:.2f} us"),
+    ]),
+    ("1 kHz with one edge dropped, must be refused", case_dropped, [
+        ("verdict is FAIL",
+         lambda r: r["pass"] is False,
+         lambda r: str(r["checks"])),
+        ("the missing edge is counted",
+         lambda r: r["missing_edges"] >= 1,
+         lambda r: str(r["missing_edges"])),
+        ("it fails on the missing edge check",
+         lambda r: r["checks"]["no_missing_edges"] is False,
+         lambda r: str(r["checks"])),
+        ("the mean rate alone would have hidden it",
+         lambda r: abs(r["count_rate_hz"] - 1000.0) < 1.0,
+         lambda r: f"{r['count_rate_hz']:.4f} Hz"),
+    ]),
+    ("1002 Hz, twice the tolerance, must be refused", case_wrong, [
+        ("verdict is FAIL",
+         lambda r: r["pass"] is False,
+         lambda r: str(r["checks"])),
+        ("it fails on the rate check",
+         lambda r: r["checks"]["rate_within_tolerance"] is False,
+         lambda r: str(r["checks"])),
+        ("the rate it reports is the true one",
+         lambda r: abs(r["fit_rate_hz"] - 1002.0) < 0.5,
+         lambda r: f"{r['fit_rate_hz']:.4f} Hz"),
+        ("it does not blame a missing edge",
+         lambda r: r["missing_edges"] == 0,
+         lambda r: str(r["missing_edges"])),
+    ]),
+    ("empty input, must not raise", _empty_input, [
+        ("reports an error rather than a number",
+         lambda r: "error" in r,
+         lambda r: str(sorted(r))),
+        ("verdict is FAIL",
+         lambda r: r["pass"] is False,
+         lambda r: str(r.get("pass"))),
+    ]),
+]
+
+
 def run() -> int:
     failures = 0
-
-    def check(label: str, cond: bool, detail: str = "") -> None:
-        nonlocal failures
-        print(f"  {'pass' if cond else 'FAIL'}  {label}"
-              + (f"   {detail}" if detail and not cond else ""))
-        if not cond:
-            failures += 1
-
-    print("clean 1 kHz train, must pass")
-    r = analyse(case_clean(), FS)
-    check("verdict is pass", r["pass"] is True, str(r["checks"]))
-    check("rate within 0.5 Hz of 1000",
-          abs(r["fit_rate_hz"] - 1000.0) < 0.5, f"{r['fit_rate_hz']:.4f} Hz")
-    check("no missing edges reported", r["missing_edges"] == 0,
-          str(r["missing_edges"]))
-    check("the two routes agree", r["routes_agree"] is True)
-    check("spread recognised as instrument limited", "note" in r)
-    print()
-
-    print("1 kHz with 4 us jitter, inside the limit, must pass")
-    r = analyse(case_jittered(), FS)
-    check("verdict is pass", r["pass"] is True, str(r["checks"]))
-    check("rate still within 0.5 Hz",
-          abs(r["fit_rate_hz"] - 1000.0) < 0.5, f"{r['fit_rate_hz']:.4f} Hz")
-    check("spread is measured, not zero", r["interval_sd_s"] > 1e-6,
-          f"{r['interval_sd_s'] * 1e6:.2f} us")
-    check("spread is under the 10 us limit",
-          r["interval_sd_s"] <= PASS["jitter_sd_max_s"],
-          f"{r['interval_sd_s'] * 1e6:.2f} us")
-    print()
-
-    print("1 kHz with one edge dropped, must be refused")
-    r = analyse(case_dropped(), FS)
-    check("verdict is FAIL", r["pass"] is False)
-    check("the missing edge is counted", r["missing_edges"] >= 1,
-          str(r["missing_edges"]))
-    check("it fails on the missing edge check",
-          r["checks"]["no_missing_edges"] is False)
-    check("the mean rate alone would have hidden it",
-          abs(r["count_rate_hz"] - 1000.0) < 1.0,
-          f"{r['count_rate_hz']:.4f} Hz")
-    print()
-
-    print("1002 Hz, twice the tolerance, must be refused")
-    r = analyse(case_wrong(), FS)
-    check("verdict is FAIL", r["pass"] is False)
-    check("it fails on the rate check",
-          r["checks"]["rate_within_tolerance"] is False)
-    check("the rate it reports is the true one",
-          abs(r["fit_rate_hz"] - 1002.0) < 0.5, f"{r['fit_rate_hz']:.4f} Hz")
-    check("it does not blame a missing edge", r["missing_edges"] == 0,
-          str(r["missing_edges"]))
-    print()
-
-    print("empty input, must not raise")
-    r = analyse([0.0] * 8, FS)
-    check("reports an error rather than a number", "error" in r)
-    check("verdict is FAIL", r["pass"] is False)
-    print()
+    for title, build, claims in SCENARIOS:
+        print(title)
+        result = analyse(build(), FS)
+        for label, holds, detail in claims:
+            ok = holds(result)
+            print(f"  {'pass' if ok else 'FAIL'}  {label}"
+                  + (f"   {detail(result)}" if not ok else ""))
+            if not ok:
+                failures += 1
+        print()
 
     if failures:
         print(f"{failures} checks FAILED. The analysis is not fit to look at "
@@ -147,6 +187,26 @@ def run() -> int:
               "good input and refuses both a dropped edge and a wrong rate, "
               "so it is fit to look at real data.")
     return 1 if failures else 0
+
+
+# ---------------------------------------------------------------- the suite
+# Imported lazily so the file still runs as a plain script on a machine with no
+# test runner installed, which is what its own usage line promises.
+try:
+    import pytest
+except ImportError:                                   # pragma: no cover
+    pytest = None
+
+if pytest is not None:
+    @pytest.mark.parametrize(
+        "title,build,claims", SCENARIOS,
+        ids=[t.split(",")[0].replace(" ", "-") for t, _b, _c in SCENARIOS])
+    def test_scenario(title, build, claims):
+        """Every claim in one scenario, so a failure names all of them at once."""
+        result = analyse(build(), FS)
+        broken = [f"{label}: {detail(result)}"
+                  for label, holds, detail in claims if not holds(result)]
+        assert not broken, title + "\n  " + "\n  ".join(broken)
 
 
 if __name__ == "__main__":

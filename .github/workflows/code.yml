@@ -1,4 +1,4 @@
-name: checks
+name: code
 
 # The whole point of this repository is that it runs with no hardware, so the
 # runner is a fair test of it rather than a reduced one. If something here needs
