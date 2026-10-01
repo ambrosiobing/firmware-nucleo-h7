@@ -44,6 +44,18 @@ WARNINGS = [
     "-Wsign-conversion", "-Wpedantic",
 ]
 
+# Windows only, and the reason is specific. A produced executable that links
+# pthread needs libwinpthread-1.dll from the compiler's bin directory at run
+# time, and without it Windows refuses to start the process with
+# STATUS_DLL_NOT_FOUND, which surfaces as exit code 3221225781. Linking static
+# removes that dependency entirely.
+#
+# On Linux this must stay empty. There, -static links libc statically, and a
+# statically linked pthread_create needs -Wl,--whole-archive to behave, so
+# adding it would trade a Windows problem for a Linux one. Nothing on Linux
+# needs it: the shared libraries are found by the loader in the normal way.
+STATIC = ["-static"] if sys.platform == "win32" else []
+
 
 def find(name: str) -> str:
     found = which(name)
@@ -381,7 +393,7 @@ def main() -> int:
 
     print("P09, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
-         "-static",
+         *STATIC,
          "-I", SHARED, "-I", PROJECTS / "P09-payload-codec",
          PROJECTS / "P09-payload-codec" / "cpp_filter.cpp",
          "-o", BUILD / ("cpp_filter" + exe)],
@@ -394,7 +406,7 @@ def main() -> int:
 
     print("P02, the property test, one binary per ordering mode:")
     for mode in (0, 1, 2, 3):
-        run([cc, "-std=c11", "-O2", *WARNINGS, "-static",
+        run([cc, "-std=c11", "-O2", *WARNINGS, *STATIC,
              "-DRING_BARRIER={}".format(mode),
              "-I", SHARED,
              PROJECTS / "P02-ring-buffer" / "property_test.c", SHARED / "ring.c",
@@ -402,7 +414,7 @@ def main() -> int:
             "property_test{}  RING_BARRIER={}".format(mode, mode))
 
     print("P02, the two-thread soak:")
-    run([cc, "-std=c11", "-O2", *WARNINGS, "-pthread", "-static",
+    run([cc, "-std=c11", "-O2", *WARNINGS, "-pthread", *STATIC,
          "-I", SHARED,
          PROJECTS / "P02-ring-buffer" / "soak_threads.c", SHARED / "ring.c",
          "-o", BUILD / ("soak_threads" + exe)],

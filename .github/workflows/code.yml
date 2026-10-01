@@ -46,12 +46,12 @@ jobs:
         run: |
           set -e
           W="-Wall -Wextra -Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion -Wpedantic -Werror"
-          mkdir -p build/werror
-          gcc -std=c11 -O2 $W -Ishared -c shared/payload.c -o build/werror/payload.o
-          gcc -std=c11 -O2 $W -Ishared -c shared/ring.c -o build/werror/ring.o
+          mkdir -p build-host/werror
+          gcc -std=c11 -O2 $W -Ishared -c shared/payload.c -o build-host/werror/payload.o
+          gcc -std=c11 -O2 $W -Ishared -c shared/ring.c -o build-host/werror/ring.o
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
             -Ishared -Iprojects/P09-payload-codec \
-            -c projects/P09-payload-codec/cpp_encode_only.cpp -o build/werror/cpp.o
+            -c projects/P09-payload-codec/cpp_encode_only.cpp -o build-host/werror/cpp.o
 
       - name: P09, the golden vectors
         run: python -m pytest tests/test_vectors.py -q
@@ -75,7 +75,7 @@ jobs:
         run: python -m firmkit.cbor
 
       - name: Object sizes, published and never ranked
-        run: size build/payload_c.o build/payload_cpp.o build/ring_c.o
+        run: size build-host/payload_c.o build-host/payload_cpp.o build-host/ring_c.o
 
   # A second job with a seed nobody chose. It prints the seed before doing any
   # work, so a failure here is reproducible from the log.
