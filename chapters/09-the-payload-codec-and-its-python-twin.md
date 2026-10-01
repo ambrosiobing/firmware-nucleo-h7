@@ -17,7 +17,7 @@
 
 Chapter 8 ends with a transmit step that logs a frame. This chapter writes the code that produces that frame, and writes it twice: an encoder in C that runs on the board and a decoder in Python that runs on the host. Two implementations of one specification is normally a defect waiting to happen, and the whole of this chapter is about turning that liability into the strongest test in the volume. If the two agree over a hundred thousand random inputs, and both agree with a set of vectors that a human worked out by hand, the specification is real.
 
-The payload is bit-packed rather than serialised with a standard format, and that decision has to be justified rather than assumed. Three good permissive implementations of the obvious alternative exist and are named below. The argument for packing bits is that this payload is 5 bytes and the same content in a self-describing format is about three times that, on a link where the payload size is the design constraint. The argument against is everything else: schema evolution, tooling, and the fact that a self-describing frame can be read by somebody who does not have your header file. The chapter states both, picks one, and says what would change the decision.
+The payload is bit-packed rather than serialised with a standard format, and that decision has to be justified rather than assumed. Three good permissive implementations of the obvious alternative exist and are named below. The argument for packing bits is that this payload is 5 bytes and the same content in a self-describing format is several times that, on a link where the payload size is the design constraint. How many times depends entirely on the shape chosen, and quoting one figure without naming the shape hides the decision: measured over the golden vectors and 100000 random cases, a map with one-letter keys averages 21.07 bytes, a positional array 11.07, and a map with full field names 50.07. The array is the cheapest and gives up the only thing the format was chosen for, which is being readable without the header. The argument against is everything else: schema evolution, tooling, and the fact that a self-describing frame can be read by somebody who does not have your header file. The chapter states both, picks one, and says what would change the decision.
 
 The third reason is that a codec is the one piece of firmware that can be tested properly with no hardware at all. It has no timing, no peripherals and no state. That makes it the right place to introduce property-based testing to this volume: instead of a handful of examples, assert a property over random inputs and run it on every commit. Chapter 12 turns that habit into a rig.
 
@@ -84,7 +84,9 @@ The generator is fifty lines and it earns its place by removing a class of defec
 | --- | --- | --- | --- |
 | Payload | 40 bits | 5 B by construction | none needed |
 | Framed length on the wire | 9 B by construction | 9 B by construction | none needed |
-| The same content as CBOR | about 17 B by arithmetic | not measured | not measured |
+| The same content as CBOR, map with short keys | about 17 B by arithmetic | 21.07 B mean | none needed |
+| The same content as CBOR, positional array | not estimated | 11.07 B mean | none needed |
+| The same content as CBOR, full field names | not estimated | 50.07 B mean | none needed |
 | Encoder flash cost | under 512 B | not measured | not measured |
 | Encoder cycles per frame | under 300 | not measured | not measured |
 | One frame at 115200 8N1 | 781 µs by arithmetic | not measured | not measured |
@@ -250,6 +252,9 @@ test/vectors.json
    "bytes": "2000000000"},
   {"fields": {"version": 7, "flags": 15, "sequence": 511,
               "feature": 131071, "battery": 63},
+   "bytes": "FFFF7FFFFF"},
+  {"fields": {"version": 7, "flags": 15, "sequence": 511,
+              "feature": -1, "battery": 63},
    "bytes": "FFFFFFFFFF"},
   {"fields": {"version": 1, "flags": 2, "sequence": 5,
               "feature": -1, "battery": 40},
@@ -257,7 +262,9 @@ test/vectors.json
 ]
 ```
 
-The all-ones case is the one that catches a width error and the negative case is the one that catches sign extension. The third vector above is the one to work out slowly; if your implementation disagrees with it, do not change the vector.
+The second and third vectors look like one case and are two, which is the error this step exists to prevent and which an earlier printing of this chapter made. The largest positive value of an eighteen-bit two's complement field is 131071, which is a zero followed by seventeen ones, not eighteen ones. That zero is bit seventeen of the stream, so byte two is `7F` and not `FF`. Five bytes of `FF` is also a real case and it decodes to a feature of <span class="math">-1</span>. Carry both.
+
+The maximum case catches a width error, the all-ones case catches reading 131071 as eighteen set bits, and the negative case catches sign extension. The last vector is the one to work out slowly; if your implementation disagrees with it, do not change the vector.
 
 **Step 6.** **Run the C encoder from the test through a foreign function interface.** The host build produces a shared library from exactly the same source the board links, and the test calls into it. Nothing is reimplemented for the test.
 

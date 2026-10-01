@@ -11,7 +11,7 @@
 > - **Operating system:** Bare metal
 > - **Difficulty:** 3 of 5
 > - **Effort:** 2 evenings of about four hours
-> - **Deliverable:** One C file and its header that compile unchanged on the target and on the host, a test that pushes a million bytes through the structure off-target, a barrier you can justify line by line, and a counter that reports how many bytes were dropped
+> - **Deliverable:** One C file and its header that compile unchanged on the target and on the host, a test that pushes tens of millions of bytes through the structure off-target, a barrier you can justify line by line, and a counter that reports how many bytes were dropped
 
 ## Why this project
 
@@ -287,20 +287,34 @@ test_ring: test_ring.c ../src/ring.c
 	$(CC) $(CFLAGS) -o $@ $^
 ```
 
-**Step 7.** **Write the test that would find an off-by-one.** A test that puts three bytes and gets three bytes proves nothing. The test that matters drives random burst sizes through the structure for a million bytes and checks the sequence on the far side, so that every boundary is crossed many times.
+**Step 7.** **Write the test that would find an off-by-one.** A test that puts three bytes and gets three bytes proves nothing. The test that matters drives random burst sizes through the structure for tens of millions of bytes and checks the sequence on the far side, so that every boundary is crossed many times. Two hundred thousand steps with burst sizes uniform over 0 to 263, and two loops per step, accepts about 21.6 million bytes, not the million a first estimate of this suggests.
+
+The generator matters more than it looks, and the obvious choice is wrong here. A linear congruential generator with a power-of-two modulus has low bits of very short period: its lowest three bits repeat with period eight. Taking the burst size as that value modulo `RING_SIZE + 8`, which is 264, which is <span class="math">8 × 33</span>, therefore gives burst sizes with a period-eight structure, and the test crosses the buffer boundaries far less randomly than it appears to. Use a generator with no low-bit weakness and record the seed.
 
 ```c
-static uint32_t lcg(uint32_t *s) { *s = *s * 1664525u + 1013904223u; return *s; }
+/* xorshift32. Not a linear congruential generator: the low bits of one with a
+ * power-of-two modulus have period 8, and the burst size below is taken modulo
+ * 264, which is 8 times 33, so the sizes would carry that period. */
+static uint32_t xs32(uint32_t *s)
+{
+    uint32_t x = *s;
+    x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+    *s = x;
+    return x;
+}
 
 int main(void)
 {
     ring_t r; ring_init(&r);
-    uint32_t seed = 1u, in = 0u, out = 0u, drops = 0u;
+    uint32_t seed = 0x2026091u;                  /* recorded on purpose */
+    uint64_t offered = 0, in = 0, out = 0, drops = 0;
     for (uint32_t step = 0; step < 200000u; step++) {
-        uint32_t n = lcg(&seed) % (RING_SIZE + 8u);       /* over capacity */
-        for (uint32_t i = 0; i < n; i++)
+        uint32_t n = xs32(&seed) % (RING_SIZE + 8u);      /* over capacity */
+        for (uint32_t i = 0; i < n; i++) {
+            offered++;
             if (ring_put(&r, (uint8_t)(in & 0xffu))) in++; else drops++;
-        n = lcg(&seed) % (RING_SIZE + 8u);
+        }
+        n = xs32(&seed) % (RING_SIZE + 8u);
         for (uint32_t i = 0; i < n; i++) {
             uint8_t b;
             if (!ring_get(&r, &b)) break;
@@ -309,7 +323,12 @@ int main(void)
         }
         if (ring_used(&r) != in - out) { puts("OCCUPANCY FAULT"); return 1; }
     }
-    printf("in=%u out=%u drops=%u used=%u\n", in, out, drops, ring_used(&r));
+    /* The reconciliation, asserted and not merely printed. A buffer that
+     * silently refuses bytes looks exactly like a link that works. */
+    if (offered != in + drops)        { puts("POLICY FAULT"); return 1; }
+    if (ring_drops(&r) != drops)      { puts("POLICY FAULT"); return 1; }
+    printf("offered=%llu in=%llu out=%llu drops=%llu used=%u\n",
+           offered, in, out, drops, ring_used(&r));
     return 0;
 }
 ```
@@ -360,10 +379,10 @@ To look at the structure on a halted target, print it as a whole rather than fie
 
 ## Verification and acceptance criteria
 
-- The host test runs two hundred thousand random bursts, a little over a million bytes, and reports zero order faults and zero occupancy faults. It runs in under two seconds and is part of the build.
-- Bytes offered equals bytes accepted plus bytes dropped, checked by the test and printed by the target.
+- The host test runs two hundred thousand random bursts, which accepts about 21.6 million bytes, and reports zero order faults and zero occupancy faults. It runs in under two seconds and is part of the build. Write the loop in C rather than driving the structure from a scripting language through a foreign function interface: the same two hundred thousand steps cost about two minutes that way, and a test that takes two minutes is a test somebody switches off.
+- Bytes offered equals bytes accepted plus bytes dropped, *asserted* by the test rather than printed by it, and against the structure's own counter as well as the caller's tally, which are two different numbers that must agree. A count that is only printed is not a check.
 - The structure compiles for the host and for the target from the same two files with no conditional compilation in either.
-- The capacity assertion stops the build when the capacity is changed to a number that is not a power of two. Verified by changing it on purpose once.
+- The capacity assertion stops the build when the capacity is changed to a number that is not a power of two. Verified on every test run by a script that compiles the structure with 100, 255 and 1 and requires each to fail on the assertion, then with 2, 256 and 4096 and requires each to succeed. Both halves matter: a check that only ever expects failure would pass against a compiler that refused everything. Verifying it by hand once and then trusting it is a check nobody is running.
 - The cost of each barrier choice is a measured number in the budget table, taken with the cycle counter, with the no-barrier case included for comparison and marked as not shippable.
 - An overnight soak at the highest rate chapter 3 establishes reports a drop count of zero and a peak occupancy well under the capacity.
 
@@ -387,6 +406,8 @@ To look at the structure on a halted target, print it as a whole rather than fie
 
 - Believing `volatile` is a barrier. It orders volatile accesses against each other and nothing else, and the access that matters here is the ordinary store to the data array.
 - Wrapping the indices at the capacity instead of masking at the point of use. It works, and then the occupancy is no longer a subtraction, and then one slot is sacrificed, and then somebody changes the capacity to the number they first wrote in the specification.
+- Drawing the burst size from the low bits of a linear congruential generator. With a power-of-two modulus its lowest three bits repeat with period eight, and the burst size here is taken modulo 264, which is <span class="math">8 × 33</span>, so the sizes inherit that period and the test crosses the buffer boundaries far less randomly than it appears to. The symptom is a test that looks thorough and is not.
+- Printing the drop count instead of asserting on it. Reconciling bytes offered against bytes accepted plus bytes dropped is only a check if something fails when it does not hold.
 - A capacity that is not a power of two. The mask silently stops matching the size, and the failure appears as data corruption under load rather than as an error.
 - A second producer. Two interrupt sources calling the put function is the most common way this structure fails in the field, and it presents as rare corruption that a test never reproduces.
 - Reading the occupancy from the producer context for a control decision. The value is conservative in one direction only, and code that treats it as exact will eventually act on a stale number.
@@ -418,7 +439,7 @@ For the ordering material itself, the architecture reference for this profile an
 ## Portfolio evidence
 
 - A repository whose README opens with the architecture figure and states the invariant in two sentences before any code appears.
-- The host test output showing a million bytes through the structure with zero faults, run from the build system rather than by hand.
+- The host test output showing tens of millions of bytes through the structure with zero faults, run from the build system rather than by hand.
 - The budget table with the measured column filled in for all three barrier choices, naming the cycle counter as the instrument.
 - An overnight soak log with the drop counter and the peak occupancy, and a sentence saying what rate produced it.
 
