@@ -37,7 +37,7 @@ jobs:
             --out-c shared --out-py firmkit --check
 
       - name: Build everything the suite needs
-        run: python tools/build_host.py
+        run: python python/tools/build_host.py
 
       # Warnings as errors, separately, because build_host.py deliberately does
       # not use -Werror: a warning should not stop somebody working locally, and
@@ -47,32 +47,32 @@ jobs:
           set -e
           W="-Wall -Wextra -Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion -Wpedantic -Werror"
           mkdir -p build-host/werror
-          gcc -std=c11 -O2 $W -Ishared -c shared/payload.c -o build-host/werror/payload.o
-          gcc -std=c11 -O2 $W -Ishared -c shared/ring.c -o build-host/werror/ring.o
+          gcc -std=c11 -O2 $W -Ic/payload -c c/payload/payload.c -o build-host/werror/payload.o
+          gcc -std=c11 -O2 $W -Ic/ring -c c/ring/ring.c -o build-host/werror/ring.o
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
-            -Ishared -Iprojects/P09-payload-codec \
-            -c projects/P09-payload-codec/cpp_encode_only.cpp -o build-host/werror/cpp.o
+            -Ic/payload -Icpp/P09 \
+            -c cpp/P09/cpp_encode_only.cpp -o build-host/werror/cpp.o
 
       - name: P09, the golden vectors
-        run: python -m pytest tests/test_vectors.py -q
+        run: python -m pytest python/tests/test_vectors.py -q
 
       - name: P09, the round trip over 100000 cases with a recorded seed
-        run: python -m pytest tests/test_roundtrip.py -q -s
+        run: python -m pytest python/tests/test_roundtrip.py -q -s
 
       - name: P09, the C++ variant against the C one over the whole run
-        run: python -m pytest tests/test_cpp.py -q
+        run: python -m pytest python/tests/test_cpp.py -q
 
       - name: P09, the twin stays inside the MicroPython subset
-        run: python -m pytest tests/test_micropython_subset.py -q
+        run: python -m pytest python/tests/test_micropython_subset.py -q
 
       - name: P02, the ring in all four ordering modes
-        run: python -m pytest tests/test_ring.py -q -s
+        run: python -m pytest python/tests/test_ring.py -q -s
 
       - name: P06, the witness analysis on synthetic input
-        run: python -m pytest tests/test_rate.py -q
+        run: python -m pytest python/tests/test_rate.py -q
 
       - name: What CBOR would have cost P09, measured
-        run: python -m firmkit.cbor
+        run: cd python && python -m firmkit.cbor
 
       - name: Object sizes, published and never ranked
         run: size build-host/payload_c.o build-host/payload_cpp.o build-host/ring_c.o
@@ -87,6 +87,6 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --quiet -r requirements.txt
-      - run: python tools/build_host.py
+      - run: python python/tools/build_host.py
       - name: P09's round trip with a random seed, printed
-        run: python -m pytest tests/test_roundtrip.py::test_roundtrip_random_seed -q -s
+        run: python -m pytest python/tests/test_roundtrip.py::test_roundtrip_random_seed -q -s

@@ -2,7 +2,7 @@
 
 The software for the twenty projects of this volume. The book and the code live
 in one repository: `chapters/` and `figures/` are the written volume,
-`projects/`, `shared/`, `firmkit/` and `tests/` are what runs.
+`projects/`, `shared/`, `python/firmkit/` and `python/tests/` are what runs.
 
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
@@ -44,15 +44,15 @@ project first needed them, so they live together.
 
 | Path | What it is |
 | --- | --- |
-| `shared/ring.{c,h}`, `shared/barrier.h` | P02's structure and its four ordering modes, used by P03, P04, P05, P11 |
-| `shared/payload.{c,h}`, `shared/payload_fields.h` | P09's codec, used by P08 and P12. The header is generated |
-| `shared/instr/` | the cycle counter and the gated frequency counter, the instruments the board provides about itself |
-| `firmkit/payload.py` | the Python twin: test oracle, edge-host decoder, and the same file again on the board under MicroPython |
-| `firmkit/rate.py` | P06's edge and rate analysis, two independent routes that must agree |
-| `firmkit/cbor.py` | the serialisation-size arithmetic, so a format decision carries a number |
+| `c/ring/ring.{c,h}`, `c/ring/barrier.h` | P02's structure and its four ordering modes, used by P03, P04, P05, P11 |
+| `c/payload/payload.{c,h}`, `c/payload/payload_fields.h` | P09's codec, used by P08 and P12. The header is generated |
+| `c/instr/` | the cycle counter and the gated frequency counter, the instruments the board provides about itself |
+| `python/firmkit/payload.py` | the Python twin: test oracle, edge-host decoder, and the same file again on the board under MicroPython |
+| `python/firmkit/rate.py` | P06's edge and rate analysis, two independent routes that must agree |
+| `python/firmkit/cbor.py` | the serialisation-size arithmetic, so a format decision carries a number |
 | `projects/PNN-name/` | each project: its own specification, variants, target code, design notes and README |
-| `tests/` | every suite, central, none of which touch a device |
-| `tools/` | the generator, the host build, and the checks that prove the checks work |
+| `python/tests/` | every suite, central, none of which touch a device |
+| `python/tools/` | the generator, the host build, and the checks that prove the checks work |
 
 ## Three rules this repository obeys
 
@@ -104,7 +104,7 @@ cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python -m pip install -r requ
 Then, with the environment active:
 
 ```bash
-cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python tools/build_host.py
+cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/tools/build_host.py
 ```
 
 ```bash
@@ -118,7 +118,7 @@ Each project's own README gives its flow.
 committed.
 
 > **If the build fails with the library open.** Windows will not let a loaded
-> library be overwritten, so `tools/build_host.py` refuses and says which file,
+> library be overwritten, so `python/tools/build_host.py` refuses and says which file,
 > rather than letting the linker produce an error that does not mention locking.
 > It is nearly always a `pytest` run in another window or a Python session that
 > imported the library through `ctypes`. Close it and run the build again.
@@ -134,7 +134,7 @@ exists. **Also absent: `make` and `ninja`**, so a cross compiler alone would
 still leave CMake with no generator.
 
 The download list is therefore three items and not two: the compiler, the
-flashing tool, and `ninja`. Until then `tools/build_host.py` calls the compiler
+flashing tool, and `ninja`. Until then `python/tools/build_host.py` calls the compiler
 directly, which is why it exists and why it will be deleted when `ninja` arrives.
 
 P01 then owns the toolchain file, the startup code and the linker script that
@@ -150,7 +150,7 @@ between them is the point rather than tidiness.
 | `requirements.txt` | `pytest`, and nothing else | yes |
 | `requirements-hardware.txt` | `pyserial` for a serial link, and `daqhats` noted for the Raspberry Pi only | no |
 
-Nothing in `firmkit/` or `tests/` imports anything from the second file. If a
+Nothing in `python/firmkit/` or `python/tests/` imports anything from the second file. If a
 module there ever needs one, that module is in the wrong half of the project: it
 needs a device, so it belongs in a project directory behind a command the suite
 does not call. `P09/listen.py` is the example, and it guards its import and

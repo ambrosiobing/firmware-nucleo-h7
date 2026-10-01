@@ -8,7 +8,7 @@ runs in the main loop.
 argument is the deliverable and the host cannot test it, which is the single most
 important sentence in this directory. See below.
 
-The structure itself lives in [`shared/ring.c`](../../shared/ring.c) rather than
+The structure itself lives in [`c/ring/ring.c`](../../c/ring/ring.c) rather than
 here, because P03 fills it from an interrupt, P04 from a transfer engine, P05
 parses frames out of it and P11 runs a command queue on top of it. It belongs to
 all of them rather than to whichever project first needed it. What lives here is
@@ -79,11 +79,11 @@ no ordering between a volatile and a non-volatile access.
 ## Running it
 
 ```bash
-cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python tools/build_host.py
+cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/tools/build_host.py
 ```
 
 ```bash
-cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python -m pytest tests/test_ring.py -q -s
+cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python -m pytest python/tests/test_ring.py -q -s
 ```
 
 ## Measured
@@ -126,7 +126,7 @@ refuses bytes looks exactly like a link that works, until the day it does not.
 **The capacity assertion is proved to fire on every run.** The criteria say
 "verified by changing it on purpose once", and once is the problem: a check done
 by hand one afternoon and then trusted is a check nobody is running.
-`tools/check_ring_assert.py` compiles the structure with 100, 255 and 1 and
+`python/tools/check_ring_assert.py` compiles the structure with 100, 255 and 1 and
 requires each to fail on the assertion, then with 2, 256 and 4096 and requires
 each to succeed, because a test that only ever expects failure would pass against
 a compiler that refused everything.

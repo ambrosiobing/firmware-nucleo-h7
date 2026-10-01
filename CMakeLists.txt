@@ -5,7 +5,7 @@
 #
 # NOT RUNNABLE YET on win11 aquamarine: no arm-none-eabi-gcc, no flashing tool
 # and no ninja as of Thursday 1 October 2026. The host half of this repository
-# needs none of them and is built by tools/build_host.py instead.
+# needs none of them and is built by python/tools/build_host.py instead.
 #
 # This file deliberately refuses to configure for the host. A bare metal project
 # that silently produces a host binary named like firmware is worse than one that
@@ -19,7 +19,7 @@ if(NOT CMAKE_CROSSCOMPILING)
     "toolchain:\n"
     "  cmake -B build-fw -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -G Ninja\n"
     "For the host tests, which need none of that, use:\n"
-    "  python tools/build_host.py && python -m pytest tests -q")
+    "  python python/tools/build_host.py && python -m pytest python/tests -q")
 endif()
 
 project(nucleo-h7a3-firmware C ASM)
@@ -32,9 +32,9 @@ set(WARNINGS
 
 add_compile_options(${WARNINGS} -ffunction-sections -fdata-sections -fno-common)
 
-# The linker script is P01's and lives in shared/, because every project links
+# The linker script is P01's and lives in c/ld/, because every project links
 # the same one. Changing it is a decision about every project at once.
-set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/shared/ld/stm32h7a3zi.ld)
+set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/c/ld/stm32h7a3zi.ld)
 
 add_link_options(
     -T${LINKER_SCRIPT}
@@ -48,12 +48,12 @@ add_link_options(
 # generated code appears here, and the vendor pack is deliberately not vendored
 # because its licence differs file by file.
 add_library(board STATIC
-    shared/board/startup.c
-    shared/board/system.c
-    shared/board/board.c
-    shared/board/uart.c
-    shared/board/retarget.c)
-target_include_directories(board PUBLIC shared/board)
+    c/board/startup.c
+    c/board/system.c
+    c/board/board.c
+    c/board/uart.c
+    c/board/retarget.c)
+target_include_directories(board PUBLIC c/board)
 
 # One firmware target per project that has target code. A project appears here
 # when its main.c exists, and not before: an empty target that links and does
@@ -84,28 +84,28 @@ endfunction()
 
 # P01, first light. Blinks on the reset clock using only settled board facts.
 add_firmware(p01-first-light
-    SOURCES projects/P01-toolchain-first-light/main.c)
+    SOURCES c/P01/main.c)
 
 # P06, the 1 kHz sampling comparison: one application, three acquisition back
 # ends, selected at build time so that the comparison is of mechanisms rather
 # than of three programs.
 foreach(BACKEND systick timer dma)
     if(BACKEND STREQUAL "dma")
-        set(ACQ projects/P06-timer-sampling/acq_dma_double.c)
+        set(ACQ c/P06/acq_dma_double.c)
     else()
-        set(ACQ projects/P06-timer-sampling/acq_${BACKEND}.c)
+        set(ACQ c/P06/acq_${BACKEND}.c)
     endif()
     add_firmware(p06-sampling-${BACKEND}
-        SOURCES projects/P06-timer-sampling/main.c
-                projects/P06-timer-sampling/marker.c
-                shared/instr/cyccnt.c
-                shared/instr/freqcount.c
+        SOURCES c/P06/main.c
+                c/P06/marker.c
+                c/instr/cyccnt.c
+                c/instr/freqcount.c
                 ${ACQ}
-        INCLUDES projects/P06-timer-sampling shared/instr)
+        INCLUDES c/P06 c/instr)
 endforeach()
 
 # P09, the codec on the target, checking the negative golden vector there rather
 # than only on the host.
 add_firmware(p09-codec
-    SOURCES projects/P09-payload-codec/main.c shared/payload.c
-    INCLUDES ${CMAKE_SOURCE_DIR}/shared)
+    SOURCES c/P09/main.c c/payload/payload.c
+    INCLUDES ${CMAKE_SOURCE_DIR}/c/payload)

@@ -129,7 +129,7 @@ them.
 
     python lint.py                             house rules over every chapter
     python crosscheck.py                       book-level consistency
-    python tools/check_links.py                every relative link and anchor
+    python python/tools/check_links.py                every relative link and anchor
     python build.py --check sections/c19.tex   compile one chapter and report on it
 
 `lint.py` checks prose for em and en dashes, non-ASCII characters, violent
@@ -168,9 +168,9 @@ Chapter NN is the written design for project PNN.
 |---|---|
 | [`projects/`](projects/README.md) | twenty project directories, `P01` to `P20`, each with its own README and state |
 | `shared/` | C that more than one project compiles: the ring buffer and its four ordering modes, the payload codec, the on-chip instruments |
-| `firmkit/` | Python that more than one project imports: the codec twin, the rate analysis, the serialisation-size arithmetic |
-| `tests/` | every suite, central, and none of which touches a device |
-| `tools/` | the codec generator, the host build, and the checks that prove the checks work |
+| `python/firmkit/` | Python that more than one project imports: the codec twin, the rate analysis, the serialisation-size arithmetic |
+| `python/tests/` | every suite, central, and none of which touches a device |
+| `python/tools/` | the codec generator, the host build, and the checks that prove the checks work |
 | `requirements.txt` | `pytest`, and nothing else |
 | `requirements-hardware.txt` | what only matters when something is plugged in; the suite and the runner never install it |
 | `build-host/` | code build output, ignored, deliberately not `build/` so the two cannot delete each other's work |

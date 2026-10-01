@@ -51,7 +51,7 @@ P06's whole subject.
 
 ## Bringing it up
 
-`shared/board/stm32h7a3_regs.h` is the one file to edit, and it says so at the
+`c/board/stm32h7a3_regs.h` is the one file to edit, and it says so at the
 top. Read RM0455's memory map chapter, replace each `BOARD_PLACEHOLDER`, then
 define `BOARD_REGS_CONFIRMED` with the manual revision and the full date you read
 it. Record that revision here too. The console needs a second step and a second
@@ -67,18 +67,19 @@ boot.
 
     cmake/arm-none-eabi.cmake     the toolchain file, used by every project
     CMakeLists.txt                the firmware build, at the repository root
-    shared/ld/stm32h7a3zi.ld      the linker script, lengths from this part
-    shared/board/startup.c        vector table and reset handler, in C
-    shared/board/system.c         the clock tree, and what it refuses
-    shared/board/board.c          LEDs, button, board_init
-    shared/board/uart.c           the console, polled
-    shared/board/retarget.c       printf, and the cost of that decision
-    shared/board/board.h          what this project provides to every other
-    shared/board/stm32h7a3_regs.h the registers, and the placeholders
-    projects/P01-.../main.c       first light
+    c/ld/stm32h7a3zi.ld           the linker script, lengths from this part
+    c/board/startup.c             vector table and reset handler, in C
+    c/board/system.c              the clock tree, and what it refuses
+    c/board/board.c               LEDs, button, board_init
+    c/board/uart.c                the console, polled
+    c/board/retarget.c            printf, and the cost of that decision
+    c/board/board.h               what this project provides to every other
+    c/board/stm32h7a3_regs.h      the registers, and the placeholders
+    c/P01/main.c                  first light
 
-The board support lives in `shared/` rather than here because every project
-links it. This directory holds only the application.
+The code lives under `c/` and this directory holds the README and the
+specification. The board support is in `c/board/` rather than in `c/P01/` because
+every project links it: changing it is a decision about all twenty at once.
 
 ## Three decisions worth the space they take
 
@@ -108,7 +109,7 @@ finding.
   this family's published ones and have not been read from RM0455. The table
   carries only what is certain and leaves the rest as the default handler, so an
   unconfirmed position cannot silently misroute.
-- `tools/reconcile_size.py`, which the chapter asks for to sum the map file
+- `python/tools/reconcile_size.py`, which the chapter asks for to sum the map file
   against the size output, waits for a build that produces either.
 - Nothing touches option bytes, here or anywhere in this volume, until the
   question of whether a bad write can leave the board unrecoverable is settled.

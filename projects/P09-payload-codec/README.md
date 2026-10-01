@@ -35,10 +35,10 @@ Four things would refute it, and each has a test that can fail:
 
 | The claim | What refutes it | Where |
 |---|---|---|
-| The implementations match the specification | Any implementation disagreeing with a hand-computed vector | `tests/test_vectors.py` |
-| The implementations match each other | Any byte differing across C, Python and C++ over 100000 cases | `tests/test_roundtrip.py`, `tests/test_cpp.py` |
-| A specification change cannot be merged half-applied | The generated files differing from the committed ones | `tools/gen_codec.py --check` |
-| One decoder source serves host and board | `../../firmkit/payload.py` drifting out of the MicroPython subset | `tests/test_micropython_subset.py` |
+| The implementations match the specification | Any implementation disagreeing with a hand-computed vector | `python/tests/test_vectors.py` |
+| The implementations match each other | Any byte differing across C, Python and C++ over 100000 cases | `python/tests/test_roundtrip.py`, `python/tests/test_cpp.py` |
+| A specification change cannot be merged half-applied | The generated files differing from the committed ones | `python/tools/gen_codec.py --check` |
+| One decoder source serves host and board | `../../python/firmkit/payload.py` drifting out of the MicroPython subset | `python/tests/test_micropython_subset.py` |
 
 **Why the vectors matter more than the round trip.** The field table generates
 both the C header and the Python module, which removes the chance of the two
@@ -50,7 +50,7 @@ the layout is the one that was intended.
 ## What runs today, with no board and no cross compiler
 
 ```bash
-cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python tools/build_host.py
+cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/tools/build_host.py
 ```
 
 ```bash
@@ -99,7 +99,7 @@ with seed 20260920, payload only, before framing:
 | CBOR map, one-letter keys | 16 | 23 | 21.07 | 4.21x |
 | CBOR array, positional | 6 | 13 | 11.07 | 2.21x |
 
-Reproduce with `python firmkit/cbor.py`. The encoding is done against
+Reproduce with `python python/firmkit/cbor.py`. The encoding is done against
 RFC 8949's canonical shortest-form rule rather than through a library, because
 none of the three named libraries is installed and a library would add its own
 framing choices without making the comparison fairer.
@@ -123,15 +123,15 @@ one decoder and nothing else:
 
 | Implementation | Object size |
 |---|---|
-| C, `../../shared/payload.c` | 1518 bytes |
-| C++17, `../../shared/payload.hpp` via `cpp_encode_only.cpp` | 2700 bytes |
+| C, `../../c/payload/payload.c` | 1518 bytes |
+| C++17, `../../c/payload/payload.hpp` via `cpp_encode_only.cpp` | 2700 bytes |
 
 **Published, not ranked.** These are host objects and they are not the flash cost
 on the board, which needs `arm-none-eabi-size` and therefore a toolchain this
 laptop does not have. The budget table's flash row stays "not measured" until it
 can be measured. What the C++ variant buys for its larger host object is the
 layout checked at compile time: `encode` and `decode` are `constexpr`, so the
-fourth golden vector is asserted by the compiler in `../../shared/payload.hpp` and a
+fourth golden vector is asserted by the compiler in `../../c/payload/payload.hpp` and a
 width changed in one place and not the other fails to build.
 
 ### What the test suite can and cannot see
@@ -160,21 +160,21 @@ which pre-dirties the buffer and checks the tail comes back untouched.
 ## Layout
 
     fields.py              the specification, and the only place it lives
-    ../../shared/payload_fields.h       generated for C, committed
-    ../../firmkit/payload_fields.py      generated for Python, committed
-    ../../shared/payload.c              the bit writer and reader in C
-    ../../shared/payload.h              the whole interface: two functions and a buffer
-    ../../shared/payload.hpp            the C++ variant, widths as template parameters
-    ../../firmkit/payload.py            the Python twin: oracle, edge host, and board
-    tools/gen_codec.py           the generator, and its --check gate
-    tools/build_host.py          the build that works without make or ninja
-    firmkit/cbor.py           the comparison the chapter left unmeasured
+    ../../c/payload/payload_fields.h       generated for C, committed
+    ../../python/firmkit/payload_fields.py      generated for Python, committed
+    ../../c/payload/payload.c              the bit writer and reader in C
+    ../../c/payload/payload.h              the whole interface: two functions and a buffer
+    ../../c/payload/payload.hpp            the C++ variant, widths as template parameters
+    ../../python/firmkit/payload.py            the Python twin: oracle, edge host, and board
+    python/tools/gen_codec.py           the generator, and its --check gate
+    python/tools/build_host.py          the build that works without make or ninja
+    python/firmkit/cbor.py           the comparison the chapter left unmeasured
     BITORDER.md             normative, written before any implementation
     vectors.json            hand computed, never generated
-    tests/test_vectors.py         both sides against the vectors
-    tests/test_roundtrip.py       the property, 100000 cases, recorded seed
-    tests/test_cpp.py             the C++ variant against C over the whole run
-    tests/test_micropython_subset.py  keeps the one-source claim honest
+    python/tests/test_vectors.py         both sides against the vectors
+    python/tests/test_roundtrip.py       the property, 100000 cases, recorded seed
+    python/tests/test_cpp.py             the C++ variant against C over the whole run
+    python/tests/test_micropython_subset.py  keeps the one-source claim honest
     cpp_filter.cpp          the C++ variant as a filter the tests drive
     cpp_encode_only.cpp     one translation unit, for the size comparison
     main.c                   the board side, written, never compiled
@@ -189,14 +189,14 @@ lot of code that tests nothing, and it would have limited the C++ comparison to
 six cases. Driving it from Python compares all three implementations over the
 whole 100000-case run, which is what the acceptance criteria actually ask for.
 
-**`tools/build_host.py` exists alongside `CMakeLists.txt`.** The chapter's build
+**`python/tools/build_host.py` exists alongside `CMakeLists.txt`.** The chapter's build
 line is right on a machine with a generator. This laptop has none, and a chapter
 that could be finished today should not wait on a download. The script builds the
 same two translation units and will be deleted when `ninja` is installed.
 
 ## Two traps this repository hit, recorded
 
-**A stale `__pycache__` shadowed the specification.** `tools/gen_codec.py`
+**A stale `__pycache__` shadowed the specification.** `python/tools/gen_codec.py`
 originally loaded `fields.py` through `importlib`, which goes through the
 bytecode cache. The cache is keyed on the source file's size and modification
 time, and an edit changing a width from 18 to 17 leaves the size identical, so a
@@ -236,7 +236,7 @@ Normative:
 - The C standard, for the rules on shifting signed integers and on conversion to
   unsigned that the encoder depends on.
 - RFC 8949, for the CBOR head encoding and the canonical shortest-form rule used
-  by `firmkit/cbor.py`.
+  by `python/firmkit/cbor.py`.
 
 Read, and deliberately not used:
 

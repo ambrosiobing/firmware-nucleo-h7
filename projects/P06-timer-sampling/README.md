@@ -67,11 +67,11 @@ witness is a data acquisition HAT rather than either.
     acq_dma_double.c   build 3, and the two traps it sits on
     marker.c           the one pin the witness watches
     main.c             byte identical across all three builds
-    ../../shared/instr/cyccnt.c         cycle counter, with a self-test rather than a hope
-    ../../shared/instr/freqcount.c      gated counter, for checking the witness
+    ../../c/instr/cyccnt.c         cycle counter, with a self-test rather than a hope
+    ../../c/instr/freqcount.c      gated counter, for checking the witness
     scan.py        capture, on the Pi
-    ../../firmkit/rate.py        the analysis, two independent routes that must agree
-    ../../tests/test_rate.py   the analysis tested on synthetic input
+    ../../python/firmkit/rate.py        the analysis, two independent routes that must agree
+    ../../python/tests/test_rate.py   the analysis tested on synthetic input
     MEASUREMENT.md    the method, written before the first run
 
 ## What runs today, with no hardware
