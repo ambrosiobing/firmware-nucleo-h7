@@ -175,8 +175,11 @@ Chapter NN is the written design for project PNN.
 | `requirements-hardware.txt` | what only matters when something is plugged in; the suite and the runner never install it |
 | `build-host/` | code build output, ignored, deliberately not `build/` so the two cannot delete each other's work |
 
-Three projects are written: P02, P06 and P09. The rest carry a README naming what
-they are and that they have not started. The whole suite runs on a laptop with no
+Eight of the twenty have code: P01, P02, P03, P05, P06, P08, P09 and P12. Those
+eight are every project whose work can be done without the board, and 87 checks
+pass on a laptop with no board, no probe and no Raspberry Pi. The other twelve
+carry a README naming what they are, what they need on the bench, and that they
+have not started. The whole suite runs on a laptop with no
 board, no probe and no Raspberry Pi, which is why it is the half that could be
 finished first.
 
