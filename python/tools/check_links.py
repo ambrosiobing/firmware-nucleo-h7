@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Every relative link in every Markdown file must resolve.
 
-    python tools/check_links.py
+    python python/tools/check_links.py
 
 This exists because of a defect that reached the published repository on
 Thursday 1 October 2026. `projects/README.md` is the code index a visitor lands

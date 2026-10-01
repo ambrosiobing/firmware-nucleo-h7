@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Measure what the same five fields cost in CBOR, so the decision has numbers.
 
-    python tools/cbor_size.py
+    cd python; python -m firmkit.cbor
 
 Chapter 9's budget table carries the row "the same content as CBOR, about 17 B
 by arithmetic, not measured". Step 10 of the chapter says to encode the same

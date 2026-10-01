@@ -58,7 +58,7 @@ jobs:
           echo "chapters/ matches sections/"
 
       - name: Every relative link resolves
-        run: python tools/check_links.py
+        run: python python/tools/check_links.py
 
       - name: No assembled volume and no PDF is published
         run: |

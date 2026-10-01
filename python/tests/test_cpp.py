@@ -36,7 +36,7 @@ def run_filter(cases):
     """
     if not FILTER.exists():
         pytest.skip(
-            "{} is missing. Build it with: python tools/build_host.py".format(
+            "{} is missing. Build it with: python python/tools/build_host.py".format(
                 FILTER.name
             )
         )

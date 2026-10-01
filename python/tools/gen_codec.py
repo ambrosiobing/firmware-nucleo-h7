@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate the C header and the Python module from the field specification.
 
-    python tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c shared --out-py firmkit
-    python tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c shared --out-py firmkit --check
+    python python/tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c c/payload --out-py python/firmkit
+    python python/tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c c/payload --out-py python/firmkit --check
 
 The generator earns its place by removing a class of defect rather than by
 saving typing: a bit layout written out twice will diverge, and it will diverge
@@ -171,7 +171,7 @@ def main(argv=None) -> int:
     if args.check and not ok:
         print(
             "\nthe generated files do not match the specification.\n"
-            "run: python tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c shared --out-py firmkit"
+            "run: python python/tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c c/payload --out-py python/firmkit"
         )
         return 1
     return 0

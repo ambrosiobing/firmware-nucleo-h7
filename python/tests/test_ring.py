@@ -54,7 +54,7 @@ def lib(mode: int) -> ctypes.CDLL:
         if not path.exists():
             pytest.fail(
                 "{} is missing. Build it first:\n"
-                "    python tools/build_host.py".format(path.name)
+                "    python python/tools/build_host.py".format(path.name)
             )
         dll = ctypes.CDLL(str(path))
         dll.ring_init.restype = None
@@ -86,7 +86,7 @@ def test_property_over_random_bursts(mode):
     exe = BUILD / ("property_test{}{}".format(mode, ".exe" if os.name == "nt" else ""))
     if not exe.exists():
         pytest.fail(
-            "{} is missing. Build it first: python tools/build_host.py".format(exe.name)
+            "{} is missing. Build it first: python python/tools/build_host.py".format(exe.name)
         )
     proc = subprocess.run(
         [str(exe), str(STEPS)], capture_output=True, text=True, timeout=300
@@ -169,7 +169,7 @@ def test_the_two_thread_soak_runs_and_says_what_it_cannot_prove():
     """
     exe = BUILD / ("soak_threads.exe" if os.name == "nt" else "soak_threads")
     if not exe.exists():
-        pytest.skip("{} is missing. Run: python tools/build_host.py".format(exe.name))
+        pytest.skip("{} is missing. Run: python python/tools/build_host.py".format(exe.name))
     proc = subprocess.run([str(exe)], capture_output=True, text=True, timeout=180)
     print(proc.stdout.strip())
     assert proc.returncode == 0, proc.stdout + proc.stderr

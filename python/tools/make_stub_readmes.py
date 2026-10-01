@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write a README into every project directory that has not got one.
 
-    python tools/make_stub_readmes.py
+    python python/tools/make_stub_readmes.py
 
 Each of the twenty projects gets a directory from the start, so the shape of the
 volume is visible in the repository rather than arriving a chapter at a time. A

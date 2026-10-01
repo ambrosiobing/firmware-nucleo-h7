@@ -124,7 +124,7 @@ def _load():
         from conftest import CPayload, library_path
 
         path = library_path()
-        assert path.exists(), "{} is missing. Run: python tools/build_host.py".format(
+        assert path.exists(), "{} is missing. Run: python python/tools/build_host.py".format(
             path.name
         )
         dll = ctypes.CDLL(str(path))

@@ -33,8 +33,8 @@ jobs:
       # cannot be changed in P09's specification and merged half-applied.
       - name: P09's generated files match its specification
         run: |
-          python tools/gen_codec.py projects/P09-payload-codec/fields.py \
-            --out-c shared --out-py firmkit --check
+          python python/tools/gen_codec.py projects/P09-payload-codec/fields.py \
+            --out-c c/payload --out-py python/firmkit --check
 
       - name: Build everything the suite needs
         run: python python/tools/build_host.py

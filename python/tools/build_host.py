@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build everything the host test suite needs, without CMake.
 
-    python tools/build_host.py
+    python python/tools/build_host.py
 
 Why this exists. The book's build lines are CMake ones, and they are right on a
 machine with a generator installed. On win11 aquamarine, re-checked
@@ -248,7 +248,7 @@ def diagnose(output: str) -> None:
 def doctor() -> int:
     """Report facts about this machine instead of guessing about it.
 
-        python tools/build_host.py --doctor
+        python python/tools/build_host.py --doctor
 
     Written on Thursday 1 October 2026 after two wrong diagnoses of a build that
     failed with gcc exit status 1 and no output at all, on one machine, in one

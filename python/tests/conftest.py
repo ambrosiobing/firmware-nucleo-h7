@@ -52,7 +52,7 @@ def lib():
     if not path.exists():
         pytest.fail(
             "{} is missing. Build it first:\n"
-            "    python tools/build_host.py".format(path.name)
+            "    python python/tools/build_host.py".format(path.name)
         )
     dll = ctypes.CDLL(str(path))
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prove the capacity assertion stops the build, by breaking it on purpose.
 
-    python tools/check_ring_assert.py
+    python python/tools/check_ring_assert.py
 
 P02's acceptance criteria say the capacity assertion must stop the build when the
 capacity is changed to something that is not a power of two, "verified by
