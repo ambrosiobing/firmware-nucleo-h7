@@ -199,11 +199,41 @@ bool board_delay_ms(uint32_t ms)
      * established: g_core_hz is decoded from the RCC registers and is a
      * datasheet nominal with about one percent on it rather than an unknown.
      *
-     * The other has not moved. The loop count assumes roughly four cycles per
-     * iteration, which depends on the compiler, the optimisation level, whether
-     * the loop sits in a cache line already fetched, and on flash wait states.
-     * That is not a one percent effect and it is not a correction factor anyone
-     * has measured. So this remains unfit for timing and keeps saying so.
+     * The other has been measured, and the measurement is why this still refuses
+     * rather than why it could stop.
+     *
+     * The loop count assumed roughly four cycles per iteration. On Friday
+     * 2 October 2026 that was measured on the board and it is eight. Exactly
+     * eight: P01 prints a note every twentieth blink cycle, three consecutive
+     * note to note intervals came out at 19966, 19966 and 19963 ms, a spread of
+     * 0.015 per cent, and dividing gives 7.99 cycles per iteration. So the blink
+     * had been running at 998 ms where the code intended 500, wrong by a factor
+     * of two, and the divisor below is corrected from 4000 to 8000.
+     *
+     * Eight is believable from the loop itself: the counter is declared volatile,
+     * which forces a load and a store to memory every iteration instead of
+     * keeping it in a register, roughly doubling what the loop would otherwise
+     * cost.
+     *
+     * That same measurement incidentally weighed the clock. Cycles per iteration
+     * must be a whole number, so 7.99 cannot be the cycle count; it is the
+     * divisor being slightly off, and the divisor is the frequency. Seven cycles
+     * would imply 56.1 MHz and nine would imply 72.1 MHz, neither of them
+     * anywhere near. Eight implies 64.11 MHz, 0.18 per cent above the 64.00 MHz
+     * nominal and well inside the oscillator's specified tolerance. That is the
+     * first figure for this part's clock that is a measurement rather than a
+     * datasheet value, and its reference is a host PC's clock over three twenty
+     * second intervals, which is good to far better than a tenth of a per cent
+     * and is not traceable to anything.
+     *
+     * AND IT STILL RETURNS FALSE. Eight cycles is eight cycles for this compiler
+     * at this optimisation level with this code in flash and this clock. Change
+     * the optimisation level, move the loop, enable the instruction cache, or
+     * raise the clock so the flash wait states bite differently, and it moves,
+     * and nothing in the build checks that it has not. A figure that holds only
+     * under conditions nobody verifies is not one to hand a caller as
+     * trustworthy. P06 replaces the estimate with a counted reference, which is
+     * what makes a delay a time.
      *
      * Worth stating plainly because the temptation runs the other way: settling
      * the clock made one of two approximations go away, and it would have been
@@ -212,7 +242,9 @@ bool board_delay_ms(uint32_t ms)
      * the real cycles per iteration turns out to be. P06 is where a delay gets a
      * counted reference instead of a guessed one. */
     const uint32_t hz = g_core_hz ? g_core_hz : HSI_HZ_NOMINAL;
-    const uint32_t iterations = (hz / 4000u) * ms;
+    /* 8000, not 4000: eight measured cycles per iteration and a thousand
+     * milliseconds in a second. This now gives 499 ms for a requested 500. */
+    const uint32_t iterations = (hz / 8000u) * ms;
 
     for (volatile uint32_t i = 0; i < iterations; i++) {
         __asm volatile ("nop");
