@@ -229,6 +229,29 @@ endfunction()
 add_firmware(p01-first-light
     SOURCES c/P01/main.c)
 
+# P02, the ring buffer on the target, which is the only place its deliverable can
+# be tested. Four targets, one per ordering mode, because the chapter's subject is
+# the comparison and no single build can make it: each -DRING_BARRIER selects a
+# different pair of macros in c/ring/barrier.h and therefore different generated
+# code at the two places that matter.
+#
+# Mode 0 is the control and is not shippable. It is built on purpose, to see what
+# the compiler does with the two stores when nothing forbids reordering them.
+#
+# Nothing here needs the vendor pack. SysTick and the cycle counter are both
+# architectural, defined by ARM for ARMv7-M, so these four build everywhere P01
+# does, including on the continuous integration runner.
+set(P02_MODES 0        1        2    3)
+set(P02_NAMES none compiler  dmb  acqrel)
+foreach(i RANGE 3)
+    list(GET P02_MODES ${i} P02_MODE)
+    list(GET P02_NAMES ${i} P02_NAME)
+    add_firmware(p02-ring-${P02_NAME}
+        SOURCES c/P02/main.c c/ring/ring.c
+        INCLUDES ${CMAKE_SOURCE_DIR}/c/ring
+        DEFINES RING_BARRIER=${P02_MODE})
+endforeach()
+
 # P06 needs the vendor device header, stm32h7xx.h, which this repository
 # deliberately does not vendor: that pack's licence differs file by file and a
 # project that pasted it in would be redistributing terms it had not read. So its

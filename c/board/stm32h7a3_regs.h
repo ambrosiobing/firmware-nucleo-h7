@@ -62,6 +62,22 @@
 #define SYST_CSR        REG32(SCS_BASE + 0x010u)
 #define SYST_RVR        REG32(SCS_BASE + 0x014u)
 #define SYST_CVR        REG32(SCS_BASE + 0x018u)
+/* SysTick's control bits, and like the DWT above these are ARM's rather than
+ * ST's: the ARMv7-M architecture defines them identically on every Cortex-M7, so
+ * RM0455 has nothing to say about them. Taken from CMSIS core_cm7.h in
+ * STM32Cube_FW_H7_V1.13.0, read on Saturday 3 October 2026, which states
+ * SysTick_CTRL_ENABLE_Pos 0, TICKINT_Pos 1, CLKSOURCE_Pos 2, COUNTFLAG_Pos 16,
+ * and a 24 bit reload field.
+ *
+ * CLKSOURCE selects the core clock rather than the implementation-defined external
+ * reference, which is the only one of the three whose meaning is not obvious from
+ * its name and the only one a reader might reasonably leave clear by accident. */
+#define SYST_CSR_ENABLE_POS     0u
+#define SYST_CSR_TICKINT_POS    1u
+#define SYST_CSR_CLKSOURCE_POS  2u
+#define SYST_CSR_COUNTFLAG_POS  16u
+#define SYST_RELOAD_MAX         0xFFFFFFu   /* the reload field is 24 bits */
+
 #define SCB_BASE        0xE000ED00u
 #define SCB_CPACR       REG32(SCB_BASE + 0x088u)   /* floating point enable */
 #define DWT_BASE        0xE0001000u
