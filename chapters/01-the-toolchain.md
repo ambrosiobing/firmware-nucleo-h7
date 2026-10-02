@@ -87,18 +87,11 @@ The probe is a separate microcontroller on the same board. It presents three thi
 | Static memory used | 4 kB | 484 B | +3 612 B, 88 per cent |
 | Reset to first printed line | 100 ms | 2.489 ms | +97.5 ms, 97.5 per cent |
 
-*Table 1.4. The budget table, which every chapter carries. Measured on the board at commit `8ecd613` on Saturday 3 October 2026, with `arm-none-eabi-size -A` for the first two rows and the part's own cycle counter for the third.*
+*Table 1.4. The budget table, which every chapter carries. Measured on the board at commit 8ecd613 on Saturday 3 October 2026, with `arm-none-eabi-size -A` for the first two rows and the part's own cycle counter for the third.*
 
-**The flash budget was revised upward and the original is kept in the table, because
-a budget quietly replaced by whatever was built is not a budget.** 8 kB was chosen
-before anything had ever been compiled. Measured, `printf` and its dependencies
-from newlib-nano are 3 920 B on their own, which is 48 per cent of that original
-figure, in a chapter whose title is "the toolchain, first light, and printf over the
-ST-LINK". The budget was set without measuring the thing the chapter is named after,
-which is exactly the mistake the article cited in this chapter's prior art table
-exists to warn about.
+**The flash budget was revised upward and the original is kept in the table, because a budget quietly replaced by whatever was built is not a budget.** 8 kB was chosen before anything had ever been compiled. Measured, `printf` and its dependencies from newlib-nano are 3 920 B on their own, which is 48 per cent of that original figure, in a chapter whose title is “the toolchain, first light, and printf over the ST-LINK”. The budget was set without measuring the thing the chapter is named after, which is exactly the mistake the article cited in this chapter's prior art table exists to warn about.
 
-Where the 11 012 B goes, attributed from the link map rather than estimated:
+Where the 11 012 B goes, attributed from the link map rather than estimated:
 
 | Source | Bytes | Share |
 | --- | --- | --- |
@@ -106,33 +99,15 @@ Where the 11 012 B goes, attributed from the link map rather than estimated:
 | this repository's own code | 4 557 | 41 per cent |
 | string literals and the remainder | 2 535 | 23 per cent |
 
-The alternative to revising was to cut the explanatory text this project prints
-about its own provenance. That saves at most the 2 580 B of `.rodata` and would
-land at 8 432 B, still over the original 8 kB, so it would not even achieve the
-budget while making the volume worse at what it is for. On a part with 2 MB of
-flash the image is 0.53 per cent of what is available, so the budget's purpose here
-is to notice unintended growth rather than to fit, and 12 kB with 10 per cent
-headroom serves that.
+*Table 1.5. Every byte of the image attributed to where it came from, read out of the link map. The compiler is not asked to estimate and neither is the author.*
 
-**Static memory is 484 B, which is `.data` plus `.bss` and is what "static"
-conventionally means.** Reported separately from the 9 220 B that the linker script
-reserves for the stack and heap, because that is a reservation rather than a set of
-variables: 8 kB of stack and 1 kB of heap, named in `c/ld/stm32h7a3zi.ld`. All of it
-together is 9 704 B, 7.40 per cent of the 128 kB of DTCM.
+The alternative to revising was to cut the explanatory text this project prints about its own provenance. That saves at most the 2 580 B of `.rodata` and would land at 8 432 B, still over the original 8 kB, so it would not even achieve the budget while making the volume worse at what it is for. On a part with 2 MB of flash the image is 0.53 per cent of what is available, so the budget's purpose here is to notice unintended growth rather than to fit, and 12 kB with 10 per cent headroom serves that.
 
-**The last row was expected to wait for chapter 6 and did not.** The caption used to
-say so. Measuring the time from reset to the first printed character needs a clock
-running before anything else happens, and the Cortex-M7 has one: `DWT_CYCCNT` is
-architectural, defined by ARM for ARMv7-M, so RM0455 has nothing to say about it and
-it was available in this chapter all along. It is started at the top of
-`Reset_Handler`, before `.data` is copied, which is safe only because those are
-peripheral registers rather than RAM.
+**Static memory is 484 B, which is `.data` plus `.bss` and is what static conventionally means.** It is reported separately from the 9 220 B that the linker script reserves for the stack and heap, because that is a reservation rather than a set of variables: 8 kB of stack and 1 kB of heap, named in `c/ld/stm32h7a3zi.ld`. All of it together is 9 704 B, 7.40 per cent of the 128 kB of DTCM. Collapsing the two would have shown the 4 kB budget exceeded by a factor of two for no real reason.
 
-So the figure excludes only the hardware's own reset sequence and the vector fetch.
-Of the 2.489 ms, about 2.4 ms is the delay calibration deliberately spinning 8 000
-iterations to measure itself, so this row is mostly the cost of a measurement rather
-than of startup. An earlier version spent 11.989 ms there, which was 99 per cent
-calibration, and the probe was reduced once that was visible.
+**The last row was expected to wait for chapter 6 and did not.** The caption used to say so. Measuring the time from reset to the first printed character needs a clock running before anything else happens, and the Cortex-M7 has one: `DWT_CYCCNT` is architectural, defined by ARM for ARMv7-M, so RM0455 has nothing to say about it and it was available in this chapter all along. It is started at the top of `Reset_Handler`, before `.data` is copied, which is safe only because those are peripheral registers rather than RAM.
+
+So the figure excludes only the hardware's own reset sequence and the vector fetch. Of the 2.489 ms, about 2.4 ms is the delay calibration deliberately spinning 8 000 iterations to measure itself, so this row is mostly the cost of a measurement rather than of startup. An earlier version spent 11.989 ms there, which was 99 per cent calibration, and the probe was reduced once that was visible.
 
 ## Firmware design (UML)
 
@@ -317,7 +292,7 @@ openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \
 | Execution model | Polled loop | The baseline here. Everything is in main | Nothing runs while you wait | Chapter 3 |
 | Peripheral | Probe disk instead of a debugger | Drag a binary onto a disk. No tools, no drivers | No debugging | Here, in the step above |
 
-*Table 1.5. Variants for chapter 1. The interpreter path is worth trying first even if you never use it again, because it proves the board and the cable before you have written a line.*
+*Table 1.6. Variants for chapter 1. The interpreter path is worth trying first even if you never use it again, because it proves the board and the cable before you have written a line.*
 
 ## Pitfalls
 
