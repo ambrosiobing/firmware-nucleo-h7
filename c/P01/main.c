@@ -94,13 +94,30 @@ int main(void)
         }
 
         /* The button is the one input, and holding it lights all three LEDs.
-         * That is the whole self-test: if three LEDs light when the button is
+         * That is the whole self-test: if three LEDs light while the button is
          * held, then four settled pin facts and the GPIO configuration are all
-         * right, and the first thing to doubt afterwards is something else. */
+         * right, and the first thing to doubt afterwards is something else.
+         *
+         * The else branch matters and was missing until Friday 2 October 2026.
+         * Without it the yellow and red LEDs latched on at the first press and
+         * never went out, so the test could be run exactly once per reset and
+         * the board afterwards looked stuck. Holding has to mean holding, or the
+         * self-test cannot be repeated and a reader cannot tell a working board
+         * from a jammed one.
+         *
+         * On the polarity, which is NOT sourced: this reads a set bit as
+         * pressed. If the MB1363 board wires B1 USER the other way, the symptom
+         * is simply the whole test inverted, with yellow and red lit until the
+         * button is held. That is still a pass for the pin facts, and it is
+         * written here so it is recognised rather than diagnosed. */
         if (board_button_pressed()) {
             board_led_set(BOARD_LED_GREEN,  true);
             board_led_set(BOARD_LED_YELLOW, true);
             board_led_set(BOARD_LED_RED,    true);
+        } else {
+            /* Green is left alone: the blink above owns it. */
+            board_led_set(BOARD_LED_YELLOW, false);
+            board_led_set(BOARD_LED_RED,    false);
         }
     }
 }

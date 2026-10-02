@@ -7,31 +7,51 @@
  * pasted it in would be redistributing terms it had not read. So the handful of
  * registers P01 needs are declared here instead.
  *
- * Every address below is **TO BE CONFIRMED against RM0455**, which documents
- * this part. RM0433 documents the STM32H743 and has a different map. None of
- * these has been read from RM0455, so none is asserted as fact, and the whole
- * file is inert until somebody reads the manual and defines
- * BOARD_REGS_CONFIRMED.
+ * WHICH AUTHORITY SETTLED THESE, which is not the one this file first asked for.
  *
- * That is the point rather than an inconvenience. A wrong peripheral base
- * address does not produce an error: it writes into some other peripheral, or
- * into nothing, and the symptom is an LED that does not light while the code
- * looks correct. Refusing to build is the only honest default.
+ * Every address below was unconfirmed until Friday 2 October 2026. They were
+ * then read, not from RM0455 itself, but from ST's own CMSIS device header for
+ * this exact die, stm32h7a3xxq.h, as shipped in STM32Cube_FW_H7_V1.13.0. That
+ * is a real authority and a different one, so it is named here rather than
+ * quietly standing in for the manual: it is ST's machine-readable statement of
+ * the same memory map, it is specific to the Q package variant, and anyone with
+ * the pack can re-derive it in one command. What it cannot settle is anything
+ * not expressed as an address or a bit position, so the clock configuration
+ * sequence for 280 MHz is still RM0455's and is still refused.
  *
- * To bring this up:
- *   1. Open RM0455 and read the memory map chapter's peripheral table.
- *   2. Replace each PLACEHOLDER with the address, and delete its comment.
- *   3. Define BOARD_REGS_CONFIRMED, in this file, with the date you read it.
- *   4. Say in P01's README which manual revision you used.
+ * Reading them from the header rather than from the manual also produced the
+ * clearest evidence of this volume's central trap, and it is worth recording
+ * where that was found. On this die the peripheral bases are offsets from
+ * SRD_AHB4PERIPH_BASE and CD_APB1PERIPH_BASE. This part has two power domains,
+ * CD for the CPU domain and SRD for the Smart Run Domain. The STM32H743 that
+ * almost every STM32H7 tutorial is written against has three, named D1, D2 and
+ * D3, and the correspondence is not a rename: what the H743 calls D3_AHB1 this
+ * part calls SRD_AHB4, and what it calls D1_AHB1 this part calls CD_AHB3. ST
+ * kept the old names only as trailing comments. Of the D-prefixed defines just
+ * one survives in the whole header, D1_AXISRAM_BASE, and that is a memory alias
+ * with nothing to do with peripheral domains. So code copied from an H743
+ * project does not compute a wrong address here, it fails to resolve the symbol
+ * at all, which is the kindest way this trap can present.
+ *
+ * WHY IT STILL REFUSES WHERE IT REFUSES. A wrong peripheral base address does
+ * not produce an error: it writes into some other peripheral, or into nothing,
+ * and the symptom is an LED that does not light while the code looks correct.
+ * So anything not settled by a cited authority is still a placeholder and still
+ * compiled out. The console pins are the live example. USART3's base address is
+ * settled, but whether this board wires the probe's virtual serial port to PD8
+ * and PD9 at alternate function 7 is a property of the MB1363 board rather than
+ * of the die, so the device header cannot answer it and uart.c still refuses.
  */
 #ifndef STM32H7A3_REGS_H
 #define STM32H7A3_REGS_H
 
 #include <stdint.h>
 
-/* Uncomment only after step 1 to 3 above. Until then every board function
- * returns a refusal and main reports it. */
-/* #define BOARD_REGS_CONFIRMED "RM0455 rev N, read on <full date>" */
+/* Confirmed Friday 2 October 2026 against the authority named above. The string
+ * is deliberately the provenance rather than a version number, so that anybody
+ * reading a register write can see what it rests on. */
+#define BOARD_REGS_CONFIRMED \
+    "ST CMSIS stm32h7a3xxq.h, STM32Cube_FW_H7_V1.13.0, read Friday 2 October 2026"
 
 #define REG32(addr) (*(volatile uint32_t *) (addr))
 
@@ -50,20 +70,52 @@
 #define DWT_LAR         REG32(0xE0001FB0u)         /* unlock, see P02 and P06 */
 #define DEM_CR          REG32(0xE000EDFCu)
 
-/* ------------------------------------------------------- to be confirmed ---
- * PLACEHOLDER means exactly that. The build refuses while these are in place.
+/* ------------------------------------------------------------- peripherals ---
+ * Confirmed. Each line carries the expression the device header gave as well as
+ * the value it resolves to, because a bare hexadecimal number here would be the
+ * unsourced constant this file exists to avoid. The domain roots are
  *
- * What to look for in RM0455: the RCC base, the PWR base, and the GPIO port
- * bases with their 0x400 stride. The LED ports are settled (PB0, PE1, PB14) and
- * the button is PC13, so once the GPIOA base and the stride are known, every
- * port this volume uses follows. */
-#define BOARD_PLACEHOLDER 0u
+ *   PERIPH_BASE          0x40000000
+ *   CD_AHB3PERIPH_BASE   PERIPH_BASE + 0x12000000  = 0x52000000
+ *   SRD_AHB4PERIPH_BASE  PERIPH_BASE + 0x18020000  = 0x58020000
+ */
+#define BOARD_PLACEHOLDER 0u    /* kept, for anything not yet settled */
 
-#define RCC_BASE        BOARD_PLACEHOLDER   /* RM0455: reset and clock control */
-#define PWR_BASE        BOARD_PLACEHOLDER   /* RM0455: power control, for the voltage scaling 280 MHz needs */
-#define FLASH_BASE_REG  BOARD_PLACEHOLDER   /* RM0455: flash interface, for the latency 280 MHz needs */
-#define GPIOA_BASE      BOARD_PLACEHOLDER   /* RM0455: first GPIO port; the rest are at a fixed stride */
-#define GPIO_PORT_STRIDE BOARD_PLACEHOLDER  /* RM0455: usually 0x400, confirm it */
+#define RCC_BASE        0x58024400u  /* SRD_AHB4PERIPH_BASE + 0x4400 */
+#define PWR_BASE        0x58024800u  /* SRD_AHB4PERIPH_BASE + 0x4800 */
+#define FLASH_BASE_REG  0x52002000u  /* CD_AHB3PERIPH_BASE + 0x2000, the flash
+                                      * INTERFACE registers. Not 0x08000000,
+                                      * which is where flash is readable. The
+                                      * header calls the two FLASH_R_BASE and
+                                      * FLASH_BANK1_BASE, and confusing them
+                                      * treats the program's first instruction
+                                      * as a control register. */
+#define GPIOA_BASE      0x58020000u  /* SRD_AHB4PERIPH_BASE + 0x0000 */
+#define GPIO_PORT_STRIDE 0x400u      /* Not assumed. The header states GPIOA at
+                                      * +0x000, GPIOB +0x400, GPIOC +0x800 and
+                                      * GPIOE +0x1000, so the stride is
+                                      * arithmetic from four given values rather
+                                      * than the usual-case folklore this line
+                                      * used to carry. */
+
+/* The RCC registers this board support touches, by offset from RCC_BASE. These
+ * are not defines in the device header: they are member positions within
+ * RCC_TypeDef, so they were computed from that structure's declaration order
+ * including every RESERVED word. The arithmetic is written out because one
+ * miscounted RESERVED array moves every later register and the failure is
+ * silent.
+ *
+ *   CKGAENR at 0x0B0, then RESERVED10[31] spans 0x0B4 to 0x12F, then
+ *   RSR 0x130, AHB3ENR 0x134, AHB1ENR 0x138, AHB2ENR 0x13C, AHB4ENR 0x140,
+ *   APB3ENR 0x144, APB1LENR 0x148 */
+#define RCC_AHB4ENR     REG32(RCC_BASE + 0x140u)   /* the GPIO port clocks */
+#define RCC_APB1LENR    REG32(RCC_BASE + 0x148u)   /* USART3's clock */
+
+/* Enable bit positions, from the header's own _Pos defines. */
+#define RCC_AHB4ENR_GPIOBEN_POS   1u
+#define RCC_AHB4ENR_GPIOCEN_POS   2u
+#define RCC_AHB4ENR_GPIOEEN_POS   4u
+#define RCC_APB1LENR_USART3EN_POS 18u
 
 /* Once GPIOA_BASE and the stride are real, these are arithmetic rather than
  * further guesses. The port letters follow the board's own silkscreen. */
@@ -103,7 +155,9 @@
 /* The console. The pins are Nucleo-144 convention and NOT read from the MB1363
  * board manual, which is a separate document from RM0455 and the only thing
  * that settles them. uart.c refuses on this. */
-#define CONSOLE_USART_BASE BOARD_PLACEHOLDER  /* RM0455: USART3 */
+#define CONSOLE_USART_BASE 0x40004800u  /* CD_APB1PERIPH_BASE + 0x4800, USART3.
+                                         * Settled. The pins below are not, and
+                                         * uart.c needs both. */
 #define CONSOLE_TX_PORT    GPIOD
 #define CONSOLE_TX_PIN     8u    /* believed PD8, confirm in MB1363 */
 #define CONSOLE_RX_PORT    GPIOD

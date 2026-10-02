@@ -79,6 +79,17 @@ void board_led_toggle(board_led_t led)
 
 bool board_button_pressed(void)
 {
+    /* A set bit means pressed. THIS POLARITY IS NOT SOURCED. PC13 as the user
+     * button is settled, and the pin needs no configuring because a GPIO resets
+     * to input mode with no pull, which is right if the board supplies its own
+     * pull. Both of those are properties of MB1363 rather than of the die, so
+     * neither the reference manual nor the device header settles them.
+     *
+     * Left as it is rather than guarded, because the cost of being wrong here is
+     * only an inverted self-test and not a wrong measurement: if the board pulls
+     * the other way, two LEDs sit lit until the button is held. That is
+     * recognisable on sight, which is why this one is allowed to stand on an
+     * assumption while the clock tree is not. */
     return (GPIO_REG(BUTTON_PORT, GPIO_IDR) & (1u << BUTTON_PIN)) != 0u;
 }
 
@@ -105,10 +116,31 @@ void board_init(void)
      * state it could reach. This adds the pins and the console. */
 
 #ifdef BOARD_REGS_CONFIRMED
-    /* The GPIO port clocks must be enabled before any port register is touched,
-     * and a write to a port with its clock off is silently discarded, which
-     * presents as an LED that never lights while the code looks right. The RCC
-     * enable register and its bit positions are RM0455's, hence placeholders. */
+    /* The port clocks, first, and this is the whole of first light's difficulty.
+     *
+     * A write to a GPIO register whose port clock is off is discarded. Not
+     * refused, not faulted: discarded, silently, and a read returns the reset
+     * value. So every line below this one can be correct, every address can be
+     * right, and the board stays dark. There is nothing to see and nothing to
+     * measure, and the natural conclusion is that the addresses are wrong, which
+     * sends you back to the reference manual for a day.
+     *
+     * Three ports: B carries LD1 green on PB0 and LD3 red on PB14, E carries
+     * LD2 yellow on PE1, and C carries the user button on PC13. All three sit in
+     * the Smart Run Domain, so all three are enabled in RCC_AHB4ENR. The bit
+     * positions come from the device header's own _Pos defines.
+     *
+     * The read-back is not decoration. The write crosses a bus bridge and takes
+     * a few cycles to land, and an immediately following register write can be
+     * issued before the clock is actually running. ST's own HAL reads the
+     * register back for this reason in every one of its clock enable macros.
+     * Without it this code would work or not work depending on compiler
+     * optimisation level, which is the worst available outcome. */
+    RCC_AHB4ENR |= (1u << RCC_AHB4ENR_GPIOBEN_POS)
+                 | (1u << RCC_AHB4ENR_GPIOCEN_POS)
+                 | (1u << RCC_AHB4ENR_GPIOEEN_POS);
+    (void) RCC_AHB4ENR;
+
     pin_output(LED_GREEN_PORT,  LED_GREEN_PIN);
     pin_output(LED_YELLOW_PORT, LED_YELLOW_PIN);
     pin_output(LED_RED_PORT,    LED_RED_PIN);
