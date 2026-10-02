@@ -19,9 +19,11 @@
 
 #include "payload.h"
 
-/* Provided by chapter 1: the clock tree, the console and the printf retarget.
- * This chapter adds nothing to any of them. */
-extern void board_init(void);
+/* Provided by chapter 1: the clock tree, the console, the printf retarget and,
+ * since Saturday 3 October 2026, the cycle counter. The declaration used to be a
+ * bare extern for board_init alone, which was enough while this chapter only
+ * needed the console. Measuring the encoder needs board.h properly. */
+#include "board.h"
 
 /* The fourth golden vector from test/vectors.json, which is the negative case.
  * Checking the negative one on the target rather than an easy one is the whole
@@ -84,6 +86,55 @@ int main(void)
         printf("\r\nthe target disagrees with the host. The specification is in\r\n");
         printf("docs/bitorder.md and it is normative for both.\r\n");
         for (;;) { }
+    }
+
+    /* WHAT THE ENCODER COSTS, which chapter 9's budget asks for and nothing had
+     * measured. The budget says under 300 cycles per frame.
+     *
+     * Two-point with a warm-up, the same shape P01 and P02 arrived at earlier
+     * today. A single timed window includes the cost of starting and stopping the
+     * measurement; timing n and 2n and subtracting cancels that without needing to
+     * know what it is. The warm-up does not cancel in a difference, because the
+     * first pass through a loop pays flash wait states the second does not, so it
+     * is paid once before either window.
+     *
+     * The figure is for one encode in a loop, including the loop control and a
+     * call that does not inline across translation units. It is therefore an upper
+     * bound on the encoder itself rather than the encoder alone, and the budget
+     * row says so. */
+    if (board_cycles_available() && board_core_hz() >= 1000000u) {
+        const uint32_t n = 2000u;
+        uint8_t scratch[PAYLOAD_BYTES];
+
+        for (uint32_t i = 0u; i < n; i++) {
+            (void) payload_encode(scratch, sizeof scratch, &vector);
+        }
+
+        const uint32_t a0 = board_cycles_now();
+        for (uint32_t i = 0u; i < n; i++) {
+            (void) payload_encode(scratch, sizeof scratch, &vector);
+        }
+        const uint32_t a1 = board_cycles_now();
+
+        const uint32_t b0 = board_cycles_now();
+        for (uint32_t i = 0u; i < (2u * n); i++) {
+            (void) payload_encode(scratch, sizeof scratch, &vector);
+        }
+        const uint32_t b1 = board_cycles_now();
+
+        const uint32_t shortw = a1 - a0;
+        const uint32_t longw  = b1 - b0;
+        if (longw > shortw) {
+            const uint32_t cx100 = ((longw - shortw) * 100u) / n;
+            printf("  encode cost   %lu.%02lu cycles per frame, upper bound\r\n",
+                   (unsigned long) (cx100 / 100u), (unsigned long) (cx100 % 100u));
+            printf("                includes the loop and one call that does not\r\n");
+            printf("                inline. Budget is under 300.\r\n");
+        } else {
+            printf("  encode cost   not measured: the two windows did not order\r\n");
+        }
+    } else {
+        printf("  encode cost   not measured: no cycle counter or no clock\r\n");
     }
 
     printf("\r\nthe target agrees with the host over the golden vector.\r\n");

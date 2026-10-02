@@ -17,7 +17,7 @@ distinction was not yet needed. It is now:
 
 | State | What it means |
 | --- | --- |
-| **runs on the board** | cross-compiled, flashed, and observed working on the hardware. P01 and P02 |
+| **runs on the board** | cross-compiled, flashed, and observed working on the hardware. P01, P02 and P09 |
 | **links** | cross-compiles and links clean for the target, and has never been flashed, so nothing is known about its behaviour |
 | **host only** | proven on a laptop against synthetic input, and never built for the target at all |
 
@@ -35,7 +35,7 @@ codec both reached that state on Friday 2 October 2026 and neither has been run.
 | [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | **links**, all three back ends, since Friday 2 October 2026, and none has been flashed. The witness is proven on synthetic input on the host. Each back end still refuses at run time rather than guessing a converter, timer or transfer engine setting RM0455 governs. The cycle counter it needs now exists and works, which was the first of its dependencies to be settled |
 | [P07](P07-stop-mode/) | Stop mode, RTC wake, and a battery number | not started. Needs the PPK2 and a running clock tree |
 | [P08](P08-node-state-machine/) | The node's state machine, transmit as a stub | written and proven: all 18 transition rows reachable, and the stub payload matches P09's encoder byte for byte |
-| [P09](P09-payload-codec/) | The payload codec and its Python twin | **links** as `p09-codec` since Friday 2 October 2026 and has never been flashed. Host half complete and proven: three implementations agree over 100000 cases, and the negative golden vector is carried as its own case after the chapter was found to contradict itself. Checking that vector on the target is what the firmware build is for and has not happened |
+| [P09](P09-payload-codec/) | The payload codec and its Python twin | **runs on the board**, Saturday 3 October 2026. The negative golden vector, feature -1, encodes to 2405FFFFE8 on the Cortex-M7, byte for byte what the host produces, and decodes back to the value it started from. Sign extension, bit order and field packing agree between the two compilers, which is the question only the target could answer. Host half also complete: three implementations agree over 100000 cases |
 | [P10](P10-energy-phases/) | Where the energy goes, by phase | not started. Needs the PPK2 and marker pins |
 | [P11](P11-at-engine/) | An AT engine that never blocks | not started. Needs the SIM7020E |
 | [P12](P12-energy-regression/) | Energy as a regression test, and the rig | both gates written and proven: a five percent charge regression turns the build red with nobody at the bench. The hardware job is not built |
