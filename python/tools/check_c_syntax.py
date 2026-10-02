@@ -1,26 +1,43 @@
-"""Syntax-check every C file that can be checked on the authoring laptop.
+"""Syntax-check every C file that can be checked. RUNS IN WSL ON SKYHORIZON ONLY.
+
+    bing@JPTOUPM678:~$ python3 python/tools/check_c_syntax.py
 
 WHY THIS EXISTS. On Saturday 3 October 2026 a patch wrote real carriage returns
 into c/P01/main.c instead of the two characters a C string needs, producing five
 unterminated string literals. That reached the build laptop, failed there, and
-cost a round trip. It would have been caught here in under a second.
+cost a round trip. `gcc -fsyntax-only` neither links nor generates code, so it
+does not care that the target is a Cortex-M7: it parses, resolves includes and
+type-checks, which catches that whole class of defect in under a second.
 
-The authoring laptop has no cross toolchain, which had been taken since Thursday
-1 October 2026 as meaning no C could be checked locally at all. That was wrong: a host gcc ships with Qt at
-C:\\Qt\\Tools\\mingw1310_64, and `gcc -fsyntax-only` neither links nor generates
-code, so it does not care that the target is a Cortex-M7. It parses, resolves
-includes, and type-checks. That catches the whole class of defect that costs a
-round trip: unterminated strings, unbalanced braces, misspelled identifiers,
-wrong argument counts, missing declarations.
+WHERE IT MAY RUN, and this is a rule rather than a preference. **Compiling
+happens in WSL on the win11 skyhorizon demo laptop, `bing@JPTOUPM678`, and
+nowhere else.** Stated by Joseph on Saturday 3 October 2026. This script refuses
+to run on Windows, and that refusal is the point: a host compiler on the
+authoring laptop answers a question about the host, and an answer that looks like
+a build invites the conclusion that the firmware is fine.
 
-WHAT IT CANNOT CHECK, and the distinction matters so nobody reads a pass here as
-a build. It does not generate code, so nothing about size, alignment, register
-allocation or the ARM backend is exercised. It uses the host's own stdint and
-stddef rather than newlib's. And it skips any file including the vendor device
-header, stm32h7xx.h, which is not on this laptop by design. A pass here means the
-file is valid C; only the cross build says it is correct firmware.
+An earlier version of this docstring argued the opposite, that a host gcc ships
+with Qt on the authoring laptop and may as well be used. That reasoning was
+sound and the policy overrules it.
 
-    python python/tools/check_c_syntax.py
+IT ALSO DID NOT WORK THERE, which is worth recording so nobody reinstates it.
+Run from PowerShell on the authoring laptop it reported every one of nineteen
+files as failing, including files that include almost nothing and cannot all be
+broken. The cause was not the code. `gcc.exe` loads because its DLLs sit beside
+it, so `-dumpversion` succeeds and the banner prints a version; the real compiler
+is `cc1.exe` under libexec, which needs libwinpthread-1.dll and
+libgcc_s_seh-1.dll from the compiler's own bin directory, and without that
+directory on PATH it dies before writing anything. The same script passed from a
+shell that happened to carry a compatible mingw on PATH. A tool whose result
+depends on which shell started it is not a check, and in WSL the question does
+not arise.
+
+WHAT IT CANNOT CHECK, so nobody reads a pass here as a build. It does not
+generate code, so nothing about size, alignment, register allocation or the ARM
+backend is exercised. It uses the host's own stdint and stddef rather than
+newlib's. And it skips any file including the vendor device header,
+stm32h7xx.h. A pass here means the file is valid C; only the cross build says it
+is correct firmware.
 """
 
 import os
@@ -33,12 +50,11 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 # Host compilers, in the order they are preferred. The Qt ones are not on PATH,
 # which is why they are named in full rather than looked up.
-CANDIDATES = [
-    r"C:\Qt\Tools\mingw1310_64\bin\gcc.exe",
-    r"C:\Qt\Tools\mingw1120_64\bin\gcc.exe",
-    "gcc",
-    "cc",
-]
+CANDIDATES = ["gcc", "cc"]
+# Plain names, because this runs in WSL where the compiler is on PATH and is an
+# ordinary Linux gcc. The two Qt mingw paths that used to head this list were
+# removed on Saturday 3 October 2026: naming a Windows compiler here invited
+# running one, and that is the thing this script must not do.
 
 # Directories to check, and the include paths each needs.
 INCLUDE_DIRS = ["c/board", "c/payload", "c/ring", "c/instr", "c/P06"]
@@ -81,6 +97,20 @@ def c_files():
 
 
 def main():
+    # The rule, enforced rather than written in the docstring and hoped for.
+    # Compiling happens in WSL on win11 skyhorizon, bing@JPTOUPM678, and nowhere
+    # else. Refusing here is not an inconvenience to work around: see the
+    # docstring for why the Windows path both should not and did not work.
+    if os.name == "nt" or sys.platform.startswith("win"):
+        print("This runs in WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678,")
+        print("and nowhere else. Compiling does not happen on the authoring laptop.")
+        print()
+        print("  bing@JPTOUPM678:~$ cd <repo> ; python3 python/tools/check_c_syntax.py")
+        print()
+        print("Nothing was checked. This is not a pass, and it is not a failure of")
+        print("the code either: no compiler was run.")
+        return 2
+
     gcc = find_compiler()
     if gcc is None:
         print("no host C compiler found. Looked for:")
