@@ -265,6 +265,29 @@ void board_delay_calibrate(void)
      * second wrap. */
     const uint32_t n = 10000u;
 
+    /* A WARM-UP, untimed, and the reason it is needed is that two-point
+     * subtraction cancels a constant and a warm-up is not one.
+     *
+     * Measured on Friday 2 October 2026: the two-point version without this read
+     * 8.99 cycles per iteration where the loop actually costs 9.0003, understating
+     * it by about 53 cycles over n iterations and making every delay 0.058 per
+     * cent LONG. The sign is the clue. The short window ran the loop for the first
+     * time, with flash wait states, a cold branch predictor and a cold prefetch
+     * buffer; the long window ran immediately afterwards with the code warm. So
+     *
+     *   short = n*9 + overhead + warmup
+     *   long  = 2n*9 + overhead
+     *   long - short = n*9 - warmup
+     *
+     * and the warm-up subtracts rather than cancels. Paying it once before either
+     * measurement puts both windows in the same state, which is the only thing the
+     * subtraction actually requires of them.
+     *
+     * This is the second refinement of this measurement and both were found the
+     * same way: a residual with a consistent sign, small enough to be dismissed
+     * and reproducible enough not to be. */
+    spin(n);
+
     const uint32_t a0 = board_cycles_now();
     spin(n);
     const uint32_t a1 = board_cycles_now();
