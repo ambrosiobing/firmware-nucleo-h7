@@ -21,6 +21,7 @@
  * NEVER COMPILED. There is no arm-none-eabi-gcc on win11 aquamarine as of
  * Thursday 1 October 2026.
  */
+#include <stddef.h>
 #include <stdio.h>
 
 #include "board.h"
@@ -90,7 +91,16 @@ int main(void)
     }
 
     printf("  LEDs          green PB0, yellow PE1, red PB14, all settled\r\n");
-    printf("  button        PC13, settled\r\n");
+    {
+        /* Printed once, because a reader wants to know the pin was configured as
+         * ST's board support package says this board needs and does not want it
+         * repeated. MODER 0 is input, PUPDR 2 is pull-down. Measured active high
+         * on Friday 2 October 2026: bit 13 reads 1 held and 0 free. */
+        uint32_t bm = 0u, bp = 0u;
+        board_button_debug(&bm, &bp, NULL);
+        printf("  button        PC13, settled. MODER=%u PUPDR=%u, active high\r\n",
+               (unsigned) ((bm >> 26) & 3u), (unsigned) ((bp >> 26) & 3u));
+    }
 
     report_by_led(clock, console);
 
@@ -123,37 +133,33 @@ int main(void)
             }
         }
 
-        /* THE BUTTON TRACE, temporary, and to be deleted once the button is
-         * explained. Friday 2 October 2026.
+        /* The button's state, printed only when it CHANGES.
          *
-         * board_button_pressed() reads 0 whether the button is held or free, with
-         * RCC_AHB4ENR proving the GPIOC clock is on. Every attempt to diagnose it
-         * so far read a register once, from the host, at a moment neither of us
-         * could see, and had to be correlated with a press held across several
-         * seconds of tool launches. That is a bad experiment and it produced three
-         * inconclusive results.
+         * This replaced a trace that printed all three of PC13's registers on
+         * every cycle. That trace did its job on Friday 2 October 2026 and was
+         * removed the same day, for two reasons beyond tidiness. It added about
+         * seventy characters per cycle, six milliseconds on the wire, which is
+         * per-cycle overhead of exactly the kind that had to be subtracted out of
+         * the afternoon's clock measurement. And two lines a second of unchanging
+         * text is the condition in which a line that matters goes unread, which is
+         * the mistake this repository made with a linker warning this morning.
          *
-         * Printing the raw registers every cycle replaces it with a continuous
-         * trace: hold the button, watch the numbers. What each column settles:
-         *
-         *   MODER bits 27:26 for pin 13, which must read 0 for input mode. If it
-         *   is anything else the pin is not an input and nothing else matters.
-         *
-         *   PUPDR bits 27:26, which must read 2 for the pull-down that ST's board
-         *   support package says this board relies on. If it reads 0 the write in
-         *   board_init did not take, and the released level is undefined.
-         *
-         *   IDR in full, so bit 13 is visible in the context of all sixteen. All
-         *   sixteen reading zero is itself suspicious for a port whose other pins
-         *   go to floating headers. */
+         * On change only: silent when nothing happens, loud at the moment of the
+         * press, and no cost to any measurement. */
         {
-            uint32_t m = 0u, pu = 0u, in = 0u;
-            board_button_debug(&m, &pu, &in);
-            printf("  pc13          MODER=%u PUPDR=%u IDR=0x%08lX bit13=%u\r\n",
-                   (unsigned) ((m  >> 26) & 3u),
-                   (unsigned) ((pu >> 26) & 3u),
-                   (unsigned long) in,
-                   (unsigned) ((in >> 13) & 1u));
+            uint32_t in = 0u;
+            board_button_debug(NULL, NULL, &in);
+            const bool down = ((in >> 13) & 1u) != 0u;
+
+            static bool last_down;
+            static bool first = true;
+            if (first || down != last_down) {
+                first = false;
+                last_down = down;
+                printf("  pc13          %s  IDR=0x%08lX\r\n",
+                       down ? "PRESSED " : "released",
+                       (unsigned long) in);
+            }
         }
 
         /* The button is the one input, and holding it lights all three LEDs.

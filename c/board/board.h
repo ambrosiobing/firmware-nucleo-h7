@@ -131,8 +131,14 @@ bool board_console_put(char c);
  * zero, so a caller that cannot tell those apart should ask
  * board_clock_status() instead of guessing.
  *
- * This exists to be deleted. It is here for as long as the button is unexplained
- * and no longer. */
+ * KEPT after the button was explained on Friday 2 October 2026, which is a
+ * change of mind worth recording. It was written to be deleted once PC13 was
+ * understood, and it settled that question in one capture after three one-shot
+ * register reads had settled nothing: MODER 0, PUPDR 2, and bit 13 reading 1 held
+ * and 0 free with a clean transition. Having proved that a continuous trace beats
+ * a timed read, removing the means of taking one would be the wrong lesson to
+ * draw. P01 now prints the state only when it changes, so it costs nothing per
+ * cycle. */
 void board_button_debug(uint32_t *moder, uint32_t *pupdr, uint32_t *idr);
 
 /* A crude busy wait, in milliseconds, derived from board_core_hz(). When the
