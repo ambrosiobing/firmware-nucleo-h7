@@ -44,6 +44,24 @@ static uint32_t led_pin(board_led_t led)
     return LED_GREEN_PIN;
 }
 
+/* An input with a defined idle level. Needed by the button, and the reason it is
+ * needed is worth stating where somebody will read it: a GPIO resets to input
+ * mode with no pull at all, so an input pin that nothing drives does not read 0,
+ * it reads whatever the surrounding circuit and leakage leave it at. That can be
+ * stable, it can be either level, and it can change when a hand comes near the
+ * board. ST's board support package configures this pin with an internal
+ * pull-down, which says MB1363 fits no resistor of its own. */
+static void pin_input_pull(uint32_t port, uint32_t pin, uint32_t pupd)
+{
+    /* Mode 00, input, two bits per pin. */
+    GPIO_REG(port, GPIO_MODER) &= ~(3u << (pin * 2u));
+
+    uint32_t pupdr = GPIO_REG(port, GPIO_PUPDR);
+    pupdr &= ~(3u << (pin * 2u));
+    pupdr |=  (pupd << (pin * 2u));
+    GPIO_REG(port, GPIO_PUPDR) = pupdr;
+}
+
 static void pin_output(uint32_t port, uint32_t pin)
 {
     /* Mode 01, general purpose output, two bits per pin. */
@@ -148,6 +166,12 @@ void board_init(void)
     board_led_set(BOARD_LED_GREEN,  false);
     board_led_set(BOARD_LED_YELLOW, false);
     board_led_set(BOARD_LED_RED,    false);
+
+    /* The button, which this function used to leave entirely alone. Pull-down,
+     * on the authority of ST's board support package for this Nucleo, so the
+     * released level is 0 and a press reads 1. Without it the released level was
+     * undefined and the self-test could report a press that never happened. */
+    pin_input_pull(BUTTON_PORT, BUTTON_PIN, GPIO_PUPD_PULLDOWN);
 #endif
 
     board_console_init();

@@ -158,11 +158,53 @@
 #define CONSOLE_USART_BASE 0x40004800u  /* CD_APB1PERIPH_BASE + 0x4800, USART3.
                                          * Settled. The pins below are not, and
                                          * uart.c needs both. */
+/* Confirmed Friday 2 October 2026 from ST's own board support package for this
+ * Nucleo, Drivers/BSP/STM32H7xx_Nucleo/stm32h7xx_nucleo.h in
+ * STM32Cube_FW_H7_V1.13.0, which states
+ *
+ *   COM1_UART          USART3
+ *   COM1_TX_PIN        GPIO_PIN_8      COM1_TX_GPIO_PORT  GPIOD
+ *   COM1_RX_PIN        GPIO_PIN_9      COM1_RX_GPIO_PORT  GPIOD
+ *   COM1_TX_AF         GPIO_AF7_USART3 COM1_RX_AF         GPIO_AF7_USART3
+ *
+ * These three lines used to say "believed" and "confirm in MB1363". The board
+ * support package is the right authority for a board fact and it agrees with
+ * what was believed, which is a pleasant outcome and not one that could be
+ * assumed: the same file defines LED2 twice, on PE1 and on PB7, because it
+ * serves several H7 Nucleo boards through conditional compilation. So a value
+ * read out of it has to be read in its branch rather than grepped flat. Ours
+ * is the PE1 branch, which is the LD2 yellow this volume has settled. */
 #define CONSOLE_TX_PORT    GPIOD
-#define CONSOLE_TX_PIN     8u    /* believed PD8, confirm in MB1363 */
+#define CONSOLE_TX_PIN     8u    /* PD8, BSP COM1_TX_PIN */
 #define CONSOLE_RX_PORT    GPIOD
-#define CONSOLE_RX_PIN     9u    /* believed PD9, confirm in MB1363 */
-#define CONSOLE_AF         7u    /* believed alternate function 7, confirm */
+#define CONSOLE_RX_PIN     9u    /* PD9, BSP COM1_RX_PIN */
+#define CONSOLE_AF         7u    /* BSP GPIO_AF7_USART3 */
+
+/* NOT defined, and the pins are no longer the reason. uart.c refuses on two
+ * independent grounds and only one of them is now answered. The other is that
+ * the baud rate divider needs the peripheral bus frequency, and board_core_hz()
+ * returns 0, so a divider could only be computed from a guessed clock. A console
+ * at the wrong baud does not stay silent, it emits plausible-looking rubbish,
+ * which is worse than nothing. uart.c also has no register writes in it yet.
+ *
+ * Defining this before the clock is established would turn a refusal into
+ * garbage on the wire, so it stays undefined until the frequency is settled. */
+/* #define BOARD_CONSOLE_PINS_CONFIRMED "BSP stm32h7xx_nucleo.h, read Friday 2 October 2026" */
+
+/* The pull the button needs, and the defect it revealed. ST's board support
+ * package initialises BUTTON_USER with
+ *
+ *   gpio_init_structure.Pull = GPIO_PULLDOWN;
+ *
+ * so MB1363 fits no resistor of its own and relies on the MCU's internal
+ * pull-down to define the released level. Until Friday 2 October 2026 this
+ * board support configured the three LEDs and did nothing whatever to PC13, so
+ * the pin sat at its reset state of input with no pull and its released level
+ * was undefined. PUPDR takes two bits per pin: 00 none, 01 pull-up, 10
+ * pull-down. */
+#define GPIO_PUPD_NONE      0u
+#define GPIO_PUPD_PULLUP    1u
+#define GPIO_PUPD_PULLDOWN  2u
 
 /* The reset clock. The part starts on its internal oscillator, and that is what
  * makes first light possible with no confirmed value at all. The frequency is
