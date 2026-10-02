@@ -160,6 +160,7 @@
 /* Enable bit positions, from the header's own _Pos defines. */
 #define RCC_AHB4ENR_GPIOBEN_POS   1u
 #define RCC_AHB4ENR_GPIOCEN_POS   2u
+#define RCC_AHB4ENR_GPIODEN_POS   3u   /* the console's PD8 and PD9 */
 #define RCC_AHB4ENR_GPIOEEN_POS   4u
 #define RCC_APB1LENR_USART3EN_POS 18u
 
@@ -226,16 +227,72 @@
 #define CONSOLE_RX_PIN     9u    /* PD9, BSP COM1_RX_PIN */
 #define CONSOLE_AF         7u    /* BSP GPIO_AF7_USART3 */
 
-/* NOT defined, and the pins are no longer the reason. uart.c refuses on two
- * independent grounds and only one of them is now answered. The other is that
- * the baud rate divider needs the peripheral bus frequency, and board_core_hz()
- * returns 0, so a divider could only be computed from a guessed clock. A console
- * at the wrong baud does not stay silent, it emits plausible-looking rubbish,
- * which is worse than nothing. uart.c also has no register writes in it yet.
+/* Defined Friday 2 October 2026. Both of the independent grounds uart.c refused
+ * on are now answered: the pins by ST's board support package above, and the
+ * baud rate divider by board_pclk1_hz(), which is decoded from the RCC registers
+ * rather than guessed. */
+#define BOARD_CONSOLE_PINS_CONFIRMED \
+    "BSP stm32h7xx_nucleo.h + RCC decode, Friday 2 October 2026"
+
+/* The console's own numbers, each with the source that settles it.
  *
- * Defining this before the clock is established would turn a refusal into
- * garbage on the wire, so it stays undefined until the frequency is settled. */
-/* #define BOARD_CONSOLE_PINS_CONFIRMED "BSP stm32h7xx_nucleo.h, read Friday 2 October 2026" */
+ * 115200 is the rate the ST-LINK's virtual serial port is conventionally read
+ * at, and it is a choice rather than a fact: the probe presents whatever the
+ * target sends, so this and the terminal have to agree and nothing else checks
+ * it. If the terminal shows rubbish, this is the first number to suspect, not
+ * the divider below. */
+#define CONSOLE_BAUD       115200u
+
+/* USART register offsets, from USART_TypeDef's member order in ST's device
+ * header: CR1 0x00, CR2 0x04, CR3 0x08, BRR 0x0C, GTPR 0x10, RTOR 0x14,
+ * RQR 0x18, ISR 0x1C, ICR 0x20, RDR 0x24, TDR 0x28, PRESC 0x2C. */
+#define USART_CR1          0x00u
+#define USART_BRR          0x0Cu
+#define USART_ISR          0x1Cu
+#define USART_TDR          0x28u
+#define USART_PRESC        0x2Cu
+#define USART_REG(base, off) REG32((base) + (off))
+
+/* Control and status bits, from the header's _Pos defines. */
+#define USART_CR1_UE_POS           0u
+#define USART_CR1_RE_POS           2u
+#define USART_CR1_TE_POS           3u
+
+/* Bit 7 of ISR, and the name is the point. The header calls it
+ * USART_ISR_TXE_TXFNF, one flag serving two meanings depending on whether the
+ * FIFO is enabled. Looking for a bit called TXE finds nothing on this
+ * peripheral, which is a small trap with a quick cure and was worth ten minutes
+ * once. The FIFO stays disabled here, its reset state, so this reads as plain
+ * transmit-data-register-empty. */
+#define USART_ISR_TXE_TXFNF_POS    7u
+
+/* The baud rate divider, and a field name in the device header that must NOT be
+ * believed.
+ *
+ * stm32h7a3xxq.h declares BRR as USART_BRR_DIV_MANTISSA at bits 4 to 15 and
+ * USART_BRR_DIV_FRACTION at bits 0 to 3. Those names are inherited from the
+ * older STM32 USART, where the divider really was a mantissa and a sixteenth
+ * fraction. On this peripheral with oversampling by 16 the register holds the
+ * divider as a plain integer, and ST's own HAL says so in one line:
+ *
+ *   #define UART_DIV_SAMPLING16(PCLK, BAUD, PRESC)
+ *       ((((PCLK)/UARTPrescTable[(PRESC)]) + ((BAUD)/2U)) / (BAUD))
+ *
+ * A rounded integer division, nothing more. Computing (mantissa << 4) |
+ * (fraction * 16) from those field names, which is what they invite, gives a
+ * badly wrong rate from correctly cited defines. A name in a header is not a
+ * specification.
+ *
+ * UARTPrescTable[12] = {1, 2, 4, 6, 8, 10, 12, 16, 32, 64, 128, 256}, so index
+ * 0 is a prescaler of 1, and PRESC resets to 0 and nothing here writes it.
+ *
+ * The kernel clock is selection 0 of RCC_CDCCIP2R, read live as 0x00000000, and
+ * ST names that RCC_USART234578CLKSOURCE_CDPCLK1, aliased to
+ * RCC_USART234578CLKSOURCE_PCLK1. So the clock is pclk1, which board_pclk1_hz()
+ * reports. Worth noting that the same HAL header defines that constant twice in
+ * two conditional branches, once against RCC_D2CCIP2R for the STM32H743 and once
+ * against RCC_CDCCIP2R for this part. Different registers, same macro name. */
+#define USART_BRR_FROM(pclk, baud)  (((pclk) + ((baud) / 2u)) / (baud))
 
 /* The pull the button needs, and the defect it revealed. ST's board support
  * package initialises BUTTON_USER with
