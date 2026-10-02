@@ -18,6 +18,8 @@
  */
 #include <stdint.h>
 
+#include "stm32h7a3_regs.h"
+
 /* From the linker script. */
 extern uint32_t _sidata, _sdata, _edata, _sbss, _ebss;
 
@@ -121,6 +123,32 @@ void Reset_Handler(void)
      * Calling SystemInit before step 2 is a common and subtle fault: it works
      * until SystemInit gains a static variable, and then it works until the
      * value it expected to be zero happens not to be. */
+
+    /* STEP 0, BEFORE EVERYTHING: start the cycle counter.
+     *
+     * This is the earliest point software can measure anything, and it is here so
+     * that "reset to the first printed line" is a real figure rather than a
+     * figure for whatever happens to come after startup. Chapter 1 carries that
+     * number in its budget table and had nothing to put in the column.
+     *
+     * It is safe here, before .data is copied and .bss zeroed, for one reason
+     * worth stating because it is the reason the rest of this function has to
+     * wait: these are PERIPHERAL registers, not RAM. Nothing below is touched, no
+     * static is written, and the counter itself lives in the debug block. Any
+     * attempt to record the value in a variable here would have the exact fault
+     * the comment above warns about.
+     *
+     * Three writes, all of which can silently do nothing, which is why
+     * board_cycles_init() verifies afterwards that the counter actually advanced
+     * rather than trusting them. What it must NOT do any more is zero the counter,
+     * because that would discard everything measured between here and there.
+     *
+     * The count therefore excludes only the hardware's own reset sequence and the
+     * vector fetch, and includes every instruction this firmware executes. */
+    DEM_CR    |= (1u << DEM_CR_TRCENA_POS);
+    DWT_LAR    = DWT_LAR_KEY;
+    DWT_CYCCNT = 0u;
+    DWT_CTRL  |= (1u << DWT_CTRL_CYCCNTENA_POS);
 
     uint32_t *src = &_sidata;
     uint32_t *dst = &_sdata;

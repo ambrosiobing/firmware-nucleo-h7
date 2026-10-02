@@ -43,9 +43,14 @@ void board_cycles_init(void)
 {
     g_available = false;
 
+    /* The same three writes Reset_Handler already made, repeated because they are
+     * idempotent and because this function must work whether or not that one ran
+     * them. What is deliberately NOT repeated is zeroing the counter: it has been
+     * running since the first instruction of C, and that elapsed time is the
+     * measurement chapter 1's budget table wants. Zeroing here, as this function
+     * did when it was written, threw it away. */
     DEM_CR   |= (1u << DEM_CR_TRCENA_POS);
     DWT_LAR   = DWT_LAR_KEY;
-    DWT_CYCCNT = 0u;
     DWT_CTRL |= (1u << DWT_CTRL_CYCCNTENA_POS);
 
     /* The check. A few hundred cycles is ample and costs nothing at startup.

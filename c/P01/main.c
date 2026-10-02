@@ -54,6 +54,13 @@ int main(void)
     board_init();
 
     const board_status_t clock = board_clock_status();
+    /* Captured before the first printf, so it measures everything from the first
+     * instruction of C up to the moment the first character is handed to the
+     * USART. Read here rather than later because printf itself is slow: at 115200
+     * baud each character costs about 87 microseconds, so a figure taken after
+     * any output would be measuring the console rather than the startup. */
+    const uint32_t startup_cycles = board_cycles_now();
+
     const board_status_t console = board_console_status();
     const uint32_t hz = board_core_hz();
 
@@ -142,6 +149,20 @@ int main(void)
                (unsigned long) (us % 1000u));
         printf("                checks the arithmetic, not the clock: both ends\r\n");
         printf("                use the same counter, so a wrong frequency cancels\r\n");
+    }
+
+    /* The third row of chapter 1's budget table, which said "not measured" from the
+     * day it was written until Saturday 3 October 2026. */
+    if (board_cycles_available() && hz >= 1000000u) {
+        const uint32_t us = startup_cycles / (hz / 1000000u);
+        printf("  startup       %lu cycles to the first character, %lu.%03lu ms\r\n",
+               (unsigned long) startup_cycles,
+               (unsigned long) (us / 1000u),
+               (unsigned long) (us % 1000u));
+        printf("                from the first instruction of C, so it excludes\r\n");
+        printf("                only the reset sequence and the vector fetch.\r\n");
+        printf("                Most of it is the delay calibration, which spins\r\n");
+        printf("                40000 iterations on purpose.\r\n");
     }
 
     printf("  LEDs          green PB0, yellow PE1, red PB14, all settled\r\n");
