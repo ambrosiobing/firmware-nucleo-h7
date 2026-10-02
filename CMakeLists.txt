@@ -52,11 +52,65 @@ add_link_options(
     -specs=nano.specs
     -specs=nosys.specs)
 
+# The other warning from the first successful link, assessed and then silenced
+# with its reason recorded, which is the only acceptable way to silence one:
+#
+#   warning: <target>.elf has a LOAD segment with RWX permissions
+#
+# It is true and it is not about this kind of image. .text and .rodata are read
+# only in flash, and .data is writable in RAM, but .data's initial image also
+# lives in flash and is copied across by the reset handler, so one PT_LOAD
+# segment covers read, write and execute at once. That is how every Cortex-M
+# image is laid out and the copy is the whole reason .data works.
+#
+# The warning exists for hosted systems, where a loader enforces that no page
+# is both writable and executable. There is no loader here. On this part the
+# equivalent protection is the memory protection unit, configured by software
+# at run time, which is chapter 19's subject and not something a segment flag
+# can express.
+#
+# So the warning is left standing, deliberately, and this comment is the whole
+# of the response to it.
+#
+# -Wl,--no-warn-rwx-segments would silence it, and it was tried and rejected on
+# Friday 2 October 2026. The flag needs binutils 2.39 or newer, and the two
+# toolchains this repository builds with are not the same: CubeIDE's bundled
+# 14.3.1 on win11 skyhorizon, and whatever the continuous integration runner
+# installs. Guarding it with check_linker_flag does not work either, because
+# the toolchain file sets CMAKE_TRY_COMPILE_TARGET_TYPE to STATIC_LIBRARY, so
+# that check never links anything, reports success whatever it is given, and
+# would hand an unknown flag to the older of the two. Trading a cosmetic
+# warning for a build that fails on one machine is a poor trade, and a check
+# that cannot fail is worse than no check.
+
 # P01's board support: the vector table, the reset handler, the clock, the LEDs,
 # the console and the printf retarget. Every firmware target links it. No vendor
 # generated code appears here, and the vendor pack is deliberately not vendored
 # because its licence differs file by file.
-add_library(board STATIC
+#
+# An OBJECT library, not STATIC, and the reason is a defect this repository
+# shipped until Friday 2 October 2026.
+#
+# c/board/retarget.c defines _write, which is what printf eventually calls. As
+# a STATIC library that definition was never used. Libraries are scanned in
+# order, and when libboard.a was scanned nothing had yet referenced _write: the
+# reference comes from printf inside libc_nano.a, which is scanned afterwards.
+# So retarget.o was not pulled in, and libnosys.a, arriving last by way of
+# -specs=nosys.specs, satisfied _write with a stub that returns failure.
+#
+# The symptom was not a build error. It was this warning,
+#
+#   warning: _write is not implemented and will always fail
+#
+# sitting among several like it, easy to read as a note about the stubs rather
+# than as a statement that printf output would go nowhere. On a board whose
+# only console is the probe's virtual serial port, that is the difference
+# between first light and a silent terminal that looks like broken wiring.
+#
+# An OBJECT library has no archive and no scan order: every object is part of
+# every executable that links it, so our definitions are present before any
+# library is consulted and win outright.
+add_library(board OBJECT
     c/board/startup.c
     c/board/system.c
     c/board/board.c
@@ -71,6 +125,12 @@ function(add_firmware name)
     cmake_parse_arguments(FW "" "" "SOURCES;INCLUDES;DEFINES" ${ARGN})
     add_executable(${name} ${FW_SOURCES})
     target_link_libraries(${name} PRIVATE board)
+
+    # The map file, which P01's chapter asks the reader to reconcile against the
+    # size output, and which the continuous integration job already tests for.
+    # Nothing requested one until Friday 2 October 2026, so that test had never
+    # had a chance to pass.
+    target_link_options(${name} PRIVATE -Wl,-Map=${name}.map)
     target_include_directories(${name} PRIVATE ${FW_INCLUDES})
     target_compile_definitions(${name} PRIVATE ${FW_DEFINES})
     set_target_properties(${name} PROPERTIES
@@ -82,6 +142,23 @@ function(add_firmware name)
     add_custom_command(TARGET ${name} POST_BUILD
         COMMAND ${CMAKE_SIZE_UTIL} -A $<TARGET_FILE:${name}>
         COMMENT "size of ${name}")
+
+    # Our own _write is the one that got linked, checked rather than assumed.
+    #
+    # This is the test for the defect fixed above, and it is written as a build
+    # step rather than left to a reader's eye because the failure it catches is
+    # a warning in a wall of warnings, and its symptom on the bench is a silent
+    # console that looks like a wiring fault. If retarget.c ever stops being
+    # linked in, printf goes quiet again and this says so by name.
+    #
+    # The map file is the evidence: it records which object satisfied each
+    # symbol. Searching it for retarget is the whole test.
+    add_custom_command(TARGET ${name} POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+                -DMAPFILE=$<TARGET_FILE_DIR:${name}>/${name}.map
+                -DTARGET_NAME=${name}
+                -P ${CMAKE_SOURCE_DIR}/cmake/check_retarget.cmake
+        COMMENT "checking that ${name} uses this repository's _write")
 
     # A binary to drag onto the probe's mass storage disk, which is the flashing
     # path that needs no tool installed at all.

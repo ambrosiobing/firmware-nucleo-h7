@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "cyccnt.h"
+#include "board.h"
 
 #include "stm32h7xx.h"
 
@@ -66,7 +67,21 @@ cyccnt_backend_t cyccnt_init(void)
     for (volatile int i = 0; i < 64; i++) { }
     if (DWT->CYCCNT != a) {
         backend = CYCCNT_DWT;
-        tick_hz = SystemCoreClock;   /* the counter counts core clocks */
+        /* The counter counts core clocks, so the rate is the core frequency.
+         * NOT SystemCoreClock: that is the vendor's global, defined in
+         * system_stm32h7xx.c, which this repository does not compile because
+         * c/board/system.c is its own. Linking the vendor file in to obtain
+         * the symbol would also import its clock configuration, written for a
+         * part documented by a different reference manual. Taking the symbol
+         * and leaving the file out is worse still: the linker then wants a
+         * definition and the quick fix is to invent one, which publishes a
+         * core frequency nobody measured.
+         *
+         * board_core_hz() answers 0 while the 280 MHz tree is unconfirmed,
+         * and cyccnt_tick_hz() passes that 0 to the caller, which is the
+         * refusal the rest of P06 is built to handle. Found on
+         * Friday 2 October 2026, on the first cross link of these targets. */
+        tick_hz = board_core_hz();
         return backend;
     }
 

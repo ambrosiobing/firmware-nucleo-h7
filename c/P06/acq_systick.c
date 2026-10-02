@@ -15,6 +15,7 @@
  */
 #include "acq.h"
 #include "marker.h"
+#include "board.h"
 
 #include "stm32h7xx.h"
 
@@ -90,11 +91,24 @@ int acq_start(void)
      * looking sequence copied from the H743 is exactly the failure this whole
      * volume warns about. */
 
-    /* The tick. SystemCoreClock is set by the clock tree of chapter 1, so this
-     * is the one line here that depends on that chapter being right. If the
-     * reload value does not fit 24 bits the tick cannot be produced at all and
-     * that is an error rather than a silently wrong rate. */
-    if (SysTick_Config(SystemCoreClock / ACQ_RATE_HZ) != 0u) {
+    /* The tick, and the one line here that depends on chapter 1's clock tree
+     * being right. The rate comes from board_core_hz() rather than from the
+     * vendor's SystemCoreClock, for the reason recorded at length in
+     * c/instr/cyccnt.c: that symbol lives in a vendor file this repository
+     * does not compile, and inventing a definition for it would publish a
+     * core frequency nobody measured.
+     *
+     * Zero is checked before the division and not only because dividing by a
+     * rate of zero would be wrong in the other direction. A reload of zero
+     * reaches SysTick_Config, which rejects it, and the function would then
+     * return -1 for what reads like a hardware fault. The sampling rate is the
+     * whole subject of P06, so a refusal here has to say that the rate was
+     * never established. */
+    uint32_t core_hz = board_core_hz();
+    if (core_hz == 0u) {
+        return -1;
+    }
+    if (SysTick_Config(core_hz / ACQ_RATE_HZ) != 0u) {
         return -1;
     }
     return 0;
