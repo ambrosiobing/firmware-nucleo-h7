@@ -50,7 +50,7 @@ static board_status_t g_console = BOARD_ERR_UART_PINS_UNCONFIRMED;
  * Using AFRL for a pin above 7 writes the function number onto a different pin
  * entirely and leaves this one at function 0, and neither pin reports anything
  * about it. */
-static void pin_alternate(uint32_t port, uint32_t pin, uint32_t af)
+static void pin_alternate(uint32_t port, uint32_t pin, uint32_t af, uint32_t pupd)
 {
     /* Mode 10, alternate function, two bits per pin. */
     uint32_t moder = GPIO_REG(port, GPIO_MODER);
@@ -58,11 +58,19 @@ static void pin_alternate(uint32_t port, uint32_t pin, uint32_t af)
     moder |=  (2u << (pin * 2u));
     GPIO_REG(port, GPIO_MODER) = moder;
 
-    /* Push-pull and no pull, which are both the reset state and are set
-     * explicitly so that a second call after something else used the pin does
-     * not inherit it. */
+    /* Push-pull, set explicitly so that a second call after something else used
+     * the pin does not inherit a different type. */
     GPIO_REG(port, GPIO_OTYPER) &= ~(1u << pin);
-    GPIO_REG(port, GPIO_PUPDR)  &= ~(3u << (pin * 2u));
+
+    /* The pull matters here and used to be cleared unconditionally. A serial line
+     * idles HIGH, so a pin that is briefly undriven, or driven by a peripheral
+     * that is not yet enabled, presents a falling edge to the receiver at the
+     * other end. The receiver reads that as a start bit and delivers one garbage
+     * byte. A pull-up holds the line at its idle level through any such gap. */
+    uint32_t pupdr = GPIO_REG(port, GPIO_PUPDR);
+    pupdr &= ~(3u << (pin * 2u));
+    pupdr |=  (pupd << (pin * 2u));
+    GPIO_REG(port, GPIO_PUPDR) = pupdr;
 
     const uint32_t reg   = (pin < 8u) ? GPIO_AFRL : GPIO_AFRH;
     const uint32_t shift = ((pin < 8u) ? pin : (pin - 8u)) * 4u;
@@ -84,17 +92,25 @@ static void pin_alternate(uint32_t port, uint32_t pin, uint32_t af)
 void board_console_init(void)
 {
 #if defined(BOARD_REGS_CONFIRMED) && defined(BOARD_CONSOLE_PINS_CONFIRMED)
-    /* The steps, in order, with what settles each one.
+    /* The steps, in the order the code performs them, with what settles each one.
+     * This list said something different until Saturday 3 October 2026 and the
+     * code was reordered beneath it; a step list that contradicts its function is
+     * the same defect as a comment that contradicts its return value, and this
+     * repository paid for one of those the day before.
      *
      *   1. The GPIO port clock and the USART clock. A write to either peripheral
      *      before its clock runs is discarded in silence, exactly as it is for the
      *      LEDs in board.c.
-     *   2. Both pins to alternate function 7, in AFRH because both are above 7.
-     *   3. The divider, from the APB1 frequency. This is the dependency worth
+     *   2. The divider, from the APB1 frequency. This is the dependency worth
      *      naming: the console cannot be right while the clock is unknown, so
      *      these two refusals were never independent.
-     *   4. Transmitter, receiver and the peripheral itself, in that order, with
-     *      UE last because the configuration above must be in place first.
+     *   3. Transmitter, receiver, then the peripheral itself, with UE last because
+     *      the configuration above must be in place before it starts.
+     *   4. Read CR1 back, because a clock that is not running makes every write
+     *      above a no-op that reports nothing.
+     *   5. ONLY THEN both pins to alternate function 7, in AFRH because both are
+     *      above 7, each with a pull-up. Doing this last is what stopped the
+     *      garbage byte at every reset, for the reason set out below.
      */
     const uint32_t pclk = board_pclk1_hz();
     if (pclk == 0u) {
@@ -112,11 +128,31 @@ void board_console_init(void)
     (void) RCC_AHB4ENR;    /* read back: the write crosses a bus bridge */
     (void) RCC_APB1LENR;
 
-    pin_alternate(CONSOLE_TX_PORT, CONSOLE_TX_PIN, CONSOLE_AF);
-    pin_alternate(CONSOLE_RX_PORT, CONSOLE_RX_PIN, CONSOLE_AF);
-
-    /* Disabled while being configured, which is required and is also why UE is
-     * written separately below rather than in one store with TE and RE. */
+    /* THE USART FIRST, THE PINS AFTERWARDS, and the order was the other way round
+     * until Saturday 3 October 2026.
+     *
+     * Every reset emitted one garbage byte, printed by the terminal as a question
+     * mark about ten milliseconds ahead of the report. It was noted as benign
+     * several times before being explained, which is the habit this repository
+     * spent the previous day learning not to indulge.
+     *
+     * The mechanism is entirely in this ordering. Switching PD8 to alternate
+     * function connects it to the USART's transmit output, and a USART with UE
+     * clear drives that output LOW. So the line fell from its idle high level and
+     * stayed there for the microseconds the configuration below takes. The receiver
+     * at the other end saw a falling edge, took it for a start bit, sampled the
+     * following bit times, and delivered one byte of nonsense with a framing error.
+     *
+     * Configuring and enabling the USART first means the transmitter is already
+     * idling high when the pin is connected to it, so there is no edge to
+     * misread. The pull-ups below are the second half of the same argument: they
+     * hold the line at its idle level in any window where nothing drives it,
+     * including the one between reset and this function running.
+     *
+     * Harmless in itself, since one bad byte before the first line of output costs
+     * nothing. It is fixed because an unexplained artefact that appears on every
+     * single run trains a reader to ignore the console, and the next thing to
+     * appear there might matter. */
     USART_REG(CONSOLE_USART_BASE, USART_CR1)   = 0u;
     USART_REG(CONSOLE_USART_BASE, USART_PRESC) = 0u;   /* prescaler 1, index 0 */
     USART_REG(CONSOLE_USART_BASE, USART_BRR)   =
@@ -134,6 +170,13 @@ void board_console_init(void)
         g_console = BOARD_ERR_UART_PINS_UNCONFIRMED;
         return;
     }
+
+    /* Now the pins, with the transmitter already running and idling high. Pull-ups
+     * on both: the transmit line so it never presents a false edge, and the
+     * receive line so a floating input at this end cannot invent start bits when
+     * the host is not transmitting. */
+    pin_alternate(CONSOLE_TX_PORT, CONSOLE_TX_PIN, CONSOLE_AF, GPIO_PUPD_PULLUP);
+    pin_alternate(CONSOLE_RX_PORT, CONSOLE_RX_PIN, CONSOLE_AF, GPIO_PUPD_PULLUP);
 
     g_console = BOARD_OK;
 #else
