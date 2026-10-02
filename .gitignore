@@ -47,3 +47,12 @@ build-host/
 *.csv
 *.npz
 captures/
+
+# Journals and correspondence never reach a published repository, private
+# shares included. They live in the catalogue, which is local only. A published
+# repository carries the work, never the running record of doing it. This is a
+# guard rather than a reminder: the rule has held by discipline so far, and a
+# rule that lives only in someone's head is one copy away from being broken.
+private_journal/
+correspondence/
+DIARY*.md

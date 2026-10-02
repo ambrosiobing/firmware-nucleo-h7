@@ -72,3 +72,14 @@ jobs:
             exit 1
           fi
           echo "no PDF, no HTML, no assembled volume. Markdown chapters only, as intended"
+
+      - name: No journal and no correspondence is published
+        run: |
+          set -e
+          if git ls-files | grep -iE '(^|/)(private_journal|correspondence)/|(^|/)DIARY[^/]*\.md$'; then
+            echo "A journal or a correspondence file is committed."
+            echo "These live in the catalogue, which is local only. A published"
+            echo "repository carries the work, never the running record of doing it."
+            exit 1
+          fi
+          echo "no journal, no correspondence, as intended"
