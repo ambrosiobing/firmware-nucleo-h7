@@ -194,6 +194,19 @@ uint32_t board_pclk1_hz(void)
 /* THE loop, and the reason it is a function.
  *
  * The calibration below and board_delay_ms() both call this and nothing else, so
+ *
+ * MEASURED AT 9.01 CYCLES on Friday 2 October 2026, not the 8.00 a host PC's clock
+ * gave earlier the same day, and the difference is the point rather than a
+ * problem. That 8.00 was for an INLINE loop inside board_delay_ms. Moving the loop
+ * into this function so both paths would share it changed the generated code,
+ * because a volatile counter inside a called function is addressed differently
+ * from one in the enclosing function, and the cost went from eight cycles to nine.
+ *
+ * Had the measured constant 8000 iterations per millisecond survived that
+ * refactor, every interval would have stretched by 12.5 per cent, 562 ms for a
+ * requested 500, with nothing in the build to say so. The calibration absorbed it
+ * at startup without being told. The warning in the next paragraph was
+ * demonstrated on the very commit that introduced it.
  * by construction they cost the same per iteration. Calibrating one loop and then
  * timing a different one is the classic way to get this wrong: the compiler is
  * free to unroll, reorder or register-allocate two textually identical loops

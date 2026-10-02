@@ -112,8 +112,35 @@ int main(void)
                    (unsigned long) (cyc_x100 / 100u),
                    (unsigned long) (cyc_x100 % 100u));
             printf("                measured at startup against DWT_CYCCNT, on this\r\n");
-            printf("                build. A host clock gave 8.00 independently.\r\n");
+            printf("                build. A host clock measured 8.00 on Friday\r\n");
+            printf("                2 October 2026, for the INLINE loop this one\r\n");
+            printf("                replaced. Moving it into a shared function cost\r\n");
+            printf("                a cycle. Different code, so not a disagreement.\r\n");
         }
+    }
+
+    /* Does the calibration actually produce the interval it was asked for?
+     *
+     * This checks the ARITHMETIC and not the clock, and the distinction matters.
+     * Both the calibration and this measurement use DWT_CYCCNT, so a wrong core
+     * frequency would cancel out and go unseen. What it does catch is the
+     * multiplication overflowing, the iterations-per-millisecond figure being
+     * scaled wrongly, and the delay taking a path other than the calibrated one.
+     * Those are the plausible failures in the code just written; the clock was
+     * settled separately and by other means. */
+    if (board_cycles_available() && board_delay_iters_per_ms() != 0u && hz >= 1000000u) {
+        const uint32_t want_ms = 100u;
+        const uint32_t c0 = board_cycles_now();
+        (void) board_delay_ms(want_ms);
+        const uint32_t c1 = board_cycles_now();
+
+        const uint32_t us = (c1 - c0) / (hz / 1000000u);
+        printf("  delay check   asked %lu ms, measured %lu.%03lu ms by DWT_CYCCNT\r\n",
+               (unsigned long) want_ms,
+               (unsigned long) (us / 1000u),
+               (unsigned long) (us % 1000u));
+        printf("                checks the arithmetic, not the clock: both ends\r\n");
+        printf("                use the same counter, so a wrong frequency cancels\r\n");
     }
 
     printf("  LEDs          green PB0, yellow PE1, red PB14, all settled\r\n");
@@ -157,6 +184,29 @@ int main(void)
                 printf("                loop iteration are estimated, not counted.\r\n");
                 printf("                P06 is where that gets a real reference.\r\n");
             }
+        }
+
+        /* A periodic marker, on purpose this time.
+         *
+         * Until board_delay_ms started returning true there was a note printed
+         * every twentieth cycle, and a host PC measured the blink period from its
+         * timestamps. That note was a diagnostic about an approximation, so making
+         * the delay honest removed it, and removed the only timing marker on the
+         * wire with it. The cross-check went away as a side effect of a fix, which
+         * is the kind of loss that is noticed much later.
+         *
+         * So this is a marker that exists to be measured rather than to warn. One
+         * short line every twentieth cycle: about twenty characters, 1.7 ms on the
+         * wire, 0.09 ms amortised per cycle, which is small and, more importantly,
+         * known and subtractable. A host reading two consecutive ticks divides by
+         * twenty and has the blink period from an instrument with nothing in common
+         * with DWT_CYCCNT. */
+        {
+            static uint32_t ticks;
+            if ((ticks % 20u) == 0u) {
+                printf("  tick          %lu\r\n", (unsigned long) (ticks / 20u));
+            }
+            ticks++;
         }
 
         /* The button's state, printed only when it CHANGES.
