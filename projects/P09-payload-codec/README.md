@@ -177,7 +177,7 @@ which pre-dirties the buffer and checks the tail comes back untouched.
     python/tests/test_micropython_subset.py  keeps the one-source claim honest
     cpp_filter.cpp          the C++ variant as a filter the tests drive
     cpp_encode_only.cpp     one translation unit, for the size comparison
-    main.c                   the board side, written, never compiled
+    main.c                   the board side, written, links for the target as `p09-codec` since Friday 2 October 2026 and has never been flashed, so checking the negative golden vector on the part has not happened
     listen.py               the edge-host variant, needs chapter 5
     MICROPYTHON.md        why there is no file in that directory
 

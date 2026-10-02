@@ -4,10 +4,31 @@ The project every other one here depends on. It owns the cross toolchain file,
 the linker script, the vector table, the reset handler, the clock configuration
 and the console, so nothing else has to own any of them.
 
-**State: written, never compiled, never flashed.** There is no
-`arm-none-eabi-gcc` on win11 aquamarine as of Thursday 1 October 2026, and no
-flashing tool and no `ninja` either. Everything here is written so that the day
-those arrive there is something to build rather than a blank directory.
+**State: runs on the board, since Friday 2 October 2026.**
+
+What is measured and what it rests on:
+
+| | |
+| --- | --- |
+| LD1 green on PB0 | blinks, 499.7 ms per cycle |
+| `printf` over COM13 | 115200 baud, divider 556 |
+| User button on PC13 | input with a pull-down, active high |
+| Core, AHB, APB1 clocks | 64 MHz, decoded from RCC at startup rather than hardcoded |
+| Oscillator | 64.17 to 64.18 MHz, six reductions, two instruments, spread 0.031 per cent |
+| Delay loop | 9 cycles per iteration, measured against `DWT_CYCCNT` every boot |
+| A 100 ms request | lands within 20 parts per million, checked by the part itself |
+
+Still refused, and refused rather than missing: the 280 MHz tree, which needs
+RM0455 for the PLL fields, the flash access latency and the voltage scaling, in
+that order. `board_clock_status()` reports `BOARD_CLOCK_AT_RESET_SPEED` rather
+than pretending otherwise.
+
+It is built on the **win11 skyhorizon demo laptop**, where STM32CubeIDE 2.2.0
+supplies `arm-none-eabi-gcc` 14.3.1, `cmake` and `ninja`, none of them on PATH;
+`projects/P01-toolchain-first-light/Use-CubeIDEToolchain.ps1` finds them. It
+cannot be built on win11 aquamarine, which has no cross toolchain at all, and
+flashing needs no tool anywhere: the probe presents a disk and a `.bin` copied
+onto it is programmed.
 
 ## What first light means here, and why it can work before anything is confirmed
 

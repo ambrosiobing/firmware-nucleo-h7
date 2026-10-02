@@ -3,9 +3,15 @@
 #   cmake -B build-fw -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -G Ninja
 #   cmake --build build-fw
 #
-# NOT RUNNABLE YET on win11 aquamarine: no arm-none-eabi-gcc, no flashing tool
-# and no ninja as of Thursday 1 October 2026. The host half of this repository
-# needs none of them and is built by python/tools/build_host.py instead.
+# WHERE THIS BUILDS. Not on win11 aquamarine: no arm-none-eabi-gcc, no ninja, no
+# ST install root, confirmed by inventory on Friday 2 October 2026. On win11
+# skyhorizon it builds, with STM32CubeIDE 2.2.0's bundled gcc 14.3.1, cmake and
+# ninja, which are on no PATH until
+# projects/P01-toolchain-first-light/Use-CubeIDEToolchain.ps1 is dot-sourced. And
+# on the continuous integration runner, which installs its own.
+#
+# The host half of this repository needs none of that and is built by
+# python/tools/build_host.py instead.
 #
 # This file deliberately refuses to configure for the host. A bare metal project
 # that silently produces a host binary named like firmware is worse than one that

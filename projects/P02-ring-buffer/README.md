@@ -8,6 +8,13 @@ runs in the main loop.
 argument is the deliverable and the host cannot test it, which is the single most
 important sentence in this directory. See below.
 
+The reason it has not run on the target changed on Friday 2 October 2026 and is
+worth stating so it is not assumed. It used to be that no cross toolchain existed
+anywhere. One does now, and five firmware targets build clean with it. What is
+missing is narrower: no firmware target compiles `c/ring/ring.c`, because the
+project that would exercise it from an interrupt is P03 and that has not been
+built either. So this is waiting on a target of its own rather than on tooling.
+
 The structure itself lives in [`c/ring/ring.c`](../../c/ring/ring.c) rather than
 here, because P03 fills it from an interrupt, P04 from a transfer engine, P05
 parses frames out of it and P11 runs a command queue on top of it. It belongs to

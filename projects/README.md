@@ -7,22 +7,35 @@ in one repository: `chapters/` and `figures/` are the written volume,
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eight of the twenty have code, and those eight are every project whose work can
-be done without the board.** 87 checks pass on a laptop with no board, no probe and
-no Raspberry Pi. The remaining twelve need hardware, and nothing in them is written
-yet rather than written and untested.
+**Eight of the twenty have code.** 87 checks pass on a laptop with no board, no
+probe and no Raspberry Pi. The remaining twelve need hardware, and nothing in them
+is written yet rather than written and untested.
+
+**Three states, and the difference between them matters.** Until Friday 2 October
+2026 this page had only two, because nothing had ever been cross-compiled, and the
+distinction was not yet needed. It is now:
+
+| State | What it means |
+| --- | --- |
+| **runs on the board** | cross-compiled, flashed, and observed working on the hardware. P01 only |
+| **links** | cross-compiles and links clean for the target, and has never been flashed, so nothing is known about its behaviour |
+| **host only** | proven on a laptop against synthetic input, and never built for the target at all |
+
+The middle state is the one worth being careful about. A target binary that links is
+evidence about the build and about nothing else. P06's three back ends and P09's
+codec both reached that state on Friday 2 October 2026 and neither has been run.
 
 | Project | What it is | State |
 | --- | --- | --- |
-| [P01](P01-toolchain-first-light/) | The toolchain, startup and linker script every other project needs | written, **never compiled**: no cross toolchain on this laptop. Owns the toolchain file, the linker script, the vector table and the board support |
-| [P02](P02-ring-buffer/) | A single producer, single consumer ring buffer | written, host tested in all four ordering modes, never on the target. 21.6 million bytes through it per run |
-| [P03](P03-interrupt-receive/) | Receiving on interrupt without losing bytes | the measurement is written and proven, attributing every lost byte to the target or the bridge. `rx_ring.c` and both documented failure modes written, never compiled |
+| [P01](P01-toolchain-first-light/) | The toolchain, startup and linker script every other project needs | **runs on the board**, Friday 2 October 2026. LD1 green on PB0 blinks at 499.7 ms, `printf` reaches COM13 at 115200, the user button on PC13 reads, and the report carries the core, AHB and APB1 clocks decoded from RCC at startup. The delay loop measures itself against `DWT_CYCCNT` every boot, 9 cycles per iteration, and a 100 ms request lands within 20 parts per million. The oscillator measured 64.17 to 64.18 MHz across six reductions. Still refused: the 280 MHz tree, which needs RM0455 for the PLL fields, the flash latency and the voltage scaling, in that order |
+| [P02](P02-ring-buffer/) | A single producer, single consumer ring buffer | host only. Tested in all four ordering modes, 21.6 million bytes through it per run. No firmware target builds it yet, so the memory ordering argument is untested on the Cortex-M7 write buffer it was written for |
+| [P03](P03-interrupt-receive/) | Receiving on interrupt without losing bytes | host only. The measurement is proven, attributing every lost byte to the target or the bridge. `rx_ring.c` and both documented failure modes are written and have never been built for the target |
 | [P04](P04-dma-idle-line/) | Circular DMA and the idle line | not started. Needs a transfer engine |
-| [P05](P05-framing-crc/) | Framing and the hardware CRC unit | written and proven: both implementations reach the published check value, and every single-bit corruption is rejected. The peripheral half waits on RM0455 |
-| [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | the witness is proven on synthetic input. Three acquisition back ends written, each refusing to run rather than guessing a peripheral setting |
+| [P05](P05-framing-crc/) | Framing and the hardware CRC unit | host only, and proven there: both implementations reach the published check value 0x29B1, and every single-bit corruption is rejected. The peripheral half waits on RM0455 |
+| [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | **links**, all three back ends, since Friday 2 October 2026, and none has been flashed. The witness is proven on synthetic input on the host. Each back end still refuses at run time rather than guessing a converter, timer or transfer engine setting RM0455 governs. The cycle counter it needs now exists and works, which was the first of its dependencies to be settled |
 | [P07](P07-stop-mode/) | Stop mode, RTC wake, and a battery number | not started. Needs the PPK2 and a running clock tree |
 | [P08](P08-node-state-machine/) | The node's state machine, transmit as a stub | written and proven: all 18 transition rows reachable, and the stub payload matches P09's encoder byte for byte |
-| [P09](P09-payload-codec/) | The payload codec and its Python twin | written and proven, host half complete. Three implementations agree over 100000 cases |
+| [P09](P09-payload-codec/) | The payload codec and its Python twin | **links** as `p09-codec` since Friday 2 October 2026 and has never been flashed. Host half complete and proven: three implementations agree over 100000 cases, and the negative golden vector is carried as its own case after the chapter was found to contradict itself. Checking that vector on the target is what the firmware build is for and has not happened |
 | [P10](P10-energy-phases/) | Where the energy goes, by phase | not started. Needs the PPK2 and marker pins |
 | [P11](P11-at-engine/) | An AT engine that never blocks | not started. Needs the SIM7020E |
 | [P12](P12-energy-regression/) | Energy as a regression test, and the rig | both gates written and proven: a five percent charge regression turns the build red with nobody at the bench. The hardware job is not built |
