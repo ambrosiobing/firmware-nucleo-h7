@@ -67,12 +67,17 @@ if ($roots.Count -eq 0) {
 } else {
   $want = 'arm-none-eabi-gcc.exe','arm-none-eabi-gdb.exe','arm-none-eabi-size.exe','arm-none-eabi-objcopy.exe',
           'STM32_Programmer_CLI.exe','STM32CubeProgrammer.exe','STM32CubeMX.exe','stm32cubeide.exe',
-          'STM32CubeMonitor.exe','openocd.exe','JLink.exe','JLinkGDBServerCL.exe','ST-LINK_gdbserver.exe','ninja.exe'
+          'STM32CubeMonitor.exe','openocd.exe','JLink.exe','JLinkGDBServerCL.exe','ST-LINK_gdbserver.exe',
+          'ninja.exe','cmake.exe','make.exe'
   $hits = Get-ChildItem -Path $roots -Recurse -Include $want -File -ErrorAction SilentlyContinue
   if ($hits) {
     $hits | Group-Object Name | Sort-Object Name | ForEach-Object {
       Write-Host ("  {0}" -f $_.Name) -ForegroundColor Green
-      $_.Group | Select-Object -First 3 | ForEach-Object { Write-Host ("      {0}" -f $_.FullName) }
+      $_.Group | Select-Object -First 3 | ForEach-Object {
+        if ($_.FullName -match '\jre\bin\jlink\.exe$') {
+          Write-Host ("      {0}   (Java module linker, NOT SEGGER)" -f $_.FullName) -ForegroundColor DarkGray
+        } else { Write-Host ("      {0}" -f $_.FullName) }
+      }
     }
     $gcc = $hits | Where-Object { $_.Name -eq 'arm-none-eabi-gcc.exe' } | Select-Object -First 1
     if ($gcc) {
