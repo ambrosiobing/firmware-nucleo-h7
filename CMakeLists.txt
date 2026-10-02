@@ -13,16 +13,25 @@
 # quiet.
 cmake_minimum_required(VERSION 3.22)
 
+# The cross-compiling check has to come AFTER project(), because
+# CMAKE_CROSSCOMPILING is one of the variables project() sets. Putting it before,
+# as the first version of this file did, makes it always false and the build
+# refuses even when the toolchain file was supplied. The symptom is a
+# FATAL_ERROR telling you to pass the very argument you just passed, which is a
+# confusing enough failure to be worth this comment. Found on
+# Friday 2 October 2026, on the first cross build ever attempted here.
+project(nucleo-h7a3-firmware C ASM)
+
 if(NOT CMAKE_CROSSCOMPILING)
   message(FATAL_ERROR
     "This builds firmware for the NUCLEO-H7A3ZI-Q and needs the cross "
-    "toolchain:\n"
-    "  cmake -B build-fw -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -G Ninja\n"
+    "toolchain, which the toolchain file supplies:\n"
+    "  cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=<repo>/cmake/arm-none-eabi.cmake\n"
+    "Pass that as an absolute path: a relative one resolves against the build "
+    "directory in some CMake versions and the source directory in others.\n"
     "For the host tests, which need none of that, use:\n"
-    "  python python/tools/build_host.py && python -m pytest python/tests -q")
+    "  python python/tools/build_host.py ; python -m pytest python/tests -q")
 endif()
-
-project(nucleo-h7a3-firmware C ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
