@@ -123,6 +123,39 @@ int main(void)
             }
         }
 
+        /* THE BUTTON TRACE, temporary, and to be deleted once the button is
+         * explained. Friday 2 October 2026.
+         *
+         * board_button_pressed() reads 0 whether the button is held or free, with
+         * RCC_AHB4ENR proving the GPIOC clock is on. Every attempt to diagnose it
+         * so far read a register once, from the host, at a moment neither of us
+         * could see, and had to be correlated with a press held across several
+         * seconds of tool launches. That is a bad experiment and it produced three
+         * inconclusive results.
+         *
+         * Printing the raw registers every cycle replaces it with a continuous
+         * trace: hold the button, watch the numbers. What each column settles:
+         *
+         *   MODER bits 27:26 for pin 13, which must read 0 for input mode. If it
+         *   is anything else the pin is not an input and nothing else matters.
+         *
+         *   PUPDR bits 27:26, which must read 2 for the pull-down that ST's board
+         *   support package says this board relies on. If it reads 0 the write in
+         *   board_init did not take, and the released level is undefined.
+         *
+         *   IDR in full, so bit 13 is visible in the context of all sixteen. All
+         *   sixteen reading zero is itself suspicious for a port whose other pins
+         *   go to floating headers. */
+        {
+            uint32_t m = 0u, pu = 0u, in = 0u;
+            board_button_debug(&m, &pu, &in);
+            printf("  pc13          MODER=%u PUPDR=%u IDR=0x%08lX bit13=%u\r\n",
+                   (unsigned) ((m  >> 26) & 3u),
+                   (unsigned) ((pu >> 26) & 3u),
+                   (unsigned long) in,
+                   (unsigned) ((in >> 13) & 1u));
+        }
+
         /* The button is the one input, and holding it lights all three LEDs.
          * That is the whole self-test: if three LEDs light while the button is
          * held, then four settled pin facts and the GPIO configuration are all

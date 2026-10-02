@@ -19,6 +19,8 @@
  * them driven from an interrupt, and an occasional missed change that no test
  * reproduces.
  */
+#include <stddef.h>
+
 #include "board.h"
 #include "stm32h7a3_regs.h"
 
@@ -111,6 +113,13 @@ bool board_button_pressed(void)
     return (GPIO_REG(BUTTON_PORT, GPIO_IDR) & (1u << BUTTON_PIN)) != 0u;
 }
 
+void board_button_debug(uint32_t *moder, uint32_t *pupdr, uint32_t *idr)
+{
+    if (moder != NULL) { *moder = GPIO_REG(BUTTON_PORT, GPIO_MODER); }
+    if (pupdr != NULL) { *pupdr = GPIO_REG(BUTTON_PORT, GPIO_PUPDR); }
+    if (idr   != NULL) { *idr   = GPIO_REG(BUTTON_PORT, GPIO_IDR);   }
+}
+
 #else   /* the registers are not confirmed */
 
 /* Inert rather than wrong. Writing to address zero would fault, and faulting is
@@ -119,6 +128,12 @@ bool board_button_pressed(void)
 void board_led_set(board_led_t led, bool on)    { (void) led; (void) on; }
 void board_led_toggle(board_led_t led)          { (void) led; }
 bool board_button_pressed(void)                 { return false; }
+void board_button_debug(uint32_t *moder, uint32_t *pupdr, uint32_t *idr)
+{
+    if (moder != NULL) { *moder = 0u; }
+    if (pupdr != NULL) { *pupdr = 0u; }
+    if (idr   != NULL) { *idr   = 0u; }
+}
 
 #endif
 

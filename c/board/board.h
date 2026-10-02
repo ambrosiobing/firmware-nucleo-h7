@@ -119,6 +119,22 @@ board_status_t board_console_status(void);
  * tell a byte sent from a byte discarded. */
 bool board_console_put(char c);
 
+/* The button's three registers, for diagnosis rather than for use.
+ *
+ * board_button_pressed() answers a yes or no question and that answer has been
+ * 0 whether the button was held or free, with the port clock proven on. A yes or
+ * no cannot say which of several things is wrong, so this exposes the raw state:
+ * the mode bits, the pull bits and the input register, straight from the port.
+ *
+ * Any of the three pointers may be NULL. All three are set to 0 when the
+ * registers are not confirmed, which is indistinguishable from a port that reads
+ * zero, so a caller that cannot tell those apart should ask
+ * board_clock_status() instead of guessing.
+ *
+ * This exists to be deleted. It is here for as long as the button is unexplained
+ * and no longer. */
+void board_button_debug(uint32_t *moder, uint32_t *pupdr, uint32_t *idr);
+
 /* A crude busy wait, in milliseconds, derived from board_core_hz(). When the
  * core frequency is not established this is approximate and the function says
  * so by returning false; it still delays, because a blinking LED is more useful
