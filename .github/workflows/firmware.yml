@@ -36,6 +36,23 @@ name: firmware
 #   P06's three       NOT built here. They include stm32h7xx.h, the vendor device
 #                     header, which this repository deliberately does not vendor
 #                     because that pack's licence differs file by file.
+#
+#                     WHICH LEAVES A GAP WORTH NAMING. P01 and P09 have had
+#                     eighteen consecutive independent builds here since
+#                     ea371c9 on Friday 2 October 2026, on a different
+#                     arm-none-eabi-gcc from the one on the build laptop. P06's
+#                     three have had none: one toolchain, one machine, one
+#                     warm build directory. A clean build there is weaker
+#                     evidence than a clean build of P01, and the state table in
+#                     projects/README.md calls that state "links" for exactly
+#                     this kind of reason.
+#
+#                     This is a cost of the no-vendoring decision that was not
+#                     enumerated when that decision was recorded. Closing it
+#                     means fetching the pack in the job, which trades a licence
+#                     question for a build that depends on a vendor download
+#                     staying available, so it is left open deliberately rather
+#                     than quietly.
 
 on:
   push:

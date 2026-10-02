@@ -290,6 +290,12 @@ if(NOT CMSIS_DEVICE_DIR)
   message(STATUS
     "CMSIS_DEVICE_DIR is not set, so P06's three targets are skipped. P01 and "
     "P09 do not need it and are built.")
+  message(STATUS
+    "That is also what happens in continuous integration, which passes no pack, "
+    "so P06's three targets are built by exactly one toolchain on exactly one "
+    "machine and nothing independent checks them. A cost of not vendoring the "
+    "pack, noticed on Friday 2 October 2026 and not enumerated when that was "
+    "decided.")
 endif()
 
 # P06, the 1 kHz sampling comparison: one application, three acquisition back
