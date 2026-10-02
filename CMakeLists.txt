@@ -106,6 +106,22 @@ add_firmware(p01-first-light
 set(CMSIS_DEVICE_DIR "" CACHE PATH
     "Directory holding stm32h7xx.h and the CMSIS core headers. P06 needs it.")
 
+# CMSIS does not know which device it is compiling for. stm32h7xx.h is a
+# selector: it reads one of a list of macros and includes the matching device
+# header, and with none of them defined it raises
+#
+#   #error "Please select first the target STM32H7xx device used in your application"
+#
+# and defines nothing, so every later line fails with RCC, GPIOB and TIM2
+# undeclared. Those errors look like a broken include path and are not.
+#
+# The board carries an STM32H7A3ZIT6Q. The trailing Q is the SMPS package, and it
+# has its own device header, stm32h7a3xxq.h, selected by STM32H7A3xxQ. Choosing
+# the non-Q macro would compile and would describe a different power
+# configuration, which is exactly the class of wrong-part mistake this volume is
+# built around, so it is written here once and used everywhere.
+set(DEVICE_MACRO STM32H7A3xxQ)
+
 if(NOT CMSIS_DEVICE_DIR)
   message(STATUS
     "CMSIS_DEVICE_DIR is not set, so P06's three targets are skipped. P01 and "
@@ -130,7 +146,8 @@ foreach(BACKEND systick timer dma)
                 c/instr/cyccnt.c
                 c/instr/freqcount.c
                 ${ACQ}
-        INCLUDES c/P06 c/instr ${CMSIS_DEVICE_DIR})
+        INCLUDES c/P06 c/instr ${CMSIS_DEVICE_DIR}
+        DEFINES ${DEVICE_MACRO})
 endforeach()
 
 # P09, the codec on the target, checking the negative golden vector there rather

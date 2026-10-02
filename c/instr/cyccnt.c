@@ -5,6 +5,8 @@
  * backend it ended up with. A wrapper that silently returned zeros would make
  * every timing figure in the book wrong in the same invisible way.
  */
+#include <stdint.h>
+
 #include "cyccnt.h"
 
 #include "stm32h7xx.h"

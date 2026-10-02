@@ -19,7 +19,15 @@
 #include <stdint.h>
 
 /* From the linker script. */
-extern uint32_t _sidata, _sdata, _edata, _sbss, _ebss, _estack;
+extern uint32_t _sidata, _sdata, _edata, _sbss, _ebss;
+
+/* _estack is an address, not a function, and the first vector table entry is the
+ * initial stack pointer rather than a handler. Writing it as
+ * (void (*)(void)) &_estack converts an object pointer to a function pointer,
+ * which ISO C forbids and -Wpedantic reports. Declaring the symbol as a function
+ * lets the table hold it with no cast at all: the linker supplies an address
+ * either way, and nothing ever calls it. */
+extern void _estack(void);
 
 /* The C library's own initialisation, and ours. */
 extern int main(void);
@@ -71,7 +79,7 @@ WEAK_HANDLER(EXTI15_10_IRQHandler);       /* the user button on PC13 */
  * it, because nothing in C references it. */
 __attribute__((section(".isr_vector"), used))
 void (* const g_vectors[])(void) = {
-    (void (*)(void)) &_estack,   /* initial stack pointer, read by the core   */
+    _estack,                     /* initial stack pointer, read by the core   */
     Reset_Handler,               /* reset vector, read by the core            */
     NMI_Handler,
     HardFault_Handler,

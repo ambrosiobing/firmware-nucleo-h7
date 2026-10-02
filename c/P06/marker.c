@@ -12,6 +12,8 @@
  * the usual free ones on a Nucleo-144, and the board user manual MB1363 decides
  * between them. Until it is read, MARKER_PIN is a guess and is marked as one.
  */
+#include <stdint.h>
+
 #include "marker.h"
 
 #include "stm32h7xx.h"   /* CMSIS device header for this part, from the pack */
