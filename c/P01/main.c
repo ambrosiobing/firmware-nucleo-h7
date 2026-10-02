@@ -111,11 +111,10 @@ int main(void)
                    (unsigned long) ipm,
                    (unsigned long) (cyc_x100 / 100u),
                    (unsigned long) (cyc_x100 % 100u));
-            printf("                measured at startup against DWT_CYCCNT, on this\r\n");
-            printf("                build. A host clock measured 8.00 on Friday\r\n");
-            printf("                2 October 2026, for the INLINE loop this one\r\n");
-            printf("                replaced. Moving it into a shared function cost\r\n");
-            printf("                a cycle. Different code, so not a disagreement.\r\n");
+            printf("                two-point measurement at startup against\r\n");
+            printf("                DWT_CYCCNT, so the fixed overhead of the\r\n");
+            printf("                measurement itself cancels. A single-probe\r\n");
+            printf("                version read 9.02 and was 0.18%% short.\r\n");
         }
     }
 

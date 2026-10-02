@@ -238,27 +238,64 @@ void board_delay_calibrate(void)
         return;
     }
 
-    /* Ten thousand iterations is about 1.25 ms at 64 MHz: long enough that the
-     * two counter reads and the function call are a rounding error, short enough
-     * that it cannot approach the counter's 67 second wrap. */
-    const uint32_t probe = 10000u;
+    /* TWO measurements, n and 2n, and the difference is what is used. The first
+     * version of this timed one probe and divided, and the comment here claimed
+     * that the two counter reads and the function call were a rounding error.
+     * They were not. They are 163 cycles, measured on Friday 2 October 2026, and
+     * that is the whole of a 0.18 per cent bias:
+     *
+     *   calibration saw     9.0166 cycles per iteration
+     *   the delay actually  9.0003 cycles per iteration
+     *   163 / 10000 iterations = 0.0163, which is the difference exactly
+     *
+     * The overhead is real and unavoidable: board_cycles_now() and spin() are in
+     * different translation units and nothing inlines at -Os, so each call costs
+     * a branch, a prologue and an epilogue, and the load from the private
+     * peripheral bus at 0xE0001004 is itself several cycles. All of it falls
+     * inside the measured window.
+     *
+     * Timing n and then 2n removes it without having to know what it is. Both
+     * windows contain exactly the same fixed cost, so subtracting one from the
+     * other leaves precisely n iterations. This is the standard cure and it is
+     * worth stating that it needs no estimate of the overhead at all: an
+     * unmeasured constant cancels against itself.
+     *
+     * Ten thousand iterations is about 1.4 ms at 64 MHz, so the pair costs about
+     * 4 ms at startup, and three times that is nowhere near the counter's 67
+     * second wrap. */
+    const uint32_t n = 10000u;
 
-    const uint32_t t0 = board_cycles_now();
-    spin(probe);
-    const uint32_t t1 = board_cycles_now();
+    const uint32_t a0 = board_cycles_now();
+    spin(n);
+    const uint32_t a1 = board_cycles_now();
+
+    const uint32_t b0 = board_cycles_now();
+    spin(2u * n);
+    const uint32_t b1 = board_cycles_now();
 
     /* Unsigned subtraction, correct across one wrap of the 32 bit counter. */
-    const uint32_t cycles = t1 - t0;
-    if (cycles == 0u) {
+    const uint32_t short_window = a1 - a0;   /* n iterations  + overhead */
+    const uint32_t long_window  = b1 - b0;   /* 2n iterations + the same overhead */
+
+    /* The long window must exceed the short one by roughly the short one. If it
+     * does not, something is wrong enough that no figure should be published:
+     * the counter stopped, the loop was optimised away, or a wrap landed between
+     * the reads. Refusing leaves board_delay_ms returning false, which is the
+     * behaviour this whole mechanism replaced and is still the safe answer. */
+    if (long_window <= short_window) {
+        return;
+    }
+    const uint32_t cycles_n = long_window - short_window;   /* exactly n */
+    if (cycles_n == 0u) {
         return;
     }
 
-    /* iterations per ms = probe * (cycles in one ms) / cycles measured.
+    /* iterations per ms = n * (cycles in one ms) / cycles for n iterations.
      *
-     * The multiplication is checked rather than hoped for: probe is 10000 and
+     * The multiplication is checked rather than hoped for: n is 10000 and
      * g_core_hz/1000 is at most 280000 at this part's top speed, so the product
      * is at most 2.8e9, inside a uint32. At 64 MHz it is 6.4e8. */
-    g_iters_per_ms = (probe * (g_core_hz / 1000u)) / cycles;
+    g_iters_per_ms = (n * (g_core_hz / 1000u)) / cycles_n;
 }
 
 uint32_t board_delay_iters_per_ms(void)
