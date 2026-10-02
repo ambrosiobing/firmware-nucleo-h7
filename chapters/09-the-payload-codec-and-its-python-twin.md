@@ -88,7 +88,7 @@ The generator is fifty lines and it earns its place by removing a class of defec
 | The same content as CBOR, positional array | not estimated | 11.07 B mean | none needed |
 | The same content as CBOR, full field names | not estimated | 50.07 B mean | none needed |
 | Encoder flash cost | under 512 B | 366 B | +146 B |
-| Encoder cycles per frame | under 300 | 2 955 upper bound | OVER by about 10x |
+| Encoder cycles per frame | under 300 | 2 955 and 3 185 | OVER by about 10x |
 | One frame at 115200 8N1 | 781 µs by arithmetic | not measured | not measured |
 | Random cases per test run | 100000 | 100000 by construction | none needed |
 
@@ -99,6 +99,16 @@ The generator is fifty lines and it earns its place by removing a class of defec
 The measurement is not the suspect. It is the two-point form with a warm-up that chapters 1 and 2 arrived at, and an order of magnitude is far outside what the harness could contribute: the harness is a loop and one call, tens of cycles, not thousands. The encoder really is that expensive, and reading it says why.
 
 `bw_put` writes ONE BIT AT A TIME. For each of the forty bits it computes a source shift, a destination byte index and a mask, then does a read-modify-write of a byte in memory, under a branch on the bit's value. Forty iterations of that, five calls to reach them, a `memset` first, and every instruction fetched from flash with no instruction cache enabled. Seventy-odd cycles a bit is unremarkable under those conditions; forty of them is the figure.
+
+**Two figures are given because the encoder was measured twice and the answers differ by 7.8 per cent.** The second build differed from the first by a renamed variable and three extra `printf` lines. Nothing about the encoder changed at all.
+
+The new string literals grew `.rodata`, every byte of code after it moved, and the hot loop landed differently against the 32 byte flash fetch lines. There is no instruction cache enabled on this part in this volume yet, so every instruction is fetched from flash and where a loop sits relative to a fetch boundary changes what it costs.
+
+This is the third time today that an unrelated edit moved a cycle figure. Chapter 1 watched its delay loop go from 9 cycles an iteration to 19 because four register writes were added to the reset handler. It is not noise in the measurement, which repeats to a few parts in a hundred thousand within one build; it is a real property of the code as placed.
+
+So the rule for every cycle figure in this volume: it belongs to a build, not to a function, and a difference smaller than about ten per cent between two builds cannot be attributed to the change under test. Chapter 2's comparison of ordering barriers carries the same caveat and says so. Enabling the instruction cache, which is chapter 19, is what would make these figures belong to the code instead.
+
+Against a budget of 300 none of that matters: both measurements are about ten times over and the conclusion is the same either way.
 
 That is a defensible implementation and an indefensible budget. The bit-by-bit writer is the clearest possible statement of the specification in `docs/bitorder.md`, which is why it was written that way, and the codec's correctness is the chapter's deliverable rather than its speed. What was wrong was estimating 300 without counting what the loop does.
 

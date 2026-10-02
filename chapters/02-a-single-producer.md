@@ -93,7 +93,7 @@ Only two pieces of code touch the structure, and they touch different halves of 
 
 **Two rows the budget asked for are not filled, and dividing a measurement in half to fill them would be inventing a number.** The budget asks for cycles per put and cycles per get separately. What was measured is a put and a get as a pair, inside a loop, including the loop control and two function calls that do not inline across translation units. Splitting that into two halves would assume they cost the same, which is the thing a measurement is supposed to settle. Isolating them needs a further measurement that subtracts an empty loop of the same shape, and it has not been made.
 
-The absolute figure is therefore a harness figure: 141 cycles for a pair at mode 0. All four modes carry the identical harness, so the *differences* between them are clean even though the absolute value is not, and the differences are what the chapter is about.
+The absolute figure is therefore a harness figure: 141 cycles for a pair at mode 0. All four modes carry the identical harness, so the harness itself cancels in a comparison. What does NOT cancel is where each build happens to place the code, and that is the subject of the hedge below. This paragraph said the differences were clean before that was measured, and they are not.
 
 | Mode | Ordering | Cycles | Flash | Mismatches |
 | --- | --- | --- | --- | --- |
@@ -106,7 +106,15 @@ The absolute figure is therefore a harness figure: 141 cycles for a pair at mode
 
 **The compiler barrier costs nothing in time and is not a no-op.** Modes 0 and 1 agree to the hundredth of a cycle, which is expected because a signal fence emits no instruction. But the two images are not identical: mode 1 is 8 bytes larger, so the compiler did generate different code. Something was being reordered, or could have been, and the fence prevented it at no cost in time. That is the one unambiguous recommendation this chapter can make from its own numbers: take mode 1, because it is free.
 
-**The DMB costs 7 cycles per pair, 5.0 per cent, and 28 bytes.** Acquire and release cost 17 cycles, 12.1 per cent, and 52 bytes, which is more than double the DMB and is consistent with a barrier at each of two accesses rather than one between them.
+**The DMB appears to cost 7 cycles per pair and definitely costs 28 bytes. The cycle figure is not safe and the flash figure is.** Acquire and release appear to cost 17 cycles and definitely cost 52 bytes.
+
+The cycles need that hedge because of something measured a few hours later, on chapter 9's encoder. Two builds of it differed only by a renamed variable and three extra `printf` lines, and the encoder came out 7.8 per cent slower in the second. Nothing about the encoder changed. The new string literals grew `.rodata`, the code after it shifted, and the hot loop landed differently against the 32 byte flash fetch lines with no instruction cache enabled.
+
+The four builds in the table above are four separate images with four different sizes, 8 552 to 8 604 bytes, so their code sits at four different places. A 5 per cent difference between them cannot be attributed to a barrier when an unrelated edit produced 7.8 per cent on another project the same day. The honest statement is that the DMB costs something between nothing and about 15 cycles, and this experiment cannot narrow it further.
+
+One detail pushes the other way and is worth keeping. Modes 0 and 1 differ by 8 bytes of code and measured identically, to the hundredth of a cycle. So placement does not always matter: it matters when a shift moves a loop across a fetch line boundary and not otherwise. That is why the effect is erratic rather than proportional, and why it cannot be corrected for by assuming a percentage.
+
+What would separate the barrier from its placement is either enabling the instruction cache, which is chapter 19, or building each mode at several deliberate paddings and comparing distributions rather than single values. Neither has been done, and until one is, the flash column is the measured result of this chapter and the cycle column is an indication.
 
 **Nothing failed, in any mode, including the one with no barrier at all.** Twelve point two million bytes passed through the ring across the four builds with zero mismatched bytes. The reading that follows from this is narrower than it looks, and the firmware prints the caveat rather than a tick.
 
