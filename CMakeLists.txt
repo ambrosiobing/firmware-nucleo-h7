@@ -122,6 +122,36 @@ set(CMSIS_DEVICE_DIR "" CACHE PATH
 # built around, so it is written here once and used everywhere.
 set(DEVICE_MACRO STM32H7A3xxQ)
 
+# CMSIS is two header sets in two directories, and pointing at only one of them
+# is the next failure after the device macro:
+#
+#   Drivers/CMSIS/Device/ST/STM32H7xx/Include   the device: RCC, GPIOB, TIM2
+#   Drivers/CMSIS/Include                       the core:   core_cm7.h, DWT, SysTick
+#
+# The device header includes the core one by plain name, so without the second
+# directory the build fails with "core_cm7.h: No such file or directory" several
+# layers deep in the vendor pack, which reads like a broken pack and is not.
+#
+# The core directory is derived from the device one rather than asked for twice,
+# because they always sit in that fixed relation inside a pack. If a layout ever
+# differs, pass CMSIS_CORE_DIR and the derivation is skipped.
+set(CMSIS_CORE_DIR "" CACHE PATH
+    "Directory holding core_cm7.h. Derived from CMSIS_DEVICE_DIR when empty.")
+
+if(CMSIS_DEVICE_DIR AND NOT CMSIS_CORE_DIR)
+  get_filename_component(_cmsis_root "${CMSIS_DEVICE_DIR}/../../../.." ABSOLUTE)
+  set(CMSIS_CORE_DIR "${_cmsis_root}/Include")
+  message(STATUS "CMSIS core headers derived as: ${CMSIS_CORE_DIR}")
+endif()
+
+if(CMSIS_DEVICE_DIR AND NOT EXISTS "${CMSIS_CORE_DIR}/core_cm7.h")
+  message(FATAL_ERROR
+    "core_cm7.h was not found at ${CMSIS_CORE_DIR} . "
+    "That directory is normally <pack>/Drivers/CMSIS/Include, beside the Device "
+    "directory that CMSIS_DEVICE_DIR points into. Pass it explicitly with "
+    "-DCMSIS_CORE_DIR=... if this pack is laid out differently.")
+endif()
+
 if(NOT CMSIS_DEVICE_DIR)
   message(STATUS
     "CMSIS_DEVICE_DIR is not set, so P06's three targets are skipped. P01 and "
@@ -146,7 +176,7 @@ foreach(BACKEND systick timer dma)
                 c/instr/cyccnt.c
                 c/instr/freqcount.c
                 ${ACQ}
-        INCLUDES c/P06 c/instr ${CMSIS_DEVICE_DIR}
+        INCLUDES c/P06 c/instr ${CMSIS_DEVICE_DIR} ${CMSIS_CORE_DIR}
         DEFINES ${DEVICE_MACRO})
 endforeach()
 
