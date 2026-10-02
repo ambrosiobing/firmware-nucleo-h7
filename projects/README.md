@@ -17,7 +17,7 @@ distinction was not yet needed. It is now:
 
 | State | What it means |
 | --- | --- |
-| **runs on the board** | cross-compiled, flashed, and observed working on the hardware. P01 only |
+| **runs on the board** | cross-compiled, flashed, and observed working on the hardware. P01 and P02 |
 | **links** | cross-compiles and links clean for the target, and has never been flashed, so nothing is known about its behaviour |
 | **host only** | proven on a laptop against synthetic input, and never built for the target at all |
 
@@ -28,7 +28,7 @@ codec both reached that state on Friday 2 October 2026 and neither has been run.
 | Project | What it is | State |
 | --- | --- | --- |
 | [P01](P01-toolchain-first-light/) | The toolchain, startup and linker script every other project needs | **runs on the board**, Friday 2 October 2026. LD1 green on PB0 blinks at 499.7 ms, `printf` reaches COM13 at 115200, the user button on PC13 reads, and the report carries the core, AHB and APB1 clocks decoded from RCC at startup. The delay loop measures itself against `DWT_CYCCNT` every boot, 9 cycles per iteration, and a 100 ms request lands within 20 parts per million. The oscillator measured 64.17 to 64.18 MHz across six reductions. Still refused: the 280 MHz tree, which needs RM0455 for the PLL fields, the flash latency and the voltage scaling, in that order |
-| [P02](P02-ring-buffer/) | A single producer, single consumer ring buffer | host only. Tested in all four ordering modes, 21.6 million bytes through it per run. No firmware target builds it yet, so the memory ordering argument is untested on the Cortex-M7 write buffer it was written for |
+| [P02](P02-ring-buffer/) | A single producer, single consumer ring buffer | **runs on the board**, Saturday 3 October 2026, four targets one per ordering mode. Producer in thread mode, consumer in SysTick. 12.2 million bytes with zero mismatches across the four, and the barriers now have a price: the DMB costs 7 cycles and 28 bytes, acquire and release cost 17 and 52, and the compiler barrier costs nothing in time while still changing 8 bytes of code. Also still host tested in all four modes, 21.6 million bytes per run |
 | [P03](P03-interrupt-receive/) | Receiving on interrupt without losing bytes | host only. The measurement is proven, attributing every lost byte to the target or the bridge. `rx_ring.c` and both documented failure modes are written and have never been built for the target |
 | [P04](P04-dma-idle-line/) | Circular DMA and the idle line | not started. Needs a transfer engine |
 | [P05](P05-framing-crc/) | Framing and the hardware CRC unit | host only, and proven there: both implementations reach the published check value 0x29B1, and every single-bit corruption is rejected. The peripheral half waits on RM0455 |

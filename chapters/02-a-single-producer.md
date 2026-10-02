@@ -82,14 +82,39 @@ Only two pieces of code touch the structure, and they touch different halves of 
 
 | Quantity | Budget | Measured | Margin |
 | --- | --- | --- | --- |
-| Buffer capacity | 256 bytes | not applicable | not applicable |
-| Structure overhead | 16 bytes | not measured | not measured |
-| Cycles per put | 20 | not measured | not measured |
-| Cycles per get | 20 | not measured | not measured |
-| Added cycles for the release | 10 | not measured | not measured |
-| Bytes dropped in a one hour soak | 0 | not measured | not measured |
+| Buffer capacity | 256 bytes | 256 bytes | exact by construction |
+| Structure overhead | 16 bytes | 12 bytes | +4 bytes |
+| Added cycles for one DMB in put and one in get | 10 | 7 | +3 |
+| Added flash for the same | no budget set | 28 bytes |  |
+| Bytes dropped | 0 in one hour | 0 in 3.2 million | duration short, see below |
+| Mismatched bytes delivered | 0 | 0 in 12.2 million | across all four modes |
 
-*Table 2.4. The budget table. The cycle figures are the shape of the answer taken from the instruction counts, not measurements; the instrument that fills the measured column is the cycle counter in the last step, and the drop counter is read over the console.*
+*Table 2.4. Measured on the board on Saturday 3 October 2026 at 64 MHz, with the cycle counter for the cycles and `arm-none-eabi-size` for the flash. Two rows the budget asked for are missing on purpose and the reason is below.*
+
+**Two rows the budget asked for are not filled, and dividing a measurement in half to fill them would be inventing a number.** The budget asks for cycles per put and cycles per get separately. What was measured is a put and a get as a pair, inside a loop, including the loop control and two function calls that do not inline across translation units. Splitting that into two halves would assume they cost the same, which is the thing a measurement is supposed to settle. Isolating them needs a further measurement that subtracts an empty loop of the same shape, and it has not been made.
+
+The absolute figure is therefore a harness figure: 141 cycles for a pair at mode 0. All four modes carry the identical harness, so the *differences* between them are clean even though the absolute value is not, and the differences are what the chapter is about.
+
+| Mode | Ordering | Cycles | Flash | Mismatches |
+| --- | --- | --- | --- | --- |
+| 0 | none, not shippable | 141 | 8 552 | 0 in 3.0 M |
+| 1 | compiler only, a signal fence | 141 | 8 560 | 0 in 3.2 M |
+| 2 | compiler and processor, one DMB | 148 | 8 580 | 0 in 3.2 M |
+| 3 | acquire load and release store | 158 | 8 604 | 0 in 2.8 M |
+
+*Table 2.5. The four ordering choices measured on the part. Cycles are for a put and get pair including the harness; flash is the `text` section of the whole image. The producer runs in thread mode and the consumer in the SysTick handler.*
+
+**The compiler barrier costs nothing in time and is not a no-op.** Modes 0 and 1 agree to the hundredth of a cycle, which is expected because a signal fence emits no instruction. But the two images are not identical: mode 1 is 8 bytes larger, so the compiler did generate different code. Something was being reordered, or could have been, and the fence prevented it at no cost in time. That is the one unambiguous recommendation this chapter can make from its own numbers: take mode 1, because it is free.
+
+**The DMB costs 7 cycles per pair, 5.0 per cent, and 28 bytes.** Acquire and release cost 17 cycles, 12.1 per cent, and 52 bytes, which is more than double the DMB and is consistent with a barrier at each of two accesses rather than one between them.
+
+**Nothing failed, in any mode, including the one with no barrier at all.** Twelve point two million bytes passed through the ring across the four builds with zero mismatched bytes. The reading that follows from this is narrower than it looks, and the firmware prints the caveat rather than a tick.
+
+It does not show the barriers are unnecessary. It is consistent with the single-core argument, that a core sees its own stores in program order and that taking an exception on the same core is a context-synchronising event, so the producer's data write cannot be observed by its own handler after the index write that followed it. It is equally consistent with the compiler simply not having reordered anything that mattered on these three million bytes, and mode 1 being 8 bytes different says the compiler was doing something.
+
+An absence over three million bytes is not proof of correctness. The case where a barrier is expected to earn its 7 cycles is the one where the other observer is a bus master rather than an interrupt, which is chapter 4 with a transfer engine and chapter 19 with the cache. Neither is built, so this chapter reports what it measured and leaves that question where it belongs.
+
+**The drop row is short of its budget and says so.** The budget asks for a one hour soak. Each mode ran about fourteen seconds, which is 3.2 million bytes and zero drops, with the consumer comfortably ahead of the producer throughout. An hour is a different claim and has not been made.
 
 ## Firmware design (UML)
 
@@ -400,7 +425,7 @@ To look at the structure on a halted target, print it as a whole rather than fie
 | Language | C++ | A template over the element type and the capacity, with the capacity check as a static assertion on the type | Nothing at run time | Chapter 9 |
 | Intelligence and reach | Local only | The buffer feeds a parser on the same board | None | Here |
 
-*Table 2.5. Variants for chapter 2. The overwrite-the-oldest policy is listed as a discussion rather than as code because it is not a variant of this structure; it is a different structure with a different correctness argument, and pretending otherwise is how the two get mixed in one file.*
+*Table 2.6. Variants for chapter 2. The overwrite-the-oldest policy is listed as a discussion rather than as code because it is not a variant of this structure; it is a different structure with a different correctness argument, and pretending otherwise is how the two get mixed in one file.*
 
 ## Pitfalls
 
