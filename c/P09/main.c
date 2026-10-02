@@ -103,21 +103,24 @@ int main(void)
      * bound on the encoder itself rather than the encoder alone, and the budget
      * row says so. */
     if (board_cycles_available() && board_core_hz() >= 1000000u) {
-        const uint32_t n = 2000u;
+        /* reps, not n: main already has an n holding the encoded length, and
+         * shadowing it drew -Wshadow. The warning was right and the name was
+         * lazy. */
+        const uint32_t reps = 2000u;
         uint8_t scratch[PAYLOAD_BYTES];
 
-        for (uint32_t i = 0u; i < n; i++) {
+        for (uint32_t i = 0u; i < reps; i++) {
             (void) payload_encode(scratch, sizeof scratch, &vector);
         }
 
         const uint32_t a0 = board_cycles_now();
-        for (uint32_t i = 0u; i < n; i++) {
+        for (uint32_t i = 0u; i < reps; i++) {
             (void) payload_encode(scratch, sizeof scratch, &vector);
         }
         const uint32_t a1 = board_cycles_now();
 
         const uint32_t b0 = board_cycles_now();
-        for (uint32_t i = 0u; i < (2u * n); i++) {
+        for (uint32_t i = 0u; i < (2u * reps); i++) {
             (void) payload_encode(scratch, sizeof scratch, &vector);
         }
         const uint32_t b1 = board_cycles_now();
@@ -125,11 +128,13 @@ int main(void)
         const uint32_t shortw = a1 - a0;
         const uint32_t longw  = b1 - b0;
         if (longw > shortw) {
-            const uint32_t cx100 = ((longw - shortw) * 100u) / n;
+            const uint32_t cx100 = ((longw - shortw) * 100u) / reps;
             printf("  encode cost   %lu.%02lu cycles per frame, upper bound\r\n",
                    (unsigned long) (cx100 / 100u), (unsigned long) (cx100 % 100u));
             printf("                includes the loop and one call that does not\r\n");
-            printf("                inline. Budget is under 300.\r\n");
+            printf("                inline. The budget is under 300, so this\r\n");
+            printf("                EXCEEDS it by about ten times. bw_put writes\r\n");
+            printf("                one bit at a time; chapter 9 explains.\r\n");
         } else {
             printf("  encode cost   not measured: the two windows did not order\r\n");
         }
