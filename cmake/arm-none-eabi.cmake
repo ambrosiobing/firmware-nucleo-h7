@@ -31,6 +31,13 @@ find_program(CMAKE_OBJCOPY      ${TOOLCHAIN_PREFIX}objcopy REQUIRED)
 find_program(CMAKE_SIZE_UTIL    ${TOOLCHAIN_PREFIX}size REQUIRED)
 find_program(CMAKE_OBJDUMP      ${TOOLCHAIN_PREFIX}objdump)
 
+# Not used to link anything: gcc does the linking, as it must, because it alone
+# knows where the C library and the startup files are. This is here so the build
+# can ask ld what options it understands, which is how the root CMakeLists.txt
+# decides whether a newer linker warning can be suppressed. Not REQUIRED,
+# because a missing ld means only that the question goes unasked.
+find_program(CMAKE_LINKER        ${TOOLCHAIN_PREFIX}ld)
+
 # Look for programs on the host, and for headers and libraries only in the
 # toolchain. Without this a find_package can hand a bare metal build a host
 # library, which links and then does not run.

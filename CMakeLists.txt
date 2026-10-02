@@ -69,19 +69,46 @@ add_link_options(
 # at run time, which is chapter 19's subject and not something a segment flag
 # can express.
 #
-# So the warning is left standing, deliberately, and this comment is the whole
-# of the response to it.
+# It is suppressed, and the guard is the interesting part.
 #
-# -Wl,--no-warn-rwx-segments would silence it, and it was tried and rejected on
-# Friday 2 October 2026. The flag needs binutils 2.39 or newer, and the two
-# toolchains this repository builds with are not the same: CubeIDE's bundled
-# 14.3.1 on win11 skyhorizon, and whatever the continuous integration runner
-# installs. Guarding it with check_linker_flag does not work either, because
-# the toolchain file sets CMAKE_TRY_COMPILE_TARGET_TYPE to STATIC_LIBRARY, so
-# that check never links anything, reports success whatever it is given, and
-# would hand an unknown flag to the older of the two. Trading a cosmetic
-# warning for a build that fails on one machine is a poor trade, and a check
-# that cannot fail is worse than no check.
+# -Wl,--no-warn-rwx-segments silences it and needs binutils 2.39 or newer. Two
+# different toolchains build this repository, CubeIDE's bundled 14.3.1 on win11
+# skyhorizon and whatever the continuous integration runner installs, so the
+# flag cannot simply be assumed.
+#
+# check_linker_flag, the obvious guard, does not work here and the way it fails
+# is worth recording. The toolchain file sets CMAKE_TRY_COMPILE_TARGET_TYPE to
+# STATIC_LIBRARY, which it must, because a bare metal try_compile has no startup
+# files and no linker script and could not link a test program. But that means
+# check_linker_flag never invokes the linker at all: it archives an object with
+# ar, which ignores the flag entirely, and reports success for any string it is
+# handed. A check that cannot fail is worse than no check, because it reads like
+# evidence.
+#
+# So ld is asked directly instead, which is a question it can actually answer.
+# If ld lists the option in its own help output it understands it. If ld is not
+# found, or does not list it, the warning simply stays and nothing breaks.
+set(RWX_FLAG "--no-warn-rwx-segments")
+set(HAVE_NO_WARN_RWX FALSE)
+if(CMAKE_LINKER)
+  execute_process(COMMAND ${CMAKE_LINKER} --help
+                  OUTPUT_VARIABLE LD_HELP
+                  ERROR_VARIABLE  LD_HELP_ERR
+                  RESULT_VARIABLE LD_HELP_RC
+                  OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(LD_HELP_RC EQUAL 0 AND "${LD_HELP}${LD_HELP_ERR}" MATCHES "${RWX_FLAG}")
+    set(HAVE_NO_WARN_RWX TRUE)
+  endif()
+endif()
+
+if(HAVE_NO_WARN_RWX)
+  message(STATUS "ld understands ${RWX_FLAG}, so the RWX segment warning is suppressed")
+  add_link_options(-Wl,${RWX_FLAG})
+else()
+  message(STATUS
+    "ld does not list ${RWX_FLAG}, so the RWX segment warning will appear once "
+    "per target. It is expected and assessed in CMakeLists.txt.")
+endif()
 
 # P01's board support: the vector table, the reset handler, the clock, the LEDs,
 # the console and the printf retarget. Every firmware target links it. No vendor
@@ -122,7 +149,7 @@ target_include_directories(board PUBLIC c/board)
 # when its main.c exists, and not before: an empty target that links and does
 # nothing looks like progress and is not.
 function(add_firmware name)
-    cmake_parse_arguments(FW "" "" "SOURCES;INCLUDES;DEFINES" ${ARGN})
+    cmake_parse_arguments(FW "" "" "SOURCES;INCLUDES;VENDOR_INCLUDES;DEFINES" ${ARGN})
     add_executable(${name} ${FW_SOURCES})
     target_link_libraries(${name} PRIVATE board)
 
@@ -132,6 +159,29 @@ function(add_firmware name)
     # had a chance to pass.
     target_link_options(${name} PRIVATE -Wl,-Map=${name}.map)
     target_include_directories(${name} PRIVATE ${FW_INCLUDES})
+
+    # VENDOR_INCLUDES are the same directories, passed with -isystem instead of
+    # -I, which tells the compiler to hold its warnings about anything inside
+    # them. This is not a way of ignoring problems. It is the only way to see
+    # them.
+    #
+    # The warning set this build uses is deliberately severe, -Wconversion and
+    # -Wsign-conversion among it, and ST's own CMSIS headers do not compile
+    # cleanly under it. cachel1_armv7.h alone produced about seventy-five
+    # -Wsign-conversion warnings on Friday 2 October 2026, fifteen distinct
+    # lines repeated once per translation unit. Every one is in a file this
+    # repository does not own, will not edit, and cannot fix.
+    #
+    # That matters because of what happened earlier the same day. A real defect,
+    # printf writing into a stub that returned failure, announced itself as one
+    # warning line and was missed because it sat in a wall of warnings. Seventy
+    # five unactionable warnings per build is not noise to be tolerated, it is
+    # the exact condition that hid the last defect, maintained on purpose.
+    #
+    # So vendor headers are silenced and ours stay loud. If a warning appears
+    # after this change it is about code in this repository and someone has to
+    # act on it.
+    target_include_directories(${name} SYSTEM PRIVATE ${FW_VENDOR_INCLUDES})
     target_compile_definitions(${name} PRIVATE ${FW_DEFINES})
     set_target_properties(${name} PROPERTIES
         SUFFIX ".elf"
@@ -253,7 +303,8 @@ foreach(BACKEND systick timer dma)
                 c/instr/cyccnt.c
                 c/instr/freqcount.c
                 ${ACQ}
-        INCLUDES c/P06 c/instr ${CMSIS_DEVICE_DIR} ${CMSIS_CORE_DIR}
+        INCLUDES c/P06 c/instr
+        VENDOR_INCLUDES ${CMSIS_DEVICE_DIR} ${CMSIS_CORE_DIR}
         DEFINES ${DEVICE_MACRO})
 endforeach()
 
