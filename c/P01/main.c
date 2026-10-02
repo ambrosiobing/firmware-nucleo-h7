@@ -121,9 +121,16 @@ int main(void)
             printf("                two-point measurement at startup against\r\n");
             printf("                DWT_CYCCNT, so the fixed overhead of the\r\n");
             printf("                measurement itself cancels. A single-probe\r\n");
-            printf("                version read 9.02 and was 0.18%% short, and\r\n");
-            printf("                without a warm-up it read 8.99 and was\r\n");
-            printf("                0.06%% long. The loop costs 9 exactly.\r\n");
+            printf("                The figure MOVES with the build: it was 9.00
+");
+            printf("                until four register writes were added to
+");
+            printf("                Reset_Handler, which shifted the loop in
+");
+            printf("                flash and doubled it. That is why this is
+");
+            printf("                measured every boot and never written down.
+");
         }
     }
 

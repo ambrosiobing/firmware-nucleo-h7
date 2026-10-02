@@ -260,10 +260,21 @@ void board_delay_calibrate(void)
      * worth stating that it needs no estimate of the overhead at all: an
      * unmeasured constant cancels against itself.
      *
-     * Ten thousand iterations is about 1.4 ms at 64 MHz, so the pair costs about
-     * 4 ms at startup, and three times that is nowhere near the counter's 67
-     * second wrap. */
-    const uint32_t n = 10000u;
+     * TWO THOUSAND, reduced from ten thousand on Saturday 3 October 2026, and the
+     * reason is a measurement rather than a preference. P01 reports the time from
+     * the first instruction of C to its first printed character, and that read
+     * 11.989 ms of which about 11.9 ms was this calibration: four spins of n, n
+     * and 2n, which is 40000 iterations, at the 19 cycles the loop happened to
+     * cost in that build. Ninety-nine per cent of startup spent measuring the
+     * delay is a poor trade.
+     *
+     * Precision does not suffer. At 2000 iterations the difference window is tens
+     * of thousands of cycles, so a one cycle error in either reading is a few parts
+     * in a hundred thousand, far below the oscillator's own tolerance. The figure
+     * it produced at 10000 and at 2000 is the same.
+     *
+     * Still nowhere near the counter's 67 second wrap at 64 MHz. */
+    const uint32_t n = 2000u;
 
     /* A WARM-UP, untimed, and the reason it is needed is that two-point
      * subtraction cancels a constant and a warm-up is not one.
