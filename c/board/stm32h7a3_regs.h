@@ -336,6 +336,40 @@
  * ample margin for one percent. A microsecond figure in P06 now carries a stated
  * uncertainty instead of a refusal, which is a different claim and a weaker one
  * than a counted reference would give. */
+/* MEASURED on Friday 2 October 2026 at 64.17 MHz, 0.27 per cent above this
+ * nominal, and the nominal is what stays in the code. The reasoning for keeping
+ * it matters as much as the measurement.
+ *
+ * How it was measured, with no instrument but a serial port. P01 prints a note
+ * every twentieth blink cycle, so the note to note interval is twenty delays and
+ * averages out host jitter. The delay loop runs a known number of iterations, and
+ * the cycles per iteration must be a whole number because it is a fixed
+ * instruction sequence. Measuring the interval therefore pins the product of
+ * cycles and clock period, and the integer constraint separates them: 7 cycles
+ * would imply 56.1 MHz and 9 would imply 72.1 MHz, so the count is 8 and what
+ * remains is the frequency.
+ *
+ * Done twice, through two different code paths, 8,000,000 iterations per cycle
+ * and then 4,000,000 after the divisor was corrected:
+ *
+ *   8,000,000 iterations   998.25 ms per cycle   64.18 MHz
+ *   4,000,000 iterations   499.76 ms per cycle   64.16 MHz
+ *
+ * Those two first disagreed by 0.12 per cent, which was the useful part. The note
+ * itself is 237 characters, 20.6 ms on the wire at 115200 and 1.03 ms amortised
+ * over twenty cycles, and that fixed overhead weighs differently against a 998 ms
+ * delay than against a 499 ms one. Subtracting it brings the two to agree within
+ * 0.025 per cent. A disagreement whose shape predicts its own cause is better
+ * evidence than two numbers that happened to match.
+ *
+ * WHY THE CODE KEEPS 64000000 ANYWAY. 64.17 MHz is this die, on this board, at
+ * whatever the room was that afternoon, against a host PC's clock that is
+ * traceable to nothing. The oscillator's spread across parts, temperature and
+ * supply is wider than the 0.27 per cent found here, so substituting the measured
+ * figure would fit the code to one chip on one afternoon and would read as more
+ * precise while being less general. The nominal is the honest constant; the
+ * measurement is evidence that the nominal is good to about three parts in a
+ * thousand on this board, which is what a reader actually needs to know. */
 #define HSI_HZ_NOMINAL     64000000u
 
 /* The target, which is settled arithmetic from settled facts: the debugger
