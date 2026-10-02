@@ -374,6 +374,19 @@
  * 0.025 per cent. A disagreement whose shape predicts its own cause is better
  * evidence than two numbers that happened to match.
  *
+ * CONFIRMED FOUR MORE TIMES, same day, after the cycle counter arrived. Pairing
+ * an on-chip cycle count with the host's measurement of real time determines the
+ * frequency without the integer argument above, and three successive refinements
+ * of the delay calibration each produced a reading:
+ *
+ *   host clock plus an integer constraint        64.17 MHz
+ *   host clock plus on-chip cycles               64.19 MHz
+ *   again, after the two-point fix               64.18 MHz
+ *   again, after the warm-up fix, three times    64.17, 64.17, 64.18 MHz
+ *
+ * Six reductions, two instruments, spread 0.031 per cent. The oscillator is
+ * 64.17 to 64.18 MHz, about 0.27 per cent above nominal.
+ *
  * WHY THE CODE KEEPS 64000000 ANYWAY. 64.17 MHz is this die, on this board, at
  * whatever the room was that afternoon, against a host PC's clock that is
  * traceable to nothing. The oscillator's spread across parts, temperature and
