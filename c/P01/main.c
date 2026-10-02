@@ -34,7 +34,13 @@ static void report_by_led(board_status_t clock, board_status_t console)
         board_led_set(BOARD_LED_GREEN, true);       /* everything established */
         return;
     }
-    if (clock != BOARD_OK) {
+    /* Red means the frequency could not be established at all, which is a
+     * narrower claim than "not BOARD_OK". Running at the reset speed is also not
+     * BOARD_OK and is deliberately given no LED: the frequency is known in that
+     * case, the console reports it with its provenance, and a third LED state
+     * would be indistinguishable from the green heartbeat the loop drives. An
+     * indicator that cannot be told apart from another indicator is not one. */
+    if (clock == BOARD_ERR_CLOCK_UNCONFIRMED) {
         board_led_set(BOARD_LED_RED, true);         /* the clock is not known */
     }
     if (console != BOARD_OK) {
@@ -55,14 +61,28 @@ int main(void)
      * information for exactly this case. */
     printf("\r\nnucleo-h7a3 P01, first light\r\n");
 
+    /* Three cases, not two, since Friday 2 October 2026. Collapsing the middle
+     * one into the first would throw away a frequency that is genuinely known,
+     * and collapsing it into the last would claim the 280 MHz target had been
+     * reached. */
     if (hz == 0u) {
         /* Refusing to print a frequency is correct. A guessed rate would scale
          * every measured figure in every later project by an unknown factor. */
         printf("  core clock    not established\r\n");
         printf("                RM0455 governs the PLL, the flash latency and\r\n");
         printf("                the voltage scaling. None has been read.\r\n");
+    } else if (clock == BOARD_CLOCK_AT_RESET_SPEED) {
+        printf("  core clock    %lu Hz, the reset clock, NOT the 280 MHz target\r\n",
+               (unsigned long) hz);
+        printf("                decoded from RCC_CR, RCC_CFGR, RCC_CDCFGR1 and\r\n");
+        printf("                RCC_CDCFGR2 rather than assumed. Nominal, so it\r\n");
+        printf("                carries the oscillator's datasheet tolerance.\r\n");
+        printf("  apb1 clock    %lu Hz, which is what a baud divider needs\r\n",
+               (unsigned long) board_pclk1_hz());
     } else {
-        printf("  core clock    %lu Hz\r\n", (unsigned long) hz);
+        printf("  core clock    %lu Hz, at the configured target\r\n",
+               (unsigned long) hz);
+        printf("  apb1 clock    %lu Hz\r\n", (unsigned long) board_pclk1_hz());
     }
 
     if (console != BOARD_OK) {

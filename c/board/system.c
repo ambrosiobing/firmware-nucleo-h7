@@ -26,6 +26,110 @@
 
 static board_status_t g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
 static uint32_t       g_core_hz;        /* 0 until established */
+static uint32_t       g_pclk1_hz;       /* 0 until established */
+
+/* These are statics written from SystemInit, which is only safe because
+ * Reset_Handler copies .data and zeroes .bss BEFORE calling it. The comment at
+ * that call site names this exact hazard and says it stays harmless until
+ * SystemInit gains a static variable. It just did. If the order in startup.c is
+ * ever rearranged, the symptom will be a frequency of zero on a part whose
+ * registers are configured perfectly well, and it will be invisible in a
+ * diff. */
+
+#ifdef BOARD_REGS_CONFIRMED
+
+/* The AHB and CPU prescaler fields share one four-bit encoding. Only the three
+ * ratios ST's device header names are decoded; everything else refuses, because
+ * the remaining ratios are not evenly spaced and writing them from recollection
+ * of how this family usually encodes them is how a clock ends up wrong by a
+ * factor of two with every register apparently correct. */
+static uint32_t ahb_cpu_divider(uint32_t field)
+{
+    switch (field) {
+    case RCC_AHBPRE_DIV1: return 1u;
+    case RCC_AHBPRE_DIV2: return 2u;
+    case RCC_AHBPRE_DIV4: return 4u;
+    default:              return 0u;
+    }
+}
+
+static uint32_t apb_divider(uint32_t field)
+{
+    switch (field) {
+    case RCC_APBPRE_DIV1: return 1u;
+    case RCC_APBPRE_DIV2: return 2u;
+    case RCC_APBPRE_DIV4: return 4u;
+    default:              return 0u;
+    }
+}
+
+/* sys_ck, in hertz, or 0 when this code cannot say.
+ *
+ * HSI is decoded; the other three sources refuse, each for its own reason. CSI
+ * has a nominal this repository has not sourced. HSE depends on what the board
+ * feeds in, which is the debugger's 8 MHz here but is a board fact rather than a
+ * register fact. PLL1 would need its own divider chain decoded from four more
+ * registers, which is a later chapter, and guessing it would produce exactly the
+ * plausible wrong frequency this whole design refuses. */
+static uint32_t system_source_hz(void)
+{
+    const uint32_t cr  = RCC_CR;
+    const uint32_t sws = (RCC_CFGR & RCC_CFGR_SWS_MSK) >> RCC_CFGR_SWS_POS;
+
+    if (sws != RCC_SWS_HSI) {
+        return 0u;
+    }
+
+    /* HSIDIV is two bits and the header names all four values: _1, _2, _4 and _8
+     * at field values 0 to 3. So the divisor is 1 << field and the frequency is a
+     * right shift, which is exact rather than a rounded division. */
+    const uint32_t d = (cr & RCC_CR_HSIDIV_MSK) >> RCC_CR_HSIDIV_POS;
+    return HSI_HZ_NOMINAL >> d;
+}
+
+/* Decode rather than assume, so this reports the truth on the reset clock now and
+ * on the 280 MHz tree once that is written, with no second code path. */
+static void clock_establish(void)
+{
+    const uint32_t sys = system_source_hz();
+    if (sys == 0u) {
+        g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
+        g_core_hz = 0u;
+        g_pclk1_hz = 0u;
+        return;
+    }
+
+    const uint32_t cfg1 = RCC_CDCFGR1;
+    const uint32_t cpu_div =
+        ahb_cpu_divider((cfg1 & RCC_CDCFGR1_CDCPRE_MSK) >> RCC_CDCFGR1_CDCPRE_POS);
+    const uint32_t ahb_div =
+        ahb_cpu_divider((cfg1 & RCC_CDCFGR1_HPRE_MSK) >> RCC_CDCFGR1_HPRE_POS);
+    const uint32_t apb1_div =
+        apb_divider((RCC_CDCFGR2 & RCC_CDCFGR2_CDPPRE1_MSK) >> RCC_CDCFGR2_CDPPRE1_POS);
+
+    if (cpu_div == 0u || ahb_div == 0u || apb1_div == 0u) {
+        /* A ratio outside the decoded set. Refusing is right: reporting the
+         * undivided frequency here would be wrong by that very ratio. */
+        g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
+        g_core_hz = 0u;
+        g_pclk1_hz = 0u;
+        return;
+    }
+
+    /* The order of the chain on this part: sys_ck divided by CDCPRE gives the
+     * core clock, the core clock divided by HPRE gives the AHB buses, and the
+     * AHB clock divided by CDPPRE1 gives APB1. Getting that order wrong matters
+     * only when the ratios differ from one, which is why it has to be right now
+     * rather than when it starts to show. */
+    g_core_hz  = sys / cpu_div;
+    g_pclk1_hz = (g_core_hz / ahb_div) / apb1_div;
+
+    g_clock_status = (g_core_hz == CORE_HZ_TARGET)
+                   ? BOARD_OK
+                   : BOARD_CLOCK_AT_RESET_SPEED;
+}
+
+#endif  /* BOARD_REGS_CONFIRMED */
 
 void SystemInit(void)
 {
@@ -57,12 +161,18 @@ void SystemInit(void)
      * a guessed clock into a measured one. Until it is written, the two lines
      * below stay as they are.
      */
-    g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
-    g_core_hz = 0u;
+    /* The 280 MHz tree is still not configured, and the steps above are still
+     * what it would take. What changed on Friday 2 October 2026 is that not
+     * configuring it no longer means not knowing the frequency. The registers
+     * state what the clock is, so they are read and decoded, and the status
+     * distinguishes "running at the reset speed, which is this many hertz" from
+     * "cannot say". Those were the same value before and should not have been. */
+    clock_establish();
 #else
     /* Nothing is confirmed, so nothing is claimed. */
     g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
     g_core_hz = 0u;
+    g_pclk1_hz = 0u;
 #endif
 }
 
@@ -76,17 +186,32 @@ uint32_t board_core_hz(void)
     return g_core_hz;
 }
 
+uint32_t board_pclk1_hz(void)
+{
+    return g_pclk1_hz;
+}
+
 bool board_delay_ms(uint32_t ms)
 {
-    /* With no established core frequency this cannot be a time, and it says so
-     * by returning false. It still delays, because a blinking LED is more useful
-     * than a refusal at this point in the bring-up, but the return value is
-     * there so that nothing times anything with it by accident.
+    /* This still returns false, and the reason it returns false has changed.
      *
-     * The loop count assumes the unconfirmed internal oscillator frequency and
-     * roughly four cycles per iteration. Both are approximations and that is
-     * the whole reason this returns false. */
-    const uint32_t hz = g_core_hz ? g_core_hz : HSI_HZ_UNCONFIRMED;
+     * There were two approximations here. The frequency was one, and it is now
+     * established: g_core_hz is decoded from the RCC registers and is a
+     * datasheet nominal with about one percent on it rather than an unknown.
+     *
+     * The other has not moved. The loop count assumes roughly four cycles per
+     * iteration, which depends on the compiler, the optimisation level, whether
+     * the loop sits in a cache line already fetched, and on flash wait states.
+     * That is not a one percent effect and it is not a correction factor anyone
+     * has measured. So this remains unfit for timing and keeps saying so.
+     *
+     * Worth stating plainly because the temptation runs the other way: settling
+     * the clock made one of two approximations go away, and it would have been
+     * easy to let the return value become true on the strength of that. A caller
+     * reading true would then believe a figure that is still wrong by whatever
+     * the real cycles per iteration turns out to be. P06 is where a delay gets a
+     * counted reference instead of a guessed one. */
+    const uint32_t hz = g_core_hz ? g_core_hz : HSI_HZ_NOMINAL;
     const uint32_t iterations = (hz / 4000u) * ms;
 
     for (volatile uint32_t i = 0; i < iterations; i++) {

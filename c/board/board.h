@@ -40,6 +40,7 @@
  * look rather than only that something went wrong. */
 typedef enum {
     BOARD_OK                   =  0,
+    BOARD_CLOCK_AT_RESET_SPEED =  1,   /* frequency known, but not the target */
     BOARD_ERR_CLOCK_UNCONFIRMED = -1,  /* RM0455 PLL, latency, voltage scaling */
     BOARD_ERR_UART_PINS_UNCONFIRMED = -2,  /* MB1363 virtual COM port pins */
     BOARD_ERR_NOT_INITIALISED  = -3,
@@ -58,16 +59,40 @@ typedef enum {
  * because that needs values this repository has not confirmed. */
 void SystemInit(void);
 
-/* What SystemInit actually achieved, so a project can print it rather than
- * assume it. Returns BOARD_OK when the clock tree is at its configured target
- * and BOARD_ERR_CLOCK_UNCONFIRMED when the part is still on its reset clock. */
+/* What SystemInit actually achieved, so a project can print it rather than assume
+ * it. Three outcomes, and the middle one was added on Friday 2 October 2026
+ * because collapsing it into the third was costing the truth:
+ *
+ *   BOARD_OK                     at the configured 280 MHz target
+ *   BOARD_CLOCK_AT_RESET_SPEED   frequency known and reported, but it is the
+ *                                reset clock rather than the target
+ *   BOARD_ERR_CLOCK_UNCONFIRMED  the frequency could not be established at all
+ *
+ * The distinction is the whole point. "Not at the target" and "unknown" are
+ * different states, and a caller that must refuse to time anything cares about
+ * the second and not the first. */
 board_status_t board_clock_status(void);
 
-/* The core frequency the code believes it is running at, in hertz, or 0 when
- * that is not established. Zero is the honest answer and every caller must
+/* The core frequency, in hertz, decoded from the RCC registers at startup rather
+ * than hardcoded, so this function is equally truthful on the reset clock and on
+ * the 280 MHz tree once that is written.
+ *
+ * Still 0 when the frequency could not be established, and every caller must
  * handle it: a tick count without its rate is not a time, and a guessed rate
- * scales every measured figure by an unknown factor. */
+ * scales every measured figure by an unknown factor.
+ *
+ * When non-zero it is nominal rather than measured, because the oscillator's own
+ * frequency comes from the datasheet. Ask board_clock_status() for which clock it
+ * is before quoting a figure derived from it. */
 uint32_t board_core_hz(void);
+
+/* The APB1 peripheral bus frequency, which is what a USART baud rate divider
+ * needs and which is not in general the same as the core frequency. Separate
+ * because deriving one from the other is the kind of silent assumption this
+ * board support exists to avoid: the two are equal only while the prescalers are
+ * at divide by one, which is true on the reset clock and will not be at 280 MHz.
+ * 0 when not established. */
+uint32_t board_pclk1_hz(void);
 
 /* Full initialisation: clock, LEDs, console, printf retarget. Safe to call once.
  * Never fails: where a part of it cannot be configured, that part is left

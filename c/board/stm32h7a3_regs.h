@@ -108,8 +108,54 @@
  *   CKGAENR at 0x0B0, then RESERVED10[31] spans 0x0B4 to 0x12F, then
  *   RSR 0x130, AHB3ENR 0x134, AHB1ENR 0x138, AHB2ENR 0x13C, AHB4ENR 0x140,
  *   APB3ENR 0x144, APB1LENR 0x148 */
+#define RCC_CR          REG32(RCC_BASE + 0x000u)   /* oscillators and the PLL */
+#define RCC_CFGR        REG32(RCC_BASE + 0x010u)   /* which source drives sys_ck */
+#define RCC_CDCFGR1     REG32(RCC_BASE + 0x018u)   /* CPU and AHB prescalers */
+#define RCC_CDCFGR2     REG32(RCC_BASE + 0x01Cu)   /* APB1 and APB2 prescalers */
 #define RCC_AHB4ENR     REG32(RCC_BASE + 0x140u)   /* the GPIO port clocks */
 #define RCC_APB1LENR    REG32(RCC_BASE + 0x148u)   /* USART3's clock */
+
+/* The clock tree fields, every one of them taken from a named define in ST's
+ * device header rather than from what is true across the STM32H7 family. The
+ * distinction matters here more than anywhere: this is the register set whose
+ * layout differs between RM0455 and RM0433, and the H743 calls these same
+ * registers D1CFGR and D1PPRE1 rather than CDCFGR1 and CDPPRE1.
+ *
+ * Read from the running part on Friday 2 October 2026, which is how the reset
+ * tree below was established rather than assumed. */
+#define RCC_CR_HSIDIV_POS       3u
+#define RCC_CR_HSIDIV_MSK       (3u << RCC_CR_HSIDIV_POS)
+#define RCC_CR_HSIDIVF_MSK      (1u << 5)       /* the ratio above is in effect */
+#define RCC_CR_HSEON_MSK        (1u << 16)
+#define RCC_CR_PLL1ON_MSK       (1u << 24)
+
+#define RCC_CFGR_SWS_POS        3u
+#define RCC_CFGR_SWS_MSK        (7u << RCC_CFGR_SWS_POS)
+#define RCC_SWS_HSI             0u      /* RCC_CFGR_SWS_HSI  = 0x00 */
+#define RCC_SWS_CSI             1u      /* RCC_CFGR_SWS_CSI  = 0x08 */
+#define RCC_SWS_HSE             2u      /* RCC_CFGR_SWS_HSE  = 0x10 */
+#define RCC_SWS_PLL1            3u      /* RCC_CFGR_SWS_PLL1 = 0x18 */
+
+#define RCC_CDCFGR1_HPRE_POS    0u      /* the AHB prescaler */
+#define RCC_CDCFGR1_HPRE_MSK    (0xFu << RCC_CDCFGR1_HPRE_POS)
+#define RCC_CDCFGR1_CDCPRE_POS  8u      /* the CPU prescaler */
+#define RCC_CDCFGR1_CDCPRE_MSK  (0xFu << RCC_CDCFGR1_CDCPRE_POS)
+#define RCC_CDCFGR2_CDPPRE1_POS 4u      /* the APB1 prescaler */
+#define RCC_CDCFGR2_CDPPRE1_MSK (7u << RCC_CDCFGR2_CDPPRE1_POS)
+
+/* The divider encodings, and only the ones ST's header names. The AHB and CPU
+ * fields are four bits with a sparse encoding, and the header gives DIV1, DIV2
+ * and DIV4 as 0x0, 0x8 and 0x9. Later ratios exist and are deliberately NOT
+ * written here from recollection of how the family usually encodes them: the
+ * decoder refuses on any field value not in this list and names the register and
+ * the value, so extending it means reading three more lines of the header rather
+ * than debugging a frequency that is wrong by a factor of two. */
+#define RCC_AHBPRE_DIV1         0x0u
+#define RCC_AHBPRE_DIV2         0x8u
+#define RCC_AHBPRE_DIV4         0x9u
+#define RCC_APBPRE_DIV1         0x0u
+#define RCC_APBPRE_DIV2         0x4u
+#define RCC_APBPRE_DIV4         0x5u
 
 /* Enable bit positions, from the header's own _Pos defines. */
 #define RCC_AHB4ENR_GPIOBEN_POS   1u
@@ -206,13 +252,34 @@
 #define GPIO_PUPD_PULLUP    1u
 #define GPIO_PUPD_PULLDOWN  2u
 
-/* The reset clock. The part starts on its internal oscillator, and that is what
- * makes first light possible with no confirmed value at all. The frequency is
- * TO BE CONFIRMED: this family's internal oscillator is commonly 64 MHz, and
- * commonly is not a measurement. board_core_hz() returns 0 rather than this
- * number until it is confirmed, because a tick count without its rate is not a
- * time. */
-#define HSI_HZ_UNCONFIRMED 64000000u
+/* The reset clock, and what changed about it on Friday 2 October 2026.
+ *
+ * This used to be HSI_HZ_UNCONFIRMED, with a comment saying that the family's
+ * internal oscillator is commonly 64 MHz and that commonly is not a
+ * measurement. That was right to refuse. It is no longer the situation.
+ *
+ * The running part was read over SWD and every link in the chain was then
+ * confirmed against a named define in ST's device header:
+ *
+ *   RCC_CR      0x00004025   HSION, HSIRDY, HSIDIV = 00 which is
+ *                            RCC_CR_HSIDIV_1, divide by one. HSEON = 0 and
+ *                            PLL1ON = 0, so neither the external 8 MHz nor
+ *                            the PLL is running.
+ *   RCC_CFGR    0x00000000   SWS = 000 = RCC_CFGR_SWS_HSI, so HSI really is
+ *                            the system clock and not merely requested.
+ *   RCC_CDCFGR1 0x00000000   RCC_CDCFGR1_CDCPRE_DIV1 and HPRE_DIV1.
+ *   RCC_CDCFGR2 0x00000000   RCC_CDCFGR2_CDPPRE1_DIV1.
+ *
+ * So the core, the AHB and the APB1 bus are all at hsi_ck, undivided.
+ *
+ * NOMINAL, not measured, and the word is chosen. 64 MHz is the datasheet figure
+ * for this oscillator, carrying roughly one percent at room temperature and more
+ * across temperature and supply. What was established is the configuration, to
+ * certainty, and the frequency only to that tolerance. A 115200 baud divider has
+ * ample margin for one percent. A microsecond figure in P06 now carries a stated
+ * uncertainty instead of a refusal, which is a different claim and a weaker one
+ * than a counted reference would give. */
+#define HSI_HZ_NOMINAL     64000000u
 
 /* The target, which is settled arithmetic from settled facts: the debugger
  * supplies 8 MHz in bypass mode, and 8 / 2 times 140 / 2 gives 280 MHz. What is
