@@ -121,16 +121,11 @@ int main(void)
             printf("                two-point measurement at startup against\r\n");
             printf("                DWT_CYCCNT, so the fixed overhead of the\r\n");
             printf("                measurement itself cancels. A single-probe\r\n");
-            printf("                The figure MOVES with the build: it was 9.00
-");
-            printf("                until four register writes were added to
-");
-            printf("                Reset_Handler, which shifted the loop in
-");
-            printf("                flash and doubled it. That is why this is
-");
-            printf("                measured every boot and never written down.
-");
+            printf("                The figure MOVES with the build: it was 9.00 \r\n");
+            printf("                until four register writes were added to \r\n");
+            printf("                Reset_Handler, which shifted the loop in \r\n");
+            printf("                flash and doubled it. That is why this is \r\n");
+            printf("                measured every boot and never written down. \r\n");
         }
     }
 
