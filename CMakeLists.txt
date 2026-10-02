@@ -142,6 +142,7 @@ add_library(board OBJECT
     c/board/system.c
     c/board/board.c
     c/board/uart.c
+    c/board/cycles.c
     c/board/retarget.c)
 target_include_directories(board PUBLIC c/board)
 

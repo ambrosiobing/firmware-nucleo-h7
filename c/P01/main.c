@@ -90,6 +90,32 @@ int main(void)
         printf("  console       not established, so you are not reading this\r\n");
     }
 
+    /* The cycle counter and what it measured, which is the one line in this
+     * report that is a measurement taken on the part rather than a value read out
+     * of a vendor file. */
+    if (!board_cycles_available()) {
+        printf("  cycle counter DWT_CYCCNT did not advance, so it is unavailable\r\n");
+        printf("                Three writes can fail silently: TRCENA, the\r\n");
+        printf("                CoreSight lock, and CYCCNTENA. Nothing is timed.\r\n");
+    } else {
+        const uint32_t ipm = board_delay_iters_per_ms();
+        printf("  cycle counter DWT_CYCCNT running, ARM's own, not RM0455's\r\n");
+        if (ipm == 0u) {
+            printf("  delay         NOT calibrated, so intervals are approximate\r\n");
+        } else {
+            /* Fixed point to two places without pulling in floating point
+             * formatting, which newlib-nano omits by default and which would cost
+             * flash to add for one line of a report. */
+            const uint32_t cyc_x100 = ((hz / 1000u) * 100u) / ipm;
+            printf("  delay         %lu iterations/ms, measured = %lu.%02lu cycles each\r\n",
+                   (unsigned long) ipm,
+                   (unsigned long) (cyc_x100 / 100u),
+                   (unsigned long) (cyc_x100 % 100u));
+            printf("                measured at startup against DWT_CYCCNT, on this\r\n");
+            printf("                build. A host clock gave 8.00 independently.\r\n");
+        }
+    }
+
     printf("  LEDs          green PB0, yellow PE1, red PB14, all settled\r\n");
     {
         /* Printed once, because a reader wants to know the pin was configured as

@@ -70,6 +70,18 @@
 #define DWT_LAR         REG32(0xE0001FB0u)         /* unlock, see P02 and P06 */
 #define DEM_CR          REG32(0xE000EDFCu)
 
+/* The three bits and one key that start the cycle counter. All ARM's, from the
+ * ARMv7-M architecture reference manual rather than from RM0455, which is why
+ * they are usable while most of this file's peripheral values were not.
+ *
+ * DWT_LAR_KEY is a CoreSight software lock. Some implementations require it
+ * before DWT_CTRL accepts a write and some have no such register, so it is
+ * written unconditionally: the cost is one instruction and the alternative is
+ * researching which case applies here. */
+#define DEM_CR_TRCENA_POS        24u
+#define DWT_CTRL_CYCCNTENA_POS    0u
+#define DWT_LAR_KEY             0xC5ACCE55u
+
 /* ------------------------------------------------------------- peripherals ---
  * Confirmed. Each line carries the expression the device header gave as well as
  * the value it resolves to, because a bare hexadecimal number here would be the

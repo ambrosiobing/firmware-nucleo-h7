@@ -191,81 +191,104 @@ uint32_t board_pclk1_hz(void)
     return g_pclk1_hz;
 }
 
-bool board_delay_ms(uint32_t ms)
+/* THE loop, and the reason it is a function.
+ *
+ * The calibration below and board_delay_ms() both call this and nothing else, so
+ * by construction they cost the same per iteration. Calibrating one loop and then
+ * timing a different one is the classic way to get this wrong: the compiler is
+ * free to unroll, reorder or register-allocate two textually identical loops
+ * differently depending on what surrounds them, and the error is silent.
+ *
+ * The counter is volatile, which forces a load and a store to memory on every
+ * iteration rather than keeping it in a register. That is what makes the loop
+ * cost eight cycles rather than four, and it is deliberate: a loop the compiler
+ * can see through can be deleted entirely. */
+static void spin(uint32_t iterations)
 {
-    /* This still returns false, and the reason it returns false has changed.
-     *
-     * There were two approximations here. The frequency was one, and it is now
-     * established: g_core_hz is decoded from the RCC registers and is a
-     * datasheet nominal with about one percent on it rather than an unknown.
-     *
-     * The other has been measured, and the measurement is why this still refuses
-     * rather than why it could stop.
-     *
-     * The loop count assumed roughly four cycles per iteration. On Friday
-     * 2 October 2026 that was measured on the board and it is eight. Exactly
-     * eight: P01 prints a note every twentieth blink cycle, three consecutive
-     * note to note intervals came out at 19966, 19966 and 19963 ms, a spread of
-     * 0.015 per cent, and dividing gives 7.99 cycles per iteration. So the blink
-     * had been running at 998 ms where the code intended 500, wrong by a factor
-     * of two, and the divisor below is corrected from 4000 to 8000.
-     *
-     * Eight is believable from the loop itself: the counter is declared volatile,
-     * which forces a load and a store to memory every iteration instead of
-     * keeping it in a register, roughly doubling what the loop would otherwise
-     * cost.
-     *
-     * That same measurement incidentally weighed the clock. Cycles per iteration
-     * must be a whole number, so 7.99 cannot be the cycle count; it is the
-     * divisor being slightly off, and the divisor is the frequency. Seven cycles
-     * would imply 56.1 MHz and nine would imply 72.1 MHz, neither of them
-     * anywhere near. Eight implies 64.11 MHz, 0.18 per cent above the 64.00 MHz
-     * nominal and well inside the oscillator's specified tolerance. That is the
-     * first figure for this part's clock that is a measurement rather than a
-     * datasheet value, and its reference is a host PC's clock over three twenty
-     * second intervals, which is good to far better than a tenth of a per cent
-     * and is not traceable to anything.
-     *
-     * AND IT STILL RETURNS FALSE. Eight cycles is eight cycles for this compiler
-     * at this optimisation level with this code in flash and this clock. Change
-     * the optimisation level, move the loop, enable the instruction cache, or
-     * raise the clock so the flash wait states bite differently, and it moves,
-     * and nothing in the build checks that it has not. A figure that holds only
-     * under conditions nobody verifies is not one to hand a caller as
-     * trustworthy. P06 replaces the estimate with a counted reference, which is
-     * what makes a delay a time.
-     *
-     * Worth stating plainly because the temptation runs the other way: settling
-     * the clock made one of two approximations go away, and it would have been
-     * easy to let the return value become true on the strength of that. A caller
-     * reading true would then believe a figure that is still wrong by whatever
-     * the real cycles per iteration turns out to be. P06 is where a delay gets a
-     * counted reference instead of a guessed one. */
-    const uint32_t hz = g_core_hz ? g_core_hz : HSI_HZ_NOMINAL;
-    /* 8000, not 4000: eight measured cycles per iteration and a thousand
-     * milliseconds in a second. This now gives 499 ms for a requested 500. */
-    const uint32_t iterations = (hz / 8000u) * ms;
-
-    for (volatile uint32_t i = 0; i < iterations; i++) {
+    for (volatile uint32_t i = 0u; i < iterations; i++) {
         __asm volatile ("nop");
     }
+}
 
-    /* Unconditionally false, and NOT g_core_hz != 0u, which is what this line
-     * was until Friday 2 October 2026 and which silently became true the moment
-     * the clock was decoded.
+/* Measured iterations per millisecond. 0 means calibration did not happen, which
+ * is the only thing that now makes board_delay_ms() refuse. */
+static uint32_t g_iters_per_ms;
+
+void board_delay_calibrate(void)
+{
+    g_iters_per_ms = 0u;
+
+    /* Both are required and neither can be assumed. Without the counter there is
+     * nothing to measure against; without an established frequency a cycle count
+     * cannot become a time. */
+    if (!board_cycles_available() || g_core_hz == 0u) {
+        return;
+    }
+
+    /* Ten thousand iterations is about 1.25 ms at 64 MHz: long enough that the
+     * two counter reads and the function call are a rounding error, short enough
+     * that it cannot approach the counter's 67 second wrap. */
+    const uint32_t probe = 10000u;
+
+    const uint32_t t0 = board_cycles_now();
+    spin(probe);
+    const uint32_t t1 = board_cycles_now();
+
+    /* Unsigned subtraction, correct across one wrap of the 32 bit counter. */
+    const uint32_t cycles = t1 - t0;
+    if (cycles == 0u) {
+        return;
+    }
+
+    /* iterations per ms = probe * (cycles in one ms) / cycles measured.
      *
-     * That was a real defect and the comment above it was the symptom: it argued
-     * at length that this function still refuses, while the code had quietly
-     * started agreeing to be trusted. The two approximations were never
-     * independent of each other in the prose and were in the code.
+     * The multiplication is checked rather than hoped for: probe is 10000 and
+     * g_core_hz/1000 is at most 280000 at this part's top speed, so the product
+     * is at most 2.8e9, inside a uint32. At 64 MHz it is 6.4e8. */
+    g_iters_per_ms = (probe * (g_core_hz / 1000u)) / cycles;
+}
+
+uint32_t board_delay_iters_per_ms(void)
+{
+    return g_iters_per_ms;
+}
+
+bool board_delay_ms(uint32_t ms)
+{
+    /* CALIBRATED, and this is the function finally able to return true.
      *
-     * It was caught by the console. P01 prints a note on every twentieth cycle
-     * while this returns false, the note never appeared, and the only way that
-     * happens is if this returned true. A board that can talk finds things a
-     * board that only blinks cannot.
+     * It refused all day on Friday 2 October 2026 and the refusal was right. Two
+     * approximations stood in it: the core frequency, settled that morning by
+     * decoding RCC, and the cycles per iteration, which was a guess of four,
+     * measured from a host PC's clock as eight, and corrected to a constant. A
+     * measured constant was still the wrong answer, because eight cycles holds
+     * for one compiler at one optimisation level with this code in flash at this
+     * clock, and nothing in the build checks that it still does.
      *
-     * This becomes conditional again when a caller can be told the truth, which
-     * means when the cycles per iteration has a counted reference rather than an
-     * estimate. That is P06, which is the project that exists to supply it. */
+     * So it is measured at startup instead, on the actual build, against the
+     * core's own counter, using the same spin() the delay itself calls. Change the
+     * optimisation level and the figure changes with it. The remaining uncertainty
+     * is the oscillator's absolute accuracy, which is a stated tolerance rather
+     * than an unknown factor: nominal 64 MHz, measured 64.17 MHz on this board.
+     * A caller wanting to know which clock asks board_clock_status().
+     *
+     * That is the difference between a figure that is correct and a figure that is
+     * known to be correct, and it is the whole reason this can now return true.
+     *
+     * One limit worth naming: at the measured 8000 iterations per millisecond the
+     * product below overflows a uint32 above about 536,000 ms, which is nine
+     * minutes. Nothing busy-waits for nine minutes, and if it did, the counter
+     * would be the wrong instrument anyway. */
+    if (g_iters_per_ms != 0u) {
+        spin(g_iters_per_ms * ms);
+        return true;
+    }
+
+    /* Uncalibrated. Still delays, because a blinking LED is more useful than a
+     * refusal during bring-up, and still returns false so that nothing times
+     * anything with it. The divisor is the figure measured on
+     * Friday 2 October 2026, kept only as a fallback. */
+    const uint32_t hz = g_core_hz ? g_core_hz : HSI_HZ_NOMINAL;
+    spin((hz / 8000u) * ms);
     return false;
 }

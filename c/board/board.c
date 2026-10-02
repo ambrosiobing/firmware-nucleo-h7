@@ -189,5 +189,13 @@ void board_init(void)
     pin_input_pull(BUTTON_PORT, BUTTON_PIN, GPIO_PUPD_PULLDOWN);
 #endif
 
+    /* Before the console, so that anything the console does can be measured, and
+     * because the console's own init is the first thing in this file long enough
+     * to be worth timing. */
+    board_cycles_init();
+
+    /* After the counter, because it measures with it. Order required. */
+    board_delay_calibrate();
+
     board_console_init();
 }

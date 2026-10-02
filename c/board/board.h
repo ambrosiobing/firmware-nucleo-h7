@@ -119,6 +119,33 @@ board_status_t board_console_status(void);
  * tell a byte sent from a byte discarded. */
 bool board_console_put(char c);
 
+/* The core's own cycle counter, DWT_CYCCNT, which is ARM's and not ST's.
+ *
+ * board_cycles_init() is called by board_init() and verifies that the counter
+ * actually advances rather than assuming three register writes took effect.
+ * board_cycles_available() reports that verdict, and every caller must consult it:
+ * enabling the counter can fail silently in three separate ways, and a cycle
+ * count of zero looks exactly like a very fast function.
+ *
+ * The counter is 32 bits of core clock cycles and wraps about every 67 seconds at
+ * 64 MHz. Unsigned subtraction of two readings is correct across one wrap and
+ * meaningless across two, so an interval longer than about a minute needs a
+ * different instrument. */
+void     board_cycles_init(void);
+bool     board_cycles_available(void);
+uint32_t board_cycles_now(void);
+
+/* Measure what the delay loop actually costs, using the cycle counter, and keep
+ * the result. Called by board_init() after board_cycles_init(), and that order is
+ * required: calibration needs the counter running.
+ *
+ * board_delay_iters_per_ms() returns the measured iterations per millisecond, or
+ * 0 when calibration could not be done, which is also what makes
+ * board_delay_ms() return false. Dividing the core frequency in kilohertz by it
+ * gives the measured cycles per iteration, which is the figure worth printing. */
+void     board_delay_calibrate(void);
+uint32_t board_delay_iters_per_ms(void);
+
 /* The button's three registers, for diagnosis rather than for use.
  *
  * board_button_pressed() answers a yes or no question and that answer has been
