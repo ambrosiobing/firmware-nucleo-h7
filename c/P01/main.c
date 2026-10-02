@@ -108,8 +108,18 @@ int main(void)
              * who attaches a terminal later still learns it. */
             static uint32_t said;
             if ((said++ % 20u) == 0u) {
-                printf("  note          the blink interval is approximate: the\r\n");
-                printf("                core frequency is not established\r\n");
+                /* The reason changed on Friday 2 October 2026 and the text had to
+                 * follow it. The core frequency IS established now, decoded from
+                 * the RCC registers, so blaming it here would be false. What is
+                 * not established is how many core cycles one iteration of the
+                 * delay loop costs, which depends on the compiler, the
+                 * optimisation level, the cache state and the flash wait states.
+                 * Naming the wrong cause in a diagnostic is worse than printing
+                 * nothing, because somebody acts on it. */
+                printf("  note          the blink interval is approximate. The core\r\n");
+                printf("                frequency is known; the cycles per delay\r\n");
+                printf("                loop iteration are estimated, not counted.\r\n");
+                printf("                P06 is where that gets a real reference.\r\n");
             }
         }
 

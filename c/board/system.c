@@ -217,5 +217,23 @@ bool board_delay_ms(uint32_t ms)
     for (volatile uint32_t i = 0; i < iterations; i++) {
         __asm volatile ("nop");
     }
-    return g_core_hz != 0u;
+
+    /* Unconditionally false, and NOT g_core_hz != 0u, which is what this line
+     * was until Friday 2 October 2026 and which silently became true the moment
+     * the clock was decoded.
+     *
+     * That was a real defect and the comment above it was the symptom: it argued
+     * at length that this function still refuses, while the code had quietly
+     * started agreeing to be trusted. The two approximations were never
+     * independent of each other in the prose and were in the code.
+     *
+     * It was caught by the console. P01 prints a note on every twentieth cycle
+     * while this returns false, the note never appeared, and the only way that
+     * happens is if this returned true. A board that can talk finds things a
+     * board that only blinks cannot.
+     *
+     * This becomes conditional again when a caller can be told the truth, which
+     * means when the cycles per iteration has a counted reference rather than an
+     * estimate. That is P06, which is the project that exists to supply it. */
+    return false;
 }
