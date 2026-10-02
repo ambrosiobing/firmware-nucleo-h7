@@ -1,0 +1,93 @@
+name: firmware
+
+# THE POINT OF THIS WORKFLOW. win11 aquamarine has no cross toolchain and no
+# ninja, and WSL 2 is enabled there with no distribution installed. This job needs
+# none of that: the runner installs the toolchain, builds the firmware, and
+# uploads the .bin files. Flashing then needs no tool either, because the ST-LINK
+# presents a mass storage disk and a .bin dragged onto it is flashed.
+#
+# So the whole path from source to a running board is: push, download the
+# artefact, drag it onto the probe's disk. Nothing is installed on Windows.
+#
+# NOTHING IN THIS REPOSITORY HAS EVER BEEN CROSS-COMPILED. This job is the first
+# real information about any of that code, and the first run is expected to fail:
+# that is what it is for. Read the log before believing anything about the
+# firmware, including anything the README says about it.
+#
+# What is built and what is not:
+#   p01-first-light   P01, blinks on the reset clock using only settled facts
+#   p09-codec         P09's codec on the target, checking the negative vector
+#   P06's three       NOT built here. They include stm32h7xx.h, the vendor device
+#                     header, which this repository deliberately does not vendor
+#                     because that pack's licence differs file by file.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # gcc-arm-none-eabi alone is not enough: the C library and its nano variant
+      # come from libnewlib, and the linker script asks for -specs=nano.specs.
+      # binutils supplies objcopy and size, which the toolchain file requires.
+      - name: Install the cross toolchain and a generator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi \
+            ninja-build
+          arm-none-eabi-gcc --version
+          ninja --version
+
+      - name: Configure
+        run: |
+          cmake -B build-fw -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      # Verbose, because the first failure of a build nobody has ever run is worth
+      # reading in full rather than guessing at from a summary.
+      - name: Build
+        run: cmake --build build-fw --verbose
+
+      # The sizes, which P12's size gate reads. Printed here so the first real
+      # flash figures for this part exist in a log before anybody quotes one.
+      - name: Sizes, which are the first real flash figures for this part
+        run: |
+          set -e
+          for elf in build-fw/*.elf; do
+            echo "=== $elf"
+            arm-none-eabi-size -A "$elf"
+          done
+
+      # A .bin per target, which is the whole point: drag one onto the probe's
+      # mass storage disk and the board runs it. No flashing tool needed.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-bin
+          path: |
+            build-fw/*.bin
+            build-fw/*.elf
+            build-fw/*.map
+          if-no-files-found: error
+
+      # The map file reconciliation P01's chapter asks for needs a map file, and
+      # this is the first build that produces one. Kept as a separate step so its
+      # absence is a visible failure rather than a quiet gap.
+      - name: A map file exists for every target
+        run: |
+          set -e
+          for elf in build-fw/*.elf; do
+            map="${elf%.elf}.map"
+            test -f "$map" || { echo "no map file for $elf"; exit 1; }
+            echo "$map  $(wc -l < "$map") lines"
+          done

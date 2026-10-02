@@ -178,7 +178,14 @@ SECTIONS
 
   _estack = ORIGIN(DTCM) + LENGTH(DTCM);
 
-  /DISCARD/ : { libc.a(*) libm.a(*) libgcc.a(*) }
+  /* NO /DISCARD/ SECTION HERE, deliberately. Scripts for this family commonly
+     carry `/DISCARD/ : { libc.a(*) libm.a(*) libgcc.a(*) }`, copied from one
+     generated script to the next. It throws away every section of those three
+     archives, and printf, memcpy and the integer helpers come from exactly
+     there. Where it appears to work it is because garbage collection had already
+     removed what was unused, which makes it a line that does nothing on a good
+     day and breaks the link on a bad one. --gc-sections above does the real
+     work. */
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
 }

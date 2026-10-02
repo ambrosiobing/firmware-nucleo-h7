@@ -86,10 +86,30 @@ endfunction()
 add_firmware(p01-first-light
     SOURCES c/P01/main.c)
 
+# P06 needs the vendor device header, stm32h7xx.h, which this repository
+# deliberately does not vendor: that pack's licence differs file by file and a
+# project that pasted it in would be redistributing terms it had not read. So its
+# targets exist only when told where the pack was unpacked, and P01 and P09 build
+# without it because their register access goes through c/board/stm32h7a3_regs.h,
+# which is this repository's own.
+#
+#   cmake -B build-fw -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -G Ninja #     -DCMSIS_DEVICE_DIR=<where the pack was unpacked>
+set(CMSIS_DEVICE_DIR "" CACHE PATH
+    "Directory holding stm32h7xx.h and the CMSIS core headers. P06 needs it.")
+
+if(NOT CMSIS_DEVICE_DIR)
+  message(STATUS
+    "CMSIS_DEVICE_DIR is not set, so P06's three targets are skipped. P01 and "
+    "P09 do not need it and are built.")
+endif()
+
 # P06, the 1 kHz sampling comparison: one application, three acquisition back
 # ends, selected at build time so that the comparison is of mechanisms rather
 # than of three programs.
 foreach(BACKEND systick timer dma)
+    if(NOT CMSIS_DEVICE_DIR)
+        continue()
+    endif()
     if(BACKEND STREQUAL "dma")
         set(ACQ c/P06/acq_dma_double.c)
     else()
@@ -101,7 +121,7 @@ foreach(BACKEND systick timer dma)
                 c/instr/cyccnt.c
                 c/instr/freqcount.c
                 ${ACQ}
-        INCLUDES c/P06 c/instr)
+        INCLUDES c/P06 c/instr ${CMSIS_DEVICE_DIR})
 endforeach()
 
 # P09, the codec on the target, checking the negative golden vector there rather
