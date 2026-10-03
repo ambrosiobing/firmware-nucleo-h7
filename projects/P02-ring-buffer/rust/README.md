@@ -1,13 +1,20 @@
 # P02 in Rust
 
-**State: written Saturday 3 October 2026, and not yet built.** Written on win11
-aquamarine, which has no cargo. Build and prove it in WSL on the win11 skyhorizon
-demo laptop, bing@JPTOUPM678:
+**State: host only, proven Saturday 3 October 2026** in WSL on the win11
+skyhorizon demo laptop, bing@JPTOUPM678, with rustc 1.99.0, and then in CI at
+commit 3b301e2. What that run established:
 
-    cargo clippy --workspace --all-targets -- -D warnings
-    cargo test --workspace
-    cargo build --release --workspace
-    python3 -m pytest python/tests/test_ring_parity.py -q -s
+| Step | Result |
+|---|---|
+| `cargo fmt --all` | reformatted the filter's state function, committed as its own change |
+| `cargo clippy --workspace --all-targets -- -D warnings` | clean on the first run |
+| `cargo test --workspace` | 4 passed, including the four-mode trace comparison |
+| `cargo build --release --workspace --lib --target thumbv7em-none-eabihf` | compiles, which is the proof the crate is genuinely `no_std` |
+| `python3 -m pytest python/tests/test_ring_parity.py -q -s` | all four agree over 9620 operations in each of the four modes |
+
+Clippy had nothing to say about the const generic compared with `==` in a
+branch, which was the thing most likely to draw a lint. This and the C++ were
+the first pair in the volume to compile without a correction.
 
 | File | What it is |
 |---|---|

@@ -1,6 +1,6 @@
 # P02: a single producer, single consumer ring buffer
 
-Status: c=board cpp=written python=host rust=written
+Status: c=board cpp=host python=host rust=host
 
 The structure every later project here leans on, and the argument for why its
 twenty lines are correct when one side runs in an interrupt handler and the other
@@ -12,8 +12,11 @@ from the ordering one, because the interpreter has no release store, no acquire
 load and no barrier. The Rust names a second absence: the C's one-struct-two-
 contexts shape does not compile in safe Rust at all, so its crate is a correct
 sequential ring and the two-context split is named as missing rather than faked.
-The C++ and the Rust were written on the laptop that compiles nothing and are
-**written and not built** until the WSL run.
+All four were proven on the host on Saturday 3 October 2026, first in WSL on the
+win11 skyhorizon demo laptop, bing@JPTOUPM678, and then in CI at commit 3b301e2.
+The C++ and the Rust were the first pair in this volume to compile without a
+correction: clippy clean on the first run, and every parity answer matching the
+C.
 
 `python/tests/test_ring_parity.py` compares the trace: which bytes were accepted,
 which refused and counted, the order they came back in, and the two free-running

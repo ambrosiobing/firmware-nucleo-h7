@@ -1,9 +1,16 @@
 # P02 in C++
 
-**State: written Saturday 3 October 2026, and not yet built.** Written on win11
-aquamarine, which compiles nothing; the first compiler to see it is `g++` in WSL
-on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
-`python3 python/tools/build_host.py`, and then CI with warnings as errors.
+**State: host only, proven Saturday 3 October 2026.** Written on win11
+aquamarine, which compiles nothing, then built and proven the same day: `g++` in
+WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
+`python3 python/tools/build_host.py`, and then CI at commit 3b301e2, where it is
+also compiled with the full warning set and `-Werror`.
+
+It compiled without a correction on the first attempt, which had not happened
+for a C++ or Rust file in this volume before: P09's needed a release profile
+moved, P08's needed its filter rewritten. The template with `if constexpr`
+selecting the primitives per mode is the part that could have gone wrong and did
+not.
 
 | File | What it is |
 |---|---|
