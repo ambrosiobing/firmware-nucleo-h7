@@ -1,10 +1,11 @@
 # P05 in C++
 
-**State: written Saturday 3 October 2026, and not yet built.** Written on win11
-aquamarine, the authoring laptop, which compiles nothing; the first compiler to
-see it is `g++` in WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678,
-through `python3 python/tools/build_host.py`, and then the CI runner with
-warnings as errors.
+**State: host only, proven Saturday 3 October 2026.** Written on win11
+aquamarine, which compiles nothing, then built and proven the same day: `g++` in
+WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
+`python3 python/tools/build_host.py`, and then CI at commit 6e8ae9d, where it is
+also compiled with the full warning set and `-Werror`. The `static_assert` of
+0x29B1 has been seen to pass, which is what that state now rests on.
 
 | File | What it is |
 |---|---|
@@ -47,8 +48,6 @@ them.
 
 ## What it does not do yet
 
-- Not compiled anywhere until the WSL run, so the `static_assert` has not yet
-  been seen to pass. The state above says so.
 - Not built for the board. `frame.hpp` would compile for the target as it is,
   since it includes nothing the target lacks, and that is a claim until
   `add_firmware()` has a C++ target, which is P01's C++ half.

@@ -124,6 +124,14 @@ jobs:
           rustc --version
           cargo --version
 
+      # The lock file is committed so the dependency set is pinned rather than
+      # resolved afresh. Without --locked cargo quietly rewrites a stale lock
+      # and the build goes green, which is how the lock came to list only one of
+      # the two crates for a whole commit on Saturday 3 October 2026. A pin that
+      # is silently updated is not a pin, so this refuses instead.
+      - name: The committed lock file is the one cargo would write
+        run: cargo metadata --locked --format-version 1 > /dev/null
+
       - name: Formatting, as written rather than as preferred
         run: cargo fmt --all --check
 

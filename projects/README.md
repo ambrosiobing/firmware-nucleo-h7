@@ -36,11 +36,12 @@ frame or a verdict out. No filter parses its project's oracle, so that stays in
 the one file no generator has ever touched, and `run_filter` in `conftest.py`
 drives all of them.
 
-**Two projects have a parity test so far**, P09 and P05, and both were proven able
-to fail by introducing defects on purpose: for P09 one byte of a golden vector and
-one bit of the Python encoder; for P05 the twin's polynomial, which turned the
-check value and the frame comparison red, and the twin's checksum test, which
-turned the corruption verdicts red with "Python says ok and C says checksum".
+**Two projects have a parity test so far**, P09 and P05, and both read four
+languages agreeing as of Saturday 3 October 2026. Both were proven able to fail by
+introducing defects on purpose: for P09 one byte of a golden vector and one bit of
+the Python encoder; for P05 the twin's polynomial, which turned the check value
+and the frame comparison red, and the twin's checksum test, which turned the
+corruption verdicts red with "Python says ok and C says checksum".
 
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
@@ -87,7 +88,7 @@ header named a path the file had never had.
 | [P02](P02-ring-buffer/) | A single producer, single consumer ring buffer | **runs on the board**, four targets one per ordering mode, producer in thread mode and consumer in SysTick. Re-measured Saturday 3 October 2026 with the instruction cache on, which overturned the first table: cold, the DMB build measured 2 cycles FASTER than no barrier at all, so that comparison had the sign wrong, not merely the magnitude. On the cached figures the compiler fence costs 0.00 cycles and 0 bytes while still emitting different instructions (same length, different SHA-256), one DMB in put and get costs 22.00 cycles and 16 bytes, and acquire plus release costs 29.00 and 24. The earlier claims of 7 and 17 cycles are withdrawn. Zero mismatches in 21.4 million bytes across the four. Also host tested in all four modes, 21.6 million bytes per run |
 | [P03](P03-interrupt-receive/) | Receiving on interrupt without losing bytes | host only. The measurement is proven, attributing every lost byte to the target or the bridge. `rx_ring.c` and both documented failure modes are written and have never been built for the target |
 | [P04](P04-dma-idle-line/) | Circular DMA and the idle line | not started. Needs a transfer engine |
-| [P05](P05-framing-crc/) | Framing and the hardware CRC unit | host only, and proven there: the C and the Python reach the published check value 0x29B1 and every single-bit corruption is rejected. The C++ and the Rust were written Saturday 3 October 2026 and are **written and not built**; both assert 0x29B1 at compile time, which the C can only assert in a test. Writing them found one divergence worth keeping: the C names the single byte 0x01 a stuffing error where the other three name it too short, because the C's cobs_decode cannot tell an empty frame from a failed one. The peripheral half waits on RM0455 |
+| [P05](P05-framing-crc/) | Framing and the hardware CRC unit | host only, and proven there in all four languages, Saturday 3 October 2026: every one reaches the published check value 0x29B1, produces byte-identical frames over 3008 payloads, and gives the same verdict on 3005 frames corrupted three ways. The C++ and the Rust assert 0x29B1 at compile time, which the C can only assert in a test. Writing them found one divergence worth keeping: the C names the single byte 0x01 a stuffing error where the other three name it too short, because the C's cobs_decode cannot tell an empty frame from a failed one. The peripheral half waits on RM0455 |
 | [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | **links**, all three back ends, since Friday 2 October 2026, and none has been flashed. The witness is proven on synthetic input on the host. Each back end still refuses at run time rather than guessing a converter, timer or transfer engine setting RM0455 governs. The cycle counter it needs now exists and works, which was the first of its dependencies to be settled |
 | [P07](P07-stop-mode/) | Stop mode, RTC wake, and a battery number | not started. Needs the PPK2 and a running clock tree |
 | [P08](P08-node-state-machine/) | The node's state machine, transmit as a stub | written and proven: all 18 transition rows reachable, and the stub payload matches P09's encoder byte for byte |

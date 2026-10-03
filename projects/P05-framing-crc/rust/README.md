@@ -1,13 +1,19 @@
 # P05 in Rust
 
-**State: written Saturday 3 October 2026, and not yet built.** Written on win11
-aquamarine, which has no cargo and is not to get one. Build and prove it in WSL
-on the win11 skyhorizon demo laptop, bing@JPTOUPM678:
+**State: host only, proven Saturday 3 October 2026** in WSL on the win11
+skyhorizon demo laptop, bing@JPTOUPM678, with rustc 1.99.0, and then in CI at
+commit 6e8ae9d. What that run established:
 
-    cargo clippy --workspace --all-targets -- -D warnings
-    cargo test --workspace
-    cargo build --release --workspace
-    python3 -m pytest python/tests/test_frame_parity.py -q -s
+| Step | Result |
+|---|---|
+| `cargo fmt --all` | reformatted four lines, committed as its own change |
+| `cargo clippy --workspace --all-targets -- -D warnings` | clean |
+| `cargo test --workspace` | 7 passed, 0 failed, including the exhaustive walk of all 64 single-bit flips of one seven-byte frame |
+| `cargo build --release --workspace --lib --target thumbv7em-none-eabihf` | compiles, which is the proof the crate is genuinely `no_std` |
+| `python3 -m pytest python/tests/test_frame_parity.py -q -s` | C, C++, Python and Rust all agree over 3008 payloads and 3005 corrupted frames |
+
+The `const` assertion of 0x29B1 has been seen to pass, which is what the state
+above rests on.
 
 | File | What it is |
 |---|---|
@@ -57,8 +63,6 @@ and needs no random seed at all.
 
 ## What it does not do yet
 
-- Not compiled anywhere until the WSL run, so the `const` assertion has not yet
-  been seen to pass.
 - Not built for the board. The library compiles for `thumbv7em-none-eabihf` in
   CI, which is the proof it is genuinely `no_std`, but nothing links: a binary
   needs `cortex-m-rt` and a linker script, which is P01's Rust half.

@@ -1,18 +1,22 @@
 # P05: framing and the hardware CRC unit
 
-Status: c=host cpp=written python=host rust=written
+Status: c=host cpp=host python=host rust=host
 
 A frame format with a stated reason for every field, an encoder and decoder that
 build unchanged on the host and on the target, and a Python twin that corrupts
 frames on purpose and counts what gets through.
 
-**State: four implementations, two proven on the host and two written the same
-day. The peripheral half waits on RM0455.** The C and the Python are proven; the
-C++ (`cpp/frame.hpp`, header only) and the Rust (`rust/`, the crate `p05-frame`)
-were written Saturday 3 October 2026 on the laptop that compiles nothing, so they
-are **written and not built** until the WSL run. Both assert the published check
-value 0x29B1 at compile time, which the C can only assert in a test, and writing
-them found one divergence in the C worth keeping rather than hiding: see
+**State: four implementations, all four proven on the host Saturday 3 October
+2026. The peripheral half waits on RM0455.** The C++ (`cpp/frame.hpp`, header
+only) and the Rust (`rust/`, the crate `p05-frame`) were written and proven the
+same day: first in WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, then
+in CI at commit 6e8ae9d, where the `rust` job compared all four and the `checks`
+job compared two and said so.
+
+Both new implementations assert the published check value 0x29B1 **at compile
+time**, which the C can only assert in a test: a translation unit or a crate
+whose six parameters are not the published ones does not build. Writing them
+found one divergence in the C worth keeping rather than hiding: see
 `python/tests/test_frame_parity.py`.
 
 Twelve checks pass with no board attached, five more in the parity file, and this
@@ -128,10 +132,6 @@ one-bit corruption of it:
   fetching that source rather than reproducing it from recollection. If it is
   later replaced by the real thing, that is a visible commit and the header comes
   with it.
-- The C++ and the Rust have never been compiled. They were written on win11
-  aquamarine, which compiles nothing, so their compile-time assertions of 0x29B1
-  have not yet been seen to pass and their status is **written** rather than
-  host only.
 - No cycle counts for any implementation, because nothing has run on the
   target. The comparison the chapter wants, peripheral against table against
   bitwise, needs a board.

@@ -54,9 +54,11 @@ would have been two files that cannot be built, which is the same defect as an
 empty `main.rs`. Both were written on Saturday 3 October 2026, the day the first
 crate was.
 
-**The second crate is P05's**, `p05-frame`, written the same day:
+**The second crate is P05's**, `p05-frame`, written and proven the same day:
 COBS, CRC-16 and the frame, with the published check value 0x29B1 asserted by a
-`const` assertion so a crate whose parameters are wrong does not build.
+`const` assertion so a crate whose parameters are wrong does not build. Its
+`cargo test` includes the exhaustive walk of all 64 single-bit flips of one
+seven-byte frame, which needs no random seed at all.
 
 `../Cargo.toml` lists members explicitly rather than globbing `projects/*/rust`,
 because a glob would match the nineteen directories that hold only a README and
