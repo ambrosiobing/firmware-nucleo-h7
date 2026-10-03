@@ -43,8 +43,9 @@ project uses, the same rule the `c/` tree follows.
 codec driven against the same hand-computed vectors, with `panic = "abort"` and
 `opt-level = "s"`. It was first because everything it needed already existed:
 six vectors, three implementations to disagree with, and a board image that
-prints the same bytes. Written Saturday 3 October 2026 and **not yet built**,
-which is a state this volume now names rather than glosses.
+prints the same bytes. Written and proven on the host the same day, Saturday
+3 October 2026, with an hour in between during which it carried the fifth state
+this volume now names rather than glosses: **written**, and not yet built.
 
 **The workspace arrived with that crate and not before.** A root `Cargo.toml`
 listing no members, and a `rust-toolchain.toml` pinning a channel for nothing,

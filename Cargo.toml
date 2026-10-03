@@ -26,6 +26,21 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+# The release profile every member is built with. It lives here and not in a
+# member's Cargo.toml because cargo ignores a member's profile in a workspace,
+# with a warning, and the first build printed exactly that warning: the filter
+# had been built with the defaults while its README claimed opt-level s. These
+# are the settings the board half will want, applied to the host filter too so
+# the host figures are produced the way the target image will be. Not set for
+# the dev profile: cargo ignores panic abort under test anyway, and a setting
+# that is silently ignored is worse than one that is absent.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = true
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 

@@ -33,13 +33,8 @@ path = "src/lib.rs"
 name = "p09-filter"
 path = "src/main.rs"
 
-# opt-level "s" and panic abort are the settings the board half will want, set
-# here so the host filter is built the way the target image will be. Not set in
-# the dev profile: cargo ignores panic abort for the test profile anyway, and a
-# setting that is silently ignored is worse than one that is absent.
-[profile.release]
-opt-level = "s"
-lto = true
-codegen-units = 1
-panic = "abort"
-debug = true
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning, which is what the first
+# build in WSL on bing@JPTOUPM678 printed on Saturday 3 October 2026. The release
+# profile this crate is built with is at the repository root, beside the member
+# list, and it is the one the board half will use.

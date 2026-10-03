@@ -14,6 +14,23 @@ hand-computed vectors, P05's published check value 0x29B1, P08's eighteen
 transition rows. A language with nothing written says so rather than holding an
 empty source file, because an empty file is a claim.
 
+**How equivalence is proven, and why it is one test rather than four.** Four
+suites, one per language, would each pass while the four disagreed with one
+another, because each would compare an implementation against its own idea of
+the layout. `python/tests/test_parity.py` instead drives every available
+implementation over one case list and compares them against the one that has run
+on the board, which for P09 is the C. It refuses a run in which fewer than three
+of the four were actually compared, because a parity suite that passes because
+nothing was built has proven nothing, and that is the one failure such a suite
+cannot notice about itself. P09's table reads all four agreeing, first in WSL on
+bing@JPTOUPM678 on Saturday 3 October 2026 and then in the `rust` job of
+`code.yml`; on win11 aquamarine, which has no cargo, it reads three and says so.
+
+Two of the four are driven as filters, C++ and Rust, speaking one protocol: five
+integers per line in, the encoded bytes as hex and the round trip out. Neither
+parses the vectors, so the oracle stays in the single file no generator has ever
+touched, and the same hundred thousand cases go through every language.
+
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
@@ -62,7 +79,7 @@ header named a path the file had never had.
 | [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | **links**, all three back ends, since Friday 2 October 2026, and none has been flashed. The witness is proven on synthetic input on the host. Each back end still refuses at run time rather than guessing a converter, timer or transfer engine setting RM0455 governs. The cycle counter it needs now exists and works, which was the first of its dependencies to be settled |
 | [P07](P07-stop-mode/) | Stop mode, RTC wake, and a battery number | not started. Needs the PPK2 and a running clock tree |
 | [P08](P08-node-state-machine/) | The node's state machine, transmit as a stub | written and proven: all 18 transition rows reachable, and the stub payload matches P09's encoder byte for byte |
-| [P09](P09-payload-codec/) | The payload codec and its Python twin | **runs on the board**, Saturday 3 October 2026. The negative golden vector, feature -1, encodes to 2405FFFFE8 on the Cortex-M7, byte for byte what the host produces, and decodes back to the value it started from, so sign extension, bit order and field packing agree between the two compilers. It also carries the volume's measurement of placement: four images displaced by 0, 16, 32 and 48 bytes and otherwise identical, where the cold cost tracks the offset within a 32 byte granule (3220.99 cycles at offset 0, 3163.98 at offset 16, the two images at each offset agreeing to the hundredth) and the cached cost is 2378.99 in all four. Host half: the C, C++ and Python implementations agree over the six vectors and 100000 recorded-seed cases, and the Rust crate written Saturday 3 October 2026 joins them in the rust job of code.yml. Its own state is **written and not built**, because the laptop it was written on has no cargo |
+| [P09](P09-payload-codec/) | The payload codec and its Python twin | **runs on the board**, Saturday 3 October 2026. The negative golden vector, feature -1, encodes to 2405FFFFE8 on the Cortex-M7, byte for byte what the host produces, and decodes back to the value it started from, so sign extension, bit order and field packing agree between the two compilers. It also carries the volume's measurement of placement: four images displaced by 0, 16, 32 and 48 bytes and otherwise identical, where the cold cost tracks the offset within a 32 byte granule (3220.99 cycles at offset 0, 3163.98 at offset 16, the two images at each offset agreeing to the hundredth) and the cached cost is 2378.99 in all four. Host half: all four implementations, C, C++, Python and Rust, agree over the six vectors and 100000 recorded-seed cases, proven Saturday 3 October 2026 in WSL on bing@JPTOUPM678 with rustc 1.99.0, and the Rust library compiles for the board's target, which is the proof it is genuinely no_std |
 | [P10](P10-energy-phases/) | Where the energy goes, by phase | not started. Needs the PPK2 and marker pins |
 | [P11](P11-at-engine/) | An AT engine that never blocks | not started. Needs the SIM7020E |
 | [P12](P12-energy-regression/) | Energy as a regression test, and the rig | both gates written and proven: a five percent charge regression turns the build red with nobody at the bench. The hardware job is not built |

@@ -1,18 +1,28 @@
 # P09 in Rust
 
-**State: written Saturday 3 October 2026, and not yet built.** The code exists
-and no compiler has seen it, because it was written on win11 aquamarine, the
-authoring laptop, which has no cargo and is not to get one. That is a fifth
-state in this volume's vocabulary, beside "runs on the board", "links", "host
-only" and "not started", and it was added the day this crate needed it. Calling
-it host only would claim a proof that has not happened; calling it nothing would
-deny a file that exists.
+**State: host only, proven Saturday 3 October 2026** in WSL on the win11
+skyhorizon demo laptop, bing@JPTOUPM678, with rustc 1.99.0. What that run
+established, in the order it ran:
 
-Build and prove it in WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678:
+| Step | Result |
+|---|---|
+| `cargo fmt --all` | changed nothing |
+| `cargo clippy --workspace --all-targets -- -D warnings` | clean |
+| `cargo test --workspace` | 6 passed, 0 failed |
+| `cargo build --release -p p09-payload --lib --target thumbv7em-none-eabihf` | compiles, which is the proof the codec is genuinely `no_std` |
+| `python3 -m pytest python/tests/test_parity.py -q -s` | C, C++, Python and Rust all agree over the six vectors and 100000 recorded-seed cases, 4 passed |
 
-    cargo test --workspace
-    cargo build --release --workspace
-    python3 -m pytest python/tests/test_parity.py -q -s
+For the hour between being written and being built it carried a fifth state,
+**written**, added to this volume's vocabulary that day because the crate was
+written on win11 aquamarine, which has no cargo and is not to get one. Calling it
+host only then would have claimed a proof that had not happened; calling it
+nothing would have denied a file that existed. The state is kept for the next
+crate that needs it.
+
+One thing the first build corrected. The release profile had been written into
+this crate's `Cargo.toml`, where cargo ignores it in a workspace and says so, so
+the filter was built with the defaults while this page claimed opt-level s. The
+profile now lives at the repository root, where it applies.
 
 ## What is here
 
