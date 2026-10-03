@@ -42,9 +42,18 @@ buffer is exactly `PAYLOAD_BYTES` and the `None` arm is unreachable today. An
 size should leave a `frame_len` of zero rather than a panicking handler on a board
 with no console.
 
-`cargo test` carries four properties that need no other implementation: every row
+`cargo test` carries five properties that need no other implementation: every row
 reachable, the retry limit allowing exactly three attempts, nothing leaving
-`Fault`, and the stub's bytes equalling what the `p09-payload` crate encodes.
+`Fault`, the stub's bytes equalling what the `p09-payload` crate encodes, and the
+sequence number wrapping where P09's nine-bit field does.
+
+The first of those found a defect in itself on its first run, which is the best
+argument for writing it the way it is written. Every sequence it drove started in
+`Init`, where `Tick` takes the first row, so the `Idle` periodic wake row was
+never reached and the test failed with `rows never taken: ["idle: periodic
+wake"]`. The table was correct and the test's own list was short by one
+sequence. A coverage check that reported a count rather than the row name would
+have said `17 of 18` and left the reader to work out which.
 
 ## What it is proven against
 

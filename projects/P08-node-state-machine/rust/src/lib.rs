@@ -436,6 +436,13 @@ mod tests {
             ],
             7,
         );
+        // A second cycle, so the periodic wake is taken from Idle rather than
+        // from Init. Every sequence above starts in Init, where Tick takes the
+        // first row, and without this one the Idle row is never reached. That
+        // omission is what this test caught on its first run in WSL on
+        // bing@JPTOUPM678, which is the whole reason it reports the row name
+        // rather than only a count.
+        drive(&[Tick, Block, FeatureDone, FrameReady, TxOk, Tick], 5);
 
         // Vec is fine here: this module is only compiled under cargo test,
         // where std is available. The library itself is no_std.
