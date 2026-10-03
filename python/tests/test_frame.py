@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 from conftest import BUILD, shared_library_name
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "P05"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "projects" / "P05-framing-crc" / "python"))
 
 import twin  # noqa: E402
 

@@ -87,7 +87,7 @@ the build and several of them name nothing.
 | `p02-ring-<mode>`, four of them | 2 | runs on the board |
 | `p06-sampling-<backend>`, three | 6 | has no independent build check, no CMSIS pack in CI |
 | `p09-codec`             | 9       | runs on the board |
-| `p09-codec-pad64`, `p09-codec-pad160` | 9 | the same image displaced by 64 and 160 bytes, for the placement experiment |
+| `p09-codec-pad0`, `p09-codec-pad16`, `p09-codec-pad32`, `p09-codec-pad48` | 9 | the same image displaced by 0, 16, 32 and 48 bytes, for the placement experiment. The pads are whole multiples of the 16 byte instrument resolution and not of the 32 byte cache line, so the experiment is able to fail |
 
 Everything else in the volume is not built. Where such a chapter shows a command,
 read it as a plan.

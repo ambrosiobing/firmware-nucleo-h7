@@ -51,7 +51,7 @@ jobs:
           gcc -std=c11 -O2 $W -Ic/ring -c c/ring/ring.c -o build-host/werror/ring.o
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
             -Ic/payload -Icpp/P09 \
-            -c cpp/P09/cpp_encode_only.cpp -o build-host/werror/cpp.o
+            -c projects/P09-payload-codec/cpp/cpp_encode_only.cpp -o build-host/werror/cpp.o
 
       - name: P09, the golden vectors
         run: python -m pytest python/tests/test_vectors.py -q

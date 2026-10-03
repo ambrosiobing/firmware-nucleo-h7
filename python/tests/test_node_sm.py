@@ -25,7 +25,7 @@ import ctypes
 import pytest
 from conftest import BUILD, CPayload, shared_library_name
 
-# The states and events, in the order c/P08/node_sm.h declares them.
+# The states and events, in the order projects/P08-node-state-machine/c/node_sm.h declares them.
 S_INIT, S_IDLE, S_SENSE, S_FEATURE, S_ENCODE, S_TX, S_BACKOFF, S_FAULT = range(8)
 (E_TICK, E_BLOCK, E_FEATURE_DONE, E_FRAME_READY, E_TX_OK, E_TX_FAIL,
  E_TIMEOUT, E_BUTTON, E_FAULT) = range(9)
@@ -34,7 +34,7 @@ ATTEMPT_LIMIT = 3
 
 
 class Ctx(ctypes.Structure):
-    """Must match node_ctx_t in c/P08/node_sm.h, field for field and in order."""
+    """Must match node_ctx_t in projects/P08-node-state-machine/c/node_sm.h, field for field and in order."""
 
     _fields_ = [
         ("state", ctypes.c_int),

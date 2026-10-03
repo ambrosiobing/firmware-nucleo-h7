@@ -60,6 +60,14 @@ jobs:
       - name: Every relative link resolves
         run: python python/tools/check_links.py
 
+      # Each project states its state per language in one line, and this refuses
+      # if that line, the code on disk and the table in projects/README.md do not
+      # agree. It also refuses if any Markdown under projects/ names a repository
+      # path that does not exist, which is how three references to a C++ header
+      # that had never had that name stayed in the tree.
+      - name: Every project's state agrees with its code and with the table
+        run: python python/tools/check_status.py
+
       - name: No assembled volume and no PDF is published
         run: |
           set -e

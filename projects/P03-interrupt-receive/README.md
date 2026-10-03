@@ -1,5 +1,7 @@
 # P03: receiving on interrupt without losing bytes
 
+Status: c=host cpp=none python=host rust=none
+
 Three receive paths on one board with one switch between them, both documented
 library failure modes reproduced on purpose and then repaired, and a measurement
 that says where bytes first go missing and **which side of the link lost them**.
@@ -10,7 +12,7 @@ needs the board waits on three downloads and on P01.
 
 ## What is proven today, with no board
 
-`python/P03/report.py` attributes every byte the host sent to exactly one place,
+`python/report.py` attributes every byte the host sent to exactly one place,
 and `python/tests/test_report.py` holds it to that over eleven cases whose answers
 are known by construction. **11 passed.**
 
@@ -55,7 +57,7 @@ Four deliberate defects, all caught:
 
 ## The three paths, built in full
 
-Selected with `-DRX_PATH=polled|flag|ring`. The application above `c/P03/rx.h` is
+Selected with `-DRX_PATH=polled|flag|ring`. The application above `c/rx.h` is
 byte identical across all three, so the comparison is of mechanisms rather than of
 three programs.
 
@@ -124,12 +126,12 @@ guessed peripheral setting. Four things are unconfirmed and each fails different
 
 ## Layout
 
-    c/P03/rx.h              one interface, three paths, and the counters
-    c/P03/rx_ring.c         the path that keeps the bytes
-    c/P03/usart3_ll.h       register-level receive, and every refusal
-    c/P03/faults.c          the two documented modes, and both repairs
-    python/P03/report.py    the attribution: four places, never one figure
-    python/P03/loadgen.py   the rate ramp, written, never run
+    c/rx.h              one interface, three paths, and the counters
+    c/rx_ring.c         the path that keeps the bytes
+    c/usart3_ll.h       register-level receive, and every refusal
+    c/faults.c          the two documented modes, and both repairs
+    python/report.py    the attribution: four places, never one figure
+    python/loadgen.py   the rate ramp, written, never run
     python/tests/test_report.py   eleven cases, no hardware
 
 ## Not done

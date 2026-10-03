@@ -1,5 +1,7 @@
 # Sampling on a timer at exactly 1 kHz
 
+Status: c=links cpp=none python=host rust=none
+
 Chapter 6 of the NUCLEO-H7A3ZI-Q firmware volume. Three ways to sample at
 1 kHz, one application, and an external witness that decides which of them
 actually does.

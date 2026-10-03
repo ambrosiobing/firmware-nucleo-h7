@@ -1,5 +1,7 @@
 # P02: a single producer, single consumer ring buffer
 
+Status: c=board cpp=none python=none rust=none
+
 The structure every later project here leans on, and the argument for why its
 twenty lines are correct when one side runs in an interrupt handler and the other
 runs in the main loop.

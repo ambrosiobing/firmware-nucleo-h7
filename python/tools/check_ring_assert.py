@@ -15,6 +15,7 @@ just as happily against a compiler that refused everything.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -49,6 +50,24 @@ def compile_with(cc: str, capacity: int, out: Path) -> subprocess.CompletedProce
 
 
 def main() -> int:
+    # The same rule check_c_syntax.py enforces, and for the same reason, stated
+    # again here because it was missed once: compiling happens in WSL on the
+    # win11 skyhorizon demo laptop, bing@JPTOUPM678, and on the CI runner, and
+    # nowhere else. A host gcc exists on the authoring laptop, bundled with Qt,
+    # and it is not to be used. This script was run there once on Saturday
+    # 3 October 2026 because it carried no guard while its sibling did, which is
+    # exactly how a rule that lives in one file and not its neighbour gets
+    # broken.
+    if os.name == "nt" or sys.platform.startswith("win"):
+        print("This runs in WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678,")
+        print("and on the CI runner. Compiling does not happen on the authoring laptop.")
+        print()
+        print("  bing@JPTOUPM678:~$ cd <repo> ; python3 python/tools/check_ring_assert.py")
+        print()
+        print("Nothing was checked. This is not a pass, and it is not a failure of")
+        print("the assertion either: no compiler was run.")
+        return 2
+
     cc = find("gcc")
     failures = []
 

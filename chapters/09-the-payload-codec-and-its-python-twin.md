@@ -119,7 +119,7 @@ That is a smaller gain than the word cache tends to suggest, and the reason is w
 
 **The third cold figure is itself the evidence for why this was needed.** The cold column now reads 2 955, 3 185 and 3 143 across three builds. The last of those was measured in the build that added the cache support, which changed nothing in the encoder: a file was added and the measurement was moved into its own function. The figure moved 1.3 per cent anyway. That is the fourth instance of the effect in two days and it arrived as an unplanned control.
 
-**That claim has now been tested, and it holds.** Four images were built from identical sources, differing only in a run of zero bytes placed before the code so that every instruction lands 0, 16, 32 or 48 bytes later. `c/P09/pad.c` does nothing else. The encoder is byte for byte the same in all four; only its address differs.
+**That claim has now been tested, and it holds.** Four images were built from identical sources, differing only in a run of zero bytes placed before the code so that every instruction lands 0, 16, 32 or 48 bytes later. `projects/P09-payload-codec/c/pad.c` does nothing else. The encoder is byte for byte the same in all four; only its address differs.
 
 | Displacement | Offset mod 32 | Cold cycles | Cached cycles |
 | --- | --- | --- | --- |

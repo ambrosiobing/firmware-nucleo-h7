@@ -1,5 +1,7 @@
 # P12: energy as a regression test, and the rig that runs it
 
+Status: c=none cpp=none python=host rust=none
+
 Three gates in increasing order of what they cost to run, so the cheap ones fail
 first and the expensive one runs only on code that has already earned it.
 
@@ -66,16 +68,16 @@ is a visible commit with a reason rather than a quiet edit.
 ## Running them
 
 ```bash
-cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/P12/gates.py charge captures/ledger.json
+cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/gates.py charge captures/ledger.json
 ```
 
 ```bash
-cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/P12/gates.py size build-host/sizes.json
+cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/gates.py size build-host/sizes.json
 ```
 
 ## Layout
 
-    python/P12/gates.py                       both gates, one shape
+    python/gates.py                       both gates, one shape
     projects/P12-.../budgets.json             flash and RAM limits, design decisions
     projects/P12-.../baseline.json            the charge baseline, all placeholders
     python/tests/test_gates.py                sixteen checks, no hardware

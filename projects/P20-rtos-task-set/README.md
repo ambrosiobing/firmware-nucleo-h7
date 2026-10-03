@@ -1,5 +1,7 @@
 # P20: Three jobs at once: the node as an RTOS application
 
+Status: c=none cpp=none python=none rust=none
+
 **Not started.** This directory exists so the shape of the volume is visible
 from the start rather than arriving a project at a time. Nothing here runs yet.
 

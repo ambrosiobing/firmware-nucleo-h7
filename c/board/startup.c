@@ -12,9 +12,10 @@
  * project in this volume uses it; the rest are left as reserved slots rather
  * than invented.
  *
- * NEVER COMPILED. There is no arm-none-eabi-gcc on win11 aquamarine as of
- * Thursday 1 October 2026, so this file is written and left honest rather than
- * claimed to work.
+ * This file has run on the board since Friday 2 October 2026, cross compiled on
+ * win11 skyhorizon with the toolchain bundled in CubeIDE 2.2.0 and flashed by
+ * copying the .bin to the probe's mass storage disk. It is never compiled on win11
+ * aquamarine, which has no cross toolchain and is not to be given one.
  */
 #include <stdint.h>
 

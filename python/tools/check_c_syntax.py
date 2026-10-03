@@ -3,7 +3,7 @@
     bing@JPTOUPM678:~$ python3 python/tools/check_c_syntax.py
 
 WHY THIS EXISTS. On Saturday 3 October 2026 a patch wrote real carriage returns
-into c/P01/main.c instead of the two characters a C string needs, producing five
+into projects/P01-toolchain-first-light/c/main.c instead of the two characters a C string needs, producing five
 unterminated string literals. That reached the build laptop, failed there, and
 cost a round trip. `gcc -fsyntax-only` neither links nor generates code, so it
 does not care that the target is a Cortex-M7: it parses, resolves includes and
@@ -57,7 +57,10 @@ CANDIDATES = ["gcc", "cc"]
 # running one, and that is the thing this script must not do.
 
 # Directories to check, and the include paths each needs.
-INCLUDE_DIRS = ["c/board", "c/payload", "c/ring", "c/instr", "c/P06"]
+INCLUDE_DIRS = ["c/board", "c/payload", "c/ring", "c/instr",
+                "projects/P06-timer-sampling/c", "projects/P03-interrupt-receive/c",
+                "projects/P05-framing-crc/c", "projects/P08-node-state-machine/c",
+                "projects/P09-payload-codec/cpp"]
 
 # A file including this needs the vendor pack, which is deliberately absent here.
 VENDOR_HEADER = re.compile(r'^\s*#\s*include\s*[<"]stm32h7xx\.h[>"]', re.M)
@@ -87,12 +90,26 @@ def find_compiler():
 
 
 def c_files():
+    """Every first-party C file: the shared board support under c/, and each
+    project's own c/ and cpp/ subdirectory. Both trees are walked because a
+    project owns its sources and c/ holds only what more than one project uses,
+    so checking one tree would leave most of the volume unchecked."""
     out = []
-    for root, dirs, files in os.walk(os.path.join(REPO, "c")):
-        dirs[:] = [d for d in dirs if d not in (".git", "build", "build-fw")]
-        for f in sorted(files):
-            if f.endswith(".c"):
-                out.append(os.path.join(root, f))
+    roots = [os.path.join(REPO, "c")]
+    projects = os.path.join(REPO, "projects")
+    if os.path.isdir(projects):
+        for name in sorted(os.listdir(projects)):
+            for lang in ("c", "cpp"):
+                d = os.path.join(projects, name, lang)
+                if os.path.isdir(d):
+                    roots.append(d)
+    for top in roots:
+        for root, dirs, files in os.walk(top):
+            dirs[:] = [d for d in dirs
+                       if d not in (".git", "build", "build-fw", "__pycache__")]
+            for f in sorted(files):
+                if f.endswith(".c"):
+                    out.append(os.path.join(root, f))
     return sorted(out)
 
 

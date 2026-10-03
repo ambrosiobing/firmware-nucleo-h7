@@ -5,10 +5,12 @@
 #   cmake -B build-fw -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -G Ninja
 #   cmake --build build-fw
 #
-# NOT RUNNABLE YET. On win11 aquamarine, checked Thursday 1 October 2026, there
-# is no arm-none-eabi-gcc, no flashing tool and no ninja. The download list is
-# three items, not two, and this file is written so that the day they arrive
-# there is something to build.
+# Where this runs. On win11 skyhorizon, with the gcc 14.3.1, cmake and ninja
+# bundled inside CubeIDE 2.2.0, which are on no PATH until
+# projects/P01-toolchain-first-light/Use-CubeIDEToolchain.ps1 is dot sourced.
+# The first images built this way ran on the board on Friday 2 October 2026.
+# On win11 aquamarine there is no cross toolchain and none is to be installed:
+# that laptop authors the volume and runs the host suite, and compiles nothing.
 #
 # The one line that matters most is CMAKE_TRY_COMPILE_TARGET_TYPE. Without it
 # CMake tests the compiler by building and linking an executable, which fails on

@@ -119,12 +119,38 @@ Appendix F prints this matrix.
 | Time and safety | SysTick, a general timer, a low-power timer, the RTC, tickless idle; IWDG against WWDG |
 | Peripheral substitution | The same job on a different peripheral |
 | Operating system | Bare metal, FreeRTOS, Zephyr |
-| Language | C baseline, then C++, Rust and MicroPython on the target; Python, Node.js or Java on the host |
+| Language | C, C++, Python and Rust, all four for every project. See the exception below |
 | Intelligence and reach | Local only, edge host, classifier in the sensor, model on the MCU |
+
+### The Language axis is the one exception, since Saturday 3 October 2026
+
+Every other axis obeys the build-in-full-once rule. Language does not. Each
+project carries `c/`, `cpp/`, `python/` and `rust/`, all four implementations
+meant to be equivalent and proven equivalent against that project's own oracle,
+and `projects/PNN-*/LANG/README.md` says what each carries.
+
+So a chapter does not claim the Language axis. It reports it: what the four
+implementations cost, where they differ, and where one of them cannot do the job
+at all. Three cases where that last part applies, and each is a finding rather
+than a gap:
+
+- **Python cannot control memory ordering**, so P02's comparison of four ordering
+  modes has no Python implementation and says why.
+- **MicroPython cannot make this volume's timing claims.** It blinks and prints,
+  which is first light, and it does not decode the clock tree or calibrate a delay
+  loop against the cycle counter.
+- **Two of the four reach the board through a compiler**, one as a downloaded
+  interpreter, and the toolchain for each is a separate question from whether the
+  directory exists.
+
+`python python/tools/check_status.py` reads the one status line per project and
+refuses if a language claims a state that no source file backs.
 
 ### Where each variant is built in full
 
-Claim a variant in your chapter only if this table says it is yours.
+Claim a variant in your chapter only if this table says it is yours. The Language
+rows below say which chapter *reports* that language first, not which one owns it,
+because every project carries all four.
 
 | Variant | Built in full in |
 |---|---|
@@ -140,9 +166,9 @@ Claim a variant in your chapter only if this table says it is yours.
 | IWDG and WWDG | Chapter 12 |
 | Peripheral substitution | Chapter 17 |
 | Zephyr | Chapter 20, referenced from 13 |
-| C++ | Chapter 9 |
-| Rust | Chapter 17 |
-| MicroPython | Chapter 1, as the five-minute path, and Chapter 9 |
+| C++, first reported | Chapter 9, then 1 and 2 |
+| Rust, first reported | Chapter 9, then 1 and 2; Chapter 17 keeps it as a subject |
+| MicroPython, first reported | Chapter 1, as the five-minute path, and Chapter 9 |
 | Host in Python | Chapter 3 |
 | Host in Node.js or Java | Chapter 12 |
 | Edge host over a framed link | Chapter 9 and 11 |

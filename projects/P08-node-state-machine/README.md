@@ -1,5 +1,7 @@
 # P08: the node's state machine, with a transmit that is a stub
 
+Status: c=host cpp=none python=none rust=none
+
 Eight states, nine events, eighteen rows, and a dispatcher that cannot block.
 
 **State: written and proven on the host.** This is the only piece of application
@@ -81,7 +83,7 @@ are arguable rather than inherited, which is why each one says why.
 
 ## Layout
 
-    c/P08/node_sm.{c,h}          the table and the dispatcher
+    c/node_sm.{c,h}          the table and the dispatcher
     projects/P08-.../STATES.md   the states and events, written before the code
     python/tests/test_node_sm.py eight checks, no hardware
 

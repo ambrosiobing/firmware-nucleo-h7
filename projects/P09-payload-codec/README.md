@@ -1,5 +1,7 @@
 # A 40-bit payload, encoded in C and decoded in Python
 
+Status: c=board cpp=host python=host rust=none
+
     bit 39                                                            bit 0
     +-----+------+-----------+--------------------------------+------------+
     | ver | flags|  sequence |            feature             |  battery   |
@@ -124,14 +126,14 @@ one decoder and nothing else:
 | Implementation | Object size |
 |---|---|
 | C, `../../c/payload/payload.c` | 1518 bytes |
-| C++17, `../../c/payload/payload.hpp` via `cpp_encode_only.cpp` | 2700 bytes |
+| C++17, `cpp/payload.hpp` via `cpp_encode_only.cpp` | 2700 bytes |
 
 **Published, not ranked.** These are host objects and they are not the flash cost
 on the board, which needs `arm-none-eabi-size` and therefore a toolchain this
 laptop does not have. The budget table's flash row stays "not measured" until it
 can be measured. What the C++ variant buys for its larger host object is the
 layout checked at compile time: `encode` and `decode` are `constexpr`, so the
-fourth golden vector is asserted by the compiler in `../../c/payload/payload.hpp` and a
+fourth golden vector is asserted by the compiler in `cpp/payload.hpp` and a
 width changed in one place and not the other fails to build.
 
 ### What the test suite can and cannot see
@@ -164,7 +166,7 @@ which pre-dirties the buffer and checks the tail comes back untouched.
     ../../python/firmkit/payload_fields.py      generated for Python, committed
     ../../c/payload/payload.c              the bit writer and reader in C
     ../../c/payload/payload.h              the whole interface: two functions and a buffer
-    ../../c/payload/payload.hpp            the C++ variant, widths as template parameters
+    cpp/payload.hpp            the C++ variant, widths as template parameters
     ../../python/firmkit/payload.py            the Python twin: oracle, edge host, and board
     python/tools/gen_codec.py           the generator, and its --check gate
     python/tools/build_host.py          the build that works without make or ninja

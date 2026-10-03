@@ -1,5 +1,7 @@
 # P01: the toolchain, first light, and printf over the ST-LINK
 
+Status: c=board cpp=none python=none rust=none
+
 The project every other one here depends on. It owns the cross toolchain file,
 the linker script, the vector table, the reset handler, the clock configuration
 and the console, so nothing else has to own any of them.
@@ -25,7 +27,7 @@ than pretending otherwise.
 
 It is built on the **win11 skyhorizon demo laptop**, where STM32CubeIDE 2.2.0
 supplies `arm-none-eabi-gcc` 14.3.1, `cmake` and `ninja`, none of them on PATH;
-`projects/P01-toolchain-first-light/Use-CubeIDEToolchain.ps1` finds them. It
+`Use-CubeIDEToolchain.ps1` finds them. It
 cannot be built on win11 aquamarine, which has no cross toolchain at all, and
 flashing needs no tool anywhere: the probe presents a disk and a `.bin` copied
 onto it is programmed.
@@ -49,17 +51,27 @@ correct together, and anything that goes wrong afterwards is something else.
 
 ## What it refuses, and what each refusal costs
 
+Three of the four refusals this project started with have been lifted, each by
+reading an authority rather than by guessing. What remains is one row, and it is
+the row that matters most:
+
 | Refused | Why | What it needs |
 |---|---|---|
 | 280 MHz core clock | the PLL fields, the flash access latency and the voltage scaling are all RM0455's and none has been read | RM0455, the clock tree and power chapters |
-| Any claim about time | `board_core_hz()` returns 0, so nothing may time anything | the clock above |
-| The console, and therefore printf | the virtual COM port pins are Nucleo-144 convention, not read from the board manual | MB1363, and the clock, since the baud divider comes from it |
-| Every GPIO and RCC access | the peripheral base addresses are placeholders | RM0455, the memory map chapter |
+
+| Lifted, and by what | When |
+|---|---|
+| Every GPIO and RCC access: the peripheral base addresses came from ST's own CMSIS device header for this die, named in `BOARD_REGS_CONFIRMED` | Friday 2 October 2026 |
+| The console, and therefore printf: the probe's virtual serial port pins were settled and recorded in `BOARD_CONSOLE_PINS_CONFIRMED`, and the console reaches COM13 at 115200 | Friday 2 October 2026 |
+| Claims about time: `board_core_hz()` reports the clock decoded from RCC at startup, and the delay loop calibrates itself against `DWT_CYCCNT` on every boot | Friday 2 October 2026 |
 
 Each refusal is a value returned, not a comment. `board_clock_status()`,
 `board_console_status()` and `board_core_hz()` are how a project finds out, and
 `main.c` prints all three and signals them on the LEDs as well, because a board
-with no working console that merely sits there tells a reader nothing.
+with no working console that merely sits there tells a reader nothing. The one
+remaining refusal is still reported that way: `board_clock_status()` returns
+`BOARD_CLOCK_AT_RESET_SPEED`, which is why every cycle figure in this volume is
+a figure at 64 MHz and says so.
 
 **Why refuse rather than use a plausible value.** The three clock values each get
 the part wrong in a different way. Too little flash latency executes garbage once
@@ -70,13 +82,22 @@ later project is wrong by a constant factor. A clean square wave at the wrong
 rate is indistinguishable from a right one without an external witness, which is
 P06's whole subject.
 
-## Bringing it up
+## What the register addresses rest on
 
-`c/board/stm32h7a3_regs.h` is the one file to edit, and it says so at the
-top. Read RM0455's memory map chapter, replace each `BOARD_PLACEHOLDER`, then
-define `BOARD_REGS_CONFIRMED` with the manual revision and the full date you read
-it. Record that revision here too. The console needs a second step and a second
-document: `BOARD_CONSOLE_PINS_CONFIRMED` after the pins are read from MB1363.
+`c/board/stm32h7a3_regs.h` is the one file that carries an address, and it says
+at the top what each one rests on. Both confirmation macros are now defined:
+`BOARD_REGS_CONFIRMED` names ST's CMSIS device header for this die, read on
+Friday 2 October 2026, and `BOARD_CONSOLE_PINS_CONFIRMED` names the probe's
+virtual serial port pins. One placeholder remains, compiled out, and the 280 MHz
+sequence is the authority still unread.
+
+The header also carries the clearest evidence of this volume's central trap. On
+this die the peripheral bases are offsets from `SRD_AHB4PERIPH_BASE` and
+`CD_APB1PERIPH_BASE`: two power domains, CD and SRD. The STM32H743 that almost
+every STM32H7 tutorial is written against has three, D1, D2 and D3, and the
+correspondence is not a rename. Code copied from an H743 project does not compute
+a wrong address here, it fails to resolve the symbol at all, which is the kindest
+way this trap can present.
 
 **Use RM0455 and not RM0433.** RM0433 documents the STM32H743, which is the
 member of this family the internet is about. Its clock tree, its power and
@@ -95,11 +116,11 @@ boot.
     c/board/uart.c                the console, polled
     c/board/retarget.c            printf, and the cost of that decision
     c/board/board.h               what this project provides to every other
-    c/board/stm32h7a3_regs.h      the registers, and the placeholders
-    c/P01/main.c                  first light
+    c/board/stm32h7a3_regs.h      the registers, and what each one rests on
+    c/main.c                  first light
 
 The code lives under `c/` and this directory holds the README and the
-specification. The board support is in `c/board/` rather than in `c/P01/` because
+specification. The board support is in `c/board/` rather than in `c/` because
 every project links it: changing it is a decision about all twenty at once.
 
 ## Three decisions worth the space they take
@@ -125,7 +146,9 @@ finding.
 
 ## Not done
 
-- Never compiled, so no size figures and no map file reconciliation.
+- No size figures and no map file reconciliation yet. The build writes a map file
+  and `cmake/check_retarget.cmake` already reads it, so the reconciliation is a
+  script that does not exist rather than a build that cannot produce the inputs.
 - The interrupt vector positions below the sixteen architectural entries are
   this family's published ones and have not been read from RM0455. The table
   carries only what is certain and leaves the rest as the default handler, so an

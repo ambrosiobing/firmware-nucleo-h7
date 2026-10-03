@@ -33,8 +33,25 @@ from shutil import which
 
 ROOT = Path(__file__).resolve().parent.parent.parent   # python/tools -> repo root
 BUILD = ROOT / "build-host"
-C_DIR   = ROOT / "c"
-CPP_DIR = ROOT / "cpp"
+C_DIR    = ROOT / "c"          # the shared C: board, ring, payload, instr, ld
+PROJECTS = ROOT / "projects"
+
+# Each project owns its own c/, cpp/, python/ and rust/ subdirectory, so a source
+# file is found from the project rather than from a language tree. Only the four
+# projects whose code the host suite builds are listed; a missing key here is a
+# project this script does not build, which is a clearer failure than a path that
+# silently does not exist.
+PROJECT_DIR = {
+    "P02": PROJECTS / "P02-ring-buffer",
+    "P05": PROJECTS / "P05-framing-crc",
+    "P08": PROJECTS / "P08-node-state-machine",
+    "P09": PROJECTS / "P09-payload-codec",
+}
+
+
+def proj(key, lang):
+    """The directory holding one project's sources in one language."""
+    return PROJECT_DIR[key] / lang
 
 # The Qt install is the only compiler on this laptop. Named explicitly rather
 # than only looked for on PATH, because it is not on PATH and a silent fallback
@@ -400,21 +417,21 @@ def main() -> int:
     print("P09, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
-         "-I", C_DIR / "payload", "-I", CPP_DIR / "P09",
-         CPP_DIR / "P09" / "cpp_filter.cpp",
+         "-I", C_DIR / "payload", "-I", proj("P09", "cpp"),
+         proj("P09", "cpp") / "cpp_filter.cpp",
          "-o", BUILD / ("cpp_filter" + exe)],
         "cpp_filter")
 
     print("P05, the framing layer: COBS, CRC-16 and the frame, as one library:")
     shared_lib("frame",
-               [C_DIR / "P05" / "frame.c", C_DIR / "P05" / "cobs.c",
-                C_DIR / "P05" / "crc16.c"],
-               includes=[C_DIR / "P05"])
+               [proj("P05", "c") / "frame.c", proj("P05", "c") / "cobs.c",
+                proj("P05", "c") / "crc16.c"],
+               includes=[proj("P05", "c")])
 
     print("P08, the node's state machine, with P09's codec linked in:")
     shared_lib("node_sm",
-               [C_DIR / "P08" / "node_sm.c", C_DIR / "payload" / "payload.c"],
-               includes=[C_DIR / "P08", C_DIR / "payload"])
+               [proj("P08", "c") / "node_sm.c", C_DIR / "payload" / "payload.c"],
+               includes=[proj("P08", "c"), C_DIR / "payload"])
 
     print("P02, the ring, once per ordering mode so all four can be compared:")
     for mode in (0, 1, 2, 3):
@@ -426,28 +443,28 @@ def main() -> int:
         run([cc, "-std=c11", "-O2", *WARNINGS, *STATIC,
              "-DRING_BARRIER={}".format(mode),
              "-I", C_DIR / "ring",
-             C_DIR / "P02" / "property_test.c", C_DIR / "ring" / "ring.c",
+             proj("P02", "c") / "property_test.c", C_DIR / "ring" / "ring.c",
              "-o", BUILD / ("property_test{}{}".format(mode, exe))],
             "property_test{}  RING_BARRIER={}".format(mode, mode))
 
     print("P02, the two-thread soak:")
     run([cc, "-std=c11", "-O2", *WARNINGS, "-pthread", *STATIC,
          "-I", C_DIR / "ring",
-         C_DIR / "P02" / "soak_threads.c", C_DIR / "ring" / "ring.c",
+         proj("P02", "c") / "soak_threads.c", C_DIR / "ring" / "ring.c",
          "-o", BUILD / ("soak_threads" + exe)],
         "soak_threads")
 
     print("\nObject sizes at -Os, for the tables. Published, never ranked:")
     for src, out, std, extra in (
         (C_DIR / "payload" / "payload.c", "payload_c.o", "-std=c11", []),
-        (CPP_DIR / "P09" / "cpp_encode_only.cpp", "payload_cpp.o",
+        (proj("P09", "cpp") / "cpp_encode_only.cpp", "payload_cpp.o",
          "-std=c++17", ["-fno-exceptions", "-fno-rtti"]),
         (C_DIR / "ring" / "ring.c", "ring_c.o", "-std=c11", []),
     ):
         compiler = cc if str(src).endswith(".c") else cxx
         subprocess.run(
             [compiler, std, "-Os", *extra,
-             "-I", str(C_DIR / "payload"), "-I", str(C_DIR / "ring"), "-I", str(CPP_DIR / "P09"),
+             "-I", str(C_DIR / "payload"), "-I", str(C_DIR / "ring"), "-I", str(proj("P09", "cpp")),
              "-c", str(src), "-o", str(BUILD / out)],
             check=True, cwd=ROOT, env=compiler_env(compiler),
         )

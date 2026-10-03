@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "P12"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "projects" / "P12-energy-regression" / "python"))
 
 from gates import (CHARGE_TOLERANCE_FRACTION, GateFailure,  # noqa: E402
                    check_charge, check_sizes)

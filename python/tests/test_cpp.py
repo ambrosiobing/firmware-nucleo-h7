@@ -111,6 +111,6 @@ def test_the_compile_time_self_test_is_present():
     presence of it is asserted here, which is a weaker check than the assertion
     itself but catches its removal.
     """
-    text = (ROOT / "cpp" / "P09" / "payload.hpp").read_text(encoding="utf-8")
+    text = (ROOT / "projects" / "P09-payload-codec" / "cpp" / "payload.hpp").read_text(encoding="utf-8")
     assert "static_assert(third_bytes[0] == 0x24" in text
     assert "sign extension at compile time" in text

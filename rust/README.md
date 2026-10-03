@@ -32,11 +32,28 @@ is the same one the C side wants, so installing it unblocks both.
 
 ## What belongs here when it starts
 
-The volume's Language variant axis assigns Rust to specific projects rather than
-to all twenty, and the matrix in the appendix says which. P17 is the one that
-owns the Rust variant as its subject: the same driver written twice, at the
-vendor layer and at the register layer, with the Rust version as the third
-reading.
+**This changed on Saturday 3 October 2026.** Rust is no longer assigned to a few
+projects by the variant matrix: every project carries a `rust/` directory
+alongside its `c/`, `cpp/` and `python/`, and the language is meant to be built
+for each of the twenty and proven equivalent to the other three against that
+project's own oracle. What lives at this top level is only what more than one
+project uses, the same rule the `c/` tree follows.
+
+**The first crate is P09's**, in `../projects/P09-payload-codec/rust/`: a `no_std`
+codec driven against the same four hand-computed vectors, with `panic = "abort"`
+and `opt-level = "s"`. It is first because everything it needs already exists,
+four vectors, three implementations to disagree with, and a board image that
+prints the same bytes.
+
+**There is deliberately no workspace file yet.** A root `Cargo.toml` listing no
+members, and a `rust-toolchain.toml` pinning a channel for nothing, would be two
+files that cannot be built, which is the same defect as an empty `main.rs`. Both
+arrive with the first crate, and the workspace will then list every
+`projects/*/rust` crate the way the root `CMakeLists.txt` lists every C target.
+
+P17 keeps Rust as its *subject* rather than its implementation language: the same
+driver written at the vendor layer and at the register layer, with the Rust
+version as the third reading.
 
 A project here follows the same rule as everywhere else in this repository.
 Nothing claims a measurement it has not taken, a value that is not confirmed
@@ -45,8 +62,21 @@ been measured says "not measured".
 
 ## Why there is a folder per language at all
 
-A reader opening this repository should see immediately what it is written in.
-The four folders, `c/`, `cpp/`, `python/` and `rust/`, make the Language variant
-axis of the volume navigable in the tree rather than only in an appendix table,
-and they keep the Python that drives the C visible as what it is: harnesses,
-generators and build scripts, not the deliverable.
+A reader opening this repository should see immediately what it is written in,
+and a reader opening one project should see its four languages side by side
+rather than having to visit four trees. So the four folders exist twice over: at
+the top level for shared code, and inside each of the twenty projects for that
+project's own.
+
+That makes the Language axis of the volume navigable in the tree rather than only
+in an appendix table. It also keeps one distinction visible that the old layout
+blurred. Python is two different things here: a deliverable in its own right for
+P09's codec and P12's gates, and a harness that drives C for everything else. The
+first kind sits in a project's `python/`; the second sits in `../python/tests/`
+and `../python/tools/` and is not a variant of anything.
+
+Whether a toolchain exists for a language is a separate question from whether
+the directory does, and each project's language README answers it for that
+project. On this part, two of the four reach the board through a compiler, one
+reaches it as a downloaded interpreter, and one of the four cannot make the
+volume's timing claims at all.

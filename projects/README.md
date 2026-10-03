@@ -1,8 +1,18 @@
 # The code for the twenty projects
 
 The software for the twenty projects of this volume. The book and the code live
-in one repository: `chapters/` and `figures/` are the written volume,
-`projects/`, `shared/`, `python/firmkit/` and `python/tests/` are what runs.
+in one repository: `chapters/` and `figures/` are the written volume, and
+`projects/` plus the shared `c/`, `python/firmkit/` and `python/tests/` are what
+runs.
+
+**Each project owns four languages.** Since Saturday 3 October 2026 every project
+directory carries `c/`, `cpp/`, `python/` and `rust/`, each with a README saying
+what that language carries for that project, what it is proven against, and what
+it cannot do on this part. The four are meant to be equivalent and to be proven
+equivalent against one oracle per project, which is the project's own: P09's four
+hand-computed vectors, P05's published check value 0x29B1, P08's eighteen
+transition rows. A language with nothing written says so rather than holding an
+empty source file, because an empty file is a claim.
 
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
@@ -24,6 +34,21 @@ distinction was not yet needed. It is now:
 The middle state is the one worth being careful about. A target binary that links is
 evidence about the build and about nothing else. P06's three back ends and P09's
 codec both reached that state on Friday 2 October 2026 and neither has been run.
+
+**The state is written once and checked.** Each project README carries one line,
+the same grammar in all twenty, with a state per language and `none` where nothing
+is written:
+
+    Status: c=board cpp=host python=host rust=none
+
+`python python/tools/check_status.py` reads those twenty lines and refuses if a
+language claims a state with no source file behind it, if a language says `none`
+while its directory holds code, if a language directory has no README, if the
+strongest claim disagrees with that project's row in the table below, or if any
+Markdown here names a repository path that does not exist. That last check exists
+because this page once said that nothing had run on hardware thirty lines below a
+table of figures measured on hardware, and because three references to a C++
+header named a path the file had never had.
 
 | Project | What it is | State |
 | --- | --- | --- |
@@ -50,10 +75,12 @@ codec both reached that state on Friday 2 October 2026 and neither has been run.
 
 **What "proven" means here, and what it does not.** Every project marked proven has
 tests that fail when the thing they check is broken, and several were themselves
-tested by introducing defects on purpose. None of it has run on hardware. **No figure
-anywhere in this repository is a measurement of anything physical.** Where a number
-appears it is either arithmetic, a count of synthetic cases, or a host object size
-that is explicitly not the flash cost on the board.
+tested by introducing defects on purpose. Proven on the host and measured on the
+board are different claims, and the table above is arranged to keep them apart.
+**Every figure here is one of three things, and says which: a measurement taken on
+the board with its instrument and its date named, arithmetic, or a count of
+synthetic cases.** Where a host object size appears it says so, because it is
+explicitly not the flash cost on the board.
 
 ## Why there are shared directories
 
@@ -63,6 +90,12 @@ it on a runner with no board, and P11 sends it over a modem. P02, P06, P17, P18
 and P20 all want the cycle counter. Those parts are not properties of whichever
 project first needed them, so they live together.
 
+So the rule is: a project's own code lives in that project, and the top level
+holds only what more than one project uses. Until Saturday 3 October 2026 it was
+the other way round, with `c/P01` through `c/P09`, `cpp/P09` and five `python/PNN`
+directories split by language at the top, and a reader who wanted one project had
+to visit four trees to find it.
+
 | Path | What it is |
 | --- | --- |
 | `c/ring/ring.{c,h}`, `c/ring/barrier.h` | P02's structure and its four ordering modes, used by P03, P04, P05, P11 |
@@ -71,7 +104,7 @@ project first needed them, so they live together.
 | `python/firmkit/payload.py` | the Python twin: test oracle, edge-host decoder, and the same file again on the board under MicroPython |
 | `python/firmkit/rate.py` | P06's edge and rate analysis, two independent routes that must agree |
 | `python/firmkit/cbor.py` | the serialisation-size arithmetic, so a format decision carries a number |
-| `projects/PNN-name/` | each project: its own specification, variants, target code, design notes and README |
+| `projects/PNN-name/` | each project: its specification, design notes, fixtures, README, and its own `c/`, `cpp/`, `python/` and `rust/` |
 | `python/tests/` | every suite, central, none of which touch a device |
 | `python/tools/` | the generator, the host build, and the checks that prove the checks work |
 
@@ -89,9 +122,11 @@ one that refuses, and a clean square wave at the wrong rate is indistinguishable
 from a right one without an external witness.
 
 **Every measurement names its instrument, or says it was not taken.** A budget row
-reading "not measured" is correct and finished. A plausible number is neither. No
-figure here is a measurement of anything physical yet, because nothing here has
-run on hardware.
+reading "not measured" is correct and finished. A plausible number is neither. The
+figures that exist were taken with the board's own cycle counter and its gated
+frequency counter, named in the row that carries them. Every other row still reads
+"not measured", and that is the honest state rather than a gap to be filled with an
+estimate.
 
 ## The one thing that makes most published material wrong for this part
 
@@ -129,10 +164,11 @@ cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/tools/build_hos
 ```
 
 ```bash
-cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python -m pytest tests -q
+cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python -m pytest python/tests -q
 ```
 
-Thirty-five checks, about nine seconds, on a machine with no board attached.
+Eighty-seven checks, about ten seconds, on a machine with no board attached and no
+compiler invoked.
 Each project's own README gives its flow.
 
 `.venv` is ignored by git, so it is built from `requirements.txt` rather than
@@ -145,21 +181,23 @@ committed.
 > imported the library through `ctypes`. Close it and run the build again.
 > Nothing is wrong with the source.
 
-## What blocks the target half of all twenty
+## Which laptop does what, and why it matters to a reader
 
-On **win11 aquamarine**, the authoring laptop, re-checked **Thursday 1 October
-2026**: CMake 4.4.2 and Python 3.12.10 are installed. There is no
-`arm-none-eabi-gcc`, no `clang`, no `openocd`, no `probe-rs`, no
-`STM32_Programmer_CLI`, and none of the usual ST or Arm install directories
-exists. **Also absent: `make` and `ninja`**, so a cross compiler alone would
-still leave CMake with no generator.
+Three machines, and no step is interchangeable between them. A command here always
+names the one it is for.
 
-The download list is therefore three items and not two: the compiler, the
-flashing tool, and `ninja`. Until then `python/tools/build_host.py` calls the compiler
-directly, which is why it exists and why it will be deleted when `ninja` arrives.
+| Laptop | What it does | What it does not |
+| --- | --- | --- |
+| **win11 aquamarine**, the authoring laptop | the volume, the host suite, the checkers. `python -m pytest python/tests -q` and the three check scripts, all with no board and no compiler | compiles nothing, cross or host. A host gcc exists here, bundled with Qt, and it is not to be used |
+| **win11 skyhorizon**, the demo laptop | the cross build and the board. CubeIDE 2.2.0 supplies `arm-none-eabi-gcc` 14.3.1, `cmake` and `ninja`, none of them on PATH until `P01-toolchain-first-light/Use-CubeIDEToolchain.ps1` is dot-sourced. Flashing needs no tool: the probe presents a disk as D: labelled `NOD_H7A3ZIQ` and a `.bin` copied onto it is programmed. The console is COM13 at 115200 | does not author the volume |
+| **wsl on skyhorizon**, `bing@JPTOUPM678` | the C syntax and warning check, gcc 15: `python3 python/tools/check_c_syntax.py`. This is the first test of any C change, before CI | has no board attached |
 
-P01 then owns the toolchain file, the startup code and the linker script that
-every other project depends on.
+`python/tools/build_host.py` builds the host libraries the suite drives through
+`ctypes`. It calls the compiler directly rather than through CMake, which is why
+it exists, and it runs on the CI runner and on skyhorizon rather than here.
+
+P01 owns the toolchain file, the startup code and the linker script that every
+other project depends on.
 
 ## Requirements
 

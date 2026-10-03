@@ -1,5 +1,7 @@
 # P05: framing and the hardware CRC unit
 
+Status: c=host cpp=none python=host rust=none
+
 A frame format with a stated reason for every field, an encoder and decoder that
 build unchanged on the host and on the target, and a Python twin that corrupts
 frames on purpose and counts what gets through.
@@ -84,7 +86,7 @@ peripheral's reset, which is a documented trap in this family.
 
 ## What this unblocked
 
-P09's `python/P09/listen.py` shipped with two functions that raised
+P09's `projects/P09-payload-codec/python/listen.py` shipped with two functions that raised
 `NotImplementedError` and a note saying a frame decoder written from recollection
 of another one is how two implementations come to disagree. P05 now provides the
 real thing, the listener imports it, and it decodes a real P09 frame and rejects a
@@ -96,10 +98,10 @@ one-bit corruption of it:
 
 ## Layout
 
-    c/P05/crc16.{c,h}     the software reference, the arbiter, bitwise on purpose
-    c/P05/cobs.{c,h}      byte stuffing, host and target alike
-    c/P05/frame.{c,h}     the frame, and every way a decode can end
-    python/P05/twin.py    the Python twin, and the bit flipper that attacks it
+    c/crc16.{c,h}     the software reference, the arbiter, bitwise on purpose
+    c/cobs.{c,h}      byte stuffing, host and target alike
+    c/frame.{c,h}     the frame, and every way a decode can end
+    python/twin.py    the Python twin, and the bit flipper that attacks it
     python/tests/test_frame.py   twelve checks, no hardware
 
 ## Not done

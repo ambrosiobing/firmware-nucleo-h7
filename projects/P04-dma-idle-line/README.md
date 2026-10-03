@@ -1,5 +1,7 @@
 # P04: Circular DMA and the idle line
 
+Status: c=none cpp=none python=none rust=none
+
 **Not started.** This directory exists so the shape of the volume is visible
 from the start rather than arriving a project at a time. Nothing here runs yet.
 

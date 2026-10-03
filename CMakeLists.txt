@@ -228,7 +228,7 @@ endfunction()
 
 # P01, first light. Blinks on the reset clock using only settled board facts.
 add_firmware(p01-first-light
-    SOURCES c/P01/main.c)
+    SOURCES projects/P01-toolchain-first-light/c/main.c)
 
 # P02, the ring buffer on the target, which is the only place its deliverable can
 # be tested. Four targets, one per ordering mode, because the chapter's subject is
@@ -248,7 +248,7 @@ foreach(i RANGE 3)
     list(GET P02_MODES ${i} P02_MODE)
     list(GET P02_NAMES ${i} P02_NAME)
     add_firmware(p02-ring-${P02_NAME}
-        SOURCES c/P02/main.c c/ring/ring.c
+        SOURCES projects/P02-ring-buffer/c/main.c c/ring/ring.c
         INCLUDES ${CMAKE_SOURCE_DIR}/c/ring
         DEFINES RING_BARRIER=${P02_MODE})
 endforeach()
@@ -330,17 +330,17 @@ foreach(BACKEND systick timer dma)
         continue()
     endif()
     if(BACKEND STREQUAL "dma")
-        set(ACQ c/P06/acq_dma_double.c)
+        set(ACQ projects/P06-timer-sampling/c/acq_dma_double.c)
     else()
-        set(ACQ c/P06/acq_${BACKEND}.c)
+        set(ACQ projects/P06-timer-sampling/c/acq_${BACKEND}.c)
     endif()
     add_firmware(p06-sampling-${BACKEND}
-        SOURCES c/P06/main.c
-                c/P06/marker.c
+        SOURCES projects/P06-timer-sampling/c/main.c
+                projects/P06-timer-sampling/c/marker.c
                 c/instr/cyccnt.c
                 c/instr/freqcount.c
                 ${ACQ}
-        INCLUDES c/P06 c/instr
+        INCLUDES projects/P06-timer-sampling/c c/instr
         VENDOR_INCLUDES ${CMSIS_DEVICE_DIR} ${CMSIS_CORE_DIR}
         DEFINES ${DEVICE_MACRO})
 endforeach()
@@ -349,7 +349,7 @@ endforeach()
 # than only on the host.
 # Chapter 9 three times over, identical in every respect but where its code sits.
 #
-# c/P09/pad.c contributes a run of zero bytes to the code section and is listed
+# projects/P09-payload-codec/c/pad.c contributes a run of zero bytes to the code section and is listed
 # FIRST, so everything after it is displaced by that many bytes. The encoder is
 # byte for byte the same in all three; only its address changes. Each image reports
 # the encoder cold and cached, so the pair of predictions in pad.c's comment can be
@@ -379,7 +379,7 @@ foreach(PAD IN LISTS P09_PADS)
         set(P09_TARGET p09-codec-pad${PAD})
     endif()
     add_firmware(${P09_TARGET}
-        SOURCES c/P09/pad.c c/P09/main.c c/payload/payload.c
+        SOURCES projects/P09-payload-codec/c/pad.c projects/P09-payload-codec/c/main.c c/payload/payload.c
         INCLUDES ${CMAKE_SOURCE_DIR}/c/payload
         DEFINES P09_PAD_BYTES=${PAD})
 endforeach()

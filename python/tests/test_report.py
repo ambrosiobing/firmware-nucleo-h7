@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "P03"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "projects" / "P03-interrupt-receive" / "python"))
 
 from report import attribute, first_loss  # noqa: E402
 

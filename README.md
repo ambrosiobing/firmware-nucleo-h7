@@ -9,6 +9,20 @@ art and what it takes from it, configures its peripherals, states a memory and
 timing budget, and ends in a number. Each has a project beside it that is the
 code for the same subject.
 
+[![book](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/checks.yml/badge.svg)](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/checks.yml)
+[![code](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/code.yml/badge.svg)](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/code.yml)
+[![firmware](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml/badge.svg)](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml)
+
+**What those three check, and what a green badge does not mean.** `book` is the
+prose, the figures and the links. `code` is the host suite, 87 checks on a runner
+with no board. `firmware` cross-compiles for the target. None of the three can see
+the board, so none of them can turn red when a measurement is wrong. Which
+projects have actually run on hardware, which only link, and which are host only
+is written per project and per language in
+[the state table](projects/README.md#the-code-for-the-twenty-projects), and
+`python python/tools/check_status.py` is what keeps that table and the code from
+disagreeing.
+
 **Read a chapter.** Everything here is Markdown with its figures beside it, so it
 reads in the browser with nothing to install and nothing to download. Start with
 [About this volume](chapters/00-about-this-volume.md), or take a chapter from
@@ -166,11 +180,15 @@ Chapter NN is the written design for project PNN.
 
 | Path | What it is |
 |---|---|
-| [`projects/`](projects/README.md) | twenty project directories, `P01` to `P20`, each with its own README and state |
-| `shared/` | C that more than one project compiles: the ring buffer and its four ordering modes, the payload codec, the on-chip instruments |
+| [`projects/`](projects/README.md) | twenty project directories, `P01` to `P20`, each with its own README, its state per language, and its own `c/`, `cpp/`, `python/` and `rust/` |
+| `c/board/` | the board support every project links: startup and vector table, clock, LEDs and button, console, printf retarget, instruction cache |
+| `c/ring/`, `c/payload/`, `c/instr/` | C that more than one project compiles: the ring buffer and its four ordering modes, the payload codec, the on-chip instruments |
+| `c/ld/stm32h7a3zi.ld` | the linker script, with every length taken from this part rather than from its popular sibling |
+| `rust/` | Rust that more than one project will use. No workspace file yet, deliberately: one listing no members would be a file that cannot be built |
 | `python/firmkit/` | Python that more than one project imports: the codec twin, the rate analysis, the serialisation-size arithmetic |
 | `python/tests/` | every suite, central, and none of which touches a device |
-| `python/tools/` | the codec generator, the host build, and the checks that prove the checks work |
+| `python/tools/` | the codec generator, the host build, and the checks that prove the checks work, including `check_status.py` |
+| `CMakeLists.txt`, `cmake/arm-none-eabi.cmake` | the firmware build and the cross toolchain file, both P01's |
 | `requirements.txt` | `pytest`, and nothing else |
 | `requirements-hardware.txt` | what only matters when something is plugged in; the suite and the runner never install it |
 | `build-host/` | code build output, ignored, deliberately not `build/` so the two cannot delete each other's work |
