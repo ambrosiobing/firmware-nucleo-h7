@@ -347,6 +347,28 @@ endforeach()
 
 # P09, the codec on the target, checking the negative golden vector there rather
 # than only on the host.
-add_firmware(p09-codec
-    SOURCES c/P09/main.c c/payload/payload.c
-    INCLUDES ${CMAKE_SOURCE_DIR}/c/payload)
+# Chapter 9 three times over, identical in every respect but where its code sits.
+#
+# c/P09/pad.c contributes a run of zero bytes to the code section and is listed
+# FIRST, so everything after it is displaced by that many bytes. The encoder is
+# byte for byte the same in all three; only its address changes. Each image reports
+# the encoder cold and cached, so the pair of predictions in pad.c's comment can be
+# checked: cold figures should differ between the three, cached figures should
+# agree.
+#
+# Source order is load bearing here. The linker script takes *(.text) then
+# *(.text*) and within a glob the order is the order of the objects on the link
+# line, which is this list. Moving pad.c after main.c would displace nothing and
+# the experiment would quietly become three identical builds.
+set(P09_PADS 0 64 160)
+foreach(PAD IN LISTS P09_PADS)
+    if(PAD EQUAL 0)
+        set(P09_TARGET p09-codec)      # the reference build, pad.c emits nothing
+    else()
+        set(P09_TARGET p09-codec-pad${PAD})
+    endif()
+    add_firmware(${P09_TARGET}
+        SOURCES c/P09/pad.c c/P09/main.c c/payload/payload.c
+        INCLUDES ${CMAKE_SOURCE_DIR}/c/payload
+        DEFINES P09_PAD_BYTES=${PAD})
+endforeach()

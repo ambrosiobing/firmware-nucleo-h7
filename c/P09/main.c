@@ -25,6 +25,11 @@
  * needed the console. Measuring the encoder needs board.h properly. */
 #include "board.h"
 
+/* How many bytes c/P09/pad.c pushed this image's code along by. Printed rather
+ * than assumed, because three captures that look alike are worthless if the only
+ * record of which is which is the order they were taken in. */
+extern const unsigned char p09_pad_bytes;
+
 /* The fourth golden vector from test/vectors.json, which is the negative case.
  * Checking the negative one on the target rather than an easy one is the whole
  * point: sign extension is the thing that differs between compilers and the
@@ -85,6 +90,8 @@ int main(void)
     board_init();
 
     printf("\r\nnucleo-h7a3-codec\r\n");
+    printf("  displacement  %u bytes of padding before the code\r\n",
+           (unsigned) p09_pad_bytes);
     printf("  payload       %u bits, %u bytes\r\n",
            (unsigned) PAYLOAD_BITS, (unsigned) PAYLOAD_BYTES);
 
