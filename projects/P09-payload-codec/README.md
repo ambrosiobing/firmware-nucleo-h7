@@ -1,6 +1,6 @@
 # A 40-bit payload, encoded in C and decoded in Python
 
-Status: c=board cpp=host python=host rust=none
+Status: c=board cpp=host python=host rust=written
 
     bit 39                                                            bit 0
     +-----+------+-----------+--------------------------------+------------+

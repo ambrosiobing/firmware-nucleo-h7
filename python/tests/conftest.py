@@ -29,6 +29,78 @@ def shared_library_name(stem: str) -> str:
     return "{}.dll".format(stem) if sys.platform == "win32" else "lib{}.so".format(stem)
 
 
+def executable_name(stem: str) -> str:
+    return "{}.exe".format(stem) if sys.platform == "win32" else stem
+
+
+# The two implementations that are driven as filters rather than through
+# ctypes, and the command that builds each. Both speak one protocol: five
+# integers per line on stdin, and on stdout the five encoded bytes as uppercase
+# hex followed by the round trip of those bytes back into fields. That is what
+# lets one helper drive both, and it is why neither of them parses vectors.json.
+CPP_FILTER = BUILD / executable_name("cpp_filter")
+RUST_FILTER = ROOT / "target" / "release" / executable_name("p09-filter")
+
+FILTER_BUILD_COMMAND = {
+    CPP_FILTER: "python python/tools/build_host.py",
+    RUST_FILTER: "cargo build --release --workspace",
+}
+
+
+def run_codec_filter(path: Path, cases, required: bool = False):
+    """Send every case through one filter process and parse what comes back.
+
+    One process for the whole run rather than one per case: a hundred thousand
+    process launches would dominate the test time and measure the operating
+    system instead of the codec.
+
+    Skips, with the build command named, when the filter has not been built.
+    `required=True` turns that into a failure instead, for the one test whose
+    whole purpose is to notice that nothing was compared.
+    """
+    import subprocess
+
+    if not path.exists():
+        message = "{} is missing. Build it with:\n    {}".format(
+            path.name, FILTER_BUILD_COMMAND.get(path, "see the project README")
+        )
+        if required:
+            pytest.fail(message)
+        pytest.skip(message)
+
+    stdin = "".join(
+        "{} {} {} {} {}\n".format(
+            c["version"], c["flags"], c["sequence"], c["feature"], c["battery"]
+        )
+        for c in cases
+    )
+    proc = subprocess.run(
+        [str(path)], input=stdin, capture_output=True, text=True, check=True
+    )
+    out = []
+    for line in proc.stdout.splitlines():
+        parts = line.split()
+        assert len(parts) == 6, "unexpected output from {}: {!r}".format(
+            path.name, line
+        )
+        out.append(
+            (
+                parts[0],
+                {
+                    "version": int(parts[1]),
+                    "flags": int(parts[2]),
+                    "sequence": int(parts[3]),
+                    "feature": int(parts[4]),
+                    "battery": int(parts[5]),
+                },
+            )
+        )
+    assert len(out) == len(cases), "{} returned {} lines for {} cases".format(
+        path.name, len(out), len(cases)
+    )
+    return out
+
+
 class CPayload(ctypes.Structure):
     """Must match payload_t in c/payload/payload.h, field for field and in order."""
 

@@ -1,0 +1,45 @@
+[package]
+name = "p09-payload"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P09's 40-bit payload codec, no_std, against the same vectors as the C, C++ and Python implementations"
+license = "MIT"
+publish = false
+
+# No dependencies, and that is a decision rather than an omission. The whole
+# codec is thirty lines of bit shuffling, and every crate that could replace it
+# brings either a different wire format or a build-time dependency onto a
+# project whose point is that it can be read end to end. The C implementation
+# makes the same choice for the same reason.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not. The same class of defect as a
+# linter rule nobody runs.
+[lints]
+workspace = true
+
+[lib]
+name = "p09_payload"
+path = "src/lib.rs"
+
+# The filter speaks the protocol the C++ variant already speaks: one case per
+# line on stdin as five integers, one line per case on stdout as the hex and
+# the round trip. That is what lets one parity test drive both with the same
+# code, and it is why there is no JSON parser here. The vectors live in
+# ../vectors.json and the test that owns them is python/tests/test_parity.py.
+[[bin]]
+name = "p09-filter"
+path = "src/main.rs"
+
+# opt-level "s" and panic abort are the settings the board half will want, set
+# here so the host filter is built the way the target image will be. Not set in
+# the dev profile: cargo ignores panic abort for the test profile anyway, and a
+# setting that is silently ignored is worse than one that is absent.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = true

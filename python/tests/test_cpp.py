@@ -15,60 +15,23 @@ from __future__ import annotations
 
 import os
 import random
-import subprocess
-from pathlib import Path
 
 from firmkit import payload
-import pytest
-from conftest import BUILD, ROOT
+from conftest import CPP_FILTER, ROOT, run_codec_filter
 from test_roundtrip import SEED, c_encode_cached, random_case
 
-FILTER = BUILD / ("cpp_filter.exe" if os.name == "nt" else "cpp_filter")
 CASES = int(os.environ.get("CODEC_CASES", "100000"))
 
 
 def run_filter(cases):
-    """Send every case through the C++ filter in one process.
+    """The C++ filter, through the helper that drives the Rust one identically.
 
-    One process for the whole run rather than one per case: 100000 process
-    launches would dominate the test time and measure the operating system
-    instead of the codec.
+    The helper moved into conftest.py on Saturday 3 October 2026, when a second
+    implementation started speaking this protocol. Two copies of the parsing
+    would be two things to keep in step, and the protocol is the thing both
+    sides have to agree on.
     """
-    if not FILTER.exists():
-        pytest.skip(
-            "{} is missing. Build it with: python python/tools/build_host.py".format(
-                FILTER.name
-            )
-        )
-    stdin = "".join(
-        "{} {} {} {} {}\n".format(
-            c["version"], c["flags"], c["sequence"], c["feature"], c["battery"]
-        )
-        for c in cases
-    )
-    proc = subprocess.run(
-        [str(FILTER)], input=stdin, capture_output=True, text=True, check=True
-    )
-    out = []
-    for line in proc.stdout.splitlines():
-        parts = line.split()
-        assert len(parts) == 6, "unexpected filter output: {!r}".format(line)
-        out.append(
-            (
-                parts[0],
-                {
-                    "version": int(parts[1]),
-                    "flags": int(parts[2]),
-                    "sequence": int(parts[3]),
-                    "feature": int(parts[4]),
-                    "battery": int(parts[5]),
-                },
-            )
-        )
-    assert len(out) == len(cases), "the filter returned {} lines for {} cases".format(
-        len(out), len(cases)
-    )
-    return out
+    return run_codec_filter(CPP_FILTER, cases)
 
 
 def test_cpp_matches_the_vectors(vectors):

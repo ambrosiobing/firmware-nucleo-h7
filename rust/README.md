@@ -40,16 +40,25 @@ project's own oracle. What lives at this top level is only what more than one
 project uses, the same rule the `c/` tree follows.
 
 **The first crate is P09's**, in `../projects/P09-payload-codec/rust/`: a `no_std`
-codec driven against the same four hand-computed vectors, with `panic = "abort"`
-and `opt-level = "s"`. It is first because everything it needs already exists,
-four vectors, three implementations to disagree with, and a board image that
-prints the same bytes.
+codec driven against the same hand-computed vectors, with `panic = "abort"` and
+`opt-level = "s"`. It was first because everything it needed already existed:
+six vectors, three implementations to disagree with, and a board image that
+prints the same bytes. Written Saturday 3 October 2026 and **not yet built**,
+which is a state this volume now names rather than glosses.
 
-**There is deliberately no workspace file yet.** A root `Cargo.toml` listing no
-members, and a `rust-toolchain.toml` pinning a channel for nothing, would be two
-files that cannot be built, which is the same defect as an empty `main.rs`. Both
-arrive with the first crate, and the workspace will then list every
-`projects/*/rust` crate the way the root `CMakeLists.txt` lists every C target.
+**The workspace arrived with that crate and not before.** A root `Cargo.toml`
+listing no members, and a `rust-toolchain.toml` pinning a channel for nothing,
+would have been two files that cannot be built, which is the same defect as an
+empty `main.rs`. Both were written on Saturday 3 October 2026, the day the first
+crate was.
+
+`../Cargo.toml` lists members explicitly rather than globbing `projects/*/rust`,
+because a glob would match the nineteen directories that hold only a README and
+fail, and because the list is the thing a reader wants to see.
+`../rust-toolchain.toml` pins 1.99.0, the `thumbv7em-none-eabihf` target and the
+three components CI runs, for the same reason the C side prints
+`arm-none-eabi-gcc -dumpversion` into its artifact: a figure from an unnamed
+compiler is not a measurement anybody can repeat.
 
 P17 keeps Rust as its *subject* rather than its implementation language: the same
 driver written at the vendor layer and at the register layer, with the Rust

@@ -34,7 +34,8 @@ jobs:
       - name: P09's generated files match its specification
         run: |
           python python/tools/gen_codec.py projects/P09-payload-codec/fields.py \
-            --out-c c/payload --out-py python/firmkit --check
+            --out-c c/payload --out-py python/firmkit \
+            --out-rs projects/P09-payload-codec/rust/src --check
 
       - name: Build everything the suite needs
         run: python python/tools/build_host.py
@@ -50,7 +51,7 @@ jobs:
           gcc -std=c11 -O2 $W -Ic/payload -c c/payload/payload.c -o build-host/werror/payload.o
           gcc -std=c11 -O2 $W -Ic/ring -c c/ring/ring.c -o build-host/werror/ring.o
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
-            -Ic/payload -Icpp/P09 \
+            -Ic/payload -Iprojects/P09-payload-codec/cpp \
             -c projects/P09-payload-codec/cpp/cpp_encode_only.cpp -o build-host/werror/cpp.o
 
       - name: P09, the golden vectors
@@ -61,6 +62,14 @@ jobs:
 
       - name: P09, the C++ variant against the C one over the whole run
         run: python -m pytest python/tests/test_cpp.py -q
+
+      # The parity table is printed, which is why this step passes -s. A green
+      # tick says the suite ran; the table says which of the four languages were
+      # actually in the comparison, and that is the thing worth reading. Without
+      # cargo on this runner it compares three and says so, and the rust job
+      # below is the one that compares four.
+      - name: P09, every language against one oracle
+        run: python -m pytest python/tests/test_parity.py -q -s
 
       - name: P09, the twin stays inside the MicroPython subset
         run: python -m pytest python/tests/test_micropython_subset.py -q
@@ -90,6 +99,57 @@ jobs:
 
       - name: Object sizes, published and never ranked
         run: size build-host/payload_c.o build-host/payload_cpp.o build-host/ring_c.o
+
+  # Rust, in its own job because it needs a toolchain the other two do not, and
+  # pinned by rust-toolchain.toml so a figure attributed to Rust in this volume
+  # names the compiler that produced it. The first test of any of this is still
+  # WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, not here.
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No action and no curl: the repository pins the toolchain, so the first
+      # cargo command installs exactly what rust-toolchain.toml names, and the
+      # version is printed rather than assumed.
+      - name: The toolchain this repository pins
+        run: |
+          rustup show active-toolchain
+          rustc --version
+          cargo --version
+
+      - name: Formatting, as written rather than as preferred
+        run: cargo fmt --all --check
+
+      - name: Clippy, with warnings as errors, the same bar the C has
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: The properties that need no oracle
+        run: cargo test --workspace -- --nocapture
+
+      # Built here so the parity step below can drive it. The release profile is
+      # the one the board half will use: opt-level s, LTO, panic abort.
+      - name: The filter, release profile
+        run: cargo build --release --workspace
+
+      # The library alone for the board's target. It links nothing yet: a binary
+      # needs cortex-m-rt and a linker script, which is P01's Rust half and is
+      # not written. Compiling the codec for the target is still worth a step,
+      # because it is what proves the codec is genuinely no_std.
+      - name: The codec compiles for the board's target
+        run: cargo build --release -p p09-payload --lib --target thumbv7em-none-eabihf
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --quiet -r requirements.txt
+      - run: python python/tools/build_host.py
+
+      # The step that makes the four-language claim falsifiable. With cargo
+      # present all four are in the comparison, and the test refuses a run where
+      # fewer than three were, so a parity suite cannot pass by being empty.
+      - name: All four languages against one oracle
+        run: python -m pytest python/tests/test_parity.py -q -s
 
   # A second job with a seed nobody chose. It prints the seed before doing any
   # work, so a failure here is reproducible from the log.

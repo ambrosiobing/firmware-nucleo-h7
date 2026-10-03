@@ -29,6 +29,12 @@ venv/
 __pycache__/
 *.pyc
 
+# The Rust workspace's build output. One directory for every crate, at the
+# repository root, which is where cargo puts it for a workspace. The Cargo.lock
+# beside it IS committed: this workspace produces a binary whose figures are
+# quoted, so the dependency set is pinned rather than resolved afresh.
+/target/
+
 # Host build output for the code half. Kept out of build/, which is the LaTeX
 # scratch directory, so neither can delete the other's work.
 build-host/

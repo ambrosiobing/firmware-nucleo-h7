@@ -25,6 +25,7 @@ import os
 import random
 import re
 import subprocess
+import sys
 
 import pytest
 from conftest import BUILD, ROOT, shared_library_name
@@ -179,10 +180,28 @@ def test_the_two_thread_soak_runs_and_says_what_it_cannot_prove():
 
 
 def test_the_capacity_assertion_actually_fires():
-    """Verified by building it wrong on purpose, not by having checked once."""
+    """Verified by building it wrong on purpose, not by having checked once.
+
+    This one needs a compiler, which is why it skips on Windows since Saturday
+    3 October 2026. Compiling happens in WSL on the win11 skyhorizon demo
+    laptop, bing@JPTOUPM678, and on the CI runner, and `check_ring_assert.py`
+    now refuses anywhere else with exit 2. A skip that names the command is the
+    honest result here: the assertion is not checked on this laptop, and saying
+    so beats both a pass that compiled where it should not have and a failure
+    that blames the code.
+    """
+    if sys.platform.startswith("win"):
+        pytest.skip(
+            "needs a compiler, so it runs in WSL on bing@JPTOUPM678 and in CI:\n"
+            "    python3 python/tools/check_ring_assert.py"
+        )
     script = ROOT / "python" / "tools" / "check_ring_assert.py"
     proc = subprocess.run(
-        ["python", str(script)], capture_output=True, text=True, cwd=ROOT, timeout=180
+        [sys.executable, str(script)],
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+        timeout=180,
     )
     print(proc.stdout.strip())
     assert proc.returncode == 0, proc.stdout + proc.stderr

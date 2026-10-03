@@ -18,7 +18,7 @@ So each project README now carries one line, in one grammar:
 and this script checks four things that prose cannot check itself:
 
   1. The line exists, exactly once, names all four languages, and uses only the
-     four states: board, links, host, none.
+     five states: board, links, host, written, none.
   2. A language that claims a state other than none has at least one source file
      to back it, either in the project's own subdirectory for that language or at
      a path the project's own Markdown names and which exists.
@@ -45,11 +45,18 @@ PROJECTS = ROOT / "projects"
 TABLE = PROJECTS / "README.md"
 
 LANGS = ("c", "cpp", "python", "rust")
-STATES = ("board", "links", "host", "none")
+
+# Five states, and the fifth was added on Saturday 3 October 2026 because P09's
+# Rust crate was in a state the other four could not express: written, never
+# compiled, because the laptop it was written on has no cargo and is not to get
+# one. Calling that "host" would have claimed a proof that had not happened, and
+# calling it "none" would have denied a file that exists. "links" exists for
+# exactly the same reason, one step further along.
+STATES = ("board", "links", "host", "written", "none")
 
 # Strongest first, so the project's row can be checked against the strongest
 # claim any of its four languages makes.
-RANK = {"board": 3, "links": 2, "host": 1, "none": 0}
+RANK = {"board": 4, "links": 3, "host": 2, "written": 1, "none": 0}
 
 # What the table in projects/README.md may say for each state. More than one
 # phrasing is allowed because the table is prose for a reader, not a database,
@@ -58,6 +65,7 @@ TABLE_PHRASES = {
     "board": ("runs on the board", "half done and measured"),
     "links": ("**links**",),
     "host": ("host only", "written and proven", "both gates written and proven"),
+    "written": ("written and not built", "written and never built"),
     "none": ("not started",),
 }
 
@@ -150,10 +158,25 @@ def read_status(readme):
 
 
 def sources_in(directory, lang):
+    """Every source file for one language in one project, at any depth.
+
+    Walked rather than listed, because a flat listing is a C habit. A Rust crate
+    puts its code in src/ beside its Cargo.toml, and the first version of this
+    function reported P09's crate as an empty directory for exactly that reason.
+    target/ is skipped: a build output is not a source file, and after one
+    `cargo build` it holds thousands of them.
+    """
     if not directory.is_dir():
         return []
-    return [p for p in sorted(directory.iterdir())
-            if p.is_file() and p.suffix in SOURCE_SUFFIX[lang]]
+    out = []
+    for p in sorted(directory.rglob("*")):
+        rel = p.relative_to(directory)
+        if any(part in ("target", "build", "build-host", "__pycache__")
+               for part in rel.parts):
+            continue
+        if p.is_file() and p.suffix in SOURCE_SUFFIX[lang]:
+            out.append(p)
+    return out
 
 
 def named_paths(project):

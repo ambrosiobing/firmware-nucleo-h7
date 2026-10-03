@@ -1,0 +1,38 @@
+# The Rust workspace, the way the root CMakeLists.txt is the C build.
+#
+# This file deliberately did not exist until Saturday 3 October 2026, when the
+# first crate was written. A workspace listing no members, and a
+# rust-toolchain.toml pinning a channel for nothing, would have been two files
+# that cannot be built, which is the same defect as an empty main.rs. Both
+# arrived with P09's codec and not before.
+#
+# Members are listed rather than globbed. A glob over projects/*/rust would
+# match the nineteen directories that hold only a README and fail, and it would
+# also hide which projects have a crate, which is the thing a reader wants to
+# know. Each project's status line says the same thing in its README.
+
+[workspace]
+resolver = "2"
+members = [
+    "projects/P09-payload-codec/rust",
+]
+
+# One target directory for the whole workspace, at this level, which is why
+# .gitignore carries /target/ and why the parity test looks for the filter at
+# target/release/ rather than inside the crate.
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+# The codec is arithmetic on fixed-width integers, so the casts are the
+# subject rather than an accident. They are allowed here and explained at each
+# site instead, because a blanket allow inside the file would hide the next one.
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"

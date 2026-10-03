@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate the C header and the Python module from the field specification.
 
-    python python/tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c c/payload --out-py python/firmkit
-    python python/tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c c/payload --out-py python/firmkit --check
+    python python/tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c c/payload --out-py python/firmkit --out-rs projects/P09-payload-codec/rust/src
+    python python/tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c c/payload --out-py python/firmkit --out-rs projects/P09-payload-codec/rust/src --check
 
 The generator earns its place by removing a class of defect rather than by
 saving typing: a bit layout written out twice will diverge, and it will diverge
@@ -128,6 +128,43 @@ def emit_py(fields, total_bits, spec_name: str) -> str:
     return "\n".join(lines)
 
 
+def emit_rs(fields, total_bits, spec_name: str) -> str:
+    """The same table again in Rust, for the same reason the C header is
+    generated: a bit layout written out twice diverges silently, because both
+    sides still produce five bytes. Four languages make that four times over."""
+    lines = [
+        "// " + BANNER.format(spec=spec_name),
+        "//",
+        "// Most significant bit first. Bit {} is the first bit on the wire.".format(
+            total_bits - 1
+        ),
+        "// Every O_ value is an offset in bits from the first bit on the wire,",
+        "// counting up, so version is at offset 0. That is not the same",
+        "// numbering as the bit-position column in docs/bitorder.md, which",
+        "// counts down from {} the way a reference manual numbers a register.".format(
+            total_bits - 1
+        ),
+        "// Both describe the same layout.",
+        "//",
+        "// docs/bitorder.md is normative; this file is derived from it.",
+        "",
+        "pub const PAYLOAD_BITS: usize = {};".format(total_bits),
+        "pub const PAYLOAD_BYTES: usize = {};".format(total_bits // 8),
+        "",
+    ]
+    for name, width, signed, note, pos in offsets(fields):
+        upper = name.upper()
+        mask = (1 << width) - 1
+        lines.append("/// {}: {}".format(name, note))
+        lines.append("pub const W_{}: u32 = {};".format(upper, width))
+        lines.append("pub const O_{}: usize = {};".format(upper, pos))
+        lines.append("pub const M_{}: u32 = 0x{:X};".format(upper, mask))
+        if signed:
+            lines.append("pub const SIGNED_{}: bool = true;".format(upper))
+        lines.append("")
+    return "\n".join(lines)
+
+
 def write_or_check(path: Path, text: str, check: bool) -> bool:
     """Return True when the file on disk already matches."""
     if check:
@@ -151,6 +188,7 @@ def main(argv=None) -> int:
     ap.add_argument("spec", type=Path, help="the field specification, projects/P09-payload-codec/fields.py")
     ap.add_argument("--out-c", type=Path, required=True, help="directory for payload_fields.h")
     ap.add_argument("--out-py", type=Path, required=True, help="directory for payload_fields.py")
+    ap.add_argument("--out-rs", type=Path, required=True, help="directory for fields.rs")
     ap.add_argument(
         "--check",
         action="store_true",
@@ -167,11 +205,14 @@ def main(argv=None) -> int:
     ok = write_or_check(
         args.out_py / "payload_fields.py", emit_py(fields, total_bits, spec_name), args.check
     ) and ok
+    ok = write_or_check(
+        args.out_rs / "fields.rs", emit_rs(fields, total_bits, spec_name), args.check
+    ) and ok
 
     if args.check and not ok:
         print(
             "\nthe generated files do not match the specification.\n"
-            "run: python python/tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c c/payload --out-py python/firmkit"
+            "run: python python/tools/gen_codec.py projects/P09-payload-codec/fields.py --out-c c/payload --out-py python/firmkit --out-rs projects/P09-payload-codec/rust/src"
         )
         return 1
     return 0

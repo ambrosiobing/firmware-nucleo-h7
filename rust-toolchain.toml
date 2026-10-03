@@ -1,0 +1,21 @@
+# The Rust toolchain, pinned, for the same reason the C side prints
+# arm-none-eabi-gcc -dumpversion into its artifact: a size figure or a cycle
+# count from an unnamed compiler is not a measurement anybody can repeat.
+#
+# 1.99.0 is what was installed in WSL on the win11 skyhorizon demo laptop,
+# bing@JPTOUPM678, on Saturday 3 October 2026, and what every figure in this
+# repository attributed to Rust was produced by. Raising it is a deliberate
+# commit that re-measures, not a drift.
+#
+# The target is listed here so that `rustup show` on a fresh clone installs what
+# the board half needs without a second command, and the three components are
+# the ones code.yml runs: rustfmt, clippy and llvm-tools for cargo-objcopy.
+#
+# Nothing here is installed on win11 aquamarine, the authoring laptop. That
+# machine authors the volume and compiles nothing, Rust included.
+
+[toolchain]
+channel = "1.99.0"
+profile = "minimal"
+components = ["rustfmt", "clippy", "llvm-tools"]
+targets = ["thumbv7em-none-eabihf"]
