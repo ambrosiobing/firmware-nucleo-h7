@@ -26,6 +26,26 @@ Then it is removed three ways, and the three are different engineering decisions
 >
 > The three-domain vocabulary that most writing about this family uses belongs to RM0433 and the STM32H743. This part is documented by RM0455 and names its domains differently. A blog post that tells you to put a buffer in "D3 SRAM" is describing a memory this part does not call by that name, and following it literally produces a linker script that either fails to link or places a buffer somewhere useful only by accident. Every region name, base address and length in this chapter is checked against RM0455 before it is written into a script.
 
+## What is already done, and measured
+
+Half of this chapter was taken out of sequence on Saturday 3 October 2026, because it turned out to block every cycle figure in the volume rather than being a late topic about transfer engines.
+
+The instruction cache needs nothing from RM0455. Its enable sequence is in ARM's `cachel1_armv7.h`, which `core_cm7.h` includes only when the device header declares a cache present, and the H7A3 header declares both present on a Cortex-M7 r1p2. Every name in the sequence is ARMv7-M: invalidate `ICIALLU`, set `CCR.IC`, with a data synchronisation and an instruction barrier around each step. It is in `c/board/icache.c` and `board_icache_enable()` returns the state read back from the register rather than the fact of having written to it.
+
+It is deliberately NOT enabled by `board_init`, which makes a measurement possible that no pair of builds could provide: the cache is off at reset, so one image can measure a function cold, enable the cache, and measure the same function again at the same address in the same build.
+
+|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Quantity | Measured | Where | Note I-cache line length | 32 bytes | architecture | fixed for Cortex-M7 Cache gain, chapter 9 encoder | 1.33 to 1.35 times | board | one address, one build Placement effect, cold | 57 cycles, 1.8 per cent | board | four displacements Placement effect, cached | none measurable | board | identical to 0.01 cycle |
+
+*Table 19.1. The instruction cache half of this chapter, measured on Saturday 3 October 2026 on the chapter 9 encoder. The placement rows come from four images displaced by 0, 16, 32 and 48 bytes and otherwise identical.*
+
+The second and third rows are the useful pair. With the cache off, cost depends on a function's offset within a 32 byte granule: 3 220.99 cycles at offset 0 and 3 163.98 at offset 16, with the two images at each offset agreeing to the hundredth of a cycle. With the cache on, all four images report 2 378.99, identical. So the cache does not merely make the code faster, it makes a cycle figure a property of the code instead of a property of where the linker put it, and that is why this had to come before chapter 2's comparison of ordering barriers rather than after it.
+
+Two honest limits. The displacements are multiples of 16 because the linker rounds anything finer up, so a granule narrower than 16 bytes is invisible to this measurement; the cause of that rounding is unexplained, since `arm-none-eabi-gcc -Q` reports `-falign-functions` disabled at `-Os` and the obvious explanation is therefore ruled out.
+
+The data cache is untouched and is the rest of this chapter. It is declared present and enabling it changes what a buffer shared with a bus master means, which is exactly the failure this chapter exists to produce and then fix. That half still needs a transfer engine, and the transfer engine still needs the reference manual.
+
 ## Prior art and what to reuse
 
 | Source | What it gives | What it does not | Licence |
@@ -37,7 +57,7 @@ Then it is removed three ways, and the three are different engineering decisions
 | A three-part written series on the Cortex-M7 cache | The best teaching treatment in print: cache basics, then the coherency problem, then the maintenance operations, all at the architecture level where it is all true | No board, no build, no measurement | Blog series, cite |
 | One video walking this through on an H7 with a non-cacheable region and a custom linker section | Proof that the linker-section approach works end to end, and a sanity check on the section attributes | Not this part, and a video is not a reference | Video, cite |
 
-*Table 19.1. Prior art for chapter 19. This is the richest pool in the book, and the reason the chapter still has work to do is at the end of the next paragraph.*
+*Table 19.2. Prior art for chapter 19. This is the richest pool in the book, and the reason the chapter still has work to do is at the end of the next paragraph.*
 
 What is left to write is the part every one of those sources leaves out. None of them measures anything: they explain the failure and then assert the fix. So the harness, the failure rate and the thousand-run comparison are new. And no maintained permissively licensed library offers a declarative table of memory regions with their cache attributes, checked at build time for the alignment and size rules the protection unit imposes. That is a small, sharp, useful piece of software that does not exist, it is about two hundred lines, and it is this chapter's deliverable.
 
@@ -51,7 +71,7 @@ What is left to write is the part every one of those sources leaves out. None of
 | A USB data cable | Power, programming and the failure count | Micro USB |
 | Host PC | Runs the thousand iterations and tabulates the rate | Python over the virtual COM port |
 
-*Table 19.2. Inventory items used in chapter 19. Nothing is bought. The sensor is chosen because it produces bursts, not because the acceleration matters; the experiment is about the bytes.*
+*Table 19.3. Inventory items used in chapter 19. Nothing is bought. The sensor is chosen because it produces bursts, not because the acceleration matters; the experiment is about the bytes.*
 
 ## System architecture
 
@@ -73,7 +93,7 @@ Read the figure as a reachability question rather than a performance one. The pr
 | Memory protection unit | One region per entry in the region table | Core clock | None | Memory management fault enabled |
 | USART3 | Asynchronous, 115200 8N1 | Peripheral bus | Board manual pins | Carries the failure count |
 
-*Table 19.3. Peripheral configuration. Enabling the memory management fault rather than leaving it to escalate is deliberate: a region table with a bad alignment should stop the board at the offending access with a named fault, not somewhere else later.*
+*Table 19.4. Peripheral configuration. Enabling the memory management fault rather than leaving it to escalate is deliberate: a region table with a bad alignment should stop the board at the offending access with a named fault, not somewhere else later.*
 
 > [!NOTE]
 > **Three point three volts only**
@@ -96,7 +116,7 @@ Read the figure as a reachability question rather than a performance one. The pr
 | CS | D10 | Chip select | Software controlled, not the peripheral's own |
 | INT1 | D2 | Watermark interrupt | Rising edge, confirm the polarity bit |
 
-*Table 19.4. Wiring table. Every row whose pin mapping comes from the Nucleo-144 convention rather than from the board manual is confirmed before the first power-on, which is confirm item 12 of the authoring list.*
+*Table 19.5. Wiring table. Every row whose pin mapping comes from the Nucleo-144 convention rather than from the board manual is confirmed before the first power-on, which is confirm item 12 of the authoring list.*
 
 ## Memory and timing budget
 
@@ -115,7 +135,7 @@ Read the figure as a reachability question rather than a performance one. The pr
 | Added cycles per transfer, non-cacheable region | 2000 | not measured | not measured |
 | Region table code size | 2 kB | not measured | not measured |
 
-*Table 19.5. The budget table. The two cycle rows are the honest cost of the two fixes and are the reason the chapter does not simply recommend one: maintenance is cheap and easy to forget, a non-cacheable region is impossible to forget and is not cheap. The instrument for both is the core's cycle counter, as in chapter 18.*
+*Table 19.6. The budget table. The two cycle rows are the honest cost of the two fixes and are the reason the chapter does not simply recommend one: maintenance is cheap and easy to forget, a non-cacheable region is impossible to forget and is not cheap. The instrument for both is the core's cycle counter, as in chapter 18.*
 
 The alignment row is the second bug, the one that arrives after the first is fixed. Maintenance acts on whole cache lines, and a line is 32 bytes on this core. Invalidating a buffer that is not aligned to 32 bytes, or whose length is not a multiple of 32, also invalidates the neighbouring bytes that share the first and last lines, and any processor writes to those neighbours that have not reached memory are lost. The symptom is corruption in an unrelated variable.
 
@@ -283,7 +303,7 @@ Record what the failure actually looks like, because that is the part nobody wri
 | Master transfer engine | Everything, including the tightly coupled memories | Nothing of consequence | Large block moves and the only path into tightly coupled memory |
 | Low-power engine | One small memory in the low-power domain, and the peripherals in that domain | The main SRAM regions | It keeps running while the rest of the part sleeps, which is its entire purpose |
 
-*Table 19.6. The reachability rule. Confirm each row against RM0455 for this part before relying on it; the equivalent table for the better-known sibling is not the same table and names domains this part does not have.*
+*Table 19.7. The reachability rule. Confirm each row against RM0455 for this part before relying on it; the equivalent table for the better-known sibling is not the same table and names domains this part does not have.*
 
 **Step 10.** **Run the matrix and publish the rates.** Four variants, a thousand runs each, one table.
 
@@ -336,7 +356,7 @@ When the board stops in a memory management fault, the protection unit is doing 
 | Language | Rust | The buffer pool becomes a type that cannot be constructed outside the non-cacheable section, which is the strongest version of this fix that exists | The library ecosystem here is thinner | Chapter 17 |
 | Time and safety | Write-through instead of non-cacheable | Cures the direction where the processor writes and the engine reads, and leaves the other direction broken. A half fix that looks like a whole one | A false sense of correctness | Here, as a note |
 
-*Table 19.7. Variants for chapter 19. The last row is included because it is the most common wrong answer given in forum threads on this subject and it deserves to be named.*
+*Table 19.8. Variants for chapter 19. The last row is included because it is the most common wrong answer given in forum threads on this subject and it deserves to be named.*
 
 ## Pitfalls
 

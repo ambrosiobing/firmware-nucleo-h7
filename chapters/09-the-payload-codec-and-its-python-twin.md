@@ -119,7 +119,23 @@ That is a smaller gain than the word cache tends to suggest, and the reason is w
 
 **The third cold figure is itself the evidence for why this was needed.** The cold column now reads 2 955, 3 185 and 3 143 across three builds. The last of those was measured in the build that added the cache support, which changed nothing in the encoder: a file was added and the measurement was moved into its own function. The figure moved 1.3 per cent anyway. That is the fourth instance of the effect in two days and it arrived as an unplanned control.
 
-What has NOT yet been established is the claim this work was done to support: that the cached figure is stable across builds where the cold one is not. One build gives one cached number. The test is a build that deliberately shifts the code and a check that the cached figure holds while the cold one moves, and it has not been run. Until it is, the right statement is that the cache is measured to be worth 1.32 times here, not that cycle figures are now trustworthy.
+**That claim has now been tested, and it holds.** Four images were built from identical sources, differing only in a run of zero bytes placed before the code so that every instruction lands 0, 16, 32 or 48 bytes later. `c/P09/pad.c` does nothing else. The encoder is byte for byte the same in all four; only its address differs.
+
+|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Displacement | Offset mod 32 | Cold cycles | Cached cycles 0 bytes | 0 | 3 220.99 | 2 378.99 16 bytes | 16 | 3 163.98 | 2 378.99 32 bytes | 0 | 3 220.99 | 2 378.99 48 bytes | 16 | 3 163.98 | 2 378.99 |
+
+*Table 9.5. Measured on the board on Saturday 3 October 2026. The same encoder at four addresses. Cold figures track the offset within a 32 byte granule and ignore the distance; cached figures ignore both.*
+
+Three things follow and each is worth stating separately.
+
+**The cold cost depends on the offset, not on the distance.** Displacements of 0 and 32 bytes share an offset of 0 and agree to the hundredth of a cycle. Displacements of 16 and 48 share an offset of 16 and agree to the hundredth. The two groups differ. That pairing is the control the experiment was designed around: two images a whole cache line apart must agree if alignment is the mechanism, and they do, twice.
+
+**The cached cost ignores placement entirely.** 2 378.99 cycles in all four images, identical to the hundredth. With the instruction cache on, this figure is a property of the code and not of the build, which is what the volume needed and what every cycle comparison from here will rely on.
+
+**But the effect is 57.01 cycles, 1.8 per cent, and that is smaller than what was attributed to it.** The two earlier observations on this encoder differed by 7.8 per cent, about 230 cycles, and chapters 2 and 9 explained that by placement. Pure displacement accounts for at most a quarter of it. The rest was the code genuinely changing: new string literals, a renamed variable, different register allocation around the measurement. Placement is real and it is not the whole story, and saying so costs nothing now that the part of it that is real has a number.
+
+One limit and one thing unexplained. The displacements are multiples of 16 because anything finer is rounded up by the linker, so a dependence on a granule narrower than 16 bytes is invisible here. And the cause of that 16 byte rounding is not known: `arm-none-eabi-gcc -Q` reports `-falign-functions` as disabled at `-Os`, so the obvious explanation is ruled out and no other has been established.
 
 Against a budget of 300 none of it matters: cached or not, the encoder is about an order of magnitude over and the conclusion is the same either way.
 
@@ -444,7 +460,7 @@ cmake --build build-fw --target p09-codec     # then copy the .bin onto the prob
 | Execution model | DMA circular receive on the host link | The frame arrives without the processor polling, which is what chapter 4 built | Cache maintenance | Chapter 4 |
 | Intelligence and reach | Classifier output instead of a scalar | The feature field becomes a class index and a confidence, which changes the widths and nothing else in this chapter | Flash and cycles | Chapter 16 |
 
-*Table 9.5. Variants for chapter 9. Three are built in full here because the matrix assigns them here; the serialisation format is named and compared and deliberately not built, which is a decision rather than an omission.*
+*Table 9.6. Variants for chapter 9. Three are built in full here because the matrix assigns them here; the serialisation format is named and compared and deliberately not built, which is a decision rather than an omission.*
 
 The three built variants make one point between them. A specification written as data, with the layout generated from it, survives being re-implemented in a second language on the same machine, in a third language on a different machine, and across a link. What does not survive that treatment is a layout that lives only in the offsets of one encoder, and that is the failure mode the whole chapter is arranged to prevent.
 

@@ -52,6 +52,60 @@ somewhere useful only by accident. Every region name, base address and length
 in this chapter is checked against RM0455 before it is written into a script.
 \end{note}
 
+\subsection*{What is already done, and measured}
+
+Half of this chapter was taken out of sequence on Saturday 3 October 2026, because
+it turned out to block every cycle figure in the volume rather than being a late
+topic about transfer engines.
+
+The instruction cache needs nothing from RM0455. Its enable sequence is in ARM's
+\texttt{cachel1\_armv7.h}, which \texttt{core\_cm7.h} includes only when the device
+header declares a cache present, and the H7A3 header declares both present on a
+Cortex-M7 r1p2. Every name in the sequence is ARMv7-M: invalidate \texttt{ICIALLU},
+set \texttt{CCR.IC}, with a data synchronisation and an instruction barrier around
+each step. It is in \texttt{c/board/icache.c} and \texttt{board\_icache\_enable()}
+returns the state read back from the register rather than the fact of having
+written to it.
+
+It is deliberately NOT enabled by \texttt{board\_init}, which makes a measurement
+possible that no pair of builds could provide: the cache is off at reset, so one
+image can measure a function cold, enable the cache, and measure the same function
+again at the same address in the same build.
+
+\begin{table}[H]\centering\small
+\begin{tabular}{p{30mm}p{30mm}p{30mm}p{32mm}}
+\toprule
+Quantity & Measured & Where & Note \
+\midrule
+I-cache line length & 32 bytes & architecture & fixed for Cortex-M7 \
+Cache gain, chapter 9 encoder & 1.33 to 1.35 times & board & one address, one build \
+Placement effect, cold & 57 cycles, 1.8 per cent & board & four displacements \
+Placement effect, cached & none measurable & board & identical to 0.01 cycle \
+\bottomrule
+\end{tabular}
+\caption{The instruction cache half of this chapter, measured on Saturday 3 October 2026 on the chapter 9 encoder. The placement rows come from four images displaced by 0, 16, 32 and 48 bytes and otherwise identical.}
+\end{table}
+
+The second and third rows are the useful pair. With the cache off, cost depends on
+a function's offset within a 32 byte granule: 3\,220.99 cycles at offset 0 and
+3\,163.98 at offset 16, with the two images at each offset agreeing to the
+hundredth of a cycle. With the cache on, all four images report 2\,378.99,
+identical. So the cache does not merely make the code faster, it makes a cycle
+figure a property of the code instead of a property of where the linker put it, and
+that is why this had to come before chapter 2's comparison of ordering barriers
+rather than after it.
+
+Two honest limits. The displacements are multiples of 16 because the linker rounds
+anything finer up, so a granule narrower than 16 bytes is invisible to this
+measurement; the cause of that rounding is unexplained, since
+\texttt{arm-none-eabi-gcc -Q} reports \texttt{-falign-functions} disabled at
+\texttt{-Os} and the obvious explanation is therefore ruled out.
+
+The data cache is untouched and is the rest of this chapter. It is declared present
+and enabling it changes what a buffer shared with a bus master means, which is
+exactly the failure this chapter exists to produce and then fix. That half still
+needs a transfer engine, and the transfer engine still needs the reference manual.
+
 \subsection*{Prior art and what to reuse}
 
 \begin{table}[H]\centering\small
