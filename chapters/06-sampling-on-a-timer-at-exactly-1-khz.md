@@ -440,9 +440,9 @@ def test_known_rate():
 Three builds, one application, three binaries. The CMake target names carry the variant so a flashed board can be identified from its console banner.
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build --target acq_systick acq_timer acq_dma_double -j
-probe-rs run --chip STM32H7A3ZITx build/acq_dma_double.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw --target acq_systick acq_timer acq_dma_double -j
+cp build-fw/acq_dma_double.bin "$PROBE_DISK"/   # onto the probe disk
 ```
 
 On the Pi, the witness runs and the analysis follows it, so a run produces a number and not a folder of samples somebody will interpret later.

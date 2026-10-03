@@ -307,10 +307,10 @@ west flash
 *Figure 20.5. The schedule figure: two releases, four tasks, and the deadline drawn where it was written down. The marked interval at the left is what the million-event distribution measures.*
 
 ```bash
-cmake -B build -DWAKE=notification \
+cmake -B build-fw -G Ninja -DWAKE=notification \
   -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake --build build-fw -j
+cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 ```
 
 A debugger that understands the kernel shows the task list, each task's state and each task's stack high-water mark, which turns a hung board into a reading. When the board stops in the assertion hook the cause is usually one of three: an interrupt above the kernel ceiling called a kernel function, a task returned instead of looping forever, or a stack overflowed. All three are configuration rather than logic.

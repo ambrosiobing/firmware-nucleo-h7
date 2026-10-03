@@ -340,11 +340,11 @@ python tools/table.py results/cycles.csv > results/table.md
 Four builds come out of one source tree, one per placement combination, and the build system names them rather than leaving the reader to guess which image is on the board.
 
 ```bash
-cmake -B build/flash_axi -DPLACEMENT=flash_axi \
+cmake -B build-fw/flash_axi -G Ninja -DPLACEMENT=flash_axi \
   -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build/flash_axi -j
-arm-none-eabi-size -A build/flash_axi/firmware.elf | grep -E 'itcm|dtcm|text'
-probe-rs run --chip STM32H7A3ZITx build/flash_axi/firmware.elf
+cmake --build build-fw/flash_axi -j
+arm-none-eabi-size -A build-fw/flash_axi/firmware.elf | grep -E 'itcm|dtcm|text'
+cp build-fw/flash_axi/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 ```
 
 When a placement build produces a board that does not start, the cause is almost always the linker script rather than the code: a region that does not exist on this part, a load address that was never set so the tightly coupled code is never copied out of flash, or a section marked to be loaded when it should not be. Recovery is the usual sequence, namely hold the reset, connect under reset, and flash a known good image; the drag-and-drop disk of chapter 1 is the fastest way back to a working board when the debug connection itself has become unreliable.

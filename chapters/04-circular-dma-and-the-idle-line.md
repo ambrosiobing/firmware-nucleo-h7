@@ -329,8 +329,8 @@ Expect the interrupt count to fall by roughly three orders of magnitude and the 
 *Figure 4.5. Bytes arriving, the transfer counter stepping down as each one lands, and the line-idle flag setting once the line has been quiet for a character time. The counter is the only thing in this picture the processor reads.*
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j && probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j && cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 ```
 
 Three things are worth looking at on a halted target, in this order. The stream enable bit, because a stream that was configured while it was still running does not report that. The transfer counter, which should be somewhere between one and the buffer size and never zero on a circular stream. And the buffer itself, which tells you at a glance whether the engine is writing at all.

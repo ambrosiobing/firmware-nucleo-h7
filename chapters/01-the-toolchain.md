@@ -122,7 +122,7 @@ The processor does very little for you at reset. It reads two words from the sta
 ```text
   host                                   board
   +------------------------------+       +--------------------------------+
-  | cmake --build build          |       | reset: MSP and PC from flash   |
+  | cmake --build build-fw          |       | reset: MSP and PC from flash   |
   |   |                          |       |   |                            |
   |   v                          |  SWD  |   v                            |
   | firmware.elf ----------------+-----> | startup: copy .data, zero .bss |
@@ -152,19 +152,18 @@ nucleo-h7a3-firstlight/
 
 ## Steps
 
-**Step 1.** **Install the toolchain and prove it runs.** You need a cross compiler, CMake and a flashing tool. Nothing here needs the vendor IDE.
+**Step 1.** **Get a cross compiler on PATH, and prove it is there.** You need a cross compiler, CMake and a build tool. You do not need a separate flashing tool, because the on-board debugger presents a USB mass storage disk and copying a binary onto it programs the part.
+
+This step was written assuming nothing here needs the vendor IDE. On the machine this volume is actually built on, that is not true, and the correction is more useful than the original claim. STM32CubeIDE 2.2.0 ships its own `arm-none-eabi-gcc`, CMake and Ninja, registers none of them system-wide, and installing a second standalone toolchain alongside it invites two compilers with different libc assumptions. So the IDE's own tools are used, found by name rather than by a path with version numbers in it, and put on PATH for one shell session by a script in the repository.
 
 ```bash
+. ./projects/P01-toolchain-first-light/Use-CubeIDEToolchain.ps1
 arm-none-eabi-gcc --version
 cmake --version
-probe-rs --version          # or: openocd --version
+ninja --version
 ```
 
-The flashing tool knows this part by name. Confirm it before going further, because a tool that does not know your die will fail in a way that looks like a hardware fault.
-
-```bash
-probe-rs chip list | grep -i H7A3
-```
+Dot-source that script, do not run it. Running it sets PATH in a child scope which exits immediately, and the result is indistinguishable from the script having done nothing at all. `docs/building.md` holds the whole procedure.
 
 **Step 2.** **Write the linker script.** Two regions to begin with. The sizes come from the datasheet, not from a sibling part.
 
@@ -244,16 +243,23 @@ arm-none-eabi-gcc ... --specs=nano.specs --specs=nosys.specs
 **Step 7.** **Account for every byte.** Compare the linker map against the size output and make a script do it, so the check survives being forgotten.
 
 ```bash
-arm-none-eabi-size -A build/firmware.elf
-python tools/reconcile_size.py build/firmware.map build/firmware.elf
+arm-none-eabi-size -A build-fw/firmware.elf
+python tools/reconcile_size.py build-fw/firmware.map build-fw/firmware.elf
 ```
 
-**Step 8.** **Prove the clean-clone build.** Delete the build directory, clone into a fresh folder, and build and flash with two commands on a machine with no vendor IDE installed. If that does not work, the repository is not evidence of anything.
+**Step 8.** **Prove the clean-clone build.** Delete the build directory, clone into a fresh folder, and build and flash with three commands. If that does not work, the repository is not evidence of anything.
+
+An earlier version of this step said two commands, on a machine with no vendor IDE installed. Both halves were wrong and the repository proved it: the toolchain comes from the IDE and has to be put on PATH first, which is the third command and the one that was missing.
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j && probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+. ./projects/P01-toolchain-first-light/Use-CubeIDEToolchain.ps1
+cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"
+cmake --build build-fw --target p01-first-light
 ```
+
+Then copy `build-fw/p01-first-light.bin` onto the disk the probe presents, which on the laptop this was built on is `D:`, labelled `NOD_H7A3ZIQ`.
+
+The quotes around the toolchain argument are required. Without them PowerShell splits it at the final dot, CMake is handed `cmake/arm-none-eabi` and reports the missing file rather than the quoting, and the error after that one points somewhere else entirely.
 
 ## Build, flash and debug
 
@@ -265,7 +271,7 @@ Three ways to get the image onto the board, in the order you should try them: th
 
 ```bash
 openocd -f interface/stlink.cfg -f target/stm32h7x.cfg \
-  -c "program build/firmware.elf verify reset exit"
+  -c "program build-fw/firmware.elf verify reset exit"
 ```
 
 > [!NOTE]

@@ -295,8 +295,8 @@ actually happened. Round-trip property tests for the codec, the four fault
 classes for the engine replayed from recorded transcripts, and the
 reconciliation arithmetic for the ledger with a hand-computed example.
 \begin{shellcode}
-cmake -S test/host -B build/host && cmake --build build/host
-ctest --test-dir build/host --output-on-failure
+cmake -S test/host -B build-host && cmake --build build-host
+ctest --test-dir build-host --output-on-failure
 \end{shellcode}
 
 \item \textbf{Add the size gate and make it read the map file.} The size output

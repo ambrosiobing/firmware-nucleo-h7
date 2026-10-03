@@ -402,9 +402,9 @@ and most writing on the subject cannot.
 \diagram{c13_timing}{Fill against drain on one timebase. The interrupt line rises at the watermark, the burst is one transaction, and the margin in the figure is the ratio the budget table requires.}
 
 \begin{shellcode}
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j
+cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 \end{shellcode}
 
 \begin{note}{When the bus answers but the data is wrong}

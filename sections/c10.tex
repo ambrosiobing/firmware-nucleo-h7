@@ -402,9 +402,9 @@ say about it. What is new is that the board is being measured while it runs,
 which changes how it is flashed and how it is recovered.
 
 \begin{shellcode}
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j
+cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 \end{shellcode}
 
 Flash first, then set up the measurement, then reset the board and capture. A

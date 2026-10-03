@@ -339,8 +339,8 @@ void test_stub_matches_encoder(void)
 Two builds from one source tree, and the host build is the one that runs on every commit.
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j && probe-rs run --chip STM32H7A3ZITx build/node.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j && cp build-fw/node.bin "$PROBE_DISK"/   # onto the probe disk
 
 cmake -B hostbuild -DNODE_HOST_TESTS=ON
 cmake --build hostbuild -j && ctest --test-dir hostbuild --output-on-failure

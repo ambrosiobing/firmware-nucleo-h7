@@ -413,10 +413,10 @@ carry a permissive licence, the framework one cannot.
 \diagram{c20_timing}{The schedule figure: two releases, four tasks, and the deadline drawn where it was written down. The marked interval at the left is what the million-event distribution measures.}
 
 \begin{shellcode}
-cmake -B build -DWAKE=notification \
+cmake -B build-fw -G Ninja -DWAKE=notification \
   -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake --build build-fw -j
+cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 \end{shellcode}
 
 A debugger that understands the kernel shows the task list, each task's state

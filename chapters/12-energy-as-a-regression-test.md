@@ -207,8 +207,8 @@ If a suite needs leak detection between setup and teardown as well, that is the 
 **Step 4.** **Write the host tests that would have caught real defects.** Not coverage for its own sake: three suites, each aimed at a failure that has actually happened. Round-trip property tests for the codec, the four fault classes for the engine replayed from recorded transcripts, and the reconciliation arithmetic for the ledger with a hand-computed example.
 
 ```bash
-cmake -S test/host -B build/host && cmake --build build/host
-ctest --test-dir build/host --output-on-failure
+cmake -S test/host -B build-host && cmake --build build-host
+ctest --test-dir build-host --output-on-failure
 ```
 
 **Step 5.** **Add the size gate and make it read the map file.** The size output alone is not enough, because it reports totals and the interesting question is which section grew.

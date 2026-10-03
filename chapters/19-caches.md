@@ -301,9 +301,9 @@ The script exits with a nonzero status if the naive variant did not fail at all,
 *Figure 19.5. The coherency figure. Three moments in one transfer: the processor's write leaves a dirty line, the engine's write leaves that line stale, and the processor's read then has two possible answers depending on what happened in between.*
 
 ```bash
-cmake -B build -DVARIANT=naive -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DVARIANT=naive -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j
+cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 ```
 
 When the board stops in a memory management fault, the protection unit is doing its job and the region table is wrong. Read the fault status and the faulting address, and check the two rules first: the size is a power of two and the base address is a multiple of that size. When the board stops in a bus fault during a transfer, suspect reachability rather than attributes. When the board does not stop at all and simply produces wrong numbers, that is the original condition and the harness should already be counting it.

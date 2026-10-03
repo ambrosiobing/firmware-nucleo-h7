@@ -118,7 +118,7 @@ One detail pushes the other way and is worth keeping. Modes 0 and 1 differ by 8 
 
 What would separate the barrier from its placement is enabling the instruction cache, and on Friday 2 October 2026 that turned out to be available immediately rather than in chapter 19. ARM's `cachel1_armv7.h` in the Cube pack holds the enable sequence, the device header declares both caches present on this Cortex-M7 r1p2, and every name in the sequence is ARMv7-M architectural, so RM0455 governs none of it. It is in `c/board/icache.c`.
 
-That also makes a better experiment available than the one in the table above. The cache is off at reset, so a single image can measure a function cold, enable the cache, and measure the same function again at the same address in the same build. Nothing has moved by a byte between the two figures, so the difference is the cache alone, which no comparison of separate builds could establish. Chapter 9 now does exactly that. The four modes here should be redone the same way, each image reporting both states, and until they are, the flash column is the measured result of this chapter and the cycle column is an indication.
+That also makes a better experiment available than the one in the table above. The cache is off at reset, so a single image can measure a function cold, enable the cache, and measure the same function again at the same address in the same build. Nothing has moved by a byte between the two figures, so the difference is the cache alone, which no comparison of separate builds could establish. Chapter 9 now does exactly that, and measures the cache at 1.32 times on its encoder: 3 142.99 cycles with it off against 2 374.99 with it on, reproducible to the hundredth across three captures. The four modes here should be redone the same way, each image reporting both states, and until they are, the flash column is the measured result of this chapter and the cycle column is an indication.
 
 **Nothing failed, in any mode, including the one with no barrier at all.** Twelve point two million bytes passed through the ring across the four builds with zero mismatched bytes. The reading that follows from this is narrower than it looks, and the firmware prints the caveat rather than a tick.
 
@@ -396,8 +396,9 @@ Run it three times: with the compiler-only barrier, with the processor barrier, 
 The build is chapter 1's, with two source files added and one new target for the host. Keep the two builds in one repository and run the host one on every commit, because it costs a second.
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j && probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"
+cmake --build build-fw --target p02-ring-none p02-ring-compiler \
+                               p02-ring-dmb p02-ring-acqrel
 make -C test && ./test/test_ring && ./test/test_ring_threads
 ```
 

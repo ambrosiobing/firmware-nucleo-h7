@@ -302,7 +302,7 @@ size of the objects that implement the operation, plus whatever they drag in.
 \begin{shellcode}
 arm-none-eabi-size -t build/CMakeFiles/*.dir/src/op_vendor.c.obj
 arm-none-eabi-size -t build/CMakeFiles/*.dir/src/op_registers.c.obj
-arm-none-eabi-nm --size-sort -S build/two_layers.elf | tail -20
+arm-none-eabi-nm --size-sort -S build-fw/two_layers.elf | tail -20
 \end{shellcode}
 
 \item \textbf{Measure cycles, and subtract the instrument.} Reading the cycle
@@ -407,7 +407,7 @@ reason this variant is cheap to add on this bench.
 \begin{shellcode}
 rustup target add thumbv7em-none-eabihf
 cargo build --release --bin hal
-probe-rs run --chip STM32H7A3ZITxQ target/thumbv7em-none-eabihf/release/hal
+cp target/thumbv7em-none-eabihf/release/hal "$PROBE_DISK"/   # onto the probe disk
 \end{shellcode}
 
 \item \textbf{Write the worked example this part did not have.} The async
@@ -428,7 +428,7 @@ understands why one of the two needed porting and the other did not.
 \begin{shellcode}
 cmake -B c/build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -DOPT=O2
 cmake --build c/build -j
-probe-rs run --chip STM32H7A3ZITxQ c/build/two_layers.elf
+cp c/build/two_layers.bin "$PROBE_DISK"/   # onto the probe disk
 python tools/equality.py --port /dev/ttyACM0
 python tools/report.py --out docs/RESULTS.md
 \end{shellcode}

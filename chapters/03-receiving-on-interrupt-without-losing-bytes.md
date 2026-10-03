@@ -372,10 +372,10 @@ One switch selects the path, so a full comparison is three builds and three runs
 
 ```bash
 for p in polled flag ring; do
-  cmake -B build/$p -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -DRX_PATH=$p
-  cmake --build build/$p -j
+  cmake -B build-fw/$p -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -DRX_PATH=$p
+  cmake --build build-fw/$p -j
 done
-probe-rs run --chip STM32H7A3ZITx build/ring/firmware.elf
+cp build-fw/ring/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 ```
 
 > [!NOTE]

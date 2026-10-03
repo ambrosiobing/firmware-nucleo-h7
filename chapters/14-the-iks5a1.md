@@ -302,9 +302,9 @@ Then raise the rate in steps, and at each step record two numbers with the DWT c
 *Figure 14.5. The two interrupt lines and the window they define. The pre-trigger portion is already in the ring when the high-g line asserts, which is the only way to record the leading edge of an event the fine channel cannot detect in time.*
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/shocklog.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j
+cp build-fw/shocklog.bin "$PROBE_DISK"/   # onto the probe disk
 python tools/decode_record.py --port /dev/ttyACM0 --out events/
 ```
 

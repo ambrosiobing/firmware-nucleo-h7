@@ -352,8 +352,8 @@ The result worth writing up is the comparison between the two peripheral rows ra
 *Figure 5.5. Where a frame's time goes, for a 64 byte payload. Every bar is an estimate from the instruction counts until the cycle counter has run, and the figure says so rather than presenting estimates as results.*
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -DCRC_IMPL=hw
-cmake --build build -j && probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -DCRC_IMPL=hw
+cmake --build build-fw -j && cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 make -C test && ./test/test_crc_agree && ./test/test_frame_roundtrip
 python host/twin.py /dev/ttyACM0 --sweep single
 ```

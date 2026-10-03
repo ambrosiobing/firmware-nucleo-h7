@@ -207,8 +207,8 @@ The register address is sixteen bits wide rather than eight, which is the first 
 **Step 4.** **Place the image and prove the linker put it where you meant.** The array is const and belongs in flash. If it ends up in initialised data it costs 84 kilobytes of flash and 84 kilobytes of SRAM, and the startup code copies it on every reset for no reason.
 
 ```bash
-arm-none-eabi-size -A build/zones.elf
-arm-none-eabi-nm --size-sort -S build/zones.elf | tail -5
+arm-none-eabi-size -A build-fw/zones.elf
+arm-none-eabi-nm --size-sort -S build-fw/zones.elf | tail -5
 ```
 
 Expect the largest symbol in the image to be the firmware array, in a read-only section. If it is not, the const qualifier or the section attribute is wrong.
@@ -297,9 +297,9 @@ def decode(b: int) -> dict:
 *Figure 15.5. Power-on to first decision. The blind period is the upload, the watchdog is armed only after it, and the steady state that follows is short frames with a short reduction inside each one.*
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/zones.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j
+cp build-fw/zones.bin "$PROBE_DISK"/   # onto the probe disk
 python tools/status_decode.py --port /dev/ttyACM0
 ```
 

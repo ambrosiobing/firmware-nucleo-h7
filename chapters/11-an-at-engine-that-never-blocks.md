@@ -309,9 +309,9 @@ python test/faults.py --scenario no_sim --expect-state AT_ST_STOPPED_NO_SIM
 *Figure 11.5. Two exchanges on the serial link. The first carries an unsolicited message arriving in the middle of a command, which a blocking driver would read as the reply. The second shows a reply that arrives after its deadline and is discarded rather than being attached to the next command.*
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j
+cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 ```
 
 Debugging this chapter is mostly reading the link rather than the code. Keep a transcript of every byte in both directions, with a timestamp, and write it to the console on a second port so that reading it does not change the timing of the thing being read. A transcript with timestamps answers almost every question this chapter raises, and a transcript without them answers none of the interesting ones.

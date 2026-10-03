@@ -278,9 +278,9 @@ python tools/report.py --compare results/ --out results/README.md
 *Figure 16.5. One decision in each of the three placements, on one time axis. The shaded stages are what the marker pin separates inside the current trace. Every interval is a budget until an instrument has replaced it.*
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -DLEG=B
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/placement.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -DLEG=B
+cmake --build build-fw -j
+cp build-fw/placement.bin "$PROBE_DISK"/   # onto the probe disk
 python tools/equivalence.py        # must pass before any result is recorded
 ```
 

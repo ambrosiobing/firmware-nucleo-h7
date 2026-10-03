@@ -419,9 +419,9 @@ python test/faults.py --scenario no_sim --expect-state AT_ST_STOPPED_NO_SIM
 \diagram{c11_timing}{Two exchanges on the serial link. The first carries an unsolicited message arriving in the middle of a command, which a blocking driver would read as the reply. The second shows a reply that arrives after its deadline and is discarded rather than being attached to the next command.}
 
 \begin{shellcode}
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j
+cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 \end{shellcode}
 
 Debugging this chapter is mostly reading the link rather than the code. Keep a

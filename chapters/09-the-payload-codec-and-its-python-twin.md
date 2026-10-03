@@ -88,7 +88,8 @@ The generator is fifty lines and it earns its place by removing a class of defec
 | The same content as CBOR, positional array | not estimated | 11.07 B mean | none needed |
 | The same content as CBOR, full field names | not estimated | 50.07 B mean | none needed |
 | Encoder flash cost | under 512 B | 366 B | +146 B |
-| Encoder cycles per frame | under 300 | 2 955 and 3 185 | OVER by about 10x |
+| Encoder cycles per frame, I-cache off | under 300 | 2 955, 3 185, 3 143 | OVER by about 10x |
+| Encoder cycles per frame, I-cache on | under 300 | 2 375 | OVER by about 8x |
 | One frame at 115200 8N1 | 781 µs by arithmetic | not measured | not measured |
 | Random cases per test run | 100000 | 100000 by construction | none needed |
 
@@ -112,7 +113,15 @@ So the rule for every cycle figure in this volume: it belongs to a build, not to
 
 What fixes it was found later the same day, and it was nearer than chapter 19. ARM's `cachel1_armv7.h` in the Cube pack holds the instruction cache enable sequence, the device header declares the cache present on this Cortex-M7 r1p2, and every name in that sequence is ARMv7-M architectural, so none of it waits on RM0455. This chapter's measurement is now taken twice in one image, once with the cache off as the part comes out of reset and once with it on, from a single function called twice so that both runs execute the same instructions at the same address. The difference between those two figures is the cache and nothing else.
 
-Against a budget of 300 none of that matters: both measurements are about ten times over and the conclusion is the same either way.
+**The cache is worth 1.32 times on this function: 3 142.99 cycles with it off and 2 374.99 with it on.** Measured on Saturday 3 October 2026, and the same report came out identical to the hundredth of a cycle in three separate captures, so the figures are reproducible within one image.
+
+That is a smaller gain than the word cache tends to suggest, and the reason is worth stating. About a quarter of this function's time was instruction fetch. `bw_put` spends the rest reading, modifying and writing single bytes, and no instruction cache helps with data. A function that is mostly arithmetic in a tight loop would gain far more; one that is mostly memory traffic would gain less.
+
+**The third cold figure is itself the evidence for why this was needed.** The cold column now reads 2 955, 3 185 and 3 143 across three builds. The last of those was measured in the build that added the cache support, which changed nothing in the encoder: a file was added and the measurement was moved into its own function. The figure moved 1.3 per cent anyway. That is the fourth instance of the effect in two days and it arrived as an unplanned control.
+
+What has NOT yet been established is the claim this work was done to support: that the cached figure is stable across builds where the cold one is not. One build gives one cached number. The test is a build that deliberately shifts the code and a check that the cached figure holds while the cold one moves, and it has not been run. Until it is, the right statement is that the cache is measured to be worth 1.32 times here, not that cycle figures are now trustworthy.
+
+Against a budget of 300 none of it matters: cached or not, the encoder is about an order of magnitude over and the conclusion is the same either way.
 
 That is a defensible implementation and an indefensible budget. The bit-by-bit writer is the clearest possible statement of the specification in `docs/bitorder.md`, which is why it was written that way, and the codec's correctness is the chapter's deliverable rather than its speed. What was wrong was estimating 300 without counting what the loop does.
 
@@ -402,10 +411,10 @@ The host is the same Python module the property test uses, which is the point: t
 
 ```bash
 python tools/gen_codec.py codec/fields.py --out-c codec --out-py codec
-cmake -B build -DPAYLOAD_HOST=ON && cmake --build build -j   # libpayload.so
+cmake -B build-host -DPAYLOAD_HOST=ON && cmake --build build-host -j   # libpayload.so
 python -m pytest test -q                                     # vectors, then 100k cases
-cmake -B fw -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build fw -j && probe-rs run --chip STM32H7A3ZITx fw/codec_demo.elf
+cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"
+cmake --build build-fw --target p09-codec     # then copy the .bin onto the probe's disk
 ```
 
 > [!NOTE]

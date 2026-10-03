@@ -415,8 +415,8 @@ the table is what lets a reader choose.
 \diagram{c04_timing}{Bytes arriving, the transfer counter stepping down as each one lands, and the line-idle flag setting once the line has been quiet for a character time. The counter is the only thing in this picture the processor reads.}
 
 \begin{shellcode}
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j && probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j && cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 \end{shellcode}
 
 Three things are worth looking at on a halted target, in this order. The stream

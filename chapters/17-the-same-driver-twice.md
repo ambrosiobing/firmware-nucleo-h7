@@ -216,7 +216,7 @@ Everything the vendor layer does and this does not is now visible as an absence:
 ```bash
 arm-none-eabi-size -t build/CMakeFiles/*.dir/src/op_vendor.c.obj
 arm-none-eabi-size -t build/CMakeFiles/*.dir/src/op_registers.c.obj
-arm-none-eabi-nm --size-sort -S build/two_layers.elf | tail -20
+arm-none-eabi-nm --size-sort -S build-fw/two_layers.elf | tail -20
 ```
 
 **Step 6.** **Measure cycles, and subtract the instrument.** Reading the cycle counter costs cycles. Measure an empty interval first and subtract it from every reading, then report the first run and the median of the rest separately.
@@ -307,7 +307,7 @@ Build and flash with the same probe the C build uses, which is the practical rea
 ```bash
 rustup target add thumbv7em-none-eabihf
 cargo build --release --bin hal
-probe-rs run --chip STM32H7A3ZITxQ target/thumbv7em-none-eabihf/release/hal
+cp target/thumbv7em-none-eabihf/release/hal "$PROBE_DISK"/   # onto the probe disk
 ```
 
 **Step 10.** **Write the worked example this part did not have.** The async framework names this exact package and pin count and had, at the time of writing, a worked example only for its twin. Writing one for this part is a small piece of genuinely new work, it is exactly the kind of contribution that makes a portfolio repository useful to somebody else, and it is worth offering upstream. The real-time framework needs no such work, because it schedules on the interrupt controller, which is an architecture-level mechanism rather than a part-specific one, and that is worth one sentence in the README so a reader understands why one of the two needed porting and the other did not.
@@ -321,7 +321,7 @@ probe-rs run --chip STM32H7A3ZITxQ target/thumbv7em-none-eabihf/release/hal
 ```bash
 cmake -B c/build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake -DOPT=O2
 cmake --build c/build -j
-probe-rs run --chip STM32H7A3ZITxQ c/build/two_layers.elf
+cp c/build/two_layers.bin "$PROBE_DISK"/   # onto the probe disk
 python tools/equality.py --port /dev/ttyACM0
 python tools/report.py --out docs/RESULTS.md
 ```

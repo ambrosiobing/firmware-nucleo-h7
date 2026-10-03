@@ -293,9 +293,9 @@ The host script checks the board's own counters and the monotonicity of the time
 *Figure 13.5. Fill against drain on one timebase. The interrupt line rises at the watermark, the burst is one transaction, and the margin in the figure is the ratio the budget table requires.*
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j
+cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 ```
 
 > [!NOTE]

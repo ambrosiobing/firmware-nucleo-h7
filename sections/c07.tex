@@ -467,9 +467,9 @@ advertising rather than engineering.
 \diagram{c07_timing}{One cycle with the restore and one without, on the same axes, with the marker channel underneath. The shape of the difference is the point; the values on the vertical axis come from the instrument and are not drawn here because they have not been measured.}
 
 \begin{shellcode}
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build --target sleep_rtc sleep_lptim sleep_tickless -j
-probe-rs run --chip STM32H7A3ZITx build/sleep_rtc.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw --target sleep_rtc sleep_lptim sleep_tickless -j
+cp build-fw/sleep_rtc.bin "$PROBE_DISK"/   # onto the probe disk
 python meas/capture.py --seconds 120 --out trace.npz
 python meas/cycles.py trace.npz && python meas/battery.py
 \end{shellcode}

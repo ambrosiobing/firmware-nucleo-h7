@@ -411,9 +411,9 @@ condition and the other three results prove nothing.
 \diagram{c19_timing}{The coherency figure. Three moments in one transfer: the processor's write leaves a dirty line, the engine's write leaves that line stale, and the processor's read then has two possible answers depending on what happened in between.}
 
 \begin{shellcode}
-cmake -B build -DVARIANT=naive -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DVARIANT=naive -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j
+cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 \end{shellcode}
 
 When the board stops in a memory management fault, the protection unit is doing

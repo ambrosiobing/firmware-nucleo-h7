@@ -273,9 +273,9 @@ python host/ledger.py runs/race.raw --baseline ledgers/baseline.json
 The build is chapter 1's build with two files added, so there is nothing new to say about it. What is new is that the board is being measured while it runs, which changes how it is flashed and how it is recovered.
 
 ```bash
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
-cmake --build build -j
-probe-rs run --chip STM32H7A3ZITx build/firmware.elf
+cmake -B build-fw -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake
+cmake --build build-fw -j
+cp build-fw/firmware.bin "$PROBE_DISK"/   # onto the probe disk
 ```
 
 Flash first, then set up the measurement, then reset the board and capture. A debugger attached during a capture changes the answer: the core is not allowed to enter the deeper low-power modes with a debug connection active in the usual configuration, and the probe itself draws current that may or may not be inside the measurement path depending on the jumper. Detach, reset, capture.
