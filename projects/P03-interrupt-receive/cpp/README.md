@@ -1,9 +1,14 @@
 # P03 in C++
 
-**State: written Saturday 3 October 2026, and not yet built.** Written on win11
-aquamarine, which compiles nothing; the first compiler to see it is `g++` in WSL
-on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
-`python3 python/tools/build_host.py`, and then CI with warnings as errors.
+**State: host only, proven Saturday 3 October 2026.** Written on win11
+aquamarine, which compiles nothing, then built and proven the same day: `g++` in
+WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
+`python3 python/tools/build_host.py`, and then CI at commit 92b0bf7, where it is
+also compiled with the full warning set and `-Werror`.
+
+The two `static_assert`s have been seen to pass, which is what the state above
+rests on: a translation unit including this header would not have compiled if
+either the clean step or the bridge case were wrong.
 
 | File | What it is |
 |---|---|

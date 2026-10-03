@@ -1,6 +1,6 @@
 # P03: receiving on interrupt without losing bytes
 
-Status: c=host cpp=written python=host rust=written
+Status: c=host cpp=host python=host rust=host
 
 Three receive paths on one board with one switch between them, both documented
 library failure modes reproduced on purpose and then repaired, and a measurement
@@ -11,9 +11,13 @@ is the half of this project that can be proven. The receive path needs a
 peripheral and still refuses; the attribution is arithmetic over counters a run
 recorded, and it is the half where a wrong answer publishes a wrong conclusion
 rather than merely failing to work. `attribute.c` was written for this and
-compiles unchanged for the target. The C++ and the Rust are **written and not
-built** until the WSL run; the Python, `report.py`, is the one they were all
-written to be compared against.
+compiles unchanged for the target.
+
+All four were proven on the host on Saturday 3 October 2026, first in WSL on the
+win11 skyhorizon demo laptop, bing@JPTOUPM678, and then in CI at commit 92b0bf7,
+where `attribute.c` also compiles under the full warning set with `-Werror`. The
+Python, `report.py`, is the one the other three were written to be compared
+against.
 
 `python/tests/test_attribute_parity.py` drives nineteen synthetic steps and four
 ramps through every implementation. The step list was itself found to have a hole

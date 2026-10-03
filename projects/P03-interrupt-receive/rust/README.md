@@ -1,13 +1,16 @@
 # P03 in Rust
 
-**State: written Saturday 3 October 2026, and not yet built.** Written on win11
-aquamarine, which has no cargo. Build and prove it in WSL on the win11 skyhorizon
-demo laptop, bing@JPTOUPM678:
+**State: host only, proven Saturday 3 October 2026** in WSL on the win11
+skyhorizon demo laptop, bing@JPTOUPM678, with rustc 1.99.0, and then in CI at
+commit 92b0bf7. What that run established:
 
-    cargo clippy --workspace --all-targets -- -D warnings
-    cargo test --workspace
-    cargo build --release --workspace
-    python3 -m pytest python/tests/test_attribute_parity.py -q -s
+| Step | Result |
+|---|---|
+| `cargo fmt --all` | reformatted one block, committed as its own change |
+| `cargo clippy --workspace --all-targets -- -D warnings` | clean on the first run |
+| `cargo test --workspace` | 9 passed, the most of the five crates |
+| `cargo build --release --workspace --lib --target thumbv7em-none-eabihf` | compiles, which is the proof the crate is genuinely `no_std` |
+| `python3 -m pytest python/tests/test_attribute_parity.py -q -s` | all four agree over 19 steps and four ramps |
 
 | File | What it is |
 |---|---|
