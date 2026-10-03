@@ -540,8 +540,13 @@ mod tests {
 
     #[test]
     fn the_sequence_wraps_where_p09_s_field_does() {
-        let mut ctx = Ctx::default();
-        ctx.sequence = 511;
+        // The struct-update form rather than a default followed by an
+        // assignment, which clippy's field_reassign_with_default refuses and
+        // which the other tests in this module already avoided.
+        let mut ctx = Ctx {
+            sequence: 511,
+            ..Default::default()
+        };
         act_cycle_ok(&mut ctx);
         assert_eq!(ctx.sequence, 0, "the sequence field is nine bits");
     }
