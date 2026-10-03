@@ -253,7 +253,10 @@ mod tests {
             let mut frame = [0u8; 128];
             let m = frame_encode(&payload[..len], &mut frame).expect("encodes");
             assert_eq!(frame[m - 1], DELIMITER);
-            assert!(!frame[..m - 1].contains(&0), "a zero escaped into the frame");
+            assert!(
+                !frame[..m - 1].contains(&0),
+                "a zero escaped into the frame"
+            );
             let mut back = [0u8; MAX_PAYLOAD];
             assert_eq!(
                 frame_decode(&frame[..m - 1], &mut back),
