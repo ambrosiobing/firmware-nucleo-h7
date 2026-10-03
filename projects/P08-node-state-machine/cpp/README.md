@@ -1,9 +1,19 @@
 # P08 in C++
 
-**State: written Saturday 3 October 2026, and not yet built.** Written on win11
-aquamarine, which compiles nothing; the first compiler to see it is `g++` in WSL
-on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
-`python3 python/tools/build_host.py`, and then CI with warnings as errors.
+**State: host only, proven Saturday 3 October 2026.** Written on win11
+aquamarine, which compiles nothing, then built and proven the same day: `g++` in
+WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
+`python3 python/tools/build_host.py`, and then CI at commit 22ec8ad, where it is
+also compiled with the full warning set and `-Werror`.
+
+**The filter had to be rewritten before that passed, and the reason is worth
+keeping.** It read with `fgets` into `char line[4096]`, and one parity sequence
+drives 512 complete cycles in a single line to reach the sequence number's wrap,
+about 21,500 characters. `fgets` returned that line in six pieces and the filter
+answered each piece, so it produced 25 answers for 20 requests. The state machine
+was never wrong. It surfaced only because `run_filter` asserts exactly one answer
+per request, and it is now read whole: a larger buffer would have moved the
+defect rather than removed it, since the protocol states no line limit.
 
 | File | What it is |
 |---|---|
@@ -65,8 +75,6 @@ undesigned exit added to `FAULT` turned the fault test red with "Python handled
 
 ## What it does not do yet
 
-- Not compiled anywhere until the WSL run, so none of the above has been seen to
-  hold.
 - Not built for the board. `node_sm.hpp` includes nothing the target lacks, so it
   would compile there, and that stays a claim until `add_firmware()` has a C++
   target, which is P01's C++ half.

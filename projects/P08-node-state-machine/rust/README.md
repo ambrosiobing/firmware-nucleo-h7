@@ -1,13 +1,20 @@
 # P08 in Rust
 
-**State: written Saturday 3 October 2026, and not yet built.** Written on win11
-aquamarine, which has no cargo. Build and prove it in WSL on the win11 skyhorizon
-demo laptop, bing@JPTOUPM678:
+**State: host only, proven Saturday 3 October 2026** in WSL on the win11
+skyhorizon demo laptop, bing@JPTOUPM678, with rustc 1.99.0, and then in CI at
+commit 22ec8ad. What that run established, in the order it ran:
 
-    cargo clippy --workspace --all-targets -- -D warnings
-    cargo test --workspace
-    cargo build --release --workspace
-    python3 -m pytest python/tests/test_node_sm_parity.py -q -s
+| Step | Result |
+|---|---|
+| `cargo fmt --all` | reformatted the table, committed as its own change |
+| `cargo clippy --workspace --all-targets -- -D warnings` | refused a default-then-assign in a test, fixed, then clean |
+| `cargo test --workspace` | 5 passed, after the coverage test found its own list short by one sequence |
+| `cargo build --release --workspace --lib --target thumbv7em-none-eabihf` | compiles, which is the proof the crate is genuinely `no_std` |
+| `python3 -m pytest python/tests/test_node_sm_parity.py -q -s` | all four take the same row for all 2674 events |
+
+Two of those five steps reported a defect in this crate's own test code rather
+than in the table, which is the honest result: the state machine agreed with the
+C from the first run, and what needed fixing was the apparatus measuring it.
 
 | File | What it is |
 |---|---|
@@ -89,7 +96,6 @@ undesigned exit added to `FAULT` turned the fault test red with "Python handled
 
 ## What it does not do yet
 
-- Not compiled anywhere until the WSL run.
 - Not built for the board. The library will compile for `thumbv7em-none-eabihf`
   in CI, which is the proof it is genuinely `no_std`, but nothing links: that
   needs `cortex-m-rt` and a linker script, which is P01's Rust half.

@@ -40,9 +40,10 @@ final state, every row index taken, the counters and the stub's frame out.
 No filter parses its project's oracle, so that stays in the one file no generator
 has ever touched, and `run_filter` in `conftest.py` drives all of them.
 
-**Three projects have a parity test so far**, P09, P05 and P08. The first two
-read four languages agreeing as of Saturday 3 October 2026; P08 reads two here
-and awaits the WSL run for the other two.
+**Three projects have a parity test so far**, P09, P05 and P08, and all three
+read four languages agreeing as of Saturday 3 October 2026. On win11 aquamarine,
+which runs no compiler, P09 reads three and P05 and P08 read two, each saying so
+rather than passing quietly.
 
 P08's is the strict one, and the reason is that it has no external fact to appeal
 to: P09 has hand-computed vectors and P05 a published check value, while P08's
@@ -108,7 +109,7 @@ header named a path the file had never had.
 | [P05](P05-framing-crc/) | Framing and the hardware CRC unit | host only, and proven there in all four languages, Saturday 3 October 2026: every one reaches the published check value 0x29B1, produces byte-identical frames over 3008 payloads, and gives the same verdict on 3005 frames corrupted three ways. The C++ and the Rust assert 0x29B1 at compile time, which the C can only assert in a test. Writing them found one divergence worth keeping: the C names the single byte 0x01 a stuffing error where the other three name it too short, because the C's cobs_decode cannot tell an empty frame from a failed one. The peripheral half waits on RM0455 |
 | [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | **links**, all three back ends, since Friday 2 October 2026, and none has been flashed. The witness is proven on synthetic input on the host. Each back end still refuses at run time rather than guessing a converter, timer or transfer engine setting RM0455 governs. The cycle counter it needs now exists and works, which was the first of its dependencies to be settled |
 | [P07](P07-stop-mode/) | Stop mode, RTC wake, and a battery number | not started. Needs the PPK2 and a running clock tree |
-| [P08](P08-node-state-machine/) | The node's state machine, transmit as a stub | written and proven: all 18 transition rows reachable, and the stub payload matches P09's encoder byte for byte. Four implementations since Saturday 3 October 2026; the C and the Python agree on **every row index taken** over twenty sequences and 2674 events, which pins the tables to one order rather than only to one behaviour, and the C++ and the Rust are **written and not built**. The Rust crate is the workspace's first inter-crate dependency, on P09's, so the shared criterion holds by construction |
+| [P08](P08-node-state-machine/) | The node's state machine, transmit as a stub | written and proven: all 18 transition rows reachable, and the stub payload matches P09's encoder byte for byte. Four implementations, all four proven on the host Saturday 3 October 2026 and agreeing on **every row index taken** over twenty sequences and 2674 events, which pins the tables to one order rather than only to one behaviour. The Rust crate is the workspace's first inter-crate dependency, on P09's, so the shared criterion holds by construction |
 | [P09](P09-payload-codec/) | The payload codec and its Python twin | **runs on the board**, Saturday 3 October 2026. The negative golden vector, feature -1, encodes to 2405FFFFE8 on the Cortex-M7, byte for byte what the host produces, and decodes back to the value it started from, so sign extension, bit order and field packing agree between the two compilers. It also carries the volume's measurement of placement: four images displaced by 0, 16, 32 and 48 bytes and otherwise identical, where the cold cost tracks the offset within a 32 byte granule (3220.99 cycles at offset 0, 3163.98 at offset 16, the two images at each offset agreeing to the hundredth) and the cached cost is 2378.99 in all four. Host half: all four implementations, C, C++, Python and Rust, agree over the six vectors and 100000 recorded-seed cases, proven Saturday 3 October 2026 in WSL on bing@JPTOUPM678 with rustc 1.99.0, and the Rust library compiles for the board's target, which is the proof it is genuinely no_std |
 | [P10](P10-energy-phases/) | Where the energy goes, by phase | not started. Needs the PPK2 and marker pins |
 | [P11](P11-at-engine/) | An AT engine that never blocks | not started. Needs the SIM7020E |

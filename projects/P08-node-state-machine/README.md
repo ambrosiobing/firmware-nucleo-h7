@@ -1,15 +1,15 @@
 # P08: the node's state machine, with a transmit that is a stub
 
-Status: c=host cpp=written python=host rust=written
+Status: c=host cpp=host python=host rust=host
 
 Eight states, nine events, eighteen rows, and a dispatcher that cannot block.
 
-**Four implementations since Saturday 3 October 2026.** The C and the Python
-agree over twenty event sequences and 2674 events; the C++ and the Rust were
-written the same day on the laptop that compiles nothing and are **written and
-not built** until the WSL run. Each calls its own language's P09 encoder rather
-than a copy, so the frame the stub hands over is four independent confirmations
-of P09's bit layout.
+**Four implementations, all four proven on the host Saturday 3 October 2026**,
+first in WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, and then in CI
+at commit 22ec8ad. They agree on every row index taken across twenty event
+sequences and 2674 events. Each calls its own language's P09 encoder rather than
+a copy, so the frame the stub hands over is four independent confirmations of
+P09's bit layout.
 
 **The comparison is stricter here than in P09 or P05, and it has to be.** Those
 two have an external fact to check against: six hand-computed vectors, and a
