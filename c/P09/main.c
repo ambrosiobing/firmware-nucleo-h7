@@ -41,6 +41,45 @@ static void print_hex(const uint8_t *b, size_t n)
     }
 }
 
+/* One measurement of the encoder, in hundredths of a cycle per frame, or 0 when
+ * the two timing windows did not come out in order and the result would be
+ * meaningless.
+ *
+ * A function rather than inline code in main, and that is the whole trick. Called
+ * twice from one image, it runs the same instructions at the same address both
+ * times, so the only thing that differs between the two calls is the state of the
+ * instruction cache. Written inline twice it would be two copies at two
+ * addresses, which is the very confound this is meant to remove.
+ *
+ * reps is 2000, which at roughly 3000 cycles a frame is about six million cycles
+ * per window, comfortably inside the 32 bit counter's 67 second wrap at 64 MHz and
+ * long enough that the warm-up pass is a rounding error. */
+static uint32_t measure_encode_cx100(const payload_t *v)
+{
+    const uint32_t reps = 2000u;
+    uint8_t scratch[PAYLOAD_BYTES];
+
+    for (uint32_t i = 0u; i < reps; i++) {
+        (void) payload_encode(scratch, sizeof scratch, v);
+    }
+
+    const uint32_t a0 = board_cycles_now();
+    for (uint32_t i = 0u; i < reps; i++) {
+        (void) payload_encode(scratch, sizeof scratch, v);
+    }
+    const uint32_t a1 = board_cycles_now();
+
+    const uint32_t b0 = board_cycles_now();
+    for (uint32_t i = 0u; i < (2u * reps); i++) {
+        (void) payload_encode(scratch, sizeof scratch, v);
+    }
+    const uint32_t b1 = board_cycles_now();
+
+    const uint32_t shortw = a1 - a0;
+    const uint32_t longw  = b1 - b0;
+    return (longw > shortw) ? (((longw - shortw) * 100u) / reps) : 0u;
+}
+
 int main(void)
 {
     board_init();
@@ -88,55 +127,60 @@ int main(void)
         for (;;) { }
     }
 
-    /* WHAT THE ENCODER COSTS, which chapter 9's budget asks for and nothing had
-     * measured. The budget says under 300 cycles per frame.
+    /* WHAT THE ENCODER COSTS, measured twice in one image: once with the
+     * instruction cache off, which is how the part comes out of reset, and once
+     * with it on.
      *
-     * Two-point with a warm-up, the same shape P01 and P02 arrived at earlier
-     * today. A single timed window includes the cost of starting and stopping the
-     * measurement; timing n and 2n and subtracting cancels that without needing to
-     * know what it is. The warm-up does not cancel in a difference, because the
-     * first pass through a loop pays flash wait states the second does not, so it
-     * is paid once before either window.
+     * WHY TWICE, and this is the point of the whole arrangement. On Friday 2
+     * October 2026 this encoder was measured at 2954.98 cycles and then, after a
+     * variable was renamed and three printf lines were added, at 3184.98. Nothing
+     * about the encoder changed. The string literals grew, the code after them
+     * moved, and with no cache every instruction is fetched from flash, so what
+     * the loop cost depended on where the linker had put it.
      *
-     * The figure is for one encode in a loop, including the loop control and a
-     * call that does not inline across translation units. It is therefore an upper
-     * bound on the encoder itself rather than the encoder alone, and the budget
-     * row says so. */
+     * Comparing two builds can never separate a change from its placement. Two
+     * calls to the same function in one image can: the code is at one address, the
+     * build is one build, and nothing between the two measurements has moved by a
+     * byte. The difference is the cache and nothing else.
+     *
+     * Each measurement is two-point with a warm-up, the shape P01 and P02 arrived
+     * at. A single window includes the cost of starting and stopping it; timing
+     * reps and 2 x reps and subtracting cancels that without needing to know what
+     * it is. The warm-up is paid once before either window because a cold first
+     * pass subtracts rather than cancels.
+     *
+     * The figure is one encode inside a loop, including the loop control and a
+     * call that does not inline across translation units, so it is an upper bound
+     * on the encoder rather than the encoder alone. */
     if (board_cycles_available() && board_core_hz() >= 1000000u) {
-        /* reps, not n: main already has an n holding the encoded length, and
-         * shadowing it drew -Wshadow. The warning was right and the name was
-         * lazy. */
-        const uint32_t reps = 2000u;
-        uint8_t scratch[PAYLOAD_BYTES];
+        const uint32_t cold = measure_encode_cx100(&vector);
 
-        for (uint32_t i = 0u; i < reps; i++) {
-            (void) payload_encode(scratch, sizeof scratch, &vector);
-        }
+        /* The cache, enabled between the two measurements and nowhere else. */
+        const bool cached = board_icache_enable();
+        const uint32_t warm = cached ? measure_encode_cx100(&vector) : 0u;
 
-        const uint32_t a0 = board_cycles_now();
-        for (uint32_t i = 0u; i < reps; i++) {
-            (void) payload_encode(scratch, sizeof scratch, &vector);
-        }
-        const uint32_t a1 = board_cycles_now();
-
-        const uint32_t b0 = board_cycles_now();
-        for (uint32_t i = 0u; i < (2u * reps); i++) {
-            (void) payload_encode(scratch, sizeof scratch, &vector);
-        }
-        const uint32_t b1 = board_cycles_now();
-
-        const uint32_t shortw = a1 - a0;
-        const uint32_t longw  = b1 - b0;
-        if (longw > shortw) {
-            const uint32_t cx100 = ((longw - shortw) * 100u) / reps;
-            printf("  encode cost   %lu.%02lu cycles per frame, upper bound\r\n",
-                   (unsigned long) (cx100 / 100u), (unsigned long) (cx100 % 100u));
-            printf("                includes the loop and one call that does not\r\n");
-            printf("                inline. The budget is under 300, so this\r\n");
-            printf("                EXCEEDS it by about ten times. bw_put writes\r\n");
-            printf("                one bit at a time; chapter 9 explains.\r\n");
-        } else {
+        if (cold == 0u) {
             printf("  encode cost   not measured: the two windows did not order\r\n");
+        } else {
+            printf("  encode cost   %lu.%02lu cycles per frame, I-cache OFF\r\n",
+                   (unsigned long) (cold / 100u), (unsigned long) (cold % 100u));
+            if (!cached) {
+                printf("                I-cache would not enable: CCR.IC read back 0\r\n");
+            } else if (warm == 0u) {
+                printf("                I-cache ON: windows did not order\r\n");
+            } else {
+                printf("                %lu.%02lu cycles per frame, I-cache ON\r\n",
+                       (unsigned long) (warm / 100u), (unsigned long) (warm % 100u));
+                /* The ratio, in hundredths, so the reader does not have to divide
+                 * two four-digit numbers in their head at a serial console. */
+                const uint32_t ratio = (warm > 0u) ? ((cold * 100u) / warm) : 0u;
+                printf("                the cache is worth %lu.%02lux here, same\r\n",
+                       (unsigned long) (ratio / 100u), (unsigned long) (ratio % 100u));
+                printf("                address, same build, nothing moved\r\n");
+            }
+            printf("                budget is under 300, so this EXCEEDS it by\r\n");
+            printf("                about ten times either way. bw_put writes one\r\n");
+            printf("                bit at a time; chapter 9 explains.\r\n");
         }
     } else {
         printf("  encode cost   not measured: no cycle counter or no clock\r\n");

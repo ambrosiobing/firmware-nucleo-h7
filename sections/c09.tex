@@ -163,11 +163,17 @@ answers differ by 7.8 per cent.} The second build differed from the first by a
 renamed variable and three extra \texttt{printf} lines. Nothing about the encoder
 changed at all.
 
-The new string literals grew \texttt{.rodata}, every byte of code after it moved,
-and the hot loop landed differently against the 32 byte flash fetch lines. There is
-no instruction cache enabled on this part in this volume yet, so every instruction
-is fetched from flash and where a loop sits relative to a fetch boundary changes
-what it costs.
+The new string literals grew \texttt{.rodata}, every byte of code after them moved,
+and with no instruction cache enabled every instruction is fetched from flash, so
+what the loop costs depends on where the linker put it.
+
+An earlier version of this paragraph attributed this to 32 byte flash fetch lines.
+That 32 bytes was borrowed from the Cortex-M7 cache line length, which ARM fixes by
+the architecture and which chapters 4 and 19 cite correctly, then applied to the
+flash interface, which is a different thing and is described in RM0455 rather than
+in anything read here. The correction matters because the invented detail made the
+explanation sound settled when only the observation was: code moved and the cost
+changed.
 
 This is the third time today that an unrelated edit moved a cycle figure. Chapter 1
 watched its delay loop go from 9 cycles an iteration to 19 because four register
@@ -178,8 +184,16 @@ property of the code as placed.
 So the rule for every cycle figure in this volume: it belongs to a build, not to a
 function, and a difference smaller than about ten per cent between two builds
 cannot be attributed to the change under test. Chapter 2's comparison of ordering
-barriers carries the same caveat and says so. Enabling the instruction cache, which
-is chapter 19, is what would make these figures belong to the code instead.
+barriers carries the same caveat and says so.
+
+What fixes it was found later the same day, and it was nearer than chapter 19.
+ARM's \texttt{cachel1\_armv7.h} in the Cube pack holds the instruction cache enable
+sequence, the device header declares the cache present on this Cortex-M7 r1p2, and
+every name in that sequence is ARMv7-M architectural, so none of it waits on
+RM0455. This chapter's measurement is now taken twice in one image, once with the
+cache off as the part comes out of reset and once with it on, from a single
+function called twice so that both runs execute the same instructions at the same
+address. The difference between those two figures is the cache and nothing else.
 
 Against a budget of 300 none of that matters: both measurements are about ten times
 over and the conclusion is the same either way.

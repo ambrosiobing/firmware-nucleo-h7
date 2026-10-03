@@ -146,6 +146,35 @@ uint32_t board_cycles_now(void);
 void     board_delay_calibrate(void);
 uint32_t board_delay_iters_per_ms(void);
 
+/* The instruction cache, which is ARM's and not ST's, and which board_init
+ * deliberately leaves off.
+ *
+ * It is off at reset. Every cycle figure published in this volume before Friday
+ * 2 October 2026 was measured in that state, and three of them moved because of
+ * edits that changed no logic: with no cache, every instruction is fetched from
+ * flash and what a loop costs depends on where the linker put it.
+ *
+ * board_init does not enable it, for two reasons. Enabling it there would
+ * silently invalidate every figure already printed. And leaving it off makes a
+ * better experiment available: a single image can measure a function cold, call
+ * board_icache_enable(), and measure the same function again at the same address
+ * in the same build. Nothing has moved, so the difference is the cache. Two
+ * builds could never establish that.
+ *
+ * board_icache_enable() returns the state read back from the register rather
+ * than the fact of having written to it, and false means the cache is not on.
+ *
+ * There is no disable, on purpose: reset already provides the off state, and the
+ * disable sequence in ARM's header has not been read.
+ *
+ * ONE ORDERING CONSEQUENCE. board_delay_calibrate() measures the delay loop in
+ * whatever cache state holds when it runs, which is off. A project that enables
+ * the cache and then needs an accurate millisecond must call
+ * board_delay_calibrate() again, because the loop it measured is now faster than
+ * the measurement says. */
+bool board_icache_enable(void);
+bool board_icache_enabled(void);
+
 /* The button's three registers, for diagnosis rather than for use.
  *
  * board_button_pressed() answers a yes or no question and that answer has been

@@ -45,7 +45,7 @@ codec both reached that state on Friday 2 October 2026 and neither has been run.
 | [P16](P16-classifier-placement/) | Where the classifier runs: sensor, MCU or host | not started. Needs the shield and a Raspberry Pi |
 | [P17](P17-hal-against-registers/) | The same driver twice | not started. Needs a running target to measure |
 | [P18](P18-transforms-filters/) | Transforms with a numerical acceptance test | not started. The host reference could be written now; the board half cannot |
-| [P19](P19-caches-mpu-dma/) | Caches, the MPU, and stale DMA reads | not started. Needs a transfer engine and the cache |
+| [P19](P19-caches-mpu-dma/) | Caches, the MPU, and stale DMA reads | not started, but half of what it was waiting for arrived on Friday 2 October 2026. The instruction cache enable is architectural, read from ARM's cachel1_armv7.h rather than from RM0455, and is in `c/board/icache.c`; P09 uses it to measure the same function cold and cached at one address. What is still missing is the data cache half, which needs a transfer engine to make a stale read possible at all |
 | [P20](P20-rtos-task-set/) | Three jobs at once, as an RTOS application | not started. Rebuilds P08 to P12, so it waits on them |
 
 **What "proven" means here, and what it does not.** Every project marked proven has

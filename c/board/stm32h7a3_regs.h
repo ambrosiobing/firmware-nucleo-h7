@@ -98,6 +98,47 @@
 #define DWT_CTRL_CYCCNTENA_POS    0u
 #define DWT_LAR_KEY             0xC5ACCE55u
 
+/* THE INSTRUCTION CACHE, and it is ARM's too.
+ *
+ * Read on Friday 2 October 2026 from ARM's own CMSIS headers, in the Cube pack
+ * at Drivers/CMSIS/Include, and from nothing of ST's:
+ *
+ *   core_cm7.h names the bits in the Configuration and Control register and
+ *   places CCSIDR at offset 0x080 and ICIALLU at offset 0x250 from SCB_BASE.
+ *
+ *   cachel1_armv7.h, which core_cm7.h includes only when the device header
+ *   declares a cache present, holds the enable, disable and invalidate
+ *   sequences. It is where they live in CMSIS 5.6 and later; they used to be in
+ *   core_cm7.h, which is why a search of that file alone finds nothing.
+ *
+ *   stm32h7a3xxq.h declares __ICACHE_PRESENT 1 and __DCACHE_PRESENT 1 on a
+ *   Cortex-M7 r1p2, so the gate opens and this part has both.
+ *
+ * The line length is 32 bytes, fixed by the architecture for Cortex-M7 rather
+ * than chosen by ST: cachel1_armv7.h defines both __SCB_ICACHE_LINE_SIZE and
+ * __SCB_DCACHE_LINE_SIZE as 32 and says the figure is fixed for this core.
+ *
+ * ONE TRAP WORTH THE SPACE. core_cm7.h defaults __ICACHE_PRESENT and
+ * __DCACHE_PRESENT to 0 when the device header does not define them, and says so
+ * with a #warning and nothing more. A build that does not read its warnings
+ * would compile, link, run, and quietly never enable a cache, with every cache
+ * call compiled away to an empty function body. That is the same shape as the
+ * RM0433 trap at the top of this file: the wrong answer arrives working.
+ *
+ * Only the instruction cache is used in this repository so far. The data cache
+ * is declared present and is deliberately left alone, because enabling it
+ * changes what a buffer shared with a bus master means, and that question
+ * belongs with the transfer engine that no confirmed register yet describes. */
+#define SCB_CCR         REG32(SCB_BASE + 0x014u)   /* configuration and control */
+#define SCB_CCSIDR      REG32(SCB_BASE + 0x080u)   /* cache size id, read only */
+#define SCB_CCSELR      REG32(SCB_BASE + 0x084u)   /* cache size selection */
+#define SCB_ICIALLU     REG32(SCB_BASE + 0x250u)   /* invalidate all, write only */
+
+#define SCB_CCR_DC_POS          16u   /* data cache enable */
+#define SCB_CCR_IC_POS          17u   /* instruction cache enable */
+#define SCB_CCR_BP_POS          18u   /* branch prediction enable */
+#define SCB_CACHE_LINE_BYTES    32u   /* fixed for Cortex-M7 by the architecture */
+
 /* ------------------------------------------------------------- peripherals ---
  * Confirmed. Each line carries the expression the device header gave as well as
  * the value it resolves to, because a bare hexadecimal number here would be the
