@@ -360,11 +360,18 @@ endforeach()
 # *(.text*) and within a glob the order is the order of the objects on the link
 # line, which is this list. Moving pad.c after main.c would displace nothing and
 # the experiment would quietly become three identical builds.
-# 4, 12 and 20 are three distinct residues modulo 32, the cache line length. 36 is
-# the control: same residue as 4, one line further on. The first version of this
-# list used 0, 64 and 160, which are all zero modulo 32, so every image had the
-# same alignment and the figures agreed in a way that proved nothing.
-set(P09_PADS 0 4 12 20 36)
+# Expressed in multiples of 16 because that is the resolution that exists: whatever
+# follows .text.p09pad is aligned to 16 bytes, so the linker rounds any other pad
+# up and the displacement stops equalling the pad. Here they are equal.
+#
+# Two residues modulo 32 across four images: shifts 0 and 32 at residue 0, shifts
+# 16 and 48 at residue 16. Within-pair agreement is the control; between-pair
+# difference is the effect. pad.c explains what each outcome would mean.
+#
+# Two earlier sets failed the size gate before reaching the board. 0, 64, 160 were
+# all whole cache lines, so every image had identical alignment. 0, 4, 12, 20, 36
+# rounded to 0, 16, 16, 32, 48, making two of them the same image.
+set(P09_PADS 0 16 32 48)
 foreach(PAD IN LISTS P09_PADS)
     if(PAD EQUAL 0)
         set(P09_TARGET p09-codec)      # the reference build, pad.c emits nothing

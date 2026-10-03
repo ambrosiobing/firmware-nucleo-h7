@@ -46,16 +46,37 @@
  * placement hypothesis predicts under a whole-line shift, so the experiment could
  * not fail and settled nothing. The arithmetic was asserted and not checked.
  *
- * The set is now 0, 4, 12, 20 and 36 bytes. 4, 12 and 20 are three distinct
- * residues modulo 32, so if cost depends on where a loop sits within a fetch
- * granule these three cannot all land the same way.
+ * The second attempt used 0, 4, 12, 20 and 36 and did not survive the size gate
+ * either. The displacements came out 0, 16, 16, 32 and 48: whatever follows this
+ * section is aligned to 16 bytes, so the linker rounds every pad up to a multiple
+ * of 16. Pads of 4 and 12 produced the same image as each other, and only two
+ * residues modulo 32 existed rather than three.
  *
- * 36 is the control, and it is the most informative of the five. It has the same
- * residue as 4, being 32 + 4, but sits a whole line further along. If 4 and 36
- * agree with each other while differing from 0, 12 and 20, then the residue is
- * what matters and the explanation is alignment within a granule. If 36 instead
- * tracks its distance rather than its residue, something other than alignment is
- * at work and the explanation needs rebuilding from the start.
+ * So the resolution of this instrument is 16 bytes and cannot be made finer
+ * without changing the compiler's function alignment, which would change the code
+ * being measured and defeat the purpose. The set is therefore expressed in the
+ * granularity that exists: 0, 16, 32 and 48 bytes, where the pad and the
+ * displacement are equal and no rounding is hidden.
+ *
+ * WHAT THIS CAN AND CANNOT ANSWER, stated plainly because the resolution is
+ * coarser than intended. Four displacements give two residues modulo 32: shifts 0
+ * and 32 sit at residue 0, shifts 16 and 48 at residue 16. So:
+ *
+ *   if cost depends on a loop's offset within a 32 byte granule, the pair {0, 32}
+ *   should agree, the pair {16, 48} should agree, and the two pairs should differ;
+ *
+ *   if all four agree, there is no such dependence at 16 byte resolution, and the
+ *   effect seen four times this week came from the code changing rather than from
+ *   where it landed.
+ *
+ * The within-pair agreement is the control. Two images at the same residue but a
+ * whole line apart must agree, or the explanation is not alignment at all and
+ * something else is moving these figures.
+ *
+ * A dependence with period 16 rather than 32 would show as all four differing in
+ * an alternating pattern, which this set can also see. A dependence on a granule
+ * finer than 16 bytes it cannot see, and that limit is the honest boundary of
+ * this experiment.
  *
  * WHAT THE FIRST SET DID ESTABLISH, which is worth keeping: the measurement
  * repeats to the hundredth of a cycle across separate flashes and board resets,
