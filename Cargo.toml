@@ -15,6 +15,7 @@
 resolver = "2"
 members = [
     "projects/P05-framing-crc/rust",
+    "projects/P08-node-state-machine/rust",
     "projects/P09-payload-codec/rust",
 ]
 

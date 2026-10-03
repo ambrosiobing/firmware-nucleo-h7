@@ -1,0 +1,32 @@
+[package]
+name = "p08-node-sm"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P08's node state machine, no_std, eighteen rows in the same order as the C, C++ and Python"
+license = "MIT"
+publish = false
+
+# The first inter-crate dependency in this workspace, and it is the point rather
+# than a convenience. P08's acceptance criterion, shared with P09, is that the
+# transmit stub's bytes equal what P09's encoder produces for the same input.
+# Depending on P09's crate makes that true by construction; a second copy of the
+# codec here would make it true by agreement, which is the thing the whole
+# four-language comparison exists to avoid. The C does the same with payload.h
+# and the C++ with payload.hpp.
+[dependencies]
+p09-payload = { path = "../../P09-payload-codec/rust" }
+
+# Without this the workspace's lint table is silently ignored.
+[lints]
+workspace = true
+
+[lib]
+name = "p08_node_sm"
+path = "src/lib.rs"
+
+# The filter the parity test drives. No release profile here: in a workspace
+# cargo reads profiles from the root Cargo.toml only.
+[[bin]]
+name = "p08-filter"
+path = "src/main.rs"

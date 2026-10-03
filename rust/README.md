@@ -1,7 +1,11 @@
 # Rust on this part
 
-**Two crates since Saturday 3 October 2026**, P09's codec and P05's framing,
-both in the workspace at the repository root. This page carries the research that
+**Three crates since Saturday 3 October 2026**, P09's codec, P05's framing and
+P08's state machine, all in the workspace at the repository root. P08's is the
+first to depend on another: it takes `p09-payload` as a path dependency, because
+its acceptance criterion is that the transmit stub's bytes equal what P09's
+encoder produces, and a dependency makes that true by construction where a second
+copy would make it true by agreement. This page carries the research that
 established Rust is a genuine option on this exact device rather than an
 aspiration, which is worth not losing now that there is code to go with it.
 

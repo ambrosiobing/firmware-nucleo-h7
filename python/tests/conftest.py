@@ -46,12 +46,18 @@ CPP_FILTER = BUILD / executable_name("cpp_filter")
 RUST_FILTER = ROOT / "target" / "release" / executable_name("p09-filter")
 FRAME_CPP_FILTER = BUILD / executable_name("frame_filter")
 FRAME_RUST_FILTER = ROOT / "target" / "release" / executable_name("p05-filter")
+SM_CPP_FILTER = BUILD / executable_name("node_sm_filter")
+SM_RUST_FILTER = ROOT / "target" / "release" / executable_name("p08-filter")
 
+#   P08  a sample and then event names per line in; the final state, every row
+#        index taken, the counters and the stub's frame out
 FILTER_BUILD_COMMAND = {
     CPP_FILTER: "python python/tools/build_host.py",
     FRAME_CPP_FILTER: "python python/tools/build_host.py",
+    SM_CPP_FILTER: "python python/tools/build_host.py",
     RUST_FILTER: "cargo build --release --workspace",
     FRAME_RUST_FILTER: "cargo build --release --workspace",
+    SM_RUST_FILTER: "cargo build --release --workspace",
 }
 
 

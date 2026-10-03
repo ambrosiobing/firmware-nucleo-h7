@@ -436,6 +436,14 @@ def main() -> int:
                 proj("P05", "c") / "crc16.c"],
                includes=[proj("P05", "c")])
 
+    print("P08, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         *STATIC,
+         "-I", proj("P08", "cpp"), "-I", proj("P09", "cpp"),
+         proj("P08", "cpp") / "node_sm_filter.cpp",
+         "-o", BUILD / ("node_sm_filter" + exe)],
+        "node_sm_filter")
+
     print("P08, the node's state machine, with P09's codec linked in:")
     shared_lib("node_sm",
                [proj("P08", "c") / "node_sm.c", C_DIR / "payload" / "payload.c"],
