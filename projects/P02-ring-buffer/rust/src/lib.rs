@@ -53,7 +53,10 @@ const _: () = assert!(
     RING_SIZE & RING_MASK == 0,
     "RING_SIZE must be a power of two"
 );
-const _: () = assert!(RING_SIZE >= 2, "a capacity of one leaves no room to be full");
+const _: () = assert!(
+    RING_SIZE >= 2,
+    "a capacity of one leaves no room to be full"
+);
 const _: () = assert!(
     RING_SIZE <= 0x8000_0000,
     "capacity must stay under half the counter"
@@ -227,7 +230,12 @@ mod tests {
         let mut r: Ring<BARRIER_DMB> = Ring::new();
         assert_eq!(r.get(), None, "a fresh ring is empty");
         for i in 0..RING_SIZE {
-            assert!(r.put((i & 0xFF) as u8), "refused byte {} of {}", i, RING_SIZE);
+            assert!(
+                r.put((i & 0xFF) as u8),
+                "refused byte {} of {}",
+                i,
+                RING_SIZE
+            );
         }
         assert_eq!(r.used(), RING_SIZE);
         assert!(!r.put(0), "accepted a byte past the capacity");
@@ -235,7 +243,12 @@ mod tests {
         // No slot is sacrificed to tell full from empty, which is what the
         // free-running counters buy over a wrapped index.
         for i in 0..RING_SIZE {
-            assert_eq!(r.get(), Some((i & 0xFF) as u8), "byte {} came back wrong", i);
+            assert_eq!(
+                r.get(),
+                Some((i & 0xFF) as u8),
+                "byte {} came back wrong",
+                i
+            );
         }
         assert_eq!(r.get(), None, "a drained ring is empty");
     }

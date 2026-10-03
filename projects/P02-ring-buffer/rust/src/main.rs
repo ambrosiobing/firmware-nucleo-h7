@@ -75,10 +75,30 @@ impl Rings {
     /// used, drops, head, tail.
     fn state(&self) -> (u32, u32, u32, u32) {
         match self.live {
-            0 => (self.r0.used(), self.r0.drops(), self.r0.head(), self.r0.tail()),
-            1 => (self.r1.used(), self.r1.drops(), self.r1.head(), self.r1.tail()),
-            2 => (self.r2.used(), self.r2.drops(), self.r2.head(), self.r2.tail()),
-            _ => (self.r3.used(), self.r3.drops(), self.r3.head(), self.r3.tail()),
+            0 => (
+                self.r0.used(),
+                self.r0.drops(),
+                self.r0.head(),
+                self.r0.tail(),
+            ),
+            1 => (
+                self.r1.used(),
+                self.r1.drops(),
+                self.r1.head(),
+                self.r1.tail(),
+            ),
+            2 => (
+                self.r2.used(),
+                self.r2.drops(),
+                self.r2.head(),
+                self.r2.tail(),
+            ),
+            _ => (
+                self.r3.used(),
+                self.r3.drops(),
+                self.r3.head(),
+                self.r3.tail(),
+            ),
         }
     }
 }
