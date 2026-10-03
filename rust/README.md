@@ -1,7 +1,7 @@
 # Rust on this part
 
-**Three crates since Saturday 3 October 2026**, P09's codec, P05's framing and
-P08's state machine, all in the workspace at the repository root. P08's is the
+**Four crates since Saturday 3 October 2026**, P09's codec, P05's framing,
+P08's state machine and P02's ring, all in the workspace at the repository root. P08's is the
 first to depend on another: it takes `p09-payload` as a path dependency, because
 its acceptance criterion is that the transmit stub's bytes equal what P09's
 encoder produces, and a dependency makes that true by construction where a second
@@ -71,6 +71,17 @@ fail, and because the list is the thing a reader wants to see.
 three components CI runs, for the same reason the C side prints
 `arm-none-eabi-gcc -dumpversion` into its artifact: a figure from an unnamed
 compiler is not a measurement anybody can repeat.
+
+**P02's crate carries the sharpest Rust finding so far**, and it is not a
+favourable one. The C's ring is one struct holding both indices, handed to a
+producer in thread mode and a consumer in an interrupt handler, and that shape
+does not compile in safe Rust: two contexts holding `&mut` to one value is what
+the borrow checker exists to refuse. The C's version is sound only by a written
+argument the compiler cannot see. So the choice is to encode that argument in a
+type, with a producer and a consumer handle over one buffer, or to opt out of the
+checking with `unsafe`. The crate takes neither and says so: its methods take
+`&mut self`, which is a correct sequential ring and a fair host comparison, and
+the two-context split is named as missing rather than faked.
 
 P17 keeps Rust as its *subject* rather than its implementation language: the same
 driver written at the vendor layer and at the register layer, with the Rust

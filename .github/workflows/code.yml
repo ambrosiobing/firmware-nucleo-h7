@@ -59,6 +59,9 @@ jobs:
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
             -Iprojects/P08-node-state-machine/cpp -Iprojects/P09-payload-codec/cpp \
             -c projects/P08-node-state-machine/cpp/node_sm_filter.cpp -o build-host/werror/p08_cpp.o
+          g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
+            -Iprojects/P02-ring-buffer/cpp \
+            -c projects/P02-ring-buffer/cpp/ring_filter.cpp -o build-host/werror/p02_cpp.o
 
       - name: P09, the golden vectors
         run: python -m pytest python/tests/test_vectors.py -q
@@ -82,6 +85,9 @@ jobs:
 
       - name: P08, every language takes the same row for every event
         run: python -m pytest python/tests/test_node_sm_parity.py -q -s
+
+      - name: P02, every language produces the same trace in all four modes
+        run: python -m pytest python/tests/test_ring_parity.py -q -s
 
       - name: P09, the twin stays inside the MicroPython subset
         run: python -m pytest python/tests/test_micropython_subset.py -q
@@ -176,6 +182,9 @@ jobs:
 
       - name: P08, all four tables row by row
         run: python -m pytest python/tests/test_node_sm_parity.py -q -s
+
+      - name: P02, all four rings over one trace
+        run: python -m pytest python/tests/test_ring_parity.py -q -s
 
   # A second job with a seed nobody chose. It prints the seed before doing any
   # work, so a failure here is reproducible from the log.

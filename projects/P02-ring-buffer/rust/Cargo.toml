@@ -1,0 +1,28 @@
+[package]
+name = "p02-ring"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P02's single producer single consumer byte ring, no_std, with the four ordering modes as a const generic"
+license = "MIT"
+publish = false
+
+# No dependencies. The structure is forty lines and every crate that could
+# replace it brings its own capacity policy, its own drop behaviour, or a
+# dependency on an allocator.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored.
+[lints]
+workspace = true
+
+[lib]
+name = "p02_ring"
+path = "src/lib.rs"
+
+# The filter the parity test drives, four verbs, the same four the C++ filter
+# speaks. No release profile here: in a workspace cargo reads profiles from the
+# root Cargo.toml only.
+[[bin]]
+name = "p02-filter"
+path = "src/main.rs"

@@ -48,9 +48,14 @@ FRAME_CPP_FILTER = BUILD / executable_name("frame_filter")
 FRAME_RUST_FILTER = ROOT / "target" / "release" / executable_name("p05-filter")
 SM_CPP_FILTER = BUILD / executable_name("node_sm_filter")
 SM_RUST_FILTER = ROOT / "target" / "release" / executable_name("p08-filter")
+RING_CPP_FILTER = BUILD / executable_name("ring_filter")
+RING_RUST_FILTER = ROOT / "target" / "release" / executable_name("p02-filter")
 
 #   P08  a sample and then event names per line in; the final state, every row
 #        index taken, the counters and the stub's frame out
+#   P02  one operation per line in, I, P, G or S; the answer to that one
+#        operation out. Short lines and many of them, the opposite of P08, since
+#        P02's comparison runs to hundreds of thousands of operations
 FILTER_BUILD_COMMAND = {
     CPP_FILTER: "python python/tools/build_host.py",
     FRAME_CPP_FILTER: "python python/tools/build_host.py",
@@ -58,6 +63,8 @@ FILTER_BUILD_COMMAND = {
     RUST_FILTER: "cargo build --release --workspace",
     FRAME_RUST_FILTER: "cargo build --release --workspace",
     SM_RUST_FILTER: "cargo build --release --workspace",
+    RING_CPP_FILTER: "python python/tools/build_host.py",
+    RING_RUST_FILTER: "cargo build --release --workspace",
 }
 
 

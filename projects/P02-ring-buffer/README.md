@@ -1,10 +1,24 @@
 # P02: a single producer, single consumer ring buffer
 
-Status: c=board cpp=none python=none rust=none
+Status: c=board cpp=written python=host rust=written
 
 The structure every later project here leans on, and the argument for why its
 twenty lines are correct when one side runs in an interrupt handler and the other
 runs in the main loop.
+
+**Four implementations since Saturday 3 October 2026, and two of them are honest
+about what they cannot do.** The Python joins the trace comparison and is absent
+from the ordering one, because the interpreter has no release store, no acquire
+load and no barrier. The Rust names a second absence: the C's one-struct-two-
+contexts shape does not compile in safe Rust at all, so its crate is a correct
+sequential ring and the two-context split is named as missing rather than faked.
+The C++ and the Rust were written on the laptop that compiles nothing and are
+**written and not built** until the WSL run.
+
+`python/tests/test_ring_parity.py` compares the trace: which bytes were accepted,
+which refused and counted, the order they came back in, and the two free-running
+counters, over 9620 operations in each of the four ordering modes. What no host
+can compare is the cost of those modes, which is this project's actual subject.
 
 **State: written and tested on the host, never run on the target.** The ordering
 argument is the deliverable and the host cannot test it, which is the single most

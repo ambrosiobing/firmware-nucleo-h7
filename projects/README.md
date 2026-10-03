@@ -35,15 +35,25 @@ Two of the four are driven as filters, C++ and Rust, each project's pair
 speaking one protocol: for P09, five integers per line in and the encoded bytes
 plus the round trip out; for P05, the verbs `C`, `E` and `D` in and a checksum, a
 frame or a verdict out; for P08, a sample and a list of event names in and the
-final state, every row index taken, the counters and the stub's frame out.
+final state, every row index taken, the counters and the stub's frame out; for
+P02, one operation per line and the answer to that one operation, which is the
+opposite shape to P08's and deliberately so, because P02's lists are long and a
+long line is what broke P08's filter.
 
 No filter parses its project's oracle, so that stays in the one file no generator
 has ever touched, and `run_filter` in `conftest.py` drives all of them.
 
-**Three projects have a parity test so far**, P09, P05 and P08, and all three
-read four languages agreeing as of Saturday 3 October 2026. On win11 aquamarine,
-which runs no compiler, P09 reads three and P05 and P08 read two, each saying so
-rather than passing quietly.
+**Four projects have a parity test so far**, P09, P05, P08 and P02. The first
+three read four languages agreeing as of Saturday 3 October 2026; P02 reads two
+here and awaits the WSL run. On win11 aquamarine, which runs no compiler, P09
+reads three and the others read two, each saying so rather than passing quietly.
+
+P02's is the one whose oracle is a trace rather than a value, and the one where a
+language is honestly absent from half the subject. Its comparison is which bytes
+were accepted, which refused and counted, the order they came back in, and the
+two free-running counters, over 9620 operations in each of the four ordering
+modes. What no host can compare is the cost of those modes, which is P02's actual
+subject and a board figure.
 
 P08's is the strict one, and the reason is that it has no external fact to appeal
 to: P09 has hand-computed vectors and P05 a published check value, while P08's
@@ -64,8 +74,8 @@ retry limit changed to four, and an undesigned exit added to the fault state.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eight of the twenty have code.** 104 checks, of which 98 pass on a laptop with
-no board, no probe and no Raspberry Pi; the other six need a compiler and skip
+**Eight of the twenty have code.** 112 checks, of which 104 pass on a laptop with
+no board, no probe and no Raspberry Pi; the other eight need a compiler and skip
 there, naming the WSL command. The remaining twelve projects need hardware, and
 nothing in them is written yet rather than written and untested.
 
@@ -103,7 +113,7 @@ header named a path the file had never had.
 | Project | What it is | State |
 | --- | --- | --- |
 | [P01](P01-toolchain-first-light/) | The toolchain, startup and linker script every other project needs | **runs on the board**, Friday 2 October 2026. LD1 green on PB0 blinks at 499.7 ms, `printf` reaches COM13 at 115200, the user button on PC13 reads, and the report carries the core, AHB and APB1 clocks decoded from RCC at startup. The delay loop measures itself against `DWT_CYCCNT` every boot, 9 cycles per iteration, and a 100 ms request lands within 20 parts per million. The oscillator measured 64.17 to 64.18 MHz across six reductions. Still refused: the 280 MHz tree, which needs RM0455 for the PLL fields, the flash latency and the voltage scaling, in that order |
-| [P02](P02-ring-buffer/) | A single producer, single consumer ring buffer | **runs on the board**, four targets one per ordering mode, producer in thread mode and consumer in SysTick. Re-measured Saturday 3 October 2026 with the instruction cache on, which overturned the first table: cold, the DMB build measured 2 cycles FASTER than no barrier at all, so that comparison had the sign wrong, not merely the magnitude. On the cached figures the compiler fence costs 0.00 cycles and 0 bytes while still emitting different instructions (same length, different SHA-256), one DMB in put and get costs 22.00 cycles and 16 bytes, and acquire plus release costs 29.00 and 24. The earlier claims of 7 and 17 cycles are withdrawn. Zero mismatches in 21.4 million bytes across the four. Also host tested in all four modes, 21.6 million bytes per run |
+| [P02](P02-ring-buffer/) | A single producer, single consumer ring buffer | **runs on the board**, four targets one per ordering mode, producer in thread mode and consumer in SysTick. Re-measured Saturday 3 October 2026 with the instruction cache on, which overturned the first table: cold, the DMB build measured 2 cycles FASTER than no barrier at all, so that comparison had the sign wrong, not merely the magnitude. On the cached figures the compiler fence costs 0.00 cycles and 0 bytes while still emitting different instructions (same length, different SHA-256), one DMB in put and get costs 22.00 cycles and 16 bytes, and acquire plus release costs 29.00 and 24. The earlier claims of 7 and 17 cycles are withdrawn. Zero mismatches in 21.4 million bytes across the four. Also host tested in all four modes, 21.6 million bytes per run. Four implementations since Saturday 3 October 2026: the Python agrees with the C over 9620 operations in each of the four modes, and the C++ and the Rust are **written and not built**. Python is deliberately absent from half the subject, because the interpreter has no release store, no acquire load and no barrier, so it joins the trace comparison and not the ordering one. The Rust crate names a second absence: the C's one-struct-two-contexts shape is not expressible in safe Rust at all |
 | [P03](P03-interrupt-receive/) | Receiving on interrupt without losing bytes | host only. The measurement is proven, attributing every lost byte to the target or the bridge. `rx_ring.c` and both documented failure modes are written and have never been built for the target |
 | [P04](P04-dma-idle-line/) | Circular DMA and the idle line | not started. Needs a transfer engine |
 | [P05](P05-framing-crc/) | Framing and the hardware CRC unit | host only, and proven there in all four languages, Saturday 3 October 2026: every one reaches the published check value 0x29B1, produces byte-identical frames over 3008 payloads, and gives the same verdict on 3005 frames corrupted three ways. The C++ and the Rust assert 0x29B1 at compile time, which the C can only assert in a test. Writing them found one divergence worth keeping: the C names the single byte 0x01 a stuffing error where the other three name it too short, because the C's cobs_decode cannot tell an empty frame from a failed one. The peripheral half waits on RM0455 |

@@ -449,6 +449,14 @@ def main() -> int:
                [proj("P08", "c") / "node_sm.c", C_DIR / "payload" / "payload.c"],
                includes=[proj("P08", "c"), C_DIR / "payload"])
 
+    print("P02, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         *STATIC,
+         "-I", proj("P02", "cpp"),
+         proj("P02", "cpp") / "ring_filter.cpp",
+         "-o", BUILD / ("ring_filter" + exe)],
+        "ring_filter")
+
     print("P02, the ring, once per ordering mode so all four can be compared:")
     for mode in (0, 1, 2, 3):
         shared_lib("ring{}".format(mode), [C_DIR / "ring" / "ring.c"],
