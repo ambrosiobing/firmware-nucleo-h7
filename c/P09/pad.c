@@ -37,10 +37,30 @@
  * .text subsection so the linker places it with the code, which is the whole point,
  * but nothing branches into it. Its contents are irrelevant; only its length is.
  *
- * WHY THE PAD SIZES ARE WHAT THEY ARE. 0, 64 and 160 bytes. Zero gives the
- * reference build. The other two are not multiples of each other and neither is a
- * multiple of 32, the Cortex-M7 cache line, so if an effect appears only at
- * particular alignments these three are unlikely to all land the same way.
+ * WHY THE PAD SIZES ARE WHAT THEY ARE, after the first set was useless.
+ *
+ * The first attempt used 0, 64 and 160 bytes, with a comment claiming none of
+ * them was a multiple of 32. Both are: 64 is two cache lines and 160 is five. The
+ * three images therefore had identical alignment modulo 32 and the figures came
+ * out identical to the hundredth of a cycle in all three. That is exactly what the
+ * placement hypothesis predicts under a whole-line shift, so the experiment could
+ * not fail and settled nothing. The arithmetic was asserted and not checked.
+ *
+ * The set is now 0, 4, 12, 20 and 36 bytes. 4, 12 and 20 are three distinct
+ * residues modulo 32, so if cost depends on where a loop sits within a fetch
+ * granule these three cannot all land the same way.
+ *
+ * 36 is the control, and it is the most informative of the five. It has the same
+ * residue as 4, being 32 + 4, but sits a whole line further along. If 4 and 36
+ * agree with each other while differing from 0, 12 and 20, then the residue is
+ * what matters and the explanation is alignment within a granule. If 36 instead
+ * tracks its distance rather than its residue, something other than alignment is
+ * at work and the explanation needs rebuilding from the start.
+ *
+ * WHAT THE FIRST SET DID ESTABLISH, which is worth keeping: the measurement
+ * repeats to the hundredth of a cycle across separate flashes and board resets,
+ * and a uniform displacement by whole cache lines costs nothing. Both are real
+ * results. Neither is the one being asked for.
  */
 #ifndef P09_PAD_BYTES
 #define P09_PAD_BYTES 0
