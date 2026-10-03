@@ -67,6 +67,20 @@ int main()
     std::uint8_t out[512];
 
     while (std::fgets(line, sizeof line, stdin) != nullptr) {
+        // A line that filled the buffer without reaching a newline is refused
+        // rather than answered. fgets would otherwise return the rest of it as
+        // a second request and this filter would answer both, which is how
+        // P08's filter came to return 25 answers for 20 requests on Saturday
+        // 3 October 2026. The longest request here is a verb and 64 bytes of
+        // payload as hex, so the buffer is ample; refusing costs nothing and
+        // removes the silent version of the failure.
+        if (std::strchr(line, '\n') == nullptr && std::feof(stdin) == 0) {
+            std::fprintf(stderr,
+                         "a request line longer than %zu bytes was refused rather "
+                         "than split\n",
+                         sizeof line);
+            return EXIT_FAILURE;
+        }
         // Strip the line ending, then split "V hex" at the first space. A line
         // with no verb is skipped, as the P09 filter skips a malformed line.
         line[std::strcspn(line, "\r\n")] = '\0';

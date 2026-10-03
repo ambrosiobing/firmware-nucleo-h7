@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 #include "payload.hpp"
 
@@ -29,6 +30,20 @@ int main()
     char line[256];
 
     while (std::fgets(line, sizeof line, stdin) != nullptr) {
+        // A line that filled the buffer without reaching a newline is refused
+        // rather than answered. fgets would otherwise return the rest of it as
+        // a second request and this filter would answer both, which is how
+        // P08's filter came to return 25 answers for 20 requests on Saturday
+        // 3 October 2026. Every case this filter sees today is five short
+        // integers, so the buffer is ample; refusing costs nothing and removes
+        // the silent version of the failure.
+        if (std::strchr(line, '\n') == nullptr && std::feof(stdin) == 0) {
+            std::fprintf(stderr,
+                         "a request line longer than %zu bytes was refused rather "
+                         "than split\n",
+                         sizeof line);
+            return EXIT_FAILURE;
+        }
         if (std::sscanf(line, "%lld %lld %lld %lld %lld", &v, &f, &s, &ft, &b) != 5) {
             continue;                      // blank or malformed line, skip it
         }
