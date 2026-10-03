@@ -25,11 +25,14 @@ run on the board: P09's C image printed 2405FFFFE8 on the Cortex-M7 on Saturday
 other implementation is compared against the one whose output was observed on
 the part.
 
-**What a skip means.** A language whose implementation is not built is skipped
-with the build command named, and `test_the_comparison_was_not_vacuous` fails if
-fewer than three languages were actually compared. A parity suite that passes
-because everything was absent is the failure mode this test exists to prevent,
-and it is the one failure mode a parity suite cannot notice about itself.
+**What a skip means.** A language whose implementation is not built is left out
+of the comparison, and the printed table says which. `assert_not_vacuous` in
+conftest.py then refuses a run that compared fewer than three: a parity suite
+that passes because everything was absent is the failure mode this test exists
+to prevent, and it is the one failure mode such a suite cannot notice about
+itself. On Windows that refusal is a skip naming the WSL command, because two of
+the four reach the comparison through a compiler and compiling on win11
+aquamarine is forbidden. In WSL and in CI the bar is the full one.
 """
 from __future__ import annotations
 
@@ -42,6 +45,7 @@ from firmkit import payload
 from conftest import (
     CPP_FILTER,
     RUST_FILTER,
+    assert_not_vacuous,
     c_decode,
     c_encode,
     run_codec_filter,
@@ -150,15 +154,10 @@ def test_the_comparison_was_not_vacuous(lib, vectors):
     built, because there is nothing to disagree. Three rather than four because
     Rust needs a toolchain this volume does not require of a reader, and C, C++
     and Python all come from `python/tools/build_host.py`, which the suite's own
-    instructions already require.
+    instructions already require. The guard is shared with P05's parity test, in
+    conftest.py, where the Windows case is explained.
     """
-    results = available(lib, [v["fields"] for v in vectors])
-    assert len(results) >= 3, (
-        "only {} of the four languages were compared: {}. A parity test that "
-        "passes because nothing was built has proven nothing.".format(
-            len(results), ", ".join(sorted(results))
-        )
-    )
+    assert_not_vacuous(available(lib, [v["fields"] for v in vectors]), "P09")
 
 
 def test_rust_is_compared_when_cargo_has_been_run(lib, vectors):

@@ -1,0 +1,30 @@
+[package]
+name = "p05-frame"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P05's framing: COBS, CRC-16 and the frame, no_std, against the same check value and corruption set as the C, C++ and Python"
+license = "MIT"
+publish = false
+
+# No dependencies, for the reason the P09 crate gives: the whole thing is a
+# hundred lines of bit work, and every crate that could replace it brings a
+# different wire format or a build-time dependency onto a project whose point is
+# that it can be read end to end.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored.
+[lints]
+workspace = true
+
+[lib]
+name = "p05_frame"
+path = "src/lib.rs"
+
+# The filter speaks the three verbs the C++ filter speaks, C, E and D, so one
+# parity test drives both. No release profile here: in a workspace cargo reads
+# profiles from the root Cargo.toml only, which the first build of P09's crate
+# demonstrated with a warning.
+[[bin]]
+name = "p05-filter"
+path = "src/main.rs"

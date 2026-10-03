@@ -1,8 +1,9 @@
 # Rust on this part
 
-**Nothing written yet.** This directory exists because Rust is a genuine option
-on this exact device rather than an aspiration, and the research that established
-that is worth not losing.
+**Two crates since Saturday 3 October 2026**, P09's codec and P05's framing,
+both in the workspace at the repository root. This page carries the research that
+established Rust is a genuine option on this exact device rather than an
+aspiration, which is worth not losing now that there is code to go with it.
 
 ## What was verified for this part, not for the family name
 
@@ -52,6 +53,10 @@ listing no members, and a `rust-toolchain.toml` pinning a channel for nothing,
 would have been two files that cannot be built, which is the same defect as an
 empty `main.rs`. Both were written on Saturday 3 October 2026, the day the first
 crate was.
+
+**The second crate is P05's**, `p05-frame`, written the same day:
+COBS, CRC-16 and the frame, with the published check value 0x29B1 asserted by a
+`const` assertion so a crate whose parameters are wrong does not build.
 
 `../Cargo.toml` lists members explicitly rather than globbing `projects/*/rust`,
 because a glob would match the nineteen directories that hold only a README and

@@ -1,14 +1,23 @@
 # P05: framing and the hardware CRC unit
 
-Status: c=host cpp=none python=host rust=none
+Status: c=host cpp=written python=host rust=written
 
 A frame format with a stated reason for every field, an encoder and decoder that
 build unchanged on the host and on the target, and a Python twin that corrupts
 frames on purpose and counts what gets through.
 
-**State: the software half is written and proven. The peripheral half waits on
-RM0455.** Twelve checks pass with no board attached, and this project removed a
-`NotImplementedError` that P09's host listener had been shipping with.
+**State: four implementations, two proven on the host and two written the same
+day. The peripheral half waits on RM0455.** The C and the Python are proven; the
+C++ (`cpp/frame.hpp`, header only) and the Rust (`rust/`, the crate `p05-frame`)
+were written Saturday 3 October 2026 on the laptop that compiles nothing, so they
+are **written and not built** until the WSL run. Both assert the published check
+value 0x29B1 at compile time, which the C can only assert in a test, and writing
+them found one divergence in the C worth keeping rather than hiding: see
+`python/tests/test_frame_parity.py`.
+
+Twelve checks pass with no board attached, five more in the parity file, and this
+project removed a `NotImplementedError` that P09's host listener had been
+shipping with.
 
 ## The format, and why each field is there
 
@@ -98,11 +107,17 @@ one-bit corruption of it:
 
 ## Layout
 
-    c/crc16.{c,h}     the software reference, the arbiter, bitwise on purpose
-    c/cobs.{c,h}      byte stuffing, host and target alike
-    c/frame.{c,h}     the frame, and every way a decode can end
-    python/twin.py    the Python twin, and the bit flipper that attacks it
-    python/tests/test_frame.py   twelve checks, no hardware
+    c/crc16.{c,h}        the software reference, the arbiter, bitwise on purpose
+    c/cobs.{c,h}         byte stuffing, host and target alike
+    c/frame.{c,h}        the frame, and every way a decode can end
+    cpp/frame.hpp        the C++ implementation, header only, 0x29B1 by static_assert
+    cpp/frame_filter.cpp the filter the parity test drives: verbs C, E and D
+    python/twin.py       the Python twin, and the bit flipper that attacks it
+    rust/src/lib.rs      the Rust implementation, no_std, 0x29B1 by const assertion
+    rust/src/main.rs     the Rust filter, the same three verbs
+
+    python/tests/test_frame.py         twelve checks on the C and the Python
+    python/tests/test_frame_parity.py  all four against one oracle
 
 ## Not done
 
@@ -113,7 +128,11 @@ one-bit corruption of it:
   fetching that source rather than reproducing it from recollection. If it is
   later replaced by the real thing, that is a visible commit and the header comes
   with it.
-- No cycle counts for either implementation, because nothing has run on the
+- The C++ and the Rust have never been compiled. They were written on win11
+  aquamarine, which compiles nothing, so their compile-time assertions of 0x29B1
+  have not yet been seen to pass and their status is **written** rather than
+  host only.
+- No cycle counts for any implementation, because nothing has run on the
   target. The comparison the chapter wants, peripheral against table against
   bitwise, needs a board.
 - The decoder is a function over a complete frame. The two-state receiver that

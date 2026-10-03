@@ -9,34 +9,46 @@ runs.
 directory carries `c/`, `cpp/`, `python/` and `rust/`, each with a README saying
 what that language carries for that project, what it is proven against, and what
 it cannot do on this part. The four are meant to be equivalent and to be proven
-equivalent against one oracle per project, which is the project's own: P09's four
-hand-computed vectors, P05's published check value 0x29B1, P08's eighteen
-transition rows. A language with nothing written says so rather than holding an
-empty source file, because an empty file is a claim.
+equivalent against one oracle per project, which is the project's own: P09's six
+hand-computed vectors, P05's published check value 0x29B1 together with its
+corruption set, P08's eighteen transition rows. A language with nothing written
+says so rather than holding an empty source file, because an empty file is a
+claim.
 
 **How equivalence is proven, and why it is one test rather than four.** Four
 suites, one per language, would each pass while the four disagreed with one
 another, because each would compare an implementation against its own idea of
 the layout. `python/tests/test_parity.py` instead drives every available
 implementation over one case list and compares them against the one that has run
-on the board, which for P09 is the C. It refuses a run in which fewer than three
-of the four were actually compared, because a parity suite that passes because
-nothing was built has proven nothing, and that is the one failure such a suite
-cannot notice about itself. P09's table reads all four agreeing, first in WSL on
+on the board, which for P09 is the C. `assert_not_vacuous` then refuses a run in
+which fewer than three of the four were actually compared, because a parity suite
+that passes because nothing was built has proven nothing, and that is the one
+failure such a suite cannot notice about itself. On win11 aquamarine that refusal
+is a skip naming the WSL command, since two of the four reach the comparison
+through a compiler that laptop does not run. P09's table reads all four agreeing, first in WSL on
 bing@JPTOUPM678 on Saturday 3 October 2026 and then in the `rust` job of
 `code.yml`; on win11 aquamarine, which has no cargo, it reads three and says so.
 
-Two of the four are driven as filters, C++ and Rust, speaking one protocol: five
-integers per line in, the encoded bytes as hex and the round trip out. Neither
-parses the vectors, so the oracle stays in the single file no generator has ever
-touched, and the same hundred thousand cases go through every language.
+Two of the four are driven as filters, C++ and Rust, each project's pair
+speaking one protocol: for P09, five integers per line in and the encoded bytes
+plus the round trip out; for P05, the verbs `C`, `E` and `D` in and a checksum, a
+frame or a verdict out. No filter parses its project's oracle, so that stays in
+the one file no generator has ever touched, and `run_filter` in `conftest.py`
+drives all of them.
+
+**Two projects have a parity test so far**, P09 and P05, and both were proven able
+to fail by introducing defects on purpose: for P09 one byte of a golden vector and
+one bit of the Python encoder; for P05 the twin's polynomial, which turned the
+check value and the frame comparison red, and the twin's checksum test, which
+turned the corruption verdicts red with "Python says ok and C says checksum".
 
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eight of the twenty have code.** 87 checks pass on a laptop with no board, no
-probe and no Raspberry Pi. The remaining twelve need hardware, and nothing in them
-is written yet rather than written and untested.
+**Eight of the twenty have code.** 97 checks, of which 93 pass on a laptop with
+no board, no probe and no Raspberry Pi; the other four need a compiler and skip
+there, naming the WSL command. The remaining twelve projects need hardware, and
+nothing in them is written yet rather than written and untested.
 
 **Four states, and the difference between them matters.** Until Friday 2 October
 2026 this page had two, because nothing had ever been cross-compiled and the
@@ -75,7 +87,7 @@ header named a path the file had never had.
 | [P02](P02-ring-buffer/) | A single producer, single consumer ring buffer | **runs on the board**, four targets one per ordering mode, producer in thread mode and consumer in SysTick. Re-measured Saturday 3 October 2026 with the instruction cache on, which overturned the first table: cold, the DMB build measured 2 cycles FASTER than no barrier at all, so that comparison had the sign wrong, not merely the magnitude. On the cached figures the compiler fence costs 0.00 cycles and 0 bytes while still emitting different instructions (same length, different SHA-256), one DMB in put and get costs 22.00 cycles and 16 bytes, and acquire plus release costs 29.00 and 24. The earlier claims of 7 and 17 cycles are withdrawn. Zero mismatches in 21.4 million bytes across the four. Also host tested in all four modes, 21.6 million bytes per run |
 | [P03](P03-interrupt-receive/) | Receiving on interrupt without losing bytes | host only. The measurement is proven, attributing every lost byte to the target or the bridge. `rx_ring.c` and both documented failure modes are written and have never been built for the target |
 | [P04](P04-dma-idle-line/) | Circular DMA and the idle line | not started. Needs a transfer engine |
-| [P05](P05-framing-crc/) | Framing and the hardware CRC unit | host only, and proven there: both implementations reach the published check value 0x29B1, and every single-bit corruption is rejected. The peripheral half waits on RM0455 |
+| [P05](P05-framing-crc/) | Framing and the hardware CRC unit | host only, and proven there: the C and the Python reach the published check value 0x29B1 and every single-bit corruption is rejected. The C++ and the Rust were written Saturday 3 October 2026 and are **written and not built**; both assert 0x29B1 at compile time, which the C can only assert in a test. Writing them found one divergence worth keeping: the C names the single byte 0x01 a stuffing error where the other three name it too short, because the C's cobs_decode cannot tell an empty frame from a failed one. The peripheral half waits on RM0455 |
 | [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | **links**, all three back ends, since Friday 2 October 2026, and none has been flashed. The witness is proven on synthetic input on the host. Each back end still refuses at run time rather than guessing a converter, timer or transfer engine setting RM0455 governs. The cycle counter it needs now exists and works, which was the first of its dependencies to be settled |
 | [P07](P07-stop-mode/) | Stop mode, RTC wake, and a battery number | not started. Needs the PPK2 and a running clock tree |
 | [P08](P08-node-state-machine/) | The node's state machine, transmit as a stub | written and proven: all 18 transition rows reachable, and the stub payload matches P09's encoder byte for byte |

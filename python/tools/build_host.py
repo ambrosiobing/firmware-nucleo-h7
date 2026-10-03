@@ -422,6 +422,14 @@ def main() -> int:
          "-o", BUILD / ("cpp_filter" + exe)],
         "cpp_filter")
 
+    print("P05, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         *STATIC,
+         "-I", proj("P05", "cpp"),
+         proj("P05", "cpp") / "frame_filter.cpp",
+         "-o", BUILD / ("frame_filter" + exe)],
+        "frame_filter")
+
     print("P05, the framing layer: COBS, CRC-16 and the frame, as one library:")
     shared_lib("frame",
                [proj("P05", "c") / "frame.c", proj("P05", "c") / "cobs.c",

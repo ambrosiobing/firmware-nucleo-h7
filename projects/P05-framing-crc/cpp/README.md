@@ -1,18 +1,55 @@
 # P05 in C++
 
-**Nothing here yet.** Framing and the hardware CRC unit has not started, and
-this directory exists so the four language routes are visible from the beginning
-rather than arriving one at a time.
+**State: written Saturday 3 October 2026, and not yet built.** Written on win11
+aquamarine, the authoring laptop, which compiles nothing; the first compiler to
+see it is `g++` in WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678,
+through `python3 python/tools/build_host.py`, and then the CI runner with
+warnings as errors.
 
-What it will carry. The C++ implementation of framing and the hardware CRC unit,
-proven against the same oracle as the other three languages, which this project
-has yet to define.
+| File | What it is |
+|---|---|
+| `frame.hpp` | the whole implementation, header only: `crc16`, COBS, the frame, and the verdict names |
+| `frame_filter.cpp` | the filter `build_host.py` builds to `build-host/frame_filter`, speaking three verbs: `C hex`, `E hex`, `D hex` |
 
-What has to come first is in [../README.md](../README.md). Nothing here is written
-until it can be proven, and an empty source file would be a claim rather than a
-placeholder, which is why there is none.
+## What C++ adds, and it is one thing
 
+`crc16` is `constexpr`, so the published check value 0x29B1 over `"123456789"`
+is a `static_assert` at the bottom of the header. The C asserts the same value
+in a test; here a translation unit that includes the header does not compile
+unless the six parameters are the published ones. That is the property P09's
+C++ has for its fourth golden vector, and it is the reason this is a header
+rather than a `.cpp`.
+
+The subset is the one every firmware C++ in this volume keeps: no exceptions,
+no RTTI, no heap, no iostream, `std::array` for the buffers whose size the
+format fixes. Built with `-fno-exceptions -fno-rtti`.
+
+## The one place it departs from the C, deliberately
+
+`cobs_decode` returns `std::optional<std::size_t>` where the C returns 0 for
+failure. The C cannot tell a corrupt frame from a frame that decodes to zero
+bytes, which the single byte `0x01` does, legitimately, and so the C's
+`frame_decode` reports that frame as a stuffing error when it is a frame too
+short to carry its checksum. The Python twin tells the two apart with `None`;
+this does with `std::nullopt`. Both answers are refusals, so the chapter's
+claim stands; the name differs for exactly one input, and
+`python/tests/test_frame_parity.py` pins that rather than hiding it, so that
+correcting the C turns a test red on purpose.
 
 ## What it is proven against
 
-The published check value 0x29B1 and the rejection of every single-bit corruption.
+The project's oracle, in three parts, through `python/tests/test_frame_parity.py`
+and the same three-verb protocol the Rust filter speaks: 0x29B1 first, then
+identical frames to the C over 3000 random payloads and the cases byte stuffing
+exists for, then identical verdicts to the C over 3000 frames corrupted three
+ways. Nothing here parses the random cases or the corruption set; the test owns
+them.
+
+## What it does not do yet
+
+- Not compiled anywhere until the WSL run, so the `static_assert` has not yet
+  been seen to pass. The state above says so.
+- Not built for the board. `frame.hpp` would compile for the target as it is,
+  since it includes nothing the target lacks, and that is a claim until
+  `add_firmware()` has a C++ target, which is P01's C++ half.
+- No size comparison against the C. That is a measurement and needs the board.

@@ -53,6 +53,9 @@ jobs:
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
             -Ic/payload -Iprojects/P09-payload-codec/cpp \
             -c projects/P09-payload-codec/cpp/cpp_encode_only.cpp -o build-host/werror/cpp.o
+          g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
+            -Iprojects/P05-framing-crc/cpp \
+            -c projects/P05-framing-crc/cpp/frame_filter.cpp -o build-host/werror/p05_cpp.o
 
       - name: P09, the golden vectors
         run: python -m pytest python/tests/test_vectors.py -q
@@ -70,6 +73,9 @@ jobs:
       # below is the one that compares four.
       - name: P09, every language against one oracle
         run: python -m pytest python/tests/test_parity.py -q -s
+
+      - name: P05, every language against the check value and the corruption set
+        run: python -m pytest python/tests/test_frame_parity.py -q -s
 
       - name: P09, the twin stays inside the MicroPython subset
         run: python -m pytest python/tests/test_micropython_subset.py -q
@@ -136,8 +142,8 @@ jobs:
       # needs cortex-m-rt and a linker script, which is P01's Rust half and is
       # not written. Compiling the codec for the target is still worth a step,
       # because it is what proves the codec is genuinely no_std.
-      - name: The codec compiles for the board's target
-        run: cargo build --release -p p09-payload --lib --target thumbv7em-none-eabihf
+      - name: Every library compiles for the board's target
+        run: cargo build --release --workspace --lib --target thumbv7em-none-eabihf
 
       - uses: actions/setup-python@v5
         with:
@@ -150,6 +156,9 @@ jobs:
       # fewer than three were, so a parity suite cannot pass by being empty.
       - name: All four languages against one oracle
         run: python -m pytest python/tests/test_parity.py -q -s
+
+      - name: P05, all four languages against the check value and the corruption set
+        run: python -m pytest python/tests/test_frame_parity.py -q -s
 
   # A second job with a seed nobody chose. It prints the seed before doing any
   # work, so a failure here is reproducible from the log.

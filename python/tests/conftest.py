@@ -33,26 +33,36 @@ def executable_name(stem: str) -> str:
     return "{}.exe".format(stem) if sys.platform == "win32" else stem
 
 
-# The two implementations that are driven as filters rather than through
-# ctypes, and the command that builds each. Both speak one protocol: five
-# integers per line on stdin, and on stdout the five encoded bytes as uppercase
-# hex followed by the round trip of those bytes back into fields. That is what
-# lets one helper drive both, and it is why neither of them parses vectors.json.
+# The implementations that are driven as filters rather than through ctypes,
+# and the command that builds each. The C++ and Rust of one project speak one
+# protocol, so one helper drives both, and neither parses the project's oracle:
+# that stays in the test, which owns it.
+#
+#   P09  five integers per line in; the five encoded bytes as uppercase hex and
+#        the round trip of those bytes back into fields out
+#   P05  "C hex", "E hex" or "D hex" per line in; the checksum, the frame, or a
+#        verdict and the payload out
 CPP_FILTER = BUILD / executable_name("cpp_filter")
 RUST_FILTER = ROOT / "target" / "release" / executable_name("p09-filter")
+FRAME_CPP_FILTER = BUILD / executable_name("frame_filter")
+FRAME_RUST_FILTER = ROOT / "target" / "release" / executable_name("p05-filter")
 
 FILTER_BUILD_COMMAND = {
     CPP_FILTER: "python python/tools/build_host.py",
+    FRAME_CPP_FILTER: "python python/tools/build_host.py",
     RUST_FILTER: "cargo build --release --workspace",
+    FRAME_RUST_FILTER: "cargo build --release --workspace",
 }
 
 
-def run_codec_filter(path: Path, cases, required: bool = False):
-    """Send every case through one filter process and parse what comes back.
+def run_filter(path: Path, lines, required: bool = False):
+    """Send every request line through one filter process; return its answers.
 
-    One process for the whole run rather than one per case: a hundred thousand
-    process launches would dominate the test time and measure the operating
-    system instead of the codec.
+    One process for the whole run rather than one per request: a hundred
+    thousand process launches would dominate the test time and measure the
+    operating system instead of the code under test. Exactly one answer per
+    request is asserted, so a filter that drops or doubles a line is reported
+    as that rather than as a mismatch further down.
 
     Skips, with the build command named, when the filter has not been built.
     `required=True` turns that into a failure instead, for the one test whose
@@ -68,17 +78,66 @@ def run_codec_filter(path: Path, cases, required: bool = False):
             pytest.fail(message)
         pytest.skip(message)
 
-    stdin = "".join(
-        "{} {} {} {} {}\n".format(
-            c["version"], c["flags"], c["sequence"], c["feature"], c["battery"]
-        )
-        for c in cases
-    )
+    lines = list(lines)
     proc = subprocess.run(
-        [str(path)], input=stdin, capture_output=True, text=True, check=True
+        [str(path)],
+        input="".join(line + "\n" for line in lines),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    answers = proc.stdout.splitlines()
+    assert len(answers) == len(lines), "{} returned {} lines for {} requests".format(
+        path.name, len(answers), len(lines)
+    )
+    return answers
+
+
+def assert_not_vacuous(present, project: str, minimum: int = 3):
+    """At least `minimum` of the four languages must actually have been compared.
+
+    A parity suite that passes because nothing was built has proven nothing, and
+    that is the one failure such a suite cannot notice about itself. So it is
+    asserted rather than assumed.
+
+    The Windows branch is not a softening of the bar. Two of the four reach the
+    comparison through a compiler, and compiling on win11 aquamarine is
+    forbidden: builds happen in WSL on the win11 skyhorizon demo laptop,
+    bing@JPTOUPM678, and on the CI runner. So on Windows the honest result is a
+    skip that names the command, exactly as `test_ring.py` does for the ring
+    assertion, rather than a failure that points at the code or a pass that
+    pretends four were compared. In WSL and in CI the bar is the full one.
+    """
+    if len(present) >= minimum:
+        return
+    names = ", ".join(sorted(present)) or "none"
+    if sys.platform.startswith("win"):
+        pytest.skip(
+            "{} compared {} of four languages here ({}). The other filters need a\n"
+            "compiler, which this laptop does not run. In WSL on bing@JPTOUPM678:\n"
+            "    python3 python/tools/build_host.py\n"
+            "    cargo build --release --workspace".format(project, len(present), names)
+        )
+    pytest.fail(
+        "{} compared only {} of the four languages: {}. A parity test that passes "
+        "because nothing was built has proven nothing.".format(project, len(present), names)
+    )
+
+
+def run_codec_filter(path: Path, cases, required: bool = False):
+    """P09's protocol over `run_filter`: cases in, (hex, decoded fields) out."""
+    answers = run_filter(
+        path,
+        (
+            "{} {} {} {} {}".format(
+                c["version"], c["flags"], c["sequence"], c["feature"], c["battery"]
+            )
+            for c in cases
+        ),
+        required=required,
     )
     out = []
-    for line in proc.stdout.splitlines():
+    for line in answers:
         parts = line.split()
         assert len(parts) == 6, "unexpected output from {}: {!r}".format(
             path.name, line
