@@ -183,31 +183,150 @@ pub struct Row {
 }
 
 pub static TABLE: [Row; 18] = [
-    Row { from: State::Init,    event: Event::Tick,        guard: guard_always,         action: act_start_cycle,        to: State::Sense,   name: "init: first tick starts a cycle" },
-    Row { from: State::Init,    event: Event::Fault,       guard: guard_always,         action: act_nothing,            to: State::Fault,   name: "init: fault before anything" },
-
-    Row { from: State::Idle,    event: Event::Tick,        guard: guard_always,         action: act_start_cycle,        to: State::Sense,   name: "idle: periodic wake" },
-    Row { from: State::Idle,    event: Event::Button,      guard: guard_always,         action: act_start_cycle,        to: State::Sense,   name: "idle: user forced a cycle" },
-    Row { from: State::Idle,    event: Event::Fault,       guard: guard_always,         action: act_nothing,            to: State::Fault,   name: "idle: fault" },
-
-    Row { from: State::Sense,   event: Event::Block,       guard: guard_always,         action: act_nothing,            to: State::Feature, name: "sense: a block arrived" },
-    Row { from: State::Sense,   event: Event::Timeout,     guard: guard_always,         action: act_cycle_dropped,      to: State::Idle,    name: "sense: no block in time" },
-    Row { from: State::Sense,   event: Event::Fault,       guard: guard_always,         action: act_nothing,            to: State::Fault,   name: "sense: fault" },
-
-    Row { from: State::Feature, event: Event::FeatureDone, guard: guard_always,         action: act_take_feature,       to: State::Encode,  name: "feature: computed" },
-    Row { from: State::Feature, event: Event::Fault,       guard: guard_always,         action: act_nothing,            to: State::Fault,   name: "feature: fault" },
-
-    Row { from: State::Encode,  event: Event::FrameReady,  guard: guard_always,         action: act_encode_and_attempt, to: State::Tx,      name: "encode: payload packed, first attempt" },
-    Row { from: State::Encode,  event: Event::Fault,       guard: guard_always,         action: act_nothing,            to: State::Fault,   name: "encode: fault" },
-
-    Row { from: State::Tx,      event: Event::TxOk,        guard: guard_always,         action: act_cycle_ok,           to: State::Idle,    name: "tx: accepted" },
-    Row { from: State::Tx,      event: Event::TxFail,      guard: guard_may_retry,      action: act_nothing,            to: State::Backoff, name: "tx: failed, will retry" },
-    Row { from: State::Tx,      event: Event::TxFail,      guard: guard_out_of_retries, action: act_cycle_dropped,      to: State::Idle,    name: "tx: failed, out of retries" },
-    Row { from: State::Tx,      event: Event::Fault,       guard: guard_always,         action: act_nothing,            to: State::Fault,   name: "tx: fault" },
-
-    Row { from: State::Backoff, event: Event::Timeout,     guard: guard_always,         action: act_another_attempt,    to: State::Tx,      name: "backoff: elapsed, another attempt" },
-    Row { from: State::Backoff, event: Event::Fault,       guard: guard_always,         action: act_nothing,            to: State::Fault,   name: "backoff: fault" },
-
+    Row {
+        from: State::Init,
+        event: Event::Tick,
+        guard: guard_always,
+        action: act_start_cycle,
+        to: State::Sense,
+        name: "init: first tick starts a cycle",
+    },
+    Row {
+        from: State::Init,
+        event: Event::Fault,
+        guard: guard_always,
+        action: act_nothing,
+        to: State::Fault,
+        name: "init: fault before anything",
+    },
+    Row {
+        from: State::Idle,
+        event: Event::Tick,
+        guard: guard_always,
+        action: act_start_cycle,
+        to: State::Sense,
+        name: "idle: periodic wake",
+    },
+    Row {
+        from: State::Idle,
+        event: Event::Button,
+        guard: guard_always,
+        action: act_start_cycle,
+        to: State::Sense,
+        name: "idle: user forced a cycle",
+    },
+    Row {
+        from: State::Idle,
+        event: Event::Fault,
+        guard: guard_always,
+        action: act_nothing,
+        to: State::Fault,
+        name: "idle: fault",
+    },
+    Row {
+        from: State::Sense,
+        event: Event::Block,
+        guard: guard_always,
+        action: act_nothing,
+        to: State::Feature,
+        name: "sense: a block arrived",
+    },
+    Row {
+        from: State::Sense,
+        event: Event::Timeout,
+        guard: guard_always,
+        action: act_cycle_dropped,
+        to: State::Idle,
+        name: "sense: no block in time",
+    },
+    Row {
+        from: State::Sense,
+        event: Event::Fault,
+        guard: guard_always,
+        action: act_nothing,
+        to: State::Fault,
+        name: "sense: fault",
+    },
+    Row {
+        from: State::Feature,
+        event: Event::FeatureDone,
+        guard: guard_always,
+        action: act_take_feature,
+        to: State::Encode,
+        name: "feature: computed",
+    },
+    Row {
+        from: State::Feature,
+        event: Event::Fault,
+        guard: guard_always,
+        action: act_nothing,
+        to: State::Fault,
+        name: "feature: fault",
+    },
+    Row {
+        from: State::Encode,
+        event: Event::FrameReady,
+        guard: guard_always,
+        action: act_encode_and_attempt,
+        to: State::Tx,
+        name: "encode: payload packed, first attempt",
+    },
+    Row {
+        from: State::Encode,
+        event: Event::Fault,
+        guard: guard_always,
+        action: act_nothing,
+        to: State::Fault,
+        name: "encode: fault",
+    },
+    Row {
+        from: State::Tx,
+        event: Event::TxOk,
+        guard: guard_always,
+        action: act_cycle_ok,
+        to: State::Idle,
+        name: "tx: accepted",
+    },
+    Row {
+        from: State::Tx,
+        event: Event::TxFail,
+        guard: guard_may_retry,
+        action: act_nothing,
+        to: State::Backoff,
+        name: "tx: failed, will retry",
+    },
+    Row {
+        from: State::Tx,
+        event: Event::TxFail,
+        guard: guard_out_of_retries,
+        action: act_cycle_dropped,
+        to: State::Idle,
+        name: "tx: failed, out of retries",
+    },
+    Row {
+        from: State::Tx,
+        event: Event::Fault,
+        guard: guard_always,
+        action: act_nothing,
+        to: State::Fault,
+        name: "tx: fault",
+    },
+    Row {
+        from: State::Backoff,
+        event: Event::Timeout,
+        guard: guard_always,
+        action: act_another_attempt,
+        to: State::Tx,
+        name: "backoff: elapsed, another attempt",
+    },
+    Row {
+        from: State::Backoff,
+        event: Event::Fault,
+        guard: guard_always,
+        action: act_nothing,
+        to: State::Fault,
+        name: "backoff: fault",
+    },
     // Fault has no outgoing row on purpose. Only a reset leaves it, and every
     // event posted there must be unhandled rather than quietly recovering. A
     // fault state with a way out that nobody designed is how a board comes back
@@ -305,7 +424,15 @@ mod tests {
         // Three attempts then out of retries.
         drive(
             &[
-                Tick, Block, FeatureDone, FrameReady, TxFail, Timeout, TxFail, Timeout, TxFail,
+                Tick,
+                Block,
+                FeatureDone,
+                FrameReady,
+                TxFail,
+                Timeout,
+                TxFail,
+                Timeout,
+                TxFail,
             ],
             7,
         );
@@ -329,10 +456,18 @@ mod tests {
             pending_sample: 1,
             ..Default::default()
         };
-        for e in [Event::Tick, Event::Block, Event::FeatureDone, Event::FrameReady] {
+        for e in [
+            Event::Tick,
+            Event::Block,
+            Event::FeatureDone,
+            Event::FrameReady,
+        ] {
             dispatch(&mut ctx, e);
         }
-        assert_eq!(ctx.tx_attempts, 1, "the handover counts as the first attempt");
+        assert_eq!(
+            ctx.tx_attempts, 1,
+            "the handover counts as the first attempt"
+        );
         for expected in [2u32, 3] {
             dispatch(&mut ctx, Event::TxFail);
             assert_eq!(ctx.state, State::Backoff);
@@ -355,8 +490,15 @@ mod tests {
         assert_eq!(ctx.state, State::Fault);
         let before = ctx.unhandled;
         for e in [
-            Event::Tick, Event::Block, Event::FeatureDone, Event::FrameReady,
-            Event::TxOk, Event::TxFail, Event::Timeout, Event::Button, Event::Fault,
+            Event::Tick,
+            Event::Block,
+            Event::FeatureDone,
+            Event::FrameReady,
+            Event::TxOk,
+            Event::TxFail,
+            Event::Timeout,
+            Event::Button,
+            Event::Fault,
         ] {
             assert_eq!(dispatch(&mut ctx, e), None, "{:?} found a way out", e);
             assert_eq!(ctx.state, State::Fault);
@@ -373,7 +515,12 @@ mod tests {
             pending_sample: -1,
             ..Default::default()
         };
-        for e in [Event::Tick, Event::Block, Event::FeatureDone, Event::FrameReady] {
+        for e in [
+            Event::Tick,
+            Event::Block,
+            Event::FeatureDone,
+            Event::FrameReady,
+        ] {
             dispatch(&mut ctx, e);
         }
         let mut want = [0u8; PAYLOAD_BYTES];

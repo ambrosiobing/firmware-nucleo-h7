@@ -7,5 +7,12 @@ name = "p05-frame"
 version = "0.1.0"
 
 [[package]]
+name = "p08-node-sm"
+version = "0.1.0"
+dependencies = [
+ "p09-payload",
+]
+
+[[package]]
 name = "p09-payload"
 version = "0.1.0"
