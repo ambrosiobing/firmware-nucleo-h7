@@ -156,12 +156,42 @@ int main(void)
      * measurements do not contend. One put and one get per iteration, because a
      * ring with only a producer fills after RING_SIZE bytes and then measures the
      * refusal path instead of the publishing path. */
-    const uint32_t cx100 = cycles_per_put();
-    if (cx100 == 0u) {
+    /* MEASURED TWICE, cold and cached, and the second one is the figure that
+     * means anything.
+     *
+     * Chapter 9 established on Saturday 3 October 2026 that with no instruction
+     * cache a function's cost depends on its offset within a 32 byte granule:
+     * four images of one encoder, displaced by 0, 16, 32 and 48 bytes and
+     * otherwise identical, split into two groups by offset and agreed to the
+     * hundredth of a cycle within each group. With the cache on, all four
+     * reported the same figure.
+     *
+     * That matters here more than anywhere else in the volume. This chapter
+     * compares four SEPARATE IMAGES of four different sizes, so each one's code
+     * sits somewhere different, and a cold comparison between them cannot
+     * separate the barrier from its address. The cached column can.
+     *
+     * The cache is enabled between the two calls and nowhere else, so the same
+     * function runs at the same address both times. */
+    const uint32_t cold = cycles_per_put();
+    const bool cached_ok = board_icache_enable();
+    const uint32_t warm = cached_ok ? cycles_per_put() : 0u;
+
+    if (cold == 0u) {
         printf("  cost          not measured: the cycle counter is unavailable\r\n");
     } else {
-        printf("  cost          %lu.%02lu cycles per put and get pair\r\n",
-               (unsigned long) (cx100 / 100u), (unsigned long) (cx100 % 100u));
+        printf("  cost          %lu.%02lu cycles per pair, I-cache OFF\r\n",
+               (unsigned long) (cold / 100u), (unsigned long) (cold % 100u));
+        if (!cached_ok) {
+            printf("                I-cache would not enable: CCR.IC read back 0\r\n");
+        } else if (warm == 0u) {
+            printf("                I-cache ON: the two windows did not order\r\n");
+        } else {
+            printf("                %lu.%02lu cycles per pair, I-cache ON\r\n",
+                   (unsigned long) (warm / 100u), (unsigned long) (warm % 100u));
+            printf("                compare modes on the CACHED figure: it is the\r\n");
+            printf("                one that does not depend on this image's size\r\n");
+        }
         printf("                two-point with a warm-up, consumer stopped\r\n");
     }
 
