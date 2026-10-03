@@ -235,7 +235,10 @@ mod tests {
         let r = attribute(&step(921_600, 1_000_000, 900_000, 0, 0)).unwrap();
         assert_eq!(r.verdict, Verdict::Bridge);
         assert_eq!(r.bridge_lost, 100_000);
-        assert_eq!(r.target_lost, 0, "the target must not be blamed for the bridge");
+        assert_eq!(
+            r.target_lost, 0,
+            "the target must not be blamed for the bridge"
+        );
     }
 
     #[test]

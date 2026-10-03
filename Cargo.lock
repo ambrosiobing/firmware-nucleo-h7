@@ -7,6 +7,10 @@ name = "p02-ring"
 version = "0.1.0"
 
 [[package]]
+name = "p03-attribute"
+version = "0.1.0"
+
+[[package]]
 name = "p05-frame"
 version = "0.1.0"
 
