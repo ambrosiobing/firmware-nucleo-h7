@@ -50,9 +50,13 @@ SM_CPP_FILTER = BUILD / executable_name("node_sm_filter")
 SM_RUST_FILTER = ROOT / "target" / "release" / executable_name("p08-filter")
 RING_CPP_FILTER = BUILD / executable_name("ring_filter")
 RING_RUST_FILTER = ROOT / "target" / "release" / executable_name("p02-filter")
+ATTR_CPP_FILTER = BUILD / executable_name("attribute_filter")
+ATTR_RUST_FILTER = ROOT / "target" / "release" / executable_name("p03-filter")
 
 #   P08  a sample and then event names per line in; the final state, every row
 #        index taken, the counters and the stub's frame out
+#   P03  A with five counters, F or R per line in; the nine attributed fields,
+#        the first-loss index, or an acknowledged reset out
 #   P02  one operation per line in, I, P, G or S; the answer to that one
 #        operation out. Short lines and many of them, the opposite of P08, since
 #        P02's comparison runs to hundreds of thousands of operations
@@ -65,6 +69,8 @@ FILTER_BUILD_COMMAND = {
     SM_RUST_FILTER: "cargo build --release --workspace",
     RING_CPP_FILTER: "python python/tools/build_host.py",
     RING_RUST_FILTER: "cargo build --release --workspace",
+    ATTR_CPP_FILTER: "python python/tools/build_host.py",
+    ATTR_RUST_FILTER: "cargo build --release --workspace",
 }
 
 

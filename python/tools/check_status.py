@@ -268,10 +268,19 @@ def main():
                               "in this project".format(lang, state, lang))
 
         # 1 and 4 done; 5: the table must not contradict the key.
+        #
+        # The row is found by its link to the project directory and by nothing
+        # else. An earlier version also accepted a row beginning "| PNN ",
+        # which was too loose: projects/README.md grew a second table whose
+        # rows begin "| P09 |", listing the defects each parity test was proven
+        # able to catch, and the checker matched those instead and reported
+        # five projects as contradicting their own keys. A row that identifies
+        # a project is a row that links to it.
         strongest = max(status.values(), key=lambda s: RANK[s])
         row = ""
+        link = "| [{}]({}/)".format(key, project.name)
         for line in table.splitlines():
-            if line.startswith("| [" + key + "]") or line.startswith("| " + key + " "):
+            if line.startswith(link):
                 row = line
                 break
         if not row:

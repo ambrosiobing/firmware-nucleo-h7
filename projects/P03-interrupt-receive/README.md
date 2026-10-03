@@ -1,10 +1,26 @@
 # P03: receiving on interrupt without losing bytes
 
-Status: c=host cpp=none python=host rust=none
+Status: c=host cpp=written python=host rust=written
 
 Three receive paths on one board with one switch between them, both documented
 library failure modes reproduced on purpose and then repaired, and a measurement
 that says where bytes first go missing and **which side of the link lost them**.
+
+**Four implementations of the attribution since Saturday 3 October 2026**, which
+is the half of this project that can be proven. The receive path needs a
+peripheral and still refuses; the attribution is arithmetic over counters a run
+recorded, and it is the half where a wrong answer publishes a wrong conclusion
+rather than merely failing to work. `attribute.c` was written for this and
+compiles unchanged for the target. The C++ and the Rust are **written and not
+built** until the WSL run; the Python, `report.py`, is the one they were all
+written to be compared against.
+
+`python/tests/test_attribute_parity.py` drives nineteen synthetic steps and four
+ramps through every implementation. The step list was itself found to have a hole
+by mutation: reordering the verdicts so the target was decided before the bridge
+changed no answer, because no step lost bytes in both places at once, while three
+files claimed that order was load bearing. Two steps were added and the order is
+now asserted by name.
 
 **State: the measurement is written and proven; the firmware is written and never
 compiled.** The half that needs no hardware is finished and tested. The half that

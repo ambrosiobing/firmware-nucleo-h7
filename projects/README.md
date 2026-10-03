@@ -38,14 +38,29 @@ frame or a verdict out; for P08, a sample and a list of event names in and the
 final state, every row index taken, the counters and the stub's frame out; for
 P02, one operation per line and the answer to that one operation, which is the
 opposite shape to P08's and deliberately so, because P02's lists are long and a
-long line is what broke P08's filter.
+long line is what broke P08's filter; and for P03, a step's five counters in and
+the nine attributed fields out, with a second verb for the ramp's verdict.
 
 No filter parses its project's oracle, so that stays in the one file no generator
 has ever touched, and `run_filter` in `conftest.py` drives all of them.
 
-**Four projects have a parity test so far**, P09, P05, P08 and P02, and all four
-read four languages agreeing as of Saturday 3 October 2026. On win11 aquamarine, which runs no compiler, P09
-reads three and the others read two, each saying so rather than passing quietly.
+**Five projects have a parity test so far**, P09, P05, P08, P02 and P03. The
+first four read four languages agreeing as of Saturday 3 October 2026; P03's C,
+C++ and Rust were written that day and none has been compiled yet, so on this
+laptop that one compares nothing and says so.
+
+P03's is the only one where the comparison is of the **analysis** rather than of
+the thing analysed. Its receive path needs a peripheral and still refuses; its
+attribution is arithmetic over counters a run recorded, and it is the half where
+a wrong answer publishes a wrong conclusion rather than merely failing to work.
+Every sent byte goes to exactly one of four places, and the one that decides
+whether a run means anything is the subtraction: if bytes went missing before the
+peripheral saw them, the run measured the bridge and the target's limit is still
+unknown.
+
+On win11 aquamarine, which runs no compiler, P09 reads three languages, P05, P08
+and P02 read two, and P03 reads none at all because its C reference is itself new
+and unbuilt. Each says which, rather than passing quietly.
 
 P02's is the one whose oracle is a trace rather than a value, and the one where a
 language is honestly absent from half the subject. Its comparison is which bytes
@@ -62,19 +77,27 @@ event and are told apart only by their guards, so an implementation that ordered
 them the other way would give up after one transmit attempt instead of three, and
 a comparison of outcomes alone might not notice.
 
-All three were proven able to fail by introducing defects on purpose: for P09 one
-byte of a golden vector and one bit of
-the Python encoder; for P05 the twin's polynomial, which turned the check value
-and the frame comparison red, and the twin's checksum test, which turned the
-corruption verdicts red with "Python says ok and C says checksum"; for P08 three
-defects, one per claim, the two `TX_FAIL` rows swapped in the Python table, the
-retry limit changed to four, and an undesigned exit added to the fault state.
+**All five were proven able to fail by introducing defects on purpose**, which is
+the only way to know a comparison compares anything:
+
+| Project | The defects introduced, and what they turned red |
+|---|---|
+| P09 | one byte of a golden vector; one bit of the Python encoder, which named the case index and both encodings |
+| P05 | the twin's polynomial, which turned both the check value and the frame comparison red; the twin's checksum test, which turned the corruption verdicts red with "Python says ok and C says checksum" |
+| P08 | the two `TX_FAIL` rows swapped, which named both row lists; the retry limit changed to four; an undesigned exit added to the fault state |
+| P02 | the capacity reduced by one, red at operation 256; the drop increment removed, red at 258; the 32-bit mask removed, which the trace lists do **not** catch and the wrap comparison caught at byte 3 |
+| P03 | the verdict order reversed, which **was not caught**: no step lost bytes in both the bridge and the target at once, while three files called that order load bearing. Two steps were added and the order is now asserted by name |
+
+The P03 row is the one worth reading twice. A mutation that went uncaught is a
+finding about the test rather than about the code, and it is the second time in
+one day that a hole turned up in a list of cases rather than in an
+implementation.
 
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eight of the twenty have code.** 112 checks, of which 104 pass on a laptop with
-no board, no probe and no Raspberry Pi; the other eight need a compiler and skip
+**Eight of the twenty have code.** 118 checks, of which 106 pass on a laptop with
+no board, no probe and no Raspberry Pi; the other twelve need a compiler and skip
 there, naming the WSL command. The remaining twelve projects need hardware, and
 nothing in them is written yet rather than written and untested.
 
@@ -113,7 +136,7 @@ header named a path the file had never had.
 | --- | --- | --- |
 | [P01](P01-toolchain-first-light/) | The toolchain, startup and linker script every other project needs | **runs on the board**, Friday 2 October 2026. LD1 green on PB0 blinks at 499.7 ms, `printf` reaches COM13 at 115200, the user button on PC13 reads, and the report carries the core, AHB and APB1 clocks decoded from RCC at startup. The delay loop measures itself against `DWT_CYCCNT` every boot, 9 cycles per iteration, and a 100 ms request lands within 20 parts per million. The oscillator measured 64.17 to 64.18 MHz across six reductions. Still refused: the 280 MHz tree, which needs RM0455 for the PLL fields, the flash latency and the voltage scaling, in that order |
 | [P02](P02-ring-buffer/) | A single producer, single consumer ring buffer | **runs on the board**, four targets one per ordering mode, producer in thread mode and consumer in SysTick. Re-measured Saturday 3 October 2026 with the instruction cache on, which overturned the first table: cold, the DMB build measured 2 cycles FASTER than no barrier at all, so that comparison had the sign wrong, not merely the magnitude. On the cached figures the compiler fence costs 0.00 cycles and 0 bytes while still emitting different instructions (same length, different SHA-256), one DMB in put and get costs 22.00 cycles and 16 bytes, and acquire plus release costs 29.00 and 24. The earlier claims of 7 and 17 cycles are withdrawn. Zero mismatches in 21.4 million bytes across the four. Also host tested in all four modes, 21.6 million bytes per run. Four implementations, all four proven on the host Saturday 3 October 2026 and agreeing over 9620 operations in each of the four modes. Python is deliberately absent from half the subject, because the interpreter has no release store, no acquire load and no barrier, so it joins the trace comparison and not the ordering one. The Rust crate names a second absence: the C's one-struct-two-contexts shape is not expressible in safe Rust at all |
-| [P03](P03-interrupt-receive/) | Receiving on interrupt without losing bytes | host only. The measurement is proven, attributing every lost byte to the target or the bridge. `rx_ring.c` and both documented failure modes are written and have never been built for the target |
+| [P03](P03-interrupt-receive/) | Receiving on interrupt without losing bytes | host only. The measurement is proven, attributing every lost byte to the target or the bridge. `rx_ring.c` and both documented failure modes are written and have never been built for the target. Four implementations of the attribution since Saturday 3 October 2026, which is the half that can be proven; the C, C++ and Rust are **written and not built**, and the Python is the one they were all written to be compared against |
 | [P04](P04-dma-idle-line/) | Circular DMA and the idle line | not started. Needs a transfer engine |
 | [P05](P05-framing-crc/) | Framing and the hardware CRC unit | host only, and proven there in all four languages, Saturday 3 October 2026: every one reaches the published check value 0x29B1, produces byte-identical frames over 3008 payloads, and gives the same verdict on 3005 frames corrupted three ways. The C++ and the Rust assert 0x29B1 at compile time, which the C can only assert in a test. Writing them found one divergence worth keeping: the C names the single byte 0x01 a stuffing error where the other three name it too short, because the C's cobs_decode cannot tell an empty frame from a failed one. The peripheral half waits on RM0455 |
 | [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | **links**, all three back ends, since Friday 2 October 2026, and none has been flashed. The witness is proven on synthetic input on the host. Each back end still refuses at run time rather than guessing a converter, timer or transfer engine setting RM0455 governs. The cycle counter it needs now exists and works, which was the first of its dependencies to be settled |

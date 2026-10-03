@@ -1,7 +1,16 @@
 # Rust on this part
 
-**Four crates since Saturday 3 October 2026**, P09's codec, P05's framing,
-P08's state machine and P02's ring, all in the workspace at the repository root. P08's is the
+**Five crates since Saturday 3 October 2026**, P09's codec, P05's framing, P08's
+state machine, P02's ring and P03's loss attribution, all in the workspace at the
+repository root.
+
+**P03's carries the best argument for the language in the volume so far**, and it
+is not about memory safety. Its `Verdict` is an enum of five variants and `match`
+on it is exhaustive, so adding a sixth kind of loss will not compile until every
+place that decides what a verdict means has been visited. In the C a sixth
+enumerator compiles everywhere and falls through whatever `else` was written
+last. For a file whose entire purpose is that two kinds of loss are never
+confused, that is the property worth having. P08's is the
 first to depend on another: it takes `p09-payload` as a path dependency, because
 its acceptance criterion is that the transmit stub's bytes equal what P09's
 encoder produces, and a dependency makes that true by construction where a second

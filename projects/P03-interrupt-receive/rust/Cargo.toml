@@ -1,0 +1,26 @@
+[package]
+name = "p03-attribute"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P03's loss attribution: every sent byte to exactly one place, no_std"
+license = "MIT"
+publish = false
+
+# No dependencies. The whole thing is arithmetic over five counters.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored.
+[lints]
+workspace = true
+
+[lib]
+name = "p03_attribute"
+path = "src/lib.rs"
+
+# The filter the parity test drives, three verbs, the same three the C++ filter
+# speaks. No release profile here: in a workspace cargo reads profiles from the
+# root Cargo.toml only.
+[[bin]]
+name = "p03-filter"
+path = "src/main.rs"

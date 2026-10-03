@@ -43,6 +43,7 @@ PROJECTS = ROOT / "projects"
 # silently does not exist.
 PROJECT_DIR = {
     "P02": PROJECTS / "P02-ring-buffer",
+    "P03": PROJECTS / "P03-interrupt-receive",
     "P05": PROJECTS / "P05-framing-crc",
     "P08": PROJECTS / "P08-node-state-machine",
     "P09": PROJECTS / "P09-payload-codec",
@@ -448,6 +449,18 @@ def main() -> int:
     shared_lib("node_sm",
                [proj("P08", "c") / "node_sm.c", C_DIR / "payload" / "payload.c"],
                includes=[proj("P08", "c"), C_DIR / "payload"])
+
+    print("P03, the attribution, which is the half of it that can be proven:")
+    shared_lib("attribute", [proj("P03", "c") / "attribute.c"],
+               includes=[proj("P03", "c")])
+
+    print("P03, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         *STATIC,
+         "-I", proj("P03", "cpp"),
+         proj("P03", "cpp") / "attribute_filter.cpp",
+         "-o", BUILD / ("attribute_filter" + exe)],
+        "attribute_filter")
 
     print("P02, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
