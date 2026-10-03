@@ -47,10 +47,20 @@
 #endif
 
 #if P09_PAD_BYTES > 0
-/* `used` because nothing references it and the compiler would otherwise discard
- * it, which would silently turn this experiment into three identical builds: the
- * worst outcome, since the cold figures would then agree and appear to disprove
- * the very effect being tested. */
+/* TWO things keep this array, and the first attempt had only one of them.
+ *
+ * `used` stops the COMPILER discarding a static nothing references. That is not
+ * enough: this build links with --gc-sections, and the LINKER removes an
+ * unreferenced section regardless of any compiler attribute. The first run of this
+ * experiment produced three images with .text at 8476 bytes each, identical, and
+ * had the cold figures been read from them they would have agreed and appeared to
+ * disprove the effect under test.
+ *
+ * The other half is KEEP(*(.text.p09pad)) in c/ld/stm32h7a3zi.ld, which also
+ * places this section before *(.text) so that the displacement does not depend on
+ * the order of objects on the link line. The linker script's own comment, four
+ * lines above where that KEEP now sits, had already explained this about the
+ * vector table. */
 __attribute__((used, section(".text.p09pad")))
 static const unsigned char p09_pad[P09_PAD_BYTES] = { 0 };
 #endif

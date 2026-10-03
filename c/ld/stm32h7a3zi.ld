@@ -78,6 +78,22 @@ SECTIONS
   .text :
   {
     . = ALIGN(4);
+
+    /* Chapter 9's placement experiment, and it needs BOTH halves of this.
+     *
+     * KEEP, for the reason given above .isr_vector: the padding array is
+     * referenced by nothing, so --gc-sections removes it. The compiler attribute
+     * `used` does not help, because that only stops the COMPILER discarding it.
+     * Without this line the three padded images came out byte for byte identical,
+     * with .text at 8476 in all three, and the experiment silently became three
+     * copies of one build whose agreeing figures would have looked like a result.
+     *
+     * FIRST, before *(.text), because the point is to displace everything after
+     * it. Putting it later in this list would keep the bytes and move nothing,
+     * which is the same failure wearing a different hat. Placing it here means the
+     * displacement does not depend on the order of objects on the link line. */
+    KEEP(*(.text.p09pad))
+
     *(.text)
     *(.text*)
     *(.glue_7)
