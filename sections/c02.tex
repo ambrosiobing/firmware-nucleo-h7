@@ -132,10 +132,10 @@ Quantity & Budget & Measured & Margin \\
 \midrule
 Buffer capacity & 256 bytes & 256 bytes & exact by construction \\
 Structure overhead & 16 bytes & 12 bytes & +4 bytes \\
-Added cycles for one DMB in put and one in get & 10 & 7 & +3 \\
-Added flash for the same & no budget set & 28 bytes & \\
-Bytes dropped & 0 in one hour & 0 in 3.2 million & duration short, see below \\
-Mismatched bytes delivered & 0 & 0 in 12.2 million & across all four modes \\
+Added cycles for one DMB in put and one in get & 10 & 22 & OVER by 12 \\
+Added flash for the same & no budget set & 16 bytes & \\
+Bytes dropped & 0 in one hour & 0 in 5.8 million & duration short, see below \\
+Mismatched bytes delivered & 0 & 0 in 21.4 million & across all four modes \\
 \bottomrule
 \end{tabular}
 \caption{Measured on the board on Saturday 3 October 2026 at 64 MHz, with the cycle counter for the cycles and \texttt{arm-none-eabi-size} for the flash. Two rows the budget asked for are missing on purpose and the reason is below.}
@@ -150,100 +150,84 @@ same, which is the thing a measurement is supposed to settle. Isolating them nee
 a further measurement that subtracts an empty loop of the same shape, and it has
 not been made.
 
-The absolute figure is therefore a harness figure: 141 cycles for a pair at mode 0.
-All four modes carry the identical harness, so the harness itself cancels in a
-comparison. What does NOT cancel is where each build happens to place the code, and
-that is the subject of the hedge below. This paragraph said the differences were
-clean before that was measured, and they are not.
+The absolute figure is therefore a harness figure: for mode 0, 129.98 cycles for a
+pair with the instruction cache off and 90.99 with it on. All four modes carry the
+identical harness, so the harness cancels in a comparison between them.
+
+What does not cancel in the cold figures is where each build happens to place its
+code, and the table below shows that going badly wrong: cold, the build with a
+barrier measures faster than the build without one. The cached figures are the
+comparable ones and the next paragraphs are about why.
 
 \begin{table}[H]\centering\small
-\begin{tabular}{p{8mm}p{52mm}p{20mm}p{20mm}p{22mm}}
+\begin{tabular}{p{8mm}p{38mm}p{18mm}p{18mm}p{16mm}p{18mm}}
 \toprule
-Mode & Ordering & Cycles & Flash & Mismatches \\
+Mode & Ordering & Cold & Cached & Flash & Mismatches \\
 \midrule
-0 & none, not shippable & 141 & 8\,552 & 0 in 3.0 M \\
-1 & compiler only, a signal fence & 141 & 8\,560 & 0 in 3.2 M \\
-2 & compiler and processor, one DMB & 148 & 8\,580 & 0 in 3.2 M \\
-3 & acquire load and release store & 158 & 8\,604 & 0 in 2.8 M \\
+0 & none, not shippable & 129.98 & 90.99 & 7\,968 & 0 in 5.8 M \\
+1 & compiler only, a signal fence & 129.98 & 90.99 & 7\,968 & 0 in 5.8 M \\
+2 & compiler and processor, one DMB & 127.98 & 112.99 & 7\,984 & 0 in 5.0 M \\
+3 & acquire load and release store & 146.98 & 119.99 & 7\,992 & 0 in 4.8 M \\
 \bottomrule
 \end{tabular}
-\caption{The four ordering choices measured on the part. Cycles are for a put and get pair including the harness; flash is the \texttt{text} section of the whole image. The producer runs in thread mode and the consumer in the SysTick handler.}
+\caption{The four ordering choices, each measured twice in its own image: once with the instruction cache off as the part comes out of reset, once with it on, from the same function at the same address. Cycles are for a put and get pair including the harness; flash is the \texttt{text} section of the whole image. Producer in thread mode, consumer in the SysTick handler. Measured on Saturday 3 October 2026 at 64 MHz.}
 \end{table}
 
-\textbf{The compiler barrier costs nothing in time and is not a no-op.} Modes 0 and
-1 agree to the hundredth of a cycle, which is expected because a signal fence emits
-no instruction. But the two images are not identical: mode 1 is 8 bytes larger, so
-the compiler did generate different code. Something was being reordered, or could
-have been, and the fence prevented it at no cost in time. That is the one
-unambiguous recommendation this chapter can make from its own numbers: take mode 1,
-because it is free.
+\textbf{Read the cached column. The cold column gets the sign wrong.} Cold, the
+DMB build measures 127.98 cycles against 129.98 with no barrier at all, which says
+that adding an instruction made the work two cycles cheaper. It cannot have. The
+four images are four sizes, so each one's code sits at a different address, and
+chapter 9 has since measured what that is worth: with no instruction cache, cost
+depends on a function's offset within a 32 byte granule, and the dependence
+vanishes when the cache is on.
 
-\textbf{The DMB appears to cost 7 cycles per pair and definitely costs 28 bytes.
-The cycle figure is not safe and the flash figure is.} Acquire and release appear
-to cost 17 cycles and definitely cost 52 bytes.
+This is a better argument for the cached figure than any reasoning about it. A
+confound that blurs a difference is easy to allow for. One that reverses it is not,
+and the cold column here reverses it.
 
-The cycles need that hedge because of something measured a few hours later, on
-chapter 9's encoder. Two builds of it differed only by a renamed variable and three
-extra \texttt{printf} lines, and the encoder came out 7.8 per cent slower in the
-second. Nothing about the encoder changed. The new string literals grew
-\texttt{.rodata}, the code after them shifted, and with no instruction cache
-enabled every instruction is fetched from flash, so what the loop costs depends on
-where the linker put it.
+\textbf{On the cached figures the barriers cost three times what this chapter
+first claimed.} The DMB is 22.00 cycles per pair, not 7. Acquire and release are
+29.00, not 17. Those earlier figures came from the cold column of an earlier build
+and are withdrawn.
 
-An earlier version of this paragraph said the loop had landed differently against
-32 byte flash fetch lines. The 32 bytes was invented. It is the right figure for a
-Cortex-M7 cache line, which ARM fixes by the architecture and which chapters 4 and
-19 cite correctly, and it was carried across to the flash interface's fetch width,
-which is a different quantity, lives in RM0455, and has not been read. The
-observation stands without it: code moved and the cost changed. The width of the
-granule that makes cost depend on address is not established here.
+\begin{table}[H]\centering\small
+\begin{tabular}{p{44mm}p{24mm}p{24mm}p{26mm}}
+\toprule
+Ordering, over no barrier & Cached cycles & Per cent & Flash bytes \\
+\midrule
+Compiler fence & 0.00 & 0.0 & 0 \\
+One DMB in put and one in get & +22.00 & +24.2 & +16 \\
+Acquire load, release store & +29.00 & +31.9 & +24 \\
+\bottomrule
+\end{tabular}
+\caption{What each ordering choice costs, measured with the instruction cache on so that the figure belongs to the code rather than to the image's size.}
+\end{table}
 
-The four builds in the table above are four separate images with four different
-sizes, 8\,552 to 8\,604 bytes, so their code sits at four different places. A 5 per
-cent difference between them cannot be attributed to a barrier when an unrelated
-edit produced 7.8 per cent on another project the same day. The honest statement is
-that the DMB costs something between nothing and about 15 cycles, and this
-experiment cannot narrow it further.
+\textbf{The compiler fence costs nothing in time and is not a no-op, and the
+evidence for that is now better than it was.} Modes 0 and 1 agree exactly, 90.99
+cycles cached and 129.98 cold, and their \texttt{text} sections are the same size
+to the byte.
 
-One detail pushes the other way and is worth keeping. Modes 0 and 1 differ by 8
-bytes of code and measured identically, to the hundredth of a cycle. So placement
-does not always matter: it matters when a shift moves a loop across a fetch line
-boundary and not otherwise. That is why the effect is erratic rather than
-proportional, and why it cannot be corrected for by assuming a percentage.
+An earlier version of this chapter argued the fence was not a no-op because mode 1
+was 8 bytes larger. In this build it is not larger at all, so that evidence is
+gone. What replaced it is stronger: the two binaries have different SHA-256 hashes
+while being the same length, so the compiler emitted different instructions in the
+same number of bytes. Something was being reordered, or could have been, and the
+fence prevented it at no cost in time and none in space.
 
-What would separate the barrier from its placement is enabling the instruction
-cache, and on Friday 2 October 2026 that turned out to be available immediately
-rather than in chapter 19. ARM's \texttt{cachel1\_armv7.h} in the Cube pack holds
-the enable sequence, the device header declares both caches present on this
-Cortex-M7 r1p2, and every name in the sequence is ARMv7-M architectural, so RM0455
-governs none of it. It is in \texttt{c/board/icache.c}.
+That is still the one unambiguous recommendation this chapter makes from its own
+numbers. Take mode 1, because it is free.
 
-That also makes a better experiment available than the one in the table above. The
-cache is off at reset, so a single image can measure a function cold, enable the
-cache, and measure the same function again at the same address in the same build.
-Nothing has moved by a byte between the two figures, so the difference is the cache
-alone, which no comparison of separate builds could establish. Chapter 9 does
-exactly that and measures the cache at 1.33 to 1.35 times on its encoder.
+\textbf{One observation has no established cause and is recorded as an open
+question.} The barriers cost MORE when measured with the cache on: the DMB is 22
+cycles cached against an apparent minus 2 cold. A plausible reading is that with
+the cache off the core is already waiting on instruction fetch, so a barrier's
+drain of the write buffer overlaps stalls that were happening anyway and is partly
+hidden, while with the cache on there is nothing for it to hide behind. That is a
+hypothesis. It has not been tested, nothing here distinguishes it from the
+alternatives, and the chapter does not need it: the cached figures are the
+comparable ones whatever the reason the cold ones differ.
 
-\textbf{Chapter 9 then measured how large the placement effect actually is, and
-the answer bears directly on the table above.} Four images of the same encoder,
-displaced by 0, 16, 32 and 48 bytes and otherwise byte for byte identical: the cold
-cost tracks the offset within a 32 byte granule, 3\,220.99 cycles at offset 0
-against 3\,163.98 at offset 16, with the two images at each offset agreeing to the
-hundredth. The cached cost is 2\,378.99 in all four, identical.
-
-So pure placement is worth 57 cycles, 1.8 per cent, on that function. The DMB
-difference claimed in this chapter is 7 cycles on 141, which is 5.0 per cent. The
-placement effect is smaller than the difference under test, which did not have to
-be true and is the first reason to think the barrier figures are mostly real.
-
-It is not a licence to subtract 1.8 per cent and call the remainder measured. That
-figure belongs to chapter 9's encoder, and the four modes here differ in their code
-and not only in its address, so their confound is of a different kind. What settles
-it is redoing all four with the cache on, where chapter 9 has now shown the figure
-to be placement-invariant. That is the next measurement this chapter needs and it
-has not been taken. Until it is, the flash column is this chapter's measured result
-and the cycle column is an indication with a known floor under it.
 
 \textbf{Nothing failed, in any mode, including the one with no barrier at all.}
 Twelve point two million bytes passed through the ring across the four builds with
@@ -255,18 +239,18 @@ single-core argument, that a core sees its own stores in program order and that
 taking an exception on the same core is a context-synchronising event, so the
 producer's data write cannot be observed by its own handler after the index write
 that followed it. It is equally consistent with the compiler simply not having
-reordered anything that mattered on these three million bytes, and mode 1 being 8
-bytes different says the compiler was doing something.
+reordered anything that mattered on these five million bytes, and the two binaries
+differing in content at identical length says the compiler was doing something.
 
-An absence over three million bytes is not proof of correctness. The case where a
-barrier is expected to earn its 7 cycles is the one where the other observer is a
+An absence over five million bytes is not proof of correctness. The case where a
+barrier is expected to earn its 22 cycles is the one where the other observer is a
 bus master rather than an interrupt, which is chapter 4 with a transfer engine and
 chapter 19 with the cache. Neither is built, so this chapter reports what it
 measured and leaves that question where it belongs.
 
 \textbf{The drop row is short of its budget and says so.} The budget asks for a one
-hour soak. Each mode ran about fourteen seconds, which is 3.2 million bytes and zero
-drops, with the consumer comfortably ahead of the producer throughout. An hour is a
+hour soak. Each mode ran under twenty seconds, which is 4.8 to 5.8 million bytes
+and zero drops, with the consumer comfortably ahead of the producer throughout. An hour is a
 different claim and has not been made.
 
 \subsection*{Firmware design (UML)}
@@ -604,7 +588,7 @@ commit, because it costs a second.
 
 \begin{shellcode}
 cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"
-cmake --build build-fw --target p02-ring-none p02-ring-compiler \
+cmake --build build-fw --target p02-ring-none p02-ring-compiler \\
                                p02-ring-dmb p02-ring-acqrel
 make -C test && ./test/test_ring && ./test/test_ring_threads
 \end{shellcode}

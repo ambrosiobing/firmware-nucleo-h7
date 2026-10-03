@@ -73,6 +73,26 @@ def check(path):
             if len(ln) > limit:
                 problems.append(f"{env} line {len(ln)} chars (max {limit}): {ln[:50]}...")
 
+    # Table rows that lost a backslash, which is the one defect in this file that
+    # a reader sees and no other check can. A tabular row ends with two
+    # backslashes; with one it is still valid LaTeX, so nothing fails, the row
+    # merges into the next and the table renders wrongly. Scripted edits through a
+    # shell collapse the pair into one, which happened to ten rows across three
+    # chapters on Saturday 3 October 2026 and reached a pushed commit.
+    #
+    # Scoped to tabular bodies on purpose: a single trailing backslash inside a
+    # shellcode block is a line continuation and correct there.
+    BS = chr(92)
+    inside = False
+    for i, ln in enumerate(s.split(chr(10)), start=1):
+        if ln.startswith(BS + "begin{tabular}"):
+            inside = True
+        elif ln.startswith(BS + "end{tabular}"):
+            inside = False
+        elif inside and ln.endswith(BS) and not ln.endswith(BS + BS):
+            problems.append(
+                f"table row {i} ends in one backslash, needs two: {ln[:46]}...")
+
     pfx = DOC["stem_pfx"]
     if path.stem.startswith(pfx) and path.stem[len(pfx):].isdigit():
         for h in DOC["required"]:

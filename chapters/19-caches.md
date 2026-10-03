@@ -34,9 +34,12 @@ The instruction cache needs nothing from RM0455. Its enable sequence is in ARM's
 
 It is deliberately NOT enabled by `board_init`, which makes a measurement possible that no pair of builds could provide: the cache is off at reset, so one image can measure a function cold, enable the cache, and measure the same function again at the same address in the same build.
 
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Quantity | Measured | Where | Note I-cache line length | 32 bytes | architecture | fixed for Cortex-M7 Cache gain, chapter 9 encoder | 1.33 to 1.35 times | board | one address, one build Placement effect, cold | 57 cycles, 1.8 per cent | board | four displacements Placement effect, cached | none measurable | board | identical to 0.01 cycle |
+| Quantity | Measured | Where | Note |
+| --- | --- | --- | --- |
+| I-cache line length | 32 bytes | architecture | fixed for Cortex-M7 |
+| Cache gain, chapter 9 encoder | 1.33 to 1.35 times | board | one address, one build |
+| Placement effect, cold | 57 cycles, 1.8 per cent | board | four displacements |
+| Placement effect, cached | none measurable | board | identical to 0.01 cycle |
 
 *Table 19.1. The instruction cache half of this chapter, measured on Saturday 3 October 2026 on the chapter 9 encoder. The placement rows come from four images displaced by 0, 16, 32 and 48 bytes and otherwise identical.*
 

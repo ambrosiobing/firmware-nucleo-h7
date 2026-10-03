@@ -121,9 +121,12 @@ That is a smaller gain than the word cache tends to suggest, and the reason is w
 
 **That claim has now been tested, and it holds.** Four images were built from identical sources, differing only in a run of zero bytes placed before the code so that every instruction lands 0, 16, 32 or 48 bytes later. `c/P09/pad.c` does nothing else. The encoder is byte for byte the same in all four; only its address differs.
 
-|  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Displacement | Offset mod 32 | Cold cycles | Cached cycles 0 bytes | 0 | 3 220.99 | 2 378.99 16 bytes | 16 | 3 163.98 | 2 378.99 32 bytes | 0 | 3 220.99 | 2 378.99 48 bytes | 16 | 3 163.98 | 2 378.99 |
+| Displacement | Offset mod 32 | Cold cycles | Cached cycles |
+| --- | --- | --- | --- |
+| 0 bytes | 0 | 3 220.99 | 2 378.99 |
+| 16 bytes | 16 | 3 163.98 | 2 378.99 |
+| 32 bytes | 0 | 3 220.99 | 2 378.99 |
+| 48 bytes | 16 | 3 163.98 | 2 378.99 |
 
 *Table 9.5. Measured on the board on Saturday 3 October 2026. The same encoder at four addresses. Cold figures track the offset within a 32 byte granule and ignore the distance; cached figures ignore both.*
 
