@@ -11,20 +11,24 @@
  * a running board. Every intermediate state this function passes through is a
  * state the part can run at 64 MHz:
  *
- *   1  voltage scaling UP to scale 1, from whatever the reset scale is.
- *   2  voltage scaling UP again, scale 1 to scale 0. TWO steps because scale 0
+ *   1  the SUPPLY selected, which exits Run* mode. At reset this part has both
+ *      SMPSEN and LDOEN set, which is the absence of a selection rather than a
+ *      selection, and in that state the regulator declines every voltage scale
+ *      change in silence. Nothing else in this list can work before it.
+ *   2  voltage scaling UP to scale 1, from whatever the reset scale is.
+ *   3  voltage scaling UP again, scale 1 to scale 0. TWO steps because scale 0
  *      is only reachable from scale 1, which is a constraint on the transition
  *      rather than on the value and which this board established by refusing a
  *      direct write. More voltage than 64 MHz needs is not a hazard; less than
  *      280 MHz needs is.
- *   3  flash latency UP, to six wait states. Too many wait states is slow and
+ *   4  flash latency UP, to six wait states. Too many wait states is slow and
  *      correct. Too few returns garbage from flash, which at this point in the
  *      sequence would mean the next instruction fetched.
- *   4  the external 8 MHz clock on, which nothing yet depends on.
- *   5  the PLL configured and locked, while the core still runs on HSI.
- *   6  the bus prescalers set, while sys_ck is still HSI, so the buses divide
+ *   5  the external 8 MHz clock on, which nothing yet depends on.
+ *   6  the PLL configured and locked, while the core still runs on HSI.
+ *   7  the bus prescalers set, while sys_ck is still HSI, so the buses divide
  *      down from 64 MHz for a moment and nothing is out of range.
- *   7  the switch, which is the only irreversible-feeling step and the only one
+ *   8  the switch, which is the only irreversible-feeling step and the only one
  *      taken after every prerequisite has been read back.
  *
  * Reversing any pair of those puts the part somewhere it cannot run. Raising the
@@ -81,6 +85,7 @@
 #define CLOCK280_CDCPRE  RCC_AHBPRE_DIV1
 
 static const char *const step_names[CLOCK280_STEP_COUNT] = {
+    "the supply configuration, which exits Run* mode",
     "voltage scaling, the reset scale to scale 1",
     "voltage scaling, scale 1 to scale 0",
     "flash latency to six wait states",
@@ -172,7 +177,38 @@ int board_clock_raise_to_280(clock280_result_t *out)
     out->failed_at   = CLOCK280_STEP_COUNT;
     out->reached_280 = false;
 
-    /* ---- 1 and 2. voltage scaling, up, through scale 1 ------------------- */
+    /* ---- 1. the supply, which has to be selected before anything else ---- */
+    {
+        clock280_record_t *r = &out->step[CLOCK280_STEP_SUPPLY];
+        const uint32_t want = PWR_CR3_LDOEN_MSK;
+        uint32_t spins;
+
+        /* The LDO, not the SMPS, and not because the LDO is better. The SMPS
+         * needs an external inductor and capacitors, whether this board fits
+         * them is not sourced here, and selecting it on a board without them
+         * removes the core supply. The LDO is on the die. This write LOCKS the
+         * choice until the next reset, which is why it is the one step in this
+         * file that cannot be retried without the RESET button.
+         *
+         * ACTVOSRDY in PWR_CSR1 and not VOSRDY in PWR_SRDCR: this is the flag
+         * that says the regulator has settled on an actual scale, and it is
+         * clear from reset until a supply is chosen. */
+        PWR_CR3 = (PWR_CR3 & ~PWR_CR3_SMPSEN_MSK) | PWR_CR3_LDOEN_MSK;
+        (void) PWR_CR3;                  /* land the write before polling */
+        spins = wait_for(&PWR_CSR1, PWR_CSR1_ACTVOSRDY_MSK, true);
+
+        const uint32_t got = PWR_CR3;
+        const bool ok = ((got & PWR_CR3_LDOEN_MSK) != 0u)
+                     && ((got & PWR_CR3_SMPSEN_MSK) == 0u)
+                     && (spins < READY_SPINS_MAX);
+        record(r, want, got, spins, ok);
+        if (!ok) {
+            out->failed_at = CLOCK280_STEP_SUPPLY;
+            return -1;
+        }
+    }
+
+    /* ---- 2 and 3. voltage scaling, up, through scale 1 ------------------- */
     if (!vos_step(&out->step[CLOCK280_STEP_VOS1], PWR_VOS_SCALE1)) {
         out->failed_at = CLOCK280_STEP_VOS1;
         return -1;
@@ -182,7 +218,7 @@ int board_clock_raise_to_280(clock280_result_t *out)
         return -1;
     }
 
-    /* ---- 3. flash latency, up -------------------------------------------- */
+    /* ---- 4. flash latency, up -------------------------------------------- */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_LATENCY];
         const uint32_t want = FLASH_LATENCY_280MHZ << FLASH_ACR_LATENCY_POS;
@@ -202,7 +238,7 @@ int board_clock_raise_to_280(clock280_result_t *out)
         }
     }
 
-    /* ---- 4. the external clock ------------------------------------------- */
+    /* ---- 5. the external clock ------------------------------------------- */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_HSE];
         uint32_t spins;
@@ -226,7 +262,7 @@ int board_clock_raise_to_280(clock280_result_t *out)
         }
     }
 
-    /* ---- 5. the PLL ------------------------------------------------------ */
+    /* ---- 6. the PLL ------------------------------------------------------ */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_PLL];
         uint32_t spins;
@@ -290,7 +326,7 @@ int board_clock_raise_to_280(clock280_result_t *out)
         }
     }
 
-    /* ---- 6. the bus prescalers, while sys_ck is still 64 MHz ------------- */
+    /* ---- 7. the bus prescalers, while sys_ck is still 64 MHz ------------- */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_BUSES];
         const uint32_t want = (CLOCK280_CDCPRE << RCC_CDCFGR1_CDCPRE_POS)
@@ -310,7 +346,7 @@ int board_clock_raise_to_280(clock280_result_t *out)
         }
     }
 
-    /* ---- 7. the switch --------------------------------------------------- */
+    /* ---- 8. the switch --------------------------------------------------- */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_SWITCH];
         uint32_t spins = 0u;

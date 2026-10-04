@@ -215,14 +215,18 @@ typedef enum {
      * a direct write from the reset scale. The two are separate steps so the
      * report says which of the two transitions a failure was in, and that
      * distinction is the whole reason the first attempt was diagnosable. */
-    CLOCK280_STEP_VOS1     = 0,   /* the reset scale to scale 1 */
-    CLOCK280_STEP_VOS0     = 1,   /* scale 1 to scale 0, the only legal route */
-    CLOCK280_STEP_LATENCY  = 2,   /* flash wait states, before the frequency */
-    CLOCK280_STEP_HSE      = 3,   /* the debugger's 8 MHz, in bypass */
-    CLOCK280_STEP_PLL      = 4,   /* configured and locked, core still on HSI */
-    CLOCK280_STEP_BUSES    = 5,   /* prescalers, while sys_ck is still 64 MHz */
-    CLOCK280_STEP_SWITCH   = 6,   /* sys_ck to the PLL, last and gated */
-    CLOCK280_STEP_COUNT    = 7,
+    /* The supply first, and it is first because nothing else works without it.
+     * At reset the part is in Run* mode with no supply selected, and in that
+     * state the regulator declines every voltage scale change in silence. */
+    CLOCK280_STEP_SUPPLY   = 0,   /* exit Run* mode, select the LDO */
+    CLOCK280_STEP_VOS1     = 1,   /* the reset scale to scale 1 */
+    CLOCK280_STEP_VOS0     = 2,   /* scale 1 to scale 0, the only legal route */
+    CLOCK280_STEP_LATENCY  = 3,   /* flash wait states, before the frequency */
+    CLOCK280_STEP_HSE      = 4,   /* the debugger's 8 MHz, in bypass */
+    CLOCK280_STEP_PLL      = 5,   /* configured and locked, core still on HSI */
+    CLOCK280_STEP_BUSES    = 6,   /* prescalers, while sys_ck is still 64 MHz */
+    CLOCK280_STEP_SWITCH   = 7,   /* sys_ck to the PLL, last and gated */
+    CLOCK280_STEP_COUNT    = 8,
 } clock280_step_t;
 
 /* What one step did, rather than whether it worked. `wrote` is what the code

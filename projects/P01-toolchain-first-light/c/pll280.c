@@ -49,6 +49,14 @@ static void dump_registers(const char *when)
 {
     printf("  %s:\n", when);
 #ifdef BOARD_REGS_CONFIRMED
+    /* CR3 first, because it is the one that gates everything after it. Both
+     * SMPSEN and LDOEN set is Run* mode: no supply chosen, and no voltage scale
+     * change will be acknowledged. */
+    printf("    PWR_CR3       %08lX   BYPASS %lu  LDOEN %lu  SMPSEN %lu\n",
+           (unsigned long) PWR_CR3,
+           (unsigned long) ((PWR_CR3 & PWR_CR3_BYPASS_MSK) ? 1u : 0u),
+           (unsigned long) ((PWR_CR3 & PWR_CR3_LDOEN_MSK) ? 1u : 0u),
+           (unsigned long) ((PWR_CR3 & PWR_CR3_SMPSEN_MSK) ? 1u : 0u));
     printf("    PWR_SRDCR     %08lX   VOS %lu  VOSRDY %lu\n",
            (unsigned long) PWR_SRDCR,
            (unsigned long) ((PWR_SRDCR & PWR_SRDCR_VOS_MSK) >> PWR_SRDCR_VOS_POS),
@@ -144,7 +152,10 @@ int main(void)
     /* The one thing worth saying before the attempt: what the sequence intends,
      * in the arithmetic a reader can check, so the console carries the claim and
      * not only the outcome. */
-    printf("\n  intending: voltage scale 1 first, then scale 0, because scale 0\n");
+    printf("\n  intending: the LDO selected first, to exit Run* mode, because at\n");
+    printf("             reset no supply is chosen and the regulator then refuses\n");
+    printf("             every voltage scale change in silence,\n");
+    printf("             then voltage scale 1, then scale 0, because scale 0\n");
     printf("             is only reachable from scale 1 on this part,\n");
     printf("             then 8 MHz bypass / DIVM1 4 = 2 MHz into the PLL,\n");
     printf("             times N 280 = 560 MHz oscillator, / P 2 = 280 MHz sys_ck,\n");

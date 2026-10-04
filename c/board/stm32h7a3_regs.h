@@ -614,6 +614,42 @@
  * image that stopped.
  */
 
+/* THE SUPPLY CONFIGURATION, which has to happen before any voltage scaling and
+ * which this repository did not know about until the board refused twice.
+ *
+ * At reset this part is in what ST's own comment calls Run* mode: both SMPSEN
+ * and LDOEN are set in PWR_CR3, which is not a supply selection but the absence
+ * of one. In that state the regulator will not change voltage scale. It does not
+ * report an error; VOSRDY simply never sets, and PWR_CSR1's ACTVOSRDY is clear
+ * from reset, which is the bit that says so.
+ *
+ * Exiting Run* mode is a single write selecting one supply, and it LOCKS until
+ * the next reset. ST's per-board system_stm32h7xx.c does it, for the LDO on an
+ * SMPS part, as
+ *
+ *     PWR->CR3 = (PWR->CR3 & ~PWR_CR3_SMPSEN) | PWR_CR3_LDOEN;
+ *     while ((PWR->CSR1 & PWR_CSR1_ACTVOSRDY) == 0U) {}
+ *
+ * THE LDO AND NOT THE SMPS, and the reason is which way the risk points. The LDO
+ * is on the die and is valid whenever VDD is present. The SMPS needs an external
+ * inductor and capacitors on the board, and whether this Nucleo fits them is a
+ * board fact this repository has not sourced; selecting it on a board without
+ * them would remove the core supply. Choosing the LDO on a board that has the
+ * SMPS costs efficiency and nothing else.
+ *
+ * WHERE THIS WAS FOUND, because the first place looked was the wrong one. There
+ * are two files named system_stm32h7xx.c in the pack. The CMSIS template under
+ * Drivers/CMSIS/Device/ST/STM32H7xx/Source/Templates has no supply
+ * configuration at all. A per-project copy in each of the ninety examples under
+ * Projects/NUCLEO-H7A3ZI-Q does, and that is the one that matters. Reading only
+ * the template supports the conclusion that ST never configures the supply,
+ * which is wrong.
+ */
+#define PWR_CR3                 REG32(PWR_BASE + 0x00Cu)
+#define PWR_CR3_BYPASS_MSK      (1u << 0)
+#define PWR_CR3_LDOEN_MSK       (1u << 1)
+#define PWR_CR3_SMPSEN_MSK      (1u << 2)
+
 /* PWR_CSR1, which reports the scale ACTUALLY IN USE as opposed to the one
  * selected in SRDCR. Worth having in the dump for the same reason the read-back
  * is worth having: a selected value and an active value that disagree is a
