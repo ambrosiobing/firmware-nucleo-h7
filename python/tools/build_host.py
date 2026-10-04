@@ -483,6 +483,22 @@ def main() -> int:
          "-o", BUILD / ("rate_filter" + exe)],
         "rate_filter")
 
+    # P12's two gates. -ffp-contract=off for the same reason P06 has it: the
+    # charge gate's percentages and its reconciliation of a total against the sum
+    # of its parts are floating point, and the contraction of a multiply and an
+    # add is not the same across gcc, g++ and rustc.
+    print("P12, the size and charge gates, which must be able to fail:")
+    shared_lib("gates", [proj("P12", "c") / "gates.c"],
+               ["-ffp-contract=off"], includes=[proj("P12", "c")])
+
+    print("P12, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         "-ffp-contract=off", *STATIC,
+         "-I", proj("P12", "cpp"),
+         proj("P12", "cpp") / "gates_filter.cpp",
+         "-o", BUILD / ("gates_filter" + exe)],
+        "gates_filter")
+
     print("P03, the attribution, which is the half of it that can be proven:")
     shared_lib("attribute", [proj("P03", "c") / "attribute.c"],
                includes=[proj("P03", "c")])

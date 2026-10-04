@@ -54,6 +54,8 @@ ATTR_CPP_FILTER = BUILD / executable_name("attribute_filter")
 ATTR_RUST_FILTER = ROOT / "target" / "release" / executable_name("p03-filter")
 RATE_CPP_FILTER = BUILD / executable_name("rate_filter")
 RATE_RUST_FILTER = ROOT / "target" / "release" / executable_name("p06-filter")
+GATES_CPP_FILTER = BUILD / executable_name("gates_filter")
+GATES_RUST_FILTER = ROOT / "target" / "release" / executable_name("p12-filter")
 
 #   P08  a sample and then event names per line in; the final state, every row
 #        index taken, the counters and the stub's frame out
@@ -79,6 +81,8 @@ FILTER_BUILD_COMMAND = {
     ATTR_RUST_FILTER: "cargo build --release --workspace",
     RATE_CPP_FILTER: "python python/tools/build_host.py",
     RATE_RUST_FILTER: "cargo build --release --workspace",
+    GATES_CPP_FILTER: "python python/tools/build_host.py",
+    GATES_RUST_FILTER: "cargo build --release --workspace",
 }
 
 

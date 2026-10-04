@@ -1,12 +1,13 @@
 # Rust on this part
 
-**Six crates since Saturday 3 October 2026**, P09's codec, P05's framing, P08's
-state machine, P02's ring, P03's loss attribution and P06's rate witness, all in
-the workspace at the repository root. All six are proven against their projects'
+**Seven crates**, P09's codec, P05's framing, P08's state machine, P02's ring,
+P03's loss attribution and P06's rate witness since Saturday 3 October 2026, and
+P12's two gates since Sunday 4 October 2026, all in the workspace at the
+repository root. All six are proven against their projects'
 own oracles as of Sunday 4 October 2026, with 38 properties in `cargo test` that
 need no other implementation.
 
-**Five of the six are `no_std`, and the sixth is the finding.** `p06-rate` is
+**Six of the seven are `no_std`, and which one is not is the finding.** `p06-rate` is
 `std`, because `f64::sqrt`, `f64::abs` and `f64::is_nan` live in `std` and not in
 `core`: Rust's core library has no floating-point maths at all, since those
 functions live in the platform's libm and `core` assumes no platform. A `no_std`
@@ -18,6 +19,25 @@ portable to this part in C and is not in Rust without a crate, which is a cost o
 the language in the one direction people do not usually expect. `code.yml`
 therefore names the five `no_std` packages for the `thumbv7em-none-eabihf` build
 rather than building the workspace, and says why at the step.
+
+**P12's crate turns P06's finding from an anecdote into a pattern.** It came
+within one function call of the same fate: the charge gate reconciles a reported
+total against the sum of its phases, and the obvious spelling of that needs
+`f64::abs`, which is in `std` for exactly the same reason `sqrt` is. Written as
+two comparisons instead it needs nothing, so the crate is `no_std` and the
+`thumbv7em-none-eabihf` step includes it. Two crates, the same obstacle, two
+different answers: `core` has no floating-point maths at all, that bites any
+numeric code written for a target in Rust, and whether it costs a dependency
+comes down to whether the particular arithmetic can be spelled without libm.
+P06's could not and P12's could, barely.
+
+It does need `alloc`, because its answer is a string of unknown length, and that
+is the other half of the comparison. The C avoids allocation with fixed buffers
+and a refusal when they do not fit, which is the right shape for a file that
+compiles for the target and costs it about sixty lines of appending, bounds
+checking and an insertion sort that the Rust and the C++ do not have. A `--lib`
+build for the target needs no allocator, which is why CI can include the crate;
+a binary would, and nothing here has one.
 
 **P06's carries a finding of a different kind**, and it is about a tool rather
 than the language. `cargo clippy -D warnings` refused `p06-rate` alone of the six

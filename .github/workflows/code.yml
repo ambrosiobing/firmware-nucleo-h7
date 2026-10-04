@@ -85,6 +85,15 @@ jobs:
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti -ffp-contract=off \
             -Iprojects/P06-timer-sampling/cpp \
             -c projects/P06-timer-sampling/cpp/rate_filter.cpp -o build-host/werror/p06_cpp.o
+          # P12's two gates. -ffp-contract=off on both, for the same reason
+          # P06 has it: the charge gate reconciles a total against the sum of
+          # its parts and reports percentages, and the contraction of a
+          # multiply and an add is not the same across gcc, g++ and rustc.
+          gcc -std=c11 -O2 $W -ffp-contract=off -Iprojects/P12-energy-regression/c \
+            -c projects/P12-energy-regression/c/gates.c -o build-host/werror/p12_c.o
+          g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti -ffp-contract=off \
+            -Iprojects/P12-energy-regression/cpp \
+            -c projects/P12-energy-regression/cpp/gates_filter.cpp -o build-host/werror/p12_cpp.o
 
       - name: P09, the golden vectors
         run: python -m pytest python/tests/test_vectors.py -q
@@ -117,6 +126,9 @@ jobs:
 
       - name: P06, every language reads the same rate from the same capture
         run: python -m pytest python/tests/test_rate_parity.py -q -s
+
+      - name: P12, every language reaches the same verdict on every case
+        run: python -m pytest python/tests/test_gates_parity.py -q -s
 
       - name: P09, the twin stays inside the MicroPython subset
         run: python -m pytest python/tests/test_micropython_subset.py -q
@@ -204,9 +216,17 @@ jobs:
       # same program is portable to this part in C and is not in Rust without a
       # crate, which is a cost of the language in the direction people do not
       # usually expect.
+      #
+      # p12-gates IS here, and it came within one call of P06's fate. Its charge
+      # gate reconciles a reported total against the sum of its phases, and the
+      # obvious spelling of that needs f64::abs, which is in std for the same
+      # reason sqrt is. It is written as two comparisons instead, so the crate is
+      # no_std and needs nothing. It does need alloc, because its answer is a
+      # string of unknown length, and a --lib build for this target needs no
+      # allocator; a binary would, and nothing here has one.
       - name: Every no_std library compiles for the board's target
         run: |
-          cargo build --release --target thumbv7em-none-eabihf --lib             -p p02-ring -p p03-attribute -p p05-frame -p p08-node-sm -p p09-payload
+          cargo build --release --target thumbv7em-none-eabihf --lib             -p p02-ring -p p03-attribute -p p05-frame -p p08-node-sm -p p09-payload -p p12-gates
 
       - uses: actions/setup-python@v5
         with:
@@ -234,6 +254,9 @@ jobs:
 
       - name: P06, all four witnesses over one set of captures
         run: python -m pytest python/tests/test_rate_parity.py -q -s
+
+      - name: P12, all four gates over one set of cases
+        run: python -m pytest python/tests/test_gates_parity.py -q -s
 
   # A second job with a seed nobody chose. It prints the seed before doing any
   # work, so a failure here is reproducible from the log.
