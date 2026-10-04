@@ -150,6 +150,7 @@ add_library(board OBJECT
     c/board/uart.c
     c/board/cycles.c
     c/board/icache.c
+    c/board/clock280.c
     c/board/retarget.c)
 target_include_directories(board PUBLIC c/board)
 
@@ -229,6 +230,19 @@ endfunction()
 # P01, first light. Blinks on the reset clock using only settled board facts.
 add_firmware(p01-first-light
     SOURCES projects/P01-toolchain-first-light/c/main.c)
+
+# P01, the clock tree. A SECOND target rather than a flag on the first, and the
+# reason is the measurements: every cycle figure in this volume was taken at
+# 64 MHz, and one image that sometimes raised the clock would invalidate them
+# while changing no line of the code that produced them. Two images means a
+# reader can always tell which clock a figure came from by which image produced
+# it.
+#
+# It needs no vendor pack. The registers it writes are in c/board, sourced from
+# ST's CMSIS header on the win11 skyhorizon demo laptop and recorded at
+# BOARD_CLOCK_280_SOURCE, so this builds wherever p01-first-light does.
+add_firmware(p01-pll280
+    SOURCES projects/P01-toolchain-first-light/c/pll280.c)
 
 # P02, the ring buffer on the target, which is the only place its deliverable can
 # be tested. Four targets, one per ordering mode, because the chapter's subject is

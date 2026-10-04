@@ -16,11 +16,21 @@
  *   - the high-speed clock arrives from the on-board debugger in bypass mode at
  *     8 MHz, and 8 / 2 times 140 / 2 gives 280 MHz
  *
+ * Settled on Sunday 4 October 2026, after being refused since Friday
+ * 2 October 2026:
+ *   - the register sequence for 280 MHz, which needed the PLL fields, the flash
+ *     access latency, the voltage scaling AND two things nothing in the field
+ *     descriptions implies: that voltage scale 0 is reachable only from scale 1,
+ *     and that a supply has to be selected first to leave Run* mode at all. The
+ *     second was found by the board rather than by reading. See clock280.c.
+ *   - that this board's core is supplied through the SMPS and not the LDO, which
+ *     the board established by stopping when the LDO was selected
+ *
  * Open, and therefore refused rather than guessed:
- *   - the RM0455 register fields for the PLL, the flash latency and the voltage
- *     scaling that 280 MHz needs
  *   - the virtual COM port pins, believed USART3 on PD8 and PD9 by Nucleo-144
  *     convention but not read from the MB1363 board manual
+ *   - the timer registers freqcount.c needs, which is why no frequency in this
+ *     repository is MEASURED by an instrument that does not share the clock
  *
  * The consequence is the shape of this interface. The part boots on its internal
  * oscillator, so an LED can blink using only settled facts, and that is what
@@ -196,6 +206,84 @@ bool board_icache_enabled(void);
  * draw. P01 now prints the state only when it changes, so it costs nothing per
  * cycle. */
 void board_button_debug(uint32_t *moder, uint32_t *pupdr, uint32_t *idr);
+
+/* ------------------------------------------------------------- the 280 MHz tree
+ *
+ * Raising the clock is deliberately NOT part of board_init(). Every other
+ * project in this repository was measured at 64 MHz, and a board support that
+ * quietly raised the clock would invalidate every one of those figures while
+ * changing no line of their code. So this is a separate call, made by the one
+ * image whose subject it is, and a project that wants 280 MHz asks for it.
+ *
+ * The six steps, in the order they must happen. Each is reported separately
+ * because "the clock did not come up" is not a finding anybody can act on, and
+ * "the flash latency wrote 6 and read back 0" is.
+ */
+typedef enum {
+    /* TWO voltage scaling steps and not one. Scale 0 is only reachable from
+     * scale 1, which the board established on Sunday 4 October 2026 by refusing
+     * a direct write from the reset scale. The two are separate steps so the
+     * report says which of the two transitions a failure was in, and that
+     * distinction is the whole reason the first attempt was diagnosable. */
+    /* The supply first, and it is first because nothing else works without it.
+     * At reset the part is in Run* mode with no supply selected, and in that
+     * state the regulator declines every voltage scale change in silence. */
+    CLOCK280_STEP_SUPPLY   = 0,   /* exit Run* mode, select the SMPS */
+    CLOCK280_STEP_VOS1     = 1,   /* the reset scale to scale 1 */
+    CLOCK280_STEP_VOS0     = 2,   /* scale 1 to scale 0, the only legal route */
+    CLOCK280_STEP_LATENCY  = 3,   /* flash wait states, before the frequency */
+    CLOCK280_STEP_HSE      = 4,   /* the debugger's 8 MHz, in bypass */
+    CLOCK280_STEP_PLL      = 5,   /* configured and locked, core still on HSI */
+    CLOCK280_STEP_BUSES    = 6,   /* prescalers, while sys_ck is still 64 MHz */
+    CLOCK280_STEP_SWITCH   = 7,   /* sys_ck to the PLL, last and gated */
+    CLOCK280_STEP_COUNT    = 8,
+} clock280_step_t;
+
+/* What one step did, rather than whether it worked. `wrote` is what the code
+ * intended and `read_back` is what the register holds, and printing both is what
+ * turns a failed clock into a readable fault: a wrong peripheral base address
+ * reads back the reset value, a reserved field reads back zero, and a field that
+ * moved between parts reads back something that is neither. */
+typedef struct {
+    bool     attempted;
+    bool     ok;
+    uint32_t wrote;
+    uint32_t read_back;
+    uint32_t spins;      /* iterations a ready flag took; 0 where none is waited on */
+} clock280_record_t;
+
+typedef struct {
+    clock280_record_t step[CLOCK280_STEP_COUNT];
+    clock280_step_t   failed_at;    /* CLOCK280_STEP_COUNT when all six passed */
+    bool              reached_280;  /* the DECODE agrees, not merely the writes */
+} clock280_result_t;
+
+/* Attempt the sequence. Returns 0 only when every step read back correctly AND
+ * the clock decoded from the registers afterwards equals the target, which are
+ * two different claims: the first says the writes took, the second says the
+ * decoder and the hardware agree about what they mean.
+ *
+ * On any failure it returns non-zero WITHOUT having switched sys_ck, so the part
+ * stays on the internal oscillator with a working console and the record can be
+ * printed. That is the whole reason the switch is last.
+ *
+ * NEITHER RETURN VALUE IS A MEASUREMENT. 280 MHz here is derived: an 8 MHz board
+ * fact, multiplied and divided by fields read back out of the registers. The
+ * figure becomes measured when an instrument that does not share this clock says
+ * so, which is what P06's witness is for and what freqcount.c still refuses. */
+int board_clock_raise_to_280(clock280_result_t *out);
+
+/* The name of a step, for a console line a reader can act on. */
+const char *board_clock280_step_name(clock280_step_t step);
+
+/* Decode the clock tree from the registers again, and update what
+ * board_core_hz, board_pclk1_hz and board_clock_status report.
+ *
+ * SystemInit does this once at reset. Anything that changes the tree afterwards
+ * has to ask for it again, or those three functions describe a clock that is no
+ * longer running, which is worse than reporting nothing: every figure derived
+ * from them would be scaled by a factor and still look plausible. */
+void board_clock_rescan(void);
 
 /* A crude busy wait, in milliseconds, derived from board_core_hz(). When the
  * core frequency is not established this is approximate and the function says

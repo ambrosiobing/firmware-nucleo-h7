@@ -63,28 +63,102 @@ static uint32_t apb_divider(uint32_t field)
     }
 }
 
-/* sys_ck, in hertz, or 0 when this code cannot say.
+/* The internal oscillator, after its own divider.
  *
- * HSI is decoded; the other three sources refuse, each for its own reason. CSI
- * has a nominal this repository has not sourced. HSE depends on what the board
- * feeds in, which is the debugger's 8 MHz here but is a board fact rather than a
- * register fact. PLL1 would need its own divider chain decoded from four more
- * registers, which is a later chapter, and guessing it would produce exactly the
- * plausible wrong frequency this whole design refuses. */
-static uint32_t system_source_hz(void)
+ * HSIDIV is two bits and the header names all four values: _1, _2, _4 and _8 at
+ * field values 0 to 3. So the divisor is 1 << field and the frequency is a right
+ * shift, which is exact rather than a rounded division. */
+static uint32_t hsi_hz(void)
 {
-    const uint32_t cr  = RCC_CR;
-    const uint32_t sws = (RCC_CFGR & RCC_CFGR_SWS_MSK) >> RCC_CFGR_SWS_POS;
+    const uint32_t d = (RCC_CR & RCC_CR_HSIDIV_MSK) >> RCC_CR_HSIDIV_POS;
+    return HSI_HZ_NOMINAL >> d;
+}
 
-    if (sws != RCC_SWS_HSI) {
+/* The external clock, which is a board fact and not a register fact, so this
+ * refuses unless the board is in the one configuration the fact covers.
+ *
+ * On this Nucleo the on-board debugger drives the pin and there is no crystal
+ * fitted, which is what HSEBYP being set means. With the bypass bit clear, the
+ * part is waiting on or running from an oscillator this repository knows nothing
+ * about, and returning 8 MHz then would be asserting a board fact that does not
+ * apply. */
+static uint32_t hse_hz(void)
+{
+    const uint32_t cr = RCC_CR;
+
+    if ((cr & RCC_CR_HSEBYP_MSK) == 0u || (cr & RCC_CR_HSERDY_MSK) == 0u) {
+        return 0u;
+    }
+    return HSE_HZ_BYPASS;
+}
+
+/* PLL1's P output, decoded from the three registers that define it, or 0.
+ *
+ * DECODED AND NOT ASSERTED, which is the point. This function is what makes
+ * board_core_hz() equally truthful on the reset clock and on the 280 MHz tree
+ * with no second code path, and it is also what would catch the sequence in
+ * clock280.c writing a field it did not mean to: the raise asks this decoder
+ * afterwards whether it agrees, rather than reporting the target it aimed at.
+ *
+ * Four things make it refuse rather than return a plausible number:
+ *   - a fractional term enabled, because FRACN is not decoded here and it would
+ *     move the frequency by an amount this function cannot account for
+ *   - a PLL source whose own frequency is unknown, which is CSI and NONE
+ *   - a zero divider, which the hardware allows to be written
+ *   - a multiply that would overflow 32 bits before the division
+ * The last one matters: 32 bits runs out at 4.29 GHz and this part's oscillator
+ * goes to 836 MHz, so the margin is real but it is not large enough to leave
+ * unchecked. */
+static uint32_t pll1_p_hz(void)
+{
+    const uint32_t sel  = RCC_PLLCKSELR;
+    const uint32_t cfg  = RCC_PLLCFGR;
+    const uint32_t divr = RCC_PLL1DIVR;
+
+    if ((cfg & RCC_PLLCFGR_PLL1FRACEN_MSK) != 0u) {
+        return 0u;
+    }
+    if ((cfg & RCC_PLLCFGR_DIVP1EN_MSK) == 0u) {
+        return 0u;   /* the P output is not enabled, so it is not driving sys_ck */
+    }
+
+    uint32_t ref;
+    switch (sel & RCC_PLLCKSELR_PLLSRC_MSK) {
+    case 0u:              ref = hsi_hz(); break;   /* PLLSRC_HSI */
+    case RCC_PLLSRC_HSE:  ref = hse_hz(); break;
+    default:              return 0u;               /* CSI, or no source */
+    }
+    if (ref == 0u) {
         return 0u;
     }
 
-    /* HSIDIV is two bits and the header names all four values: _1, _2, _4 and _8
-     * at field values 0 to 3. So the divisor is 1 << field and the frequency is a
-     * right shift, which is exact rather than a rounded division. */
-    const uint32_t d = (cr & RCC_CR_HSIDIV_MSK) >> RCC_CR_HSIDIV_POS;
-    return HSI_HZ_NOMINAL >> d;
+    /* DIVM1 holds the value; N1, P1, Q1 and R1 hold the value minus one. That
+     * asymmetry is ST's and is sourced at RCC_PLL1DIVR_N1_POS, not inferred. */
+    const uint32_t m = (sel & RCC_PLLCKSELR_DIVM1_MSK) >> RCC_PLLCKSELR_DIVM1_POS;
+    const uint32_t n = ((divr & RCC_PLL1DIVR_N1_MSK) >> RCC_PLL1DIVR_N1_POS) + 1u;
+    const uint32_t pdiv = ((divr & RCC_PLL1DIVR_P1_MSK) >> RCC_PLL1DIVR_P1_POS) + 1u;
+
+    if (m == 0u) {
+        return 0u;
+    }
+    const uint32_t in = ref / m;
+    if (in == 0u || in > (0xFFFFFFFFu / n)) {
+        return 0u;
+    }
+    return (in * n) / pdiv;
+}
+
+/* sys_ck, in hertz, or 0 when this code cannot say. CSI is the one source still
+ * refused outright: its nominal frequency is not sourced anywhere in this
+ * repository, and nothing here selects it. */
+static uint32_t system_source_hz(void)
+{
+    switch ((RCC_CFGR & RCC_CFGR_SWS_MSK) >> RCC_CFGR_SWS_POS) {
+    case RCC_SWS_HSI:  return hsi_hz();
+    case RCC_SWS_HSE:  return hse_hz();
+    case RCC_SWS_PLL1: return pll1_p_hz();
+    default:           return 0u;
+    }
 }
 
 /* Decode rather than assume, so this reports the truth on the reset clock now and
@@ -179,6 +253,15 @@ void SystemInit(void)
 board_status_t board_clock_status(void)
 {
     return g_clock_status;
+}
+
+/* Decode again, after something changed the tree. See board.h for why this is a
+ * separate call rather than something board_init does. */
+void board_clock_rescan(void)
+{
+#ifdef BOARD_REGS_CONFIRMED
+    clock_establish();
+#endif
 }
 
 uint32_t board_core_hz(void)

@@ -454,9 +454,246 @@
  * thousand on this board, which is what a reader actually needs to know. */
 #define HSI_HZ_NOMINAL     64000000u
 
-/* The target, which is settled arithmetic from settled facts: the debugger
- * supplies 8 MHz in bypass mode, and 8 / 2 times 140 / 2 gives 280 MHz. What is
- * not settled is the register sequence that achieves it. */
+/* The target. 280 MHz, reached the way ST reaches it on this exact board.
+ *
+ * THE FACTORISATION CHANGED ON SUNDAY 4 OCTOBER 2026 and the old one is worth
+ * leaving here as a warning. This comment used to read "8 / 2 times 140 / 2
+ * gives 280 MHz", which is arithmetically correct: an 8 MHz input divided by 2
+ * is 4 MHz, times 140 is a 560 MHz oscillator, divided by 2 is 280 MHz.
+ *
+ * ST divides it differently. Its own example for the NUCLEO-H7A3ZI-Q uses
+ * PLLM 4, PLLN 280, PLLP 2: a 2 MHz input, the same 560 MHz oscillator, the same
+ * 280 MHz out. Both are right about the output and they are not interchangeable,
+ * because the PLL input range field has to contain the input, and ST pairs its
+ * choice with PLL1VCIRANGE_1, which is the 2 to 4 MHz range. Writing the old
+ * factorisation while copying that range constant would have set a range that
+ * does not contain 4 MHz, and nothing would have refused.
+ *
+ * So the numbers below are ST's, from the source named at
+ * BOARD_CLOCK_280_SOURCE, and not an independent derivation that happens to
+ * agree on the product.
+ */
 #define CORE_HZ_TARGET     280000000u
+
+/* The high speed clock this board actually has: the on-board debugger drives it
+ * in bypass mode, so there is no crystal to start and HSEBYP must be set before
+ * HSEON or the part waits for an oscillator that is not fitted. A settled board
+ * fact, from the same two machine-readable sources as the LED pins. */
+#define HSE_HZ_BYPASS      8000000u
+
+/* ------------------------------------------------------------------ the 280 MHz
+ * tree: the registers, the fields and where each came from.
+ *
+ * Confirmed Sunday 4 October 2026. The authority is the same one the rest of
+ * this header names, ST's CMSIS device header for this exact die, read on the
+ * win11 skyhorizon demo laptop, plus two files beside it for the parts a CMSIS
+ * header does not carry. All three are named at each value below.
+ *
+ * A NOTE ON THE OFFSETS, because this is where the family trap bit hardest.
+ * These are member positions inside RCC_TypeDef, PWR_TypeDef and FLASH_TypeDef,
+ * computed from the declaration order, and NOT taken from the trailing comments
+ * in those declarations. From RCC's RSR onward those comments are the
+ * STM32H743's: they say RSR is at 0xD0 where the declaration order gives 0x130,
+ * a difference of 0x60, because the H743's reserved gap before RSR is smaller.
+ * That is why RCC_AHB4ENR above is 0x140 and not the 0xE0 the comment claims.
+ * The three registers added here sit before that gap, at 0x28, 0x2C and 0x30,
+ * where the comments and the declaration order agree, and they were still
+ * counted rather than read.
+ */
+#define BOARD_CLOCK_280_SOURCE \
+    "ST CMSIS stm32h7a3xxq.h for the fields; " \
+    "Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr.h for the voltage " \
+    "scale encoding; Projects/NUCLEO-H7A3ZI-Q/Applications/EEPROM/" \
+    "EEPROM_Emulation/Src/main.c for the dividers, the ranges and the flash " \
+    "latency at 280 MHz. STM32Cube_FW_H7_V1.13.0, read Sunday 4 October 2026"
+
+#define RCC_PLLCKSELR   REG32(RCC_BASE + 0x028u)  /* PLL source and DIVM */
+#define RCC_PLLCFGR     REG32(RCC_BASE + 0x02Cu)  /* ranges and output enables */
+#define RCC_PLL1DIVR    REG32(RCC_BASE + 0x030u)  /* N, P, Q, R for PLL1 */
+
+#define PWR_SRDCR       REG32(PWR_BASE + 0x018u)  /* voltage scaling lives here */
+#define FLASH_ACR       REG32(FLASH_BASE_REG + 0x000u)
+
+/* HSE, from the header's own _Pos defines. The order matters at run time: bypass
+ * before enable, then wait for ready. */
+#define RCC_CR_HSEBYP_MSK       (1u << 18)
+#define RCC_CR_HSERDY_MSK       (1u << 17)
+#define RCC_CR_PLL1RDY_MSK      (1u << 25)
+
+/* The PLL source field, and the one value this board uses. */
+#define RCC_PLLCKSELR_PLLSRC_MSK    (3u << 0)
+#define RCC_PLLSRC_HSE              2u      /* RCC_PLLCKSELR_PLLSRC_HSE */
+
+/* DIVM1 IS WRITTEN AS THE VALUE ITSELF, and N1, P1, Q1 and R1 are written as the
+ * value minus one. That asymmetry is not a guess and not a symmetry anybody
+ * should assume: the HAL reads them back as
+ *
+ *     PLLM = (PLLCKSELR & DIVM1) >> DIVM1_Pos            no adjustment
+ *     PLLN = ((PLL1DIVR & N1) >> N1_Pos) + 1             plus one
+ *     PLLP = ((PLL1DIVR & P1) >> P1_Pos) + 1             plus one
+ *
+ * in stm32h7xx_hal_rcc.c, which is what settles it. Getting N1 wrong by one is
+ * 279 MHz instead of 280, which is 0.36 per cent: too small to notice by eye and
+ * too large to ignore in a timing figure. */
+#define RCC_PLLCKSELR_DIVM1_POS     4u
+#define RCC_PLLCKSELR_DIVM1_MSK     (0x3Fu << RCC_PLLCKSELR_DIVM1_POS)
+#define RCC_PLL1DIVR_N1_POS         0u
+#define RCC_PLL1DIVR_N1_MSK         (0x1FFu << RCC_PLL1DIVR_N1_POS)
+#define RCC_PLL1DIVR_P1_POS         9u
+#define RCC_PLL1DIVR_P1_MSK         (0x7Fu << RCC_PLL1DIVR_P1_POS)
+#define RCC_PLL1DIVR_Q1_POS         16u
+#define RCC_PLL1DIVR_Q1_MSK         (0x7Fu << RCC_PLL1DIVR_Q1_POS)
+#define RCC_PLL1DIVR_R1_POS         24u
+#define RCC_PLL1DIVR_R1_MSK         (0x7Fu << RCC_PLL1DIVR_R1_POS)
+
+/* The oscillator range and the input range. VCOSEL 0 is the wide range, which is
+ * what ST selects for the 560 MHz oscillator this tree runs. The input range
+ * field is two bits and the HAL names all four: 1 to 2, 2 to 4, 4 to 8 and 8 to
+ * 16 MHz at field values 0 to 3. This tree feeds the PLL 2 MHz, so it takes
+ * value 1, which is what ST's example writes. */
+#define RCC_PLLCFGR_PLL1FRACEN_MSK  (1u << 0)
+#define RCC_PLLCFGR_PLL1VCOSEL_MSK  (1u << 1)
+#define RCC_PLLCFGR_PLL1RGE_POS     2u
+#define RCC_PLLCFGR_PLL1RGE_MSK     (3u << RCC_PLLCFGR_PLL1RGE_POS)
+#define RCC_PLL1VCO_WIDE            0u      /* RCC_PLL1VCOWIDE */
+#define RCC_PLL1VCI_2_TO_4_MHZ      1u      /* RCC_PLL1VCIRANGE_1 */
+#define RCC_PLLCFGR_DIVP1EN_MSK     (1u << 16)
+
+/* The system clock switch. SW selects, SWS reports, and the two have different
+ * positions, which is why both are here. */
+#define RCC_CFGR_SW_POS             0u
+#define RCC_CFGR_SW_MSK             (7u << RCC_CFGR_SW_POS)
+#define RCC_SW_PLL1                 3u      /* RCC_CFGR_SW_PLL1 */
+
+/* THE VOLTAGE SCALING, AND THE SHARPEST INSTANCE OF THIS VOLUME'S TRAP.
+ *
+ * VOS is two bits at 15:14 of PWR_SRDCR, with VOSRDY at 13. The encoding below
+ * is from stm32h7xx_hal_pwr.h, where it reads
+ *
+ *     #define PWR_REGULATOR_VOLTAGE_SCALE0  (PWR_SRDCR_VOS_1 | PWR_SRDCR_VOS_0)
+ *     #define PWR_REGULATOR_VOLTAGE_SCALE3  (0U)
+ *
+ * In the same file, guarded for the STM32H743, the same two names read
+ *
+ *     #define PWR_REGULATOR_VOLTAGE_SCALE0  (0U)
+ *     #define PWR_REGULATOR_VOLTAGE_SCALE3  (PWR_D3CR_VOS_0)
+ *
+ * The names are identical and the encodings are reversed. Scale 0 is the highest
+ * performance on both parts and it is 0b11 here and 0b00 there. Writing this
+ * field from STM32H743 knowledge would select the LOWEST performance scale while
+ * believing it had selected the highest, and would then run 280 MHz with six
+ * wait states outside the regulator's range. Nothing refuses; it is simply
+ * wrong, and it would be wrong intermittently, which is worse. */
+#define PWR_SRDCR_VOS_POS       14u
+#define PWR_SRDCR_VOS_MSK       (3u << PWR_SRDCR_VOS_POS)
+#define PWR_SRDCR_VOSRDY_MSK    (1u << 13)
+#define PWR_VOS_SCALE3          0u      /* the reset scale, lowest performance */
+#define PWR_VOS_SCALE1          2u      /* the only way to reach scale 0 */
+#define PWR_VOS_SCALE0          3u      /* highest performance ON THIS PART */
+
+/* SCALE 0 IS ONLY REACHABLE FROM SCALE 1, and this was learned from the board
+ * on Sunday 4 October 2026 rather than from the register description.
+ *
+ * The first attempt wrote scale 0 straight over the reset value, which is scale
+ * 3, and read it back correctly: VOS held 3, so the encoding above was right.
+ * VOSRDY never set, for a million polls, which is tens of milliseconds against a
+ * flag that settles in microseconds. Nothing in the field description says why.
+ *
+ * The answer is in the doc comment above __HAL_PWR_VOLTAGESCALING_CONFIG in
+ * stm32h7xx_hal_pwr.h: "Transition to Voltage Scale 0 is only possible when the
+ * system is already in Voltage Scale 1." It is a constraint on the transition
+ * and not on the value, so no amount of reading the VOS field would have
+ * revealed it, and the part does not report it as an error: it simply declines
+ * to become ready.
+ *
+ * WHAT THAT SAYS ABOUT ST'S OWN EXAMPLE, which is the uncomfortable part. The
+ * NUCLEO-H7A3ZI-Q example this file took its dividers from writes scale 0
+ * directly from reset and then waits with while(!VOSRDY){}. On this board that
+ * bit does not set, so that loop does not terminate. The bounded wait in
+ * clock280.c is the only reason this came back as a diagnosis rather than as an
+ * image that stopped.
+ */
+
+/* THE SUPPLY CONFIGURATION, which has to happen before any voltage scaling and
+ * which this repository did not know about until the board refused twice.
+ *
+ * At reset this part is in what ST's own comment calls Run* mode: both SMPSEN
+ * and LDOEN are set in PWR_CR3, which is not a supply selection but the absence
+ * of one. In that state the regulator will not change voltage scale. It does not
+ * report an error; VOSRDY simply never sets, and PWR_CSR1's ACTVOSRDY is clear
+ * from reset, which is the bit that says so.
+ *
+ * Exiting Run* mode is a single write selecting one supply, and it LOCKS until
+ * the next reset. ST's per-board system_stm32h7xx.c does it, for the LDO on an
+ * SMPS part, as
+ *
+ *     PWR->CR3 = (PWR->CR3 & ~PWR_CR3_SMPSEN) | PWR_CR3_LDOEN;
+ *     while ((PWR->CSR1 & PWR_CSR1_ACTVOSRDY) == 0U) {}
+ *
+ * THE SMPS AND NOT THE LDO ON THIS BOARD, from two independent sources that
+ * agree. Every CubeIDE project file under Projects/NUCLEO-H7A3ZI-Q defines
+ * USE_PWR_DIRECT_SMPS_SUPPLY, and that branch of ST's ExitRun0Mode is
+ *
+ *     PWR->CR3 &= ~(PWR_CR3_LDOEN);
+ *
+ * which clears the LDO and leaves the SMPS running. ST sets the macro in the
+ * project configuration and not in any header, which is why searching the
+ * headers for it finds nothing.
+ *
+ * THE SECOND SOURCE IS THE BOARD, and it is the only evidence here that comes
+ * from hardware rather than from a file. On Sunday 4 October 2026 this file
+ * briefly did the opposite, clearing SMPSEN and setting LDOEN, on the argument
+ * that the LDO is on the die and therefore the safe choice. The board printed
+ * its banner, reached that write, and stopped: no step report, no reset loop, no
+ * further output. A power cycle recovered it completely and p01-first-light ran
+ * unchanged afterwards. Nothing was damaged, and the reading is that this
+ * board's core is supplied through the SMPS, so removing the SMPS removed the
+ * supply.
+ *
+ * The argument that was wrong is worth keeping next to the answer. "The LDO is
+ * on the die, so selecting it cannot hurt" is true about the die and says
+ * nothing about the board, and a supply is a board fact. Reasoning about which
+ * way a risk points is not a substitute for reading what the board is wired to
+ * do, and this repository's own rule already said so.
+ *
+ * WHERE THIS WAS FOUND, because the first place looked was the wrong one. There
+ * are two files named system_stm32h7xx.c in the pack. The CMSIS template under
+ * Drivers/CMSIS/Device/ST/STM32H7xx/Source/Templates has no supply
+ * configuration at all. A per-project copy in each of the ninety examples under
+ * Projects/NUCLEO-H7A3ZI-Q does, and that is the one that matters. Reading only
+ * the template supports the conclusion that ST never configures the supply,
+ * which is wrong.
+ */
+#define PWR_CR3                 REG32(PWR_BASE + 0x00Cu)
+#define PWR_CR3_BYPASS_MSK      (1u << 0)
+#define PWR_CR3_LDOEN_MSK       (1u << 1)
+#define PWR_CR3_SMPSEN_MSK      (1u << 2)
+
+/* PWR_CSR1, which reports the scale ACTUALLY IN USE as opposed to the one
+ * selected in SRDCR. Worth having in the dump for the same reason the read-back
+ * is worth having: a selected value and an active value that disagree is a
+ * different fault from a write that did not land, and ACTVOS is the only field
+ * that can tell them apart. Offset 0x04, from the declaration order of
+ * PWR_TypeDef. */
+#define PWR_CSR1                REG32(PWR_BASE + 0x004u)
+#define PWR_CSR1_ACTVOS_POS     14u
+#define PWR_CSR1_ACTVOS_MSK     (3u << PWR_CSR1_ACTVOS_POS)
+#define PWR_CSR1_ACTVOSRDY_MSK  (1u << 13)
+
+/* The flash access latency. The field is four bits at 3:0 and ST's own example
+ * for this board passes FLASH_LATENCY_6 at 280 MHz, which is the value 6. The
+ * number of wait states a frequency needs is a datasheet table keyed on the
+ * voltage scale and the bus clock, and it is NOT in any header, so this is the
+ * one value here that rests on an example rather than on a definition. That is
+ * named rather than hidden, and the read-back gate is what makes it safe to act
+ * on: too many wait states is slow and correct, too few is garbage. */
+#define FLASH_ACR_LATENCY_POS   0u
+#define FLASH_ACR_LATENCY_MSK   (0xFu << FLASH_ACR_LATENCY_POS)
+#define FLASH_LATENCY_280MHZ    6u
+
+/* WRHIGHFREQ at 5:4 is deliberately left at its reset value. It sets the
+ * programming delay rather than the read latency, ST's clock configuration never
+ * writes it, and no image in this repository programs flash at 280 MHz. When one
+ * does, this is the field to read about first. */
 
 #endif /* STM32H7A3_REGS_H */
