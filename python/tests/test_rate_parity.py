@@ -225,9 +225,9 @@ def captures_dir():
     shutil.rmtree(path, ignore_errors=True)
 
 
-def write_capture(tmp_path, name, samples):
+def write_capture(captures_dir, name, samples):
     """One value per line, with a header, so the loader's header rule is used."""
-    path = tmp_path / (name.replace(" ", "_").replace(",", "")[:40] + ".csv")
+    path = captures_dir / (name.replace(" ", "_").replace(",", "")[:40] + ".csv")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("volts\n")
         for v in samples:
@@ -279,10 +279,10 @@ def via_python(cases):
     return out
 
 
-def via_filter(path, cases, tmp_path):
+def via_filter(path, cases, captures_dir):
     lines = []
     for name, samples in cases:
-        capture = write_capture(tmp_path, name, samples)
+        capture = write_capture(captures_dir, name, samples)
         lines.append("A {} {:.17g} {:.17g}".format(capture, FS, NOMINAL))
     answers = run_filter(path, lines)
     out = []
@@ -308,10 +308,29 @@ def via_filter(path, cases, tmp_path):
 
 
 def available(cases, captures_dir):
+    """The implementations that exist on this laptop, each over the same cases.
+
+    **A defect worth leaving a note about, because of where it hid.** Until
+    Sunday 4 October 2026 the call below passed `tmp_path`, a name left over from
+    the rename to `captures_dir` and bound nowhere in this module. On win11
+    aquamarine the branch never ran: neither filter is built there, so
+    `path.exists()` is false for both, and this test reported that C and Python
+    agree and passed. The NameError appeared the first time a laptop had all four
+    implementations, which is the only time the four-language comparison runs at
+    all.
+
+    So the pattern that makes this suite honest on a laptop with no compiler, a
+    missing implementation skips with the reason printed, is also the pattern that
+    kept an error in the comparison path out of sight. `assert_not_vacuous` did
+    not catch it either, because it skips on Windows for the same reason. The
+    lesson is recorded rather than designed away: on this laptop a parity test
+    proves the Python and the C agree, and nothing more, whatever its green tick
+    suggests.
+    """
     present = {"C": via_c(cases), "Python": via_python(cases)}
     for name, path in (("C++", RATE_CPP_FILTER), ("Rust", RATE_RUST_FILTER)):
         if path.exists():
-            present[name] = via_filter(path, cases, tmp_path)
+            present[name] = via_filter(path, cases, captures_dir)
     return present
 
 

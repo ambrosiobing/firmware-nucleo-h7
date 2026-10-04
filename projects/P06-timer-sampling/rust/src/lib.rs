@@ -271,7 +271,11 @@ pub fn fit_line(x: &[f64], y: &[f64]) -> Option<Fit> {
 pub fn analyse(samples: &[f64], fs: f64, nominal_hz: f64, out: &mut Analysis) -> Option<Refused> {
     *out = Analysis {
         sample_rate_hz: fs,
-        duration_s: if fs > 0.0 { samples.len() as f64 / fs } else { 0.0 },
+        duration_s: if fs > 0.0 {
+            samples.len() as f64 / fs
+        } else {
+            0.0
+        },
         nominal_hz,
         resolution_s: if fs > 0.0 { 1.0 / fs } else { f64::NAN },
         ..Default::default()
@@ -302,7 +306,11 @@ pub fn analyse(samples: &[f64], fs: f64, nominal_hz: f64, out: &mut Analysis) ->
     let period = fit.map_or(f64::NAN, |f| f.slope);
     let period_se = fit.map_or(f64::NAN, |f| f.slope_se);
     out.fit_period_s = period;
-    out.fit_rate_hz = if period != 0.0 { 1.0 / period } else { f64::NAN };
+    out.fit_rate_hz = if period != 0.0 {
+        1.0 / period
+    } else {
+        f64::NAN
+    };
     // dRate = dPeriod / period squared.
     out.fit_rate_se_hz = if period != 0.0 {
         period_se / (period * period)

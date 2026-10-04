@@ -68,6 +68,15 @@ jobs:
       - name: Every project's state agrees with its code and with the table
         run: python python/tools/check_status.py
 
+      # Added on Sunday 4 October 2026. Half of this suite's code paths cannot
+      # run on the laptop that writes them, because compiling there is
+      # forbidden, so a branch that drives a compiled filter is dead there and a
+      # name error inside it passes. One did, in P06's parity test, and it
+      # surfaced only on the first laptop that had all four implementations.
+      # An undefined name needs nothing run to find it, so it is checked here.
+      - name: Every name the Python reads is bound by something
+        run: python python/tools/check_names.py
+
       - name: No assembled volume and no PDF is published
         run: |
           set -e

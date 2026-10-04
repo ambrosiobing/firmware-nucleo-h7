@@ -13,6 +13,19 @@
 #include "rate.h"
 
 #include <math.h>
+
+/* nan("") and not NAN, in all nine places, and the reason is a warning rather
+   than a preference. C defines NAN as a constant expression of type FLOAT, so
+   every conditional in this file that offered it as one arm promoted a float to
+   a double, and -Wdouble-promotion said so four times when gcc 15 first saw this
+   file in WSL on bing@JPTOUPM678 on Sunday 4 October 2026. Nothing would have
+   gone wrong, because a float NaN is still a NaN, but the whole subject of this
+   file is that its arithmetic is double and agrees with three other
+   implementations to one part in 1e12, so a warning that finds a float in an
+   arithmetic path is one to keep rather than one to cast away. nan("") returns a
+   double, gcc folds it to a constant, newlib provides it for the target, and it
+   is what rate.hpp already wrote, which is why the C++ never warned and the C
+   did. The two files now read the same. */
 #include <stddef.h>
 
 int rate_rising_edges(const double *samples, size_t count, double fs,
@@ -79,7 +92,7 @@ int rate_fit_line(const double *x, const double *y, size_t count,
         return RATE_ERR_ARGS;
     }
     if (count < 3u) {
-        *slope = *intercept = *slope_se = NAN;
+        *slope = *intercept = *slope_se = nan("");
         return RATE_ERR_TOO_FEW_EDGES;
     }
 
@@ -96,7 +109,7 @@ int rate_fit_line(const double *x, const double *y, size_t count,
         sxx += d * d;
     }
     if (sxx == 0.0) {
-        *slope = *intercept = *slope_se = NAN;
+        *slope = *intercept = *slope_se = nan("");
         return RATE_ERR_TOO_FEW_EDGES;
     }
 
@@ -137,7 +150,7 @@ int rate_analyse(const double *samples, size_t count, double fs,
     out->sample_rate_hz = fs;
     out->duration_s = (fs > 0.0) ? (double) count / fs : 0.0;
     out->nominal_hz = nominal_hz;
-    out->resolution_s = (fs > 0.0) ? 1.0 / fs : NAN;
+    out->resolution_s = (fs > 0.0) ? 1.0 / fs : nan("");
 
     const int found = rate_rising_edges(samples, count, fs, edges, RATE_MAX_EDGES);
     if (found < 0) {
@@ -153,18 +166,18 @@ int rate_analyse(const double *samples, size_t count, double fs,
 
     /* Route one: the count. */
     const double span = edges[n - 1] - edges[0];
-    out->count_rate_hz = (span > 0.0) ? ((double) (n - 1)) / span : NAN;
+    out->count_rate_hz = (span > 0.0) ? ((double) (n - 1)) / span : nan("");
 
     /* Route two: the fit. */
     for (size_t i = 0; i < n; i++) {
         index[i] = (double) i;
     }
-    double period = NAN, intercept = NAN, period_se = NAN;
+    double period = nan(""), intercept = nan(""), period_se = nan("");
     (void) rate_fit_line(index, edges, n, &period, &intercept, &period_se);
     out->fit_period_s = period;
-    out->fit_rate_hz = (period != 0.0) ? 1.0 / period : NAN;
+    out->fit_rate_hz = (period != 0.0) ? 1.0 / period : nan("");
     /* dRate = dPeriod / period squared. */
-    out->fit_rate_se_hz = (period != 0.0) ? period_se / (period * period) : NAN;
+    out->fit_rate_se_hz = (period != 0.0) ? period_se / (period * period) : nan("");
 
     /* The intervals, and what the worst one is. */
     const size_t ivs = n - 1u;
