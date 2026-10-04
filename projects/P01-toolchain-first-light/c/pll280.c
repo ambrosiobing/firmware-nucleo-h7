@@ -36,9 +36,10 @@
  * 279672822 Hz at the 280 MHz setting, 1168 parts per million low, because the
  * debugger's clock output is 7990652 Hz and not 8 MHz. The registers were all
  * correct and the arithmetic was all correct; the assumption nobody had written
- * down was the input frequency. A second run measured 279435368 Hz, 849 parts
- * per million from the first, so each figure is an observation and not a
- * constant. See CORE_HZ_MEASURED_1 and _2 in stm32h7a3_regs.h and
+ * down was the input frequency. Two further runs measured 279435368 and
+ * 279714764 Hz, spanning 1000 parts per million with no trend, so each figure
+ * is an observation of an unstable clock and not a constant. See the measured
+ * clock table beside CORE_HZ_TARGET in stm32h7a3_regs.h and
  * P01's README.
  *
  * The readable console remains the other external check and is worth keeping:

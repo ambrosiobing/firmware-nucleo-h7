@@ -2,8 +2,53 @@
   "what": "P01's clock tree oracle: register words in, frequencies or a named refusal out, plus the signed bias between a reported and a true frequency.",
   "how_to_read": "Every row carries both halves written by hand, the register words and the answer, and a why that says what the row is for. Removing a row removes a guarantee; changing an answer to make a test pass is changing the specification and the why has to change with it.",
   "where_the_numbers_come_from": "The field positions are in c/board/stm32h7a3_regs.h, each with the authority that settled it. The two measured frequencies, 279672822 Hz at the 280 MHz setting and 64194318 Hz on the reset clock, were measured against this board's 32.768 kHz crystal on Sunday 4 October 2026 and are recorded in projects/P01-toolchain-first-light/README.md.",
-  "not_yet_here": "The board's own register words, as dumped by p01-pll280 before it writes anything. Every row below is constructed, which is the right way to reach a refusal and the wrong way to prove the 280 MHz row describes this board. That row arrives with the next console capture.",
+  "where_the_board_rows_came_from": "The first two decode rows are this board, both read off p01-pll280's console dump on Sunday 4 October 2026 after a RESET press: one as found and one after the eight step raise. They arrived once the dump gained RCC_CDCFGR2, which the decode reads and the sequence never writes, so six of the seven words had been printed and six of seven is none. Every other row is constructed, which is the right way to reach a refusal on demand and the wrong way to show that a row describes this board.",
+  "not_yet_here": "A board row taken after a power cycle rather than a RESET press. The supply selection, the regulator's ready state and HSEBYP all survive a system reset, so the as found row above is the post-RESET state and not the reset state. P01's README has both PWR_CR3 columns; the RCC words after a power cycle have not been captured.",
   "decode": [
+    {
+      "name": "this-board-as-found-after-a-reset-press",
+      "why": "THE FIRST ROW IN THIS FILE THAT IS NOT A CONSTRUCTION. All seven words were read off p01-pll280's own dump on the console on Sunday 4 October 2026, after the black RESET button, and the image reported core 64000000 Hz and APB1 64000000 Hz for them, which is what the expectation below says. Until that capture the dump was one word short: it printed every register the sequence writes, and the decode also reads CDCFGR2, which the sequence never writes. Note what the reset state actually holds, because it makes this a stronger version of the synthetic SWS row above rather than a duplicate of it: DIVP1EN is already SET at reset, DIVM1 reads 32 and N reads 129, so a plausible-looking PLL configuration is sitting there while SWS says HSI. An implementation that read the PLL instead of SWS would report 8 MHz over 32 times 129 over 2, and that is not a frequency this board was ever running.",
+      "regs": {
+        "cr": 311333,
+        "cfgr": 0,
+        "pllckselr": 33686016,
+        "pllcfgr": 33488896,
+        "pll1divr": 16843392,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 64000000,
+        "core_hz": 64000000,
+        "ahb_hz": 64000000,
+        "pclk1_hz": 64000000,
+        "refusal": "ok"
+      }
+    },
+    {
+      "name": "this-board-after-the-eight-step-raise",
+      "why": "THE SECOND ROW THAT IS THIS BOARD, from the same capture, read after clock280.c's eight steps had each read back what they wrote. The image reported core 280000000 Hz and APB1 140000000 Hz for exactly these words. This row is what makes the synthetic 280 MHz row above more than an arithmetic exercise: the synthetic one carries only the fields the decode reads, and this one carries the whole words this part actually holds, reserved bits and the other PLLs' dividers included. An implementation that masked a field too widely would pass the synthetic row, where the neighbouring bits are zero, and fail here, where they are not.",
+      "regs": {
+        "cr": 50839589,
+        "cfgr": 27,
+        "pllckselr": 33685570,
+        "pllcfgr": 33488900,
+        "pll1divr": 16843543,
+        "cdcfgr1": 8,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 280000000,
+        "core_hz": 280000000,
+        "ahb_hz": 140000000,
+        "pclk1_hz": 140000000,
+        "refusal": "ok"
+      }
+    },
     {
       "name": "the-pll-is-configured-but-sws-still-says-hsi",
       "why": "The window between configuring the PLL and switching to it. Every PLL field here holds the 280 MHz configuration and the answer is still 64 MHz, because SWS is what says which source drives sys_ck. An implementation that reported the PLL it found configured would pass every other row in this file and fail this one. HPRE is set to divide by 2 so that the AHB answer differs from the core answer, which is the other thing this row pins: the AHB clock comes off the core and not off sys_ck.",
@@ -50,7 +95,7 @@
     },
     {
       "name": "the-280-mhz-tree-at-the-measured-input",
-      "why": "The same registers with the input the measurement implies, 7990652 Hz rather than 8 MHz. This is why clocktree_decode takes the two input frequencies as arguments instead of reading the header. The answer is 279672820 and the measurement was 279672822, and the 2 Hz is worth keeping: this chain multiplies the input by exactly 35, so its output is always 35 times an integer, and 279672822 is not. No integer input reproduces the measured figure, which is a statement about the measurement's own resolution rather than about the decode. A SECOND RUN the same day implies 7983868 Hz instead, 849 parts per million from this one, and this row keeps run 1's figure rather than gaining a twin: nothing in the decode depends on which, it is linear in its input, and the row already proves a non-nominal input is carried through the whole chain. The spread belongs in the README and in stm32h7a3_regs.h, where it is evidence about the probe, and not in a vector, where it would be two tests of one thing.",
+      "why": "The same registers with the input the measurement implies, 7990652 Hz rather than 8 MHz. This is why clocktree_decode takes the two input frequencies as arguments instead of reading the header. The answer is 279672820 and the measurement was 279672822, and the 2 Hz is worth keeping: this chain multiplies the input by exactly 35, so its output is always 35 times an integer, and 279672822 is not. No integer input reproduces the measured figure, which is a statement about the measurement's own resolution rather than about the decode. THREE RUNS the same day imply 7990652, 7983868 and 7991850 Hz, spanning about 1000 parts per million with no trend, and this row keeps the first rather than gaining two twins: nothing in the decode depends on which, it is linear in its input, and the row already proves a non-nominal input is carried through the whole chain. The spread belongs in the README and in stm32h7a3_regs.h, where it is evidence about the probe, and not in a vector, where it would be three tests of one thing.",
       "regs": {
         "cr": 393253,
         "cfgr": 27,

@@ -475,32 +475,46 @@
  */
 #define CORE_HZ_TARGET     280000000u
 
-/* WHAT 280 MHz ACTUALLY MEASURES AS, AND IT MEASURES AS TWO DIFFERENT THINGS.
- * The constant above is the target of a configuration. These are observations,
- * and there are two because the second one disagreed with the first.
+/* WHAT 280 MHz ACTUALLY MEASURES AS, WHICH IS A DIFFERENT NUMBER EVERY TIME.
+ * The constant above is the target of a configuration. Below are observations,
+ * three of them, all on Sunday 4 October 2026, all on this board, all the same
+ * image gated by this board's 32.768 kHz crystal over one second, minutes to
+ * hours apart:
  *
- *   run 1   279672822 Hz   1168 ppm below nominal
- *   run 2   279435368 Hz   2017 ppm below nominal
+ *            the core        vs nominal      the internal osc   vs nominal
+ *   run 1    279672822 Hz    1019 to 2017    64194318 Hz        3036 ppm high
+ *   run 2    279435368 Hz    ppm BELOW       64186657 Hz        2917 ppm high
+ *   run 3    279714764 Hz    nominal         64180090 Hz        2814 ppm high
  *
- * Both on Sunday 4 October 2026, both on this board, both the same image
- * measuring against this board's 32.768 kHz crystal over a one second gate, a
- * few hours apart with a rebuild and a reflash between them. They differ by 849
- * parts per million.
+ * IT IS SCATTER AND NOT DRIFT, and the difference matters because the first two
+ * runs looked like drift. The core readings span 1000 parts per million with run
+ * 2 lowest and run 3 highest, so there is no trend to extrapolate and no "latest
+ * value" to prefer. The internal oscillator over the same three runs falls
+ * monotonically by 119 then 102 parts per million, 222 in total, which is what a
+ * warming part looks like and is a different behaviour entirely.
  *
- * SO A NINE DIGIT FIGURE HERE WAS NEVER SUPPORTABLE, and for a few hours this
- * file carried one as though it were. What reproduces is the sign and the order
- * of magnitude: the core runs below its nominal by one to two parts in a
- * thousand, and the cause is the input frequency and not this part. See
- * HSE_HZ_BYPASS.
+ * SO NO PER-RUN CONSTANT LIVES HERE ANY MORE. For part of Sunday 4 October 2026
+ * this file carried CORE_HZ_MEASURED as nine digits, and then CORE_HZ_MEASURED_1
+ * and _2 when a second run disagreed. A third run makes that shape obviously
+ * wrong: nothing computes from these figures, so they belong in this table where
+ * a fourth reading extends a row rather than demanding a _4.
  *
- * THE SECOND RUN EXCLUDES THE EASY EXPLANATION, which is why it is worth more
- * than the first. Both frequencies are gated by the same crystal, so a crystal
- * that drifted would move both readings by the same relative amount. The
- * internal oscillator moved 119 parts per million between the runs and the PLL
- * moved 849, so the external clock moved 730 parts per million RELATIVE to the
- * internal one. No drift of the shared reference can produce that. It is a
- * second observation of what the first run could only infer: whatever generates
- * the debugger's 8 MHz is not a crystal.
+ * AND THE INSTRUMENT IS NOT WHAT IS SCATTERING, which is the argument that makes
+ * the spread evidence instead of noise. Both oscillators are measured in the
+ * same run, through the same gate: RTC_PRER reads 007F00FF, so PREDIV_A is 127
+ * and the sub second tick is 32768/128 = 256 Hz exactly, 256 ticks of it is one
+ * second exactly, and one core cycle is 0.0036 parts per million of that. If the
+ * crystal or the gate were producing a 1000 part per million spread, the
+ * internal oscillator's readings would scatter too. They do not; they fall
+ * smoothly. The instrument is therefore bounded far below the effect, and the
+ * scatter belongs to the external clock.
+ *
+ * WHICH UPGRADES THE CLAIM RATHER THAN WEAKENING IT. One run could only infer
+ * that the 8 MHz is not 8 MHz. Three runs show it is UNSTABLE at the part per
+ * thousand level over minutes, which no crystal is, and that is both a stronger
+ * statement and a more useful one: it says a figure derived from this clock
+ * cannot be quoted to better than a part in a thousand no matter how carefully
+ * it is measured. See HSE_HZ_BYPASS.
  *
  * HOW THE CRYSTAL WAS ITSELF CHECKED, since a measurement is only as good as its
  * reference. The same method was applied to the internal oscillator, which two
@@ -517,42 +531,43 @@
  * a host PC's clock agree to a few hundred, and the crystal is probably the
  * better of the two, but this bench cannot show which is wrong. A few hundred
  * parts per million is enough to establish the sign of an effect of one to two
- * parts in a thousand, and not enough to quote its last digit. The 849 parts per
- * million between the two runs says the same thing from the other direction.
+ * parts in a thousand, and not enough to quote its last digit. The 1000 parts
+ * per million the three runs span says the same thing from the other direction,
+ * and says it about the quantity being measured rather than about the reference.
  *
- * NOTHING COMPUTES FROM EITHER OF THESE. They are recorded observations, named
- * for their runs rather than averaged, because the mean of two readings taken
- * under conditions nobody controlled is a third number with no better claim than
- * either of them. */
-#define CORE_HZ_MEASURED_1 279672822u
-#define CORE_HZ_MEASURED_2 279435368u
+ * THE OBSERVATIONS ARE THE TABLE ABOVE AND THERE IS NO SYMBOL FOR THEM. That is
+ * deliberate. A constant invites arithmetic, nothing here should be computed
+ * from one afternoon's readings of an unstable clock, and the three figures are
+ * worth more as a spread than any one of them is as a value. CORE_HZ_TARGET
+ * stays the only core frequency this file defines. */
 
 /* The high speed clock this board actually has: the on-board debugger drives it
  * in bypass mode, so there is no crystal to start and HSEBYP must be set before
  * HSEON or the part waits for an oscillator that is not fitted. A settled board
  * fact, from the same two machine-readable sources as the LED pins.
  *
- * AND IT IS NOT 8 MHz, AND IT IS NOT STEADY EITHER. Measured twice on Sunday
- * 4 October 2026 against this board's own 32.768 kHz crystal, a few hours apart:
- * about 7990652 Hz and then about 7983868 Hz, 1168 and 2017 parts per million
- * low, 849 parts per million apart from each other. The derivation is short
- * because the PLL's dividers are integers and its fractional term is off:
- * sys_ck is HSE times 280 over 4 times 2, so times 35, and the two measured
- * cores of 279672822 and 279435368 Hz put HSE at those two figures.
+ * AND IT IS NOT 8 MHz, AND IT DOES NOT HOLD STILL. Measured three times on
+ * Sunday 4 October 2026 against this board's own 32.768 kHz crystal, minutes to
+ * hours apart: about 7990652, 7983868 and 7991850 Hz, spanning about 1000 parts
+ * per million. The derivation is short because the PLL's dividers are integers
+ * and its fractional term is off: sys_ck is HSE times 280 over 4 times 2, so
+ * times 35, and the three measured cores divided by 35 are those figures.
  *
- * THE MOVEMENT IS THE EVIDENCE, not a nuisance in it. Both clocks in a run are
- * gated by the same crystal, so a crystal that drifted between the runs would
- * move both readings by the same relative amount. The internal oscillator moved
- * 119 parts per million and the PLL moved 849, so this clock moved 730 parts per
- * million RELATIVE to the internal one. A crystal-derived 8 MHz does not do that
- * on a bench at room temperature in an afternoon; an RC oscillator does. Under
- * the rule that one observation is not a mechanism, that is the second
- * observation, and it agrees with what the first run could only infer.
+ * THE MOVEMENT IS THE EVIDENCE, not a nuisance in it, and three runs say more
+ * than two did. Both clocks in a run are gated by the same crystal, so anything
+ * wrong with the crystal or the gate moves both readings together. Over the
+ * three runs the internal oscillator fell smoothly, 119 then 102 parts per
+ * million, while this clock went down 730 and then up 1102 relative to it. One
+ * drifts and the other scatters, measured by one instrument in the same second.
+ * A crystal-derived 8 MHz does not scatter by a part in a thousand on a bench at
+ * room temperature; an RC oscillator does, and so does a clock synthesised from
+ * one. Under the rule that one observation is not a mechanism, there are now
+ * three, and they agree with what the first run could only infer.
  *
  * WHY THE CONSTANT STAYS 8000000 ANYWAY, which is the same argument this file
- * already makes for HSI_HZ_NOMINAL and which the second run strengthens. The
+ * already makes for HSI_HZ_NOMINAL and which each new run strengthens. The
  * measured figure is this probe, on this board, at one moment, against a
- * reference whose own accuracy is not traceable, and the figure moved.
+ * reference whose own accuracy is not traceable, and the figure moved twice.
  * Substituting it would have fitted the code to one sample and read as more
  * precise while being less general. The nominal is the honest constant and the
  * measurements are evidence about how good the nominal is, which is what a
@@ -570,9 +585,9 @@
  *   a measured DURATION        3036 ppm LONG      1168 ppm SHORT
  *   a requested DELAY          3027 ppm SHORT     1170 ppm LONG
  *
- * The figures are run 1's. Run 2 differs in magnitude and not in sign, which is
- * the only part of this table anybody should rely on, and clocktree_bias prints
- * all three for whichever run the board is having.
+ * The figures are run 1's. Runs 2 and 3 differ in magnitude and not in sign,
+ * which is the only part of this table anybody should rely on, and clocktree_bias
+ * prints all three quantities for whichever run the board is having.
  *
  * Nothing in this repository quotes a time to better than a part in a thousand,
  * so nothing published is wrong today. What this table is for is the next figure

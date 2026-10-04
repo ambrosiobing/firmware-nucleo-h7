@@ -11,8 +11,8 @@
  * crystal at 32.768 kHz is good to a few tens of parts per million by its
  * datasheet, two orders better than the 0.36 per cent that separates 280 MHz
  * from 279, and it needs no instrument and no wiring. The uncertainty actually
- * DEMONSTRATED on this board is weaker and is recorded at CORE_HZ_MEASURED_1
- * and CORE_HZ_MEASURED_2 in
+ * DEMONSTRATED on this board is weaker and is recorded in the measured clock
+ * table at CORE_HZ_TARGET in
  * stm32h7a3_regs.h: a few hundred parts per million, which is where this
  * crystal and a host PC's clock agree on the internal oscillator.
  *
@@ -81,8 +81,8 @@ int lseref_start(lseref_start_t *out, uint32_t timeout_ms);
  * tens of parts per million by its datasheet, which is two orders better than
  * the 0.36 per cent separating 280 MHz from 279. What has since been
  * DEMONSTRATED on this board is weaker than that and is recorded at
- * CORE_HZ_MEASURED_1 and _2: the crystal agrees with a host PC's clock on the
- * internal
+ * The measured clock table beside CORE_HZ_TARGET: the crystal agrees with a
+ * host PC's clock on the internal
  * oscillator to a few hundred parts per million, which is the honest
  * uncertainty here.
  *

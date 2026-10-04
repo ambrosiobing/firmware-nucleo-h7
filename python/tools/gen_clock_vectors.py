@@ -127,6 +127,42 @@ SWS_CSI = 0x00000008
 
 VECTORS = [
     {
+        "name": "this-board-as-found-after-a-reset-press",
+        "why": "THE FIRST ROW IN THIS FILE THAT IS NOT A CONSTRUCTION. All seven "
+               "words were read off p01-pll280's own dump on the console on Sunday "
+               "4 October 2026, after the black RESET button, and the image reported "
+               "core 64000000 Hz and APB1 64000000 Hz for them, which is what the "
+               "expectation below says. Until that capture the dump was one word "
+               "short: it printed every register the sequence writes, and the decode "
+               "also reads CDCFGR2, which the sequence never writes. "
+               "Note what the reset state actually holds, because it makes this a "
+               "stronger version of the synthetic SWS row above rather than a "
+               "duplicate of it: DIVP1EN is already SET at reset, DIVM1 reads 32 and "
+               "N reads 129, so a plausible-looking PLL configuration is sitting "
+               "there while SWS says HSI. An implementation that read the PLL "
+               "instead of SWS would report 8 MHz over 32 times 129 over 2, and that "
+               "is not a frequency this board was ever running.",
+        "regs": regs(0x0004C025, 0x00000000, 0x02020200, 0x01FF0000, 0x01010280, 0x00000000, 0x00000000),
+        "hsi_nominal": 64000000, "hse_bypass": 8000000,
+        "expect": expect(64000000, 64000000, 64000000, 64000000),
+    },
+    {
+        "name": "this-board-after-the-eight-step-raise",
+        "why": "THE SECOND ROW THAT IS THIS BOARD, from the same capture, read after "
+               "clock280.c's eight steps had each read back what they wrote. The "
+               "image reported core 280000000 Hz and APB1 140000000 Hz for exactly "
+               "these words. This row is what makes the synthetic 280 MHz row above "
+               "more than an arithmetic exercise: the synthetic one carries only the "
+               "fields the decode reads, and this one carries the whole words this "
+               "part actually holds, reserved bits and the other PLLs' dividers "
+               "included. An implementation that masked a field too widely would "
+               "pass the synthetic row, where the neighbouring bits are zero, and "
+               "fail here, where they are not.",
+        "regs": regs(0x0307C025, 0x0000001B, 0x02020042, 0x01FF0004, 0x01010317, 0x00000008, 0x00000000),
+        "hsi_nominal": 64000000, "hse_bypass": 8000000,
+        "expect": expect(280000000, 280000000, 140000000, 140000000),
+    },
+    {
         "name": "the-pll-is-configured-but-sws-still-says-hsi",
         "why": "The window between configuring the PLL and switching to it. Every "
                "PLL field here holds the 280 MHz configuration and the answer is "
@@ -160,13 +196,14 @@ VECTORS = [
                "is always 35 times an integer, and 279672822 is not. No integer input "
                "reproduces the measured figure, which is a statement about the "
                "measurement's own resolution rather than about the decode. "
-               "A SECOND RUN the same day implies 7983868 Hz instead, 849 parts per "
-               "million from this one, and this row keeps run 1's figure rather than "
-               "gaining a twin: nothing in the decode depends on which, it is linear "
-               "in its input, and the row already proves a non-nominal input is "
-               "carried through the whole chain. The spread belongs in the README and "
-               "in stm32h7a3_regs.h, where it is evidence about the probe, and not in "
-               "a vector, where it would be two tests of one thing.",
+               "THREE RUNS the same day imply 7990652, 7983868 and 7991850 Hz, "
+               "spanning about 1000 parts per million with no trend, and this row "
+               "keeps the first rather than gaining two twins: nothing in the decode "
+               "depends on which, it is linear in its input, and the row already "
+               "proves a non-nominal input is carried through the whole chain. The "
+               "spread belongs in the README and in stm32h7a3_regs.h, where it is "
+               "evidence about the probe, and not in a vector, where it would be "
+               "three tests of one thing.",
         "regs": regs(CR_HSE_BYPASS, SWS_PLL1, SEL_280, CFG_P_ON, DIVR_280, 0x00000008, 0x00000000),
         "hsi_nominal": 64000000, "hse_bypass": 7990652,
         "expect": expect(279672820, 279672820, 139836410, 139836410),
@@ -416,11 +453,21 @@ def main():
                        "measured against this board's 32.768 kHz crystal on Sunday "
                        "4 October 2026 and are recorded in "
                        "projects/P01-toolchain-first-light/README.md.",
-        "not_yet_here": "The board's own register words, as dumped by p01-pll280 "
-                        "before it writes anything. Every row below is constructed, "
-                        "which is the right way to reach a refusal and the wrong way "
-                        "to prove the 280 MHz row describes this board. That row "
-                        "arrives with the next console capture.",
+        "where_the_board_rows_came_from": "The first two decode rows are this "
+                        "board, both read off p01-pll280's console dump on Sunday "
+                        "4 October 2026 after a RESET press: one as found and one "
+                        "after the eight step raise. They arrived once the dump "
+                        "gained RCC_CDCFGR2, which the decode reads and the sequence "
+                        "never writes, so six of the seven words had been printed "
+                        "and six of seven is none. Every other row is constructed, "
+                        "which is the right way to reach a refusal on demand and the "
+                        "wrong way to show that a row describes this board.",
+        "not_yet_here": "A board row taken after a power cycle rather than a RESET "
+                        "press. The supply selection, the regulator's ready state "
+                        "and HSEBYP all survive a system reset, so the as found row "
+                        "above is the post-RESET state and not the reset state. "
+                        "P01's README has both PWR_CR3 columns; the RCC words after "
+                        "a power cycle have not been captured.",
         "decode": VECTORS,
         "bias": BIAS,
     }
