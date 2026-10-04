@@ -215,10 +215,19 @@ int main(void)
                "instrument that does\n  not share this clock, and this repository "
                "does not have one wired\n  up yet: freqcount.c refuses, because "
                "the timer registers it needs\n  are not confirmed.\n");
+        printf("\n  THAT YOU CAN READ THIS LINE IS THE BEST EXTERNAL CHECK HERE,\n"
+               "  and it is stronger than it looks. The baud divider was just\n"
+               "  recomputed from APB1 at 140 MHz, and the host's serial port is\n"
+               "  clocked by the host. Text this clean bounds APB1 to about two\n"
+               "  per cent of 140 MHz, and the core to about two per cent of 280,\n"
+               "  since the two differ only by prescalers read back above. What it\n"
+               "  cannot do is tell 280 MHz from 279, which is 0.36 per cent and\n"
+               "  is what one wrong digit in N would give.\n");
         printf("\n  LD1 green on PB0 now blinks at one second per cycle by this\n"
-               "  part's own count. Against a watch, that is the crudest check\n"
-               "  available and it still rules out an error of a factor, which is\n"
-               "  the error class a wrong PLL field produces.\n");
+               "  part's own count, which is NOT independent evidence: the delay\n"
+               "  loop is calibrated against DWT_CYCCNT and that counts the clock\n"
+               "  under test. Against a watch it is still worth a glance, because\n"
+               "  it costs nothing and would catch an error of a factor.\n");
     }
 
     /* And then blink, so the board says something a person across the room can

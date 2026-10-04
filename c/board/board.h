@@ -16,11 +16,21 @@
  *   - the high-speed clock arrives from the on-board debugger in bypass mode at
  *     8 MHz, and 8 / 2 times 140 / 2 gives 280 MHz
  *
+ * Settled on Sunday 4 October 2026, after being refused since Friday
+ * 2 October 2026:
+ *   - the register sequence for 280 MHz, which needed the PLL fields, the flash
+ *     access latency, the voltage scaling AND two things nothing in the field
+ *     descriptions implies: that voltage scale 0 is reachable only from scale 1,
+ *     and that a supply has to be selected first to leave Run* mode at all. The
+ *     second was found by the board rather than by reading. See clock280.c.
+ *   - that this board's core is supplied through the SMPS and not the LDO, which
+ *     the board established by stopping when the LDO was selected
+ *
  * Open, and therefore refused rather than guessed:
- *   - the RM0455 register fields for the PLL, the flash latency and the voltage
- *     scaling that 280 MHz needs
  *   - the virtual COM port pins, believed USART3 on PD8 and PD9 by Nucleo-144
  *     convention but not read from the MB1363 board manual
+ *   - the timer registers freqcount.c needs, which is why no frequency in this
+ *     repository is MEASURED by an instrument that does not share the clock
  *
  * The consequence is the shape of this interface. The part boots on its internal
  * oscillator, so an LED can blink using only settled facts, and that is what

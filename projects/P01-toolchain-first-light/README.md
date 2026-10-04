@@ -15,15 +15,75 @@ What is measured and what it rests on:
 | LD1 green on PB0 | blinks, 499.7 ms per cycle |
 | `printf` over COM13 | 115200 baud, divider 556 |
 | User button on PC13 | input with a pull-down, active high |
-| Core, AHB, APB1 clocks | 64 MHz, decoded from RCC at startup rather than hardcoded |
+| Core, AHB, APB1 clocks | 64 MHz at reset, decoded from RCC at startup rather than hardcoded |
+| The 280 MHz tree | reached Sunday 4 October 2026 by `p01-pll280`: core 280 MHz, AHB and APB1 140 MHz, every one of eight steps reading back what it wrote |
 | Oscillator | 64.17 to 64.18 MHz, six reductions, two instruments, spread 0.031 per cent |
-| Delay loop | 9 cycles per iteration, measured against `DWT_CYCCNT` every boot |
+| Delay loop | 9.00 cycles per iteration at 64 MHz and 8.96 at 280 MHz, the same binary, measured against `DWT_CYCCNT` every boot |
 | A 100 ms request | lands within 20 parts per million, checked by the part itself |
 
-Still refused, and refused rather than missing: the 280 MHz tree, which needs
-RM0455 for the PLL fields, the flash access latency and the voltage scaling, in
-that order. `board_clock_status()` reports `BOARD_CLOCK_AT_RESET_SPEED` rather
-than pretending otherwise.
+**The 280 MHz tree was reached on Sunday 4 October 2026**, by a second image,
+`p01-pll280`, and it took five runs on the board and four distinct causes to get
+there. `board_clock_status()` now reports `BOARD_OK` on that image and
+`BOARD_CLOCK_AT_RESET_SPEED` on `p01-first-light`, which is the honest answer in
+both cases: the two images run at different clocks on purpose, because every
+cycle figure in this volume was taken at 64 MHz and one image that sometimes
+raised the clock would invalidate them all while changing no line of their code.
+
+## What 280 MHz rests on, and what it does not
+
+**It is derived, not measured.** Eight register writes each read back the value
+intended, and the frequency is decoded from those registers rather than asserted:
+an 8 MHz board fact divided by 4, times 280, divided by 2. Every one of those
+reads could be right while the clock is something else.
+
+**The strongest external check available is the console, and it is better than it
+looks.** The baud divider is recomputed from the new APB1 frequency of 140 MHz,
+and the host's own serial port is clocked by the host. Output that stays clean
+over this much text bounds APB1 to roughly two percent of 140 MHz, and therefore
+the core to roughly two percent of 280 MHz, because the two differ only by
+prescalers that were read back. That is not a measurement of 280 MHz, but it is a
+real external bound and it rules out far more than a factor error.
+
+**What no check here can do** is tell 280 MHz from 279, which is 0.36 per cent and
+is exactly the error one wrong digit in the PLL's N field would produce. That
+needs an instrument that does not share this clock. `freqcount.c` is meant to be
+it and still refuses, because the timer registers it needs are not confirmed.
+
+**The delay loop is not independent evidence**, and it is worth saying so because
+it looks like it is. It measures itself against `DWT_CYCCNT`, which counts core
+clock cycles, so its iterations per millisecond are computed from the frequency
+under test. What it does show is that the same binary costs 9.00 cycles per
+iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
+which says the loop's cost barely moved and is a fact about the flash and the
+pipeline rather than about the clock.
+
+## The four causes, because the sequence is the lesson
+
+Three of these were avoided by reading ST's headers before writing anything, and
+the account is in `c/board/stm32h7a3_regs.h` beside each field. Two were found by
+the board.
+
+| | What |
+|---|---|
+| read, not guessed | the voltage scale encoding, which is **reversed** between this part and the STM32H743: `PWR_REGULATOR_VOLTAGE_SCALE0` is 0b11 here and 0b00 there, in the same file, guarded by device |
+| read, not guessed | `DIVM1` holds the value and `N1`, `P1`, `Q1`, `R1` hold the value minus one, which is not a symmetry and is settled by how the HAL reads them back |
+| read, not guessed | ST divides the same 280 MHz differently from the note this repository carried, with a 2 MHz PLL input rather than 4 MHz, and pairs it with the input range that contains 2 MHz |
+| **found by the board** | voltage scale 0 is reachable only from scale 1. Writing it directly from the reset scale read back correctly and simply never became ready |
+| **found by the board** | a supply has to be selected before any voltage scaling works at all. At reset both `SMPSEN` and `LDOEN` are set, which is the absence of a choice, and `ACTVOSRDY` is clear from reset to say so |
+| **found by the board, destructively** | this board's core is supplied through the SMPS. Selecting the LDO stopped the part, and a power cycle recovered it completely |
+
+The last of those was my error and the account is at `PWR_CR3` in
+`stm32h7a3_regs.h`. I had one conditional branch in ST's source that selected the
+LDO and an argument that the LDO is on the die and therefore safe. The argument
+is true about the die and says nothing about the board. ST sets the supply in the
+project configuration, where every `.cproject` for this board names
+`USE_PWR_DIRECT_SMPS_SUPPLY`, and reading that would have taken a minute.
+
+**Nothing spins forever in the sequence**, and that is why four of the five runs
+produced a readable diagnosis instead of a dead board. ST's own example waits on
+`VOSRDY` with `while(!flag){}`, which on this part never terminates from the reset
+state. Every wait in `clock280.c` is bounded and running out is a reported
+failure with the register's value attached.
 
 It is built on the **win11 skyhorizon demo laptop**, where STM32CubeIDE 2.2.0
 supplies `arm-none-eabi-gcc` 14.3.1, `cmake` and `ninja`, none of them on PATH;
