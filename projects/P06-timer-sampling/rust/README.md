@@ -1,8 +1,12 @@
 # P06 in Rust
 
-**State: written Saturday 3 October 2026, and not yet built.** Written on win11
-aquamarine, which has no cargo. Build and prove it in WSL on the win11 skyhorizon
-demo laptop, bing@JPTOUPM678:
+**State: still written, and not yet proven.** Written on win11 aquamarine, which
+has no cargo. The first compiler to see it was cargo 1.99.0 in WSL on the win11
+skyhorizon demo laptop, bing@JPTOUPM678, on Sunday 4 October 2026, and it refused
+the crate on one lint. That refusal is recorded below rather than quietly fixed,
+and it is the reason this page still says written: a crate that has been refused
+once has been compiled, not proven. The state moves when the four commands below
+are green and the parity table lists four languages rather than three:
 
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
@@ -24,7 +28,7 @@ this crate would need the `libm` crate as a dependency.
 
 So the choice was between a dependency added to preserve a pattern and an honest
 exception. The witness reads a recording an instrument produced and decides
-whether a rate claim stands; it has no reason to run on the board. The other four
+whether a rate claim stands; it has no reason to run on the board. The other five
 crates are `no_std` because they are code the board will link. This one is not.
 
 **The C is different, and the difference is the part worth printing.** `rate.c`
@@ -36,7 +40,7 @@ usually expect, and `code.yml` therefore names the five `no_std` packages for th
 
 ## One version bump, and why it was worth it
 
-This crate declares `rust-version = "1.77"` where the other four declare 1.75.
+This crate declares `rust-version = "1.77"` where the other five declare 1.75.
 `f64::round_ties_even` was stabilised there, and it is what makes the
 missing-edge count agree with Python's `round` and C's `nearbyint`, all three of
 which round half to even. Rust's `f64::round` rounds half away from zero.
@@ -51,6 +55,38 @@ own in the one file whose job is agreeing with three other implementations.
 including the clean wave at the wrong rate failing on the rate and not on
 jitter, a flat recording refused rather than called perfect, and a perfect
 straight line fitted with no residual.
+
+## A lint refused by name, and why that is the right answer here
+
+`cargo clippy -D warnings` in WSL on bing@JPTOUPM678 refused this crate on
+Sunday 4 October 2026, and it was the only one of the six it refused:
+
+    error: this comparison involving the minimum or maximum element for this
+    type contains a case that is always true or always false
+       --> projects/P06-timer-sampling/rust/src/lib.rs
+        |
+        | out.no_missing_edges = out.missing_edges <= MAX_MISSING_EDGES;
+        |
+        = help: consider using `out.missing_edges == MAX_MISSING_EDGES` instead
+
+Clippy is correct. `MAX_MISSING_EDGES` is 0 and `missing_edges` is a `usize`, so
+`<=` can only ever be equality and the `<` half of it is unreachable.
+
+**The suggestion was still refused, and the reason is worth more than the lint.**
+Criterion 4 is a budget: at most `MAX_MISSING_EDGES` missing edges. Writing
+`== MAX_MISSING_EDGES` inverts that criterion the moment the budget stops being
+zero, because a budget of one would then report a capture with no missing edges
+at all as a failure. The comparison that survives a change to the constant is the
+ordering one, which is what all four implementations write, so the lint is
+silenced by name at that one statement with the reason beside it.
+
+This is the third finding about Rust on this part, and unlike the other two it is
+not about the language's capability. A linter that is right about the code as it
+stands can still propose a change that is wrong about the code as it is meant to
+be read, and a budget constant set to the minimum of its type is exactly where
+that happens. The C, C++ and Python write the same comparison and have no
+equivalent lint to answer, which is why this one was found in Rust and would have
+been found nowhere else.
 
 ## What it is proven against
 

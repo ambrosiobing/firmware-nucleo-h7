@@ -22,7 +22,7 @@
 //! So the choice was between a dependency added to preserve a pattern, and an
 //! honest exception. The witness runs on a host: it reads a recording the MCC
 //! 118 or the PPK2 produced and decides whether a rate claim stands. It has no
-//! reason to run on the board. The other four crates are `no_std` because they
+//! reason to run on the board. The other five crates are `no_std` because they
 //! are code the board will link; this one is `std` because it is not.
 //!
 //! The C is different and that difference is itself the finding. `rate.c`
@@ -381,7 +381,21 @@ pub fn analyse(samples: &[f64], fs: f64, nominal_hz: f64, out: &mut Analysis) ->
         (out.fit_rate_hz - nominal_hz).abs() <= RATE_TOLERANCE_FRACTION * nominal_hz;
     out.jitter_within_limit = out.interval_sd_s <= JITTER_SD_MAX_S;
     out.worst_interval_within_limit = out.interval_worst_dev_s <= WORST_INTERVAL_DEV_MAX_S;
-    out.no_missing_edges = out.missing_edges <= MAX_MISSING_EDGES;
+    // Criterion 4 is a budget: at most MAX_MISSING_EDGES missing edges.
+    // Clippy is right that with the budget at zero and missing_edges a usize,
+    // this comparison can only ever be equality, and it suggests == instead.
+    // That suggestion is refused on purpose, and the reason is worth more than
+    // the lint: == MAX_MISSING_EDGES inverts the criterion the moment the
+    // budget stops being zero, because a budget of one would then report a
+    // capture with no missing edges at all as a failure. The comparison that
+    // survives a change to the constant is the one all four implementations
+    // write, so the lint is silenced by name at this one statement rather than
+    // the criterion being rewritten to suit it. The C, C++ and Python read the
+    // same and have no equivalent lint to answer.
+    #[allow(clippy::absurd_extreme_comparisons)]
+    {
+        out.no_missing_edges = out.missing_edges <= MAX_MISSING_EDGES;
+    }
 
     out.pass = out.rate_within_tolerance
         && out.jitter_within_limit

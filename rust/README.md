@@ -17,6 +17,17 @@ the language in the one direction people do not usually expect. `code.yml`
 therefore names the five `no_std` packages for the `thumbv7em-none-eabihf` build
 rather than building the workspace, and says why at the step.
 
+**P06's carries a finding of a different kind**, and it is about a tool rather
+than the language. `cargo clippy -D warnings` refused `p06-rate` alone of the six
+crates, on a comparison against a budget constant whose value is the minimum of
+its type, and its suggested replacement would have inverted the criterion the
+moment the budget stopped being zero. The lint is right about the code as it
+stands and wrong about the code as it is meant to be read, so it is silenced by
+name at that one statement with the reason beside it. The C, C++ and Python write
+the same comparison and have no equivalent lint to answer, so this is a defect
+class only the Rust implementation could have raised, and the answer to it was a
+written argument rather than a code change.
+
 **P03's carries the best argument for the language in the volume so far**, and it
 is not about memory safety. Its `Verdict` is an enum of five variants and `match`
 on it is exhaustive, so adding a sixth kind of loss will not compile until every
