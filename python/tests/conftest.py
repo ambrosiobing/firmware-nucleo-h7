@@ -52,11 +52,17 @@ RING_CPP_FILTER = BUILD / executable_name("ring_filter")
 RING_RUST_FILTER = ROOT / "target" / "release" / executable_name("p02-filter")
 ATTR_CPP_FILTER = BUILD / executable_name("attribute_filter")
 ATTR_RUST_FILTER = ROOT / "target" / "release" / executable_name("p03-filter")
+RATE_CPP_FILTER = BUILD / executable_name("rate_filter")
+RATE_RUST_FILTER = ROOT / "target" / "release" / executable_name("p06-filter")
 
 #   P08  a sample and then event names per line in; the final state, every row
 #        index taken, the counters and the stub's frame out
 #   P03  A with five counters, F or R per line in; the nine attributed fields,
 #        the first-loss index, or an acknowledged reset out
+#   P06  A with a capture's PATH, the sample rate and the nominal rate in; the
+#        witness's twenty fields out. A path and not the samples, because a
+#        capture is thousands of doubles and a long line is what broke P08's
+#        filter, and because a path is how rate.py receives one
 #   P02  one operation per line in, I, P, G or S; the answer to that one
 #        operation out. Short lines and many of them, the opposite of P08, since
 #        P02's comparison runs to hundreds of thousands of operations
@@ -71,6 +77,8 @@ FILTER_BUILD_COMMAND = {
     RING_RUST_FILTER: "cargo build --release --workspace",
     ATTR_CPP_FILTER: "python python/tools/build_host.py",
     ATTR_RUST_FILTER: "cargo build --release --workspace",
+    RATE_CPP_FILTER: "python python/tools/build_host.py",
+    RATE_RUST_FILTER: "cargo build --release --workspace",
 }
 
 

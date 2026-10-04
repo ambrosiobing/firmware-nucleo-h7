@@ -1,19 +1,75 @@
 # P06 in C++
 
-**Nothing here yet.** Sampling on a timer at exactly 1 kHz has not started, and
-this directory exists so the four language routes are visible from the beginning
-rather than arriving one at a time.
+**State: host, since Sunday 4 October 2026.** Written on win11 aquamarine, which
+compiles nothing. The first compiler to see it was `g++` 15 in WSL on the win11
+skyhorizon demo laptop, bing@JPTOUPM678, through
+`python3 python/tools/build_host.py`, and it compiled with no diagnostic at all,
+which is worth saying because the C beside it did not: `rate.c` drew four
+-Wdouble-promotion warnings, and the reason is that this file already wrote
+`std::nan("")` where the C had written `NAN`, which C defines as a float.
 
-What it will carry. The C++ implementation of sampling on a timer at exactly 1
-kHz, proven against the same oracle as the other three languages, which this
-project has yet to define.
+| File | What it is |
+|---|---|
+| `rate.hpp` | the whole witness, header only |
+| `rate_filter.cpp` | the filter the parity test drives, one verb: `A <path> <fs> <nominal>` |
 
-What has to come first is in [../README.md](../README.md). Nothing here is written
-until it can be proven, and an empty source file would be a claim rather than a
-placeholder, which is why there is none.
+## What C++ adds here, and it is very little
 
+That is the honest answer and it is worth giving plainly. The witness is
+floating-point arithmetic over an array, which C expresses as well as C++ does.
+`std::optional` makes a refusal a different type rather than a negative return
+code, and `std::array` fixes the buffer sizes without a macro. That is the whole
+list.
+
+There is deliberately no `constexpr` self-test, unlike P05's and P03's. The
+arithmetic involves `sqrt` on values a compile-time case would have to carry as a
+literal, and a hand-computed expected double would be a second implementation of
+the thing under test rather than a check on it.
+
+## The filter takes a path, which no other filter here does
+
+A capture is thousands of doubles. Inline it would be a line of tens of
+kilobytes, which is exactly what broke the P08 filter earlier the same day. And a
+path is how the real witness receives a capture: `rate.py` takes one on its
+command line. Doubles are printed with seventeen significant digits, which
+round-trips a double exactly, so the comparison's tolerance is a property of the
+arithmetic and not of the printing.
 
 ## What it is proven against
 
-The external witness: an edge analysis and a rate analysis that must agree
-before any rate is claimed.
+Nine synthetic captures whose answers are known by construction, written to
+files because a capture is thousands of doubles, and driven through every
+implementation by `python/tests/test_rate_parity.py`:
+
+| Capture | What every implementation must say |
+|---|---|
+| a clean kilohertz square wave | pass, and 1000.014 Hz from the fit |
+| **a clean wave at 1100 Hz** | **fail on the rate, pass on the jitter.** This is the one the project exists for: a clean wave at the wrong rate, which a witness that called it a pass would be worthless for |
+| jitter of two microseconds | pass, standard deviation 7.4 microseconds against the ten the criterion allows |
+| jitter of thirty microseconds | fail on jitter, pass on the rate, because the mean period is unchanged |
+| one dropped edge | one missing edge, from an interval near twice nominal |
+| one doubled edge | two missing edges, from two intervals near a half |
+| offset and attenuated | identical to the clean capture, which is what proves the thresholds come from the observed swing and not from assumed rail voltages |
+| a flat recording | refused for having no swing, rather than reported as perfect |
+| a fragment | refused for having too few edges |
+
+**Why this comparison is numeric where the other four are exact.** The other
+parity tests compare bytes, row indices or integers and demand equality. This one
+compares doubles to a relative tolerance of 1e-12. Double arithmetic is
+deterministic, but the contraction of a multiply and an add into one fused
+instruction is not the same across four toolchains: gcc may contract where rustc
+does not, and the Cortex-M7's floating point unit has a fused multiply-add where
+a host may not. The C and C++ are compiled with `-ffp-contract=off` to remove
+the question where it can be removed, and the tolerance covers what remains. The
+pass criteria are 0.1 percent, so 1e-12 is nine orders of magnitude tighter than
+anything the measurement claims.
+
+The booleans and the counts are compared exactly. A verdict that differed between
+implementations would be a real disagreement whatever the arithmetic did.
+
+## What no host can compare
+
+Whether the board actually samples at 1 kHz. That is what the witness is for, and
+it needs the board, the marker pin and the MCC 118. The three acquisition back
+ends still refuse at run time rather than guessing a converter, timer or transfer
+engine setting RM0455 governs.

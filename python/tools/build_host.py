@@ -37,22 +37,38 @@ C_DIR    = ROOT / "c"          # the shared C: board, ring, payload, instr, ld
 PROJECTS = ROOT / "projects"
 
 # Each project owns its own c/, cpp/, python/ and rust/ subdirectory, so a source
-# file is found from the project rather than from a language tree. Only the four
-# projects whose code the host suite builds are listed; a missing key here is a
-# project this script does not build, which is a clearer failure than a path that
-# silently does not exist.
-PROJECT_DIR = {
-    "P02": PROJECTS / "P02-ring-buffer",
-    "P03": PROJECTS / "P03-interrupt-receive",
-    "P05": PROJECTS / "P05-framing-crc",
-    "P08": PROJECTS / "P08-node-state-machine",
-    "P09": PROJECTS / "P09-payload-codec",
-}
+# file is found from the project rather than from a language tree.
+#
+# Derived from the tree and not written out by hand, and the previous version of
+# this comment is the reason. It listed five projects and argued that a missing
+# key would be "a clearer failure than a path that silently does not exist". It
+# was neither clear nor caught. P06's build steps were added on Saturday
+# 3 October 2026 against a map that had no P06 key, and the result was a KeyError
+# traceback part way through a build in WSL on Sunday 4 October 2026, after four
+# libraries had already been produced. Nothing on win11 aquamarine could have
+# found it either, because compiling there is forbidden and this file is
+# therefore never run there.
+#
+# Keyed by the PNN prefix of each project directory, so the twenty keys exist
+# whether or not this script builds anything for them, and a wrong key is a
+# message naming the twenty rather than a traceback.
+PROJECT_DIR = {d.name.split("-", 1)[0]: d
+               for d in sorted(PROJECTS.iterdir()) if d.is_dir()}
 
 
 def proj(key, lang):
     """The directory holding one project's sources in one language."""
-    return PROJECT_DIR[key] / lang
+    if key not in PROJECT_DIR:
+        raise SystemExit(
+            "build_host.py asks for project {!r}, which is not a directory "
+            "under projects/. The twenty that are: {}".format(
+                key, ", ".join(sorted(PROJECT_DIR))))
+    path = PROJECT_DIR[key] / lang
+    if not path.is_dir():
+        raise SystemExit(
+            "build_host.py asks for {} of project {}, and {} is not a "
+            "directory".format(lang, key, path.relative_to(ROOT).as_posix()))
+    return path
 
 # The Qt install is the only compiler on this laptop. Named explicitly rather
 # than only looked for on PATH, because it is not on PATH and a silent fallback
@@ -449,6 +465,23 @@ def main() -> int:
     shared_lib("node_sm",
                [proj("P08", "c") / "node_sm.c", C_DIR / "payload" / "payload.c"],
                includes=[proj("P08", "c"), C_DIR / "payload"])
+
+    # -ffp-contract=off on both P06 files, and the reason is the comparison
+    # rather than a preference. The witness is floating point, and the
+    # contraction of a multiply and an add into one fused instruction is not the
+    # same across gcc, g++ and rustc. Turning it off removes the question where
+    # it can be removed; the parity test's 1e-12 tolerance covers what remains.
+    print("P06, the rate witness, which decides whether a rate claim stands:")
+    shared_lib("rate", [proj("P06", "c") / "rate.c"],
+               ["-ffp-contract=off"], includes=[proj("P06", "c")])
+
+    print("P06, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         "-ffp-contract=off", *STATIC,
+         "-I", proj("P06", "cpp"),
+         proj("P06", "cpp") / "rate_filter.cpp",
+         "-o", BUILD / ("rate_filter" + exe)],
+        "rate_filter")
 
     print("P03, the attribution, which is the half of it that can be proven:")
     shared_lib("attribute", [proj("P03", "c") / "attribute.c"],

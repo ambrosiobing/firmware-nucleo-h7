@@ -1,0 +1,39 @@
+[package]
+name = "p06-rate"
+version = "0.1.0"
+edition = "2021"
+# 1.77 and not 1.75, which the other four declare: f64::round_ties_even was
+# stabilised there, and it is what makes the missing-edge count agree with
+# Python's round and C's nearbyint. Hand-rolling the tie rule to save a version
+# would put a rounding rule of my own in the one file whose job is agreeing with
+# three other implementations.
+rust-version = "1.77"
+description = "P06's rate witness: two independent routes that must agree"
+license = "MIT"
+publish = false
+
+# No dependencies, and this is the one crate in the workspace that is std rather
+# than no_std. f64::sqrt, f64::abs and f64::is_nan live in std and not in core,
+# because core assumes no platform and those functions live in the platform's
+# libm. A no_std version would need the libm crate, and the choice was between a
+# dependency added to preserve a pattern and an honest exception. The witness
+# reads a recording an instrument produced and decides whether a rate claim
+# stands; it has no reason to run on the board. See src/lib.rs, which also notes
+# that rate.c compiles for the target unchanged, so the same program is portable
+# in C and is not in Rust without a crate.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored.
+[lints]
+workspace = true
+
+[lib]
+name = "p06_rate"
+path = "src/lib.rs"
+
+# The filter the parity test drives. It takes a capture's path rather than its
+# samples, which is the opposite of every other filter here: a capture is
+# thousands of doubles, and a path is how the real witness receives one.
+[[bin]]
+name = "p06-filter"
+path = "src/main.rs"
