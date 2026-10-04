@@ -197,6 +197,74 @@ bool board_icache_enabled(void);
  * cycle. */
 void board_button_debug(uint32_t *moder, uint32_t *pupdr, uint32_t *idr);
 
+/* ------------------------------------------------------------- the 280 MHz tree
+ *
+ * Raising the clock is deliberately NOT part of board_init(). Every other
+ * project in this repository was measured at 64 MHz, and a board support that
+ * quietly raised the clock would invalidate every one of those figures while
+ * changing no line of their code. So this is a separate call, made by the one
+ * image whose subject it is, and a project that wants 280 MHz asks for it.
+ *
+ * The six steps, in the order they must happen. Each is reported separately
+ * because "the clock did not come up" is not a finding anybody can act on, and
+ * "the flash latency wrote 6 and read back 0" is.
+ */
+typedef enum {
+    CLOCK280_STEP_VOS      = 0,   /* voltage scaling to the highest scale */
+    CLOCK280_STEP_LATENCY  = 1,   /* flash wait states, before the frequency */
+    CLOCK280_STEP_HSE      = 2,   /* the debugger's 8 MHz, in bypass */
+    CLOCK280_STEP_PLL      = 3,   /* configured and locked, core still on HSI */
+    CLOCK280_STEP_BUSES    = 4,   /* prescalers, while sys_ck is still 64 MHz */
+    CLOCK280_STEP_SWITCH   = 5,   /* sys_ck to the PLL, last and gated */
+    CLOCK280_STEP_COUNT    = 6,
+} clock280_step_t;
+
+/* What one step did, rather than whether it worked. `wrote` is what the code
+ * intended and `read_back` is what the register holds, and printing both is what
+ * turns a failed clock into a readable fault: a wrong peripheral base address
+ * reads back the reset value, a reserved field reads back zero, and a field that
+ * moved between parts reads back something that is neither. */
+typedef struct {
+    bool     attempted;
+    bool     ok;
+    uint32_t wrote;
+    uint32_t read_back;
+    uint32_t spins;      /* iterations a ready flag took; 0 where none is waited on */
+} clock280_record_t;
+
+typedef struct {
+    clock280_record_t step[CLOCK280_STEP_COUNT];
+    clock280_step_t   failed_at;    /* CLOCK280_STEP_COUNT when all six passed */
+    bool              reached_280;  /* the DECODE agrees, not merely the writes */
+} clock280_result_t;
+
+/* Attempt the sequence. Returns 0 only when every step read back correctly AND
+ * the clock decoded from the registers afterwards equals the target, which are
+ * two different claims: the first says the writes took, the second says the
+ * decoder and the hardware agree about what they mean.
+ *
+ * On any failure it returns non-zero WITHOUT having switched sys_ck, so the part
+ * stays on the internal oscillator with a working console and the record can be
+ * printed. That is the whole reason the switch is last.
+ *
+ * NEITHER RETURN VALUE IS A MEASUREMENT. 280 MHz here is derived: an 8 MHz board
+ * fact, multiplied and divided by fields read back out of the registers. The
+ * figure becomes measured when an instrument that does not share this clock says
+ * so, which is what P06's witness is for and what freqcount.c still refuses. */
+int board_clock_raise_to_280(clock280_result_t *out);
+
+/* The name of a step, for a console line a reader can act on. */
+const char *board_clock280_step_name(clock280_step_t step);
+
+/* Decode the clock tree from the registers again, and update what
+ * board_core_hz, board_pclk1_hz and board_clock_status report.
+ *
+ * SystemInit does this once at reset. Anything that changes the tree afterwards
+ * has to ask for it again, or those three functions describe a clock that is no
+ * longer running, which is worse than reporting nothing: every figure derived
+ * from them would be scaled by a factor and still look plausible. */
+void board_clock_rescan(void);
+
 /* A crude busy wait, in milliseconds, derived from board_core_hz(). When the
  * core frequency is not established this is approximate and the function says
  * so by returning false; it still delays, because a blinking LED is more useful
