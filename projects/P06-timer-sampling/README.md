@@ -1,13 +1,15 @@
 # Sampling on a timer at exactly 1 kHz
 
-Status: c=links cpp=written python=host rust=written
+Status: c=links cpp=host python=host rust=host
 
 Chapter 6 of the NUCLEO-H7A3ZI-Q firmware volume. Three ways to sample at
 1 kHz, one application, and an external witness that decides which of them
 actually does.
 
-**Four implementations of the witness since Saturday 3 October 2026**, which is
-the half of this project that can be proven. The three back ends still refuse at
+**Four implementations of the witness, proven equivalent on Sunday
+4 October 2026**, which is the half of this project that can be proven. All four
+agree on all nineteen fields of all nine captures, in WSL on the win11 skyhorizon
+demo laptop, bing@JPTOUPM678, with cargo 1.99.0, gcc 15 and Python 3.14.4. The three back ends still refuse at
 run time rather than guessing a setting RM0455 governs; the witness is arithmetic
 over a recording, and it is the piece that decides whether a clean square wave at
 a plausible wrong rate is reported as a pass.

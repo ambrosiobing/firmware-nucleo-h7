@@ -2,7 +2,9 @@
 
 **Six crates since Saturday 3 October 2026**, P09's codec, P05's framing, P08's
 state machine, P02's ring, P03's loss attribution and P06's rate witness, all in
-the workspace at the repository root.
+the workspace at the repository root. All six are proven against their projects'
+own oracles as of Sunday 4 October 2026, with 38 properties in `cargo test` that
+need no other implementation.
 
 **Five of the six are `no_std`, and the sixth is the finding.** `p06-rate` is
 `std`, because `f64::sqrt`, `f64::abs` and `f64::is_nan` live in `std` and not in

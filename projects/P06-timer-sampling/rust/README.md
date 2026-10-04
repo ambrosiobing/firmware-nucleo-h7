@@ -1,12 +1,11 @@
 # P06 in Rust
 
-**State: still written, and not yet proven.** Written on win11 aquamarine, which
+**State: host, since Sunday 4 October 2026.** Written on win11 aquamarine, which
 has no cargo. The first compiler to see it was cargo 1.99.0 in WSL on the win11
-skyhorizon demo laptop, bing@JPTOUPM678, on Sunday 4 October 2026, and it refused
-the crate on one lint. That refusal is recorded below rather than quietly fixed,
-and it is the reason this page still says written: a crate that has been refused
-once has been compiled, not proven. The state moves when the four commands below
-are green and the parity table lists four languages rather than three:
+skyhorizon demo laptop, bing@JPTOUPM678, and it refused the crate on one lint,
+which is recorded below rather than quietly fixed. Clippy with warnings as errors
+is now clean, its seven unit properties pass, and the parity table lists four
+languages and not three. The commands, on that laptop:
 
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace

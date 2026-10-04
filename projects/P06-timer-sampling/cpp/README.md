@@ -1,9 +1,12 @@
 # P06 in C++
 
-**State: written Saturday 3 October 2026, and not yet built.** Written on win11
-aquamarine, which compiles nothing; the first compiler to see it is `g++` in WSL
-on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
-`python3 python/tools/build_host.py`, and then CI with warnings as errors.
+**State: host, since Sunday 4 October 2026.** Written on win11 aquamarine, which
+compiles nothing. The first compiler to see it was `g++` 15 in WSL on the win11
+skyhorizon demo laptop, bing@JPTOUPM678, through
+`python3 python/tools/build_host.py`, and it compiled with no diagnostic at all,
+which is worth saying because the C beside it did not: `rate.c` drew four
+-Wdouble-promotion warnings, and the reason is that this file already wrote
+`std::nan("")` where the C had written `NAN`, which C defines as a float.
 
 | File | What it is |
 |---|---|
