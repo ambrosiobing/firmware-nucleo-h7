@@ -146,9 +146,7 @@ fn main() -> ExitCode {
                     Some(b) => b,
                     None => return refuse(&mut stdout, "unparsable_phases"),
                 };
-                answers.push_str(&charge_answer(
-                    build, &phases, total, &baseline, tolerance,
-                ));
+                answers.push_str(&charge_answer(build, &phases, total, &baseline, tolerance));
                 answers.push('\n');
             }
             _ => return refuse(&mut stdout, "unknown_verb"),
