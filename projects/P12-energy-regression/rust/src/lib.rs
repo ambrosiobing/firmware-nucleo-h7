@@ -216,7 +216,11 @@ pub fn charge_answer(
     // for the same reason f64::sqrt does, so that one call would have cost this
     // crate the libm dependency. Two comparisons need nothing, and they behave
     // identically on a NaN: abs(NaN) > slack is false, and so are both of these.
-    let slack = if 0.05 * total > 1.0 { 0.05 * total } else { 1.0 };
+    let slack = if 0.05 * total > 1.0 {
+        0.05 * total
+    } else {
+        1.0
+    };
     if summed - total > slack || total - summed > slack {
         return answer(
             true,
@@ -250,7 +254,13 @@ pub fn charge_answer(
         };
         report.push(format!("{}:{}:{}:{}", name, g(got), g(want), g(change)));
         if got > want * (1.0 + tolerance) {
-            failures.push(format!("over:{}:{}:{}:{}", name, g(got), g(want), g(change)));
+            failures.push(format!(
+                "over:{}:{}:{}:{}",
+                name,
+                g(got),
+                g(want),
+                g(change)
+            ));
         }
     }
 
@@ -410,14 +420,20 @@ mod tests {
     #[test]
     fn no_sizes_reported_at_all_is_a_failure_not_a_pass() {
         let mut budgets = SizeMap::new();
-        budgets.insert("p01-first-light".to_string(), sizes(Some(16384), Some(12288)));
+        budgets.insert(
+            "p01-first-light".to_string(),
+            sizes(Some(16384), Some(12288)),
+        );
         assert_eq!(size_answer(&SizeMap::new(), &budgets), "FAIL no_sizes - -");
     }
 
     #[test]
     fn flash_over_budget_fails_and_says_by_how_much() {
         let mut budgets = SizeMap::new();
-        budgets.insert("p01-first-light".to_string(), sizes(Some(16384), Some(12288)));
+        budgets.insert(
+            "p01-first-light".to_string(),
+            sizes(Some(16384), Some(12288)),
+        );
         let mut measured = SizeMap::new();
         measured.insert("p01-first-light".to_string(), sizes(Some(20000), Some(4000)));
         let out = size_answer(&measured, &budgets);
@@ -432,7 +448,10 @@ mod tests {
     #[test]
     fn a_target_with_no_committed_budget_is_a_failure() {
         let mut budgets = SizeMap::new();
-        budgets.insert("p01-first-light".to_string(), sizes(Some(16384), Some(12288)));
+        budgets.insert(
+            "p01-first-light".to_string(),
+            sizes(Some(16384), Some(12288)),
+        );
         let mut measured = SizeMap::new();
         measured.insert("p99-new-thing".to_string(), sizes(Some(100), Some(100)));
         let out = size_answer(&measured, &budgets);
@@ -444,7 +463,10 @@ mod tests {
     #[test]
     fn a_build_that_omits_a_field_is_a_failure_and_not_a_zero() {
         let mut budgets = SizeMap::new();
-        budgets.insert("p01-first-light".to_string(), sizes(Some(16384), Some(12288)));
+        budgets.insert(
+            "p01-first-light".to_string(),
+            sizes(Some(16384), Some(12288)),
+        );
         let mut measured = SizeMap::new();
         measured.insert("p01-first-light".to_string(), sizes(Some(9000), None));
         let out = size_answer(&measured, &budgets);
