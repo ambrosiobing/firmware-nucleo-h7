@@ -153,6 +153,87 @@ static void report_clock(const char *when)
            status_word(board_clock_status()));
 }
 
+/* The crystal, and the core clock counted against it.
+ *
+ * CALLED TWICE, before and after the clock change, and the second call is not
+ * the interesting one. The first measurement of 280 MHz against this crystal on
+ * Sunday 4 October 2026 came out 1168 parts per million low, which is forty
+ * times the crystal's expected accuracy and a third of what one wrong digit in
+ * the PLL's N field would give. So one of the two references is off by about
+ * 0.117 per cent and the measurement alone cannot say which.
+ *
+ * The reset clock is what discriminates. P01 measured the internal oscillator at
+ * 64.17 to 64.18 MHz across six reductions on two instruments against a host
+ * PC's clock, a spread of 0.031 per cent. A crystal-referenced reading of that
+ * same oscillator either lands in that band, which clears the crystal and makes
+ * the 280 MHz figure a real property of the debugger's 8 MHz, or lands near
+ * 64.095 MHz, which is what a crystal 1171 parts per million fast would produce
+ * and which is outside the band six reductions established.
+ *
+ * Either answer is worth having and neither is assumed here. */
+static void report_crystal(const char *when, uint32_t nominal_hz)
+{
+    lseref_start_t lse;
+    lseref_measure_t m;
+    int lse_rc;
+    int m_rc;
+
+    printf("\n  the 32.768 kHz crystal, %s. It is the only reference on this\n"
+           "  board that does not come from the PLL chain:\n", when);
+
+    lse_rc = lseref_start(&lse, 3000u);
+    printf("    RCC_BDCR as found %08lX, after %08lX, backup domain %s\n",
+           (unsigned long) lse.bdcr_before, (unsigned long) lse.bdcr_after,
+           lse.backup_unlocked ? "unlocked" : "STILL LOCKED, enable ignored");
+    if (lse.already_running) {
+        printf("    already running, which is what a system reset leaves "
+               "behind. The\n    backup domain is not reset by the RESET pin, "
+               "so a zero wait here\n    means nothing was asked of it. Power "
+               "cycle for a startup time.\n");
+    } else if (lse_rc == 0) {
+        printf("    started, after about %lu ms of waiting\n",
+               (unsigned long) lse.waited_ms);
+    } else {
+        printf("    DID NOT START within 3000 ms. Nothing else depends on it.\n");
+        return;
+    }
+
+    m_rc = lseref_measure_core_hz(&m, 256u);
+    if (m_rc != 0) {
+        printf("    the measurement refused: APB4ENR %08lX  BDCR %08lX  "
+               "ICSR %08lX\n    PRER %08lX, tick %lu Hz. A bus clock of zero "
+               "means RTCAPBEN did\n    not take; RSF never set means the clock "
+               "selection never reached\n    the RTC; a tick of zero means "
+               "PREDIV_A is unusable.\n",
+               (unsigned long) m.apb4enr, (unsigned long) m.bdcr,
+               (unsigned long) m.icsr, (unsigned long) m.prer,
+               (unsigned long) m.ck_apre_hz);
+        return;
+    }
+
+    printf("    RTC_PRER %08lX so the sub second tick is %lu Hz, "
+           "gate %lu ticks\n",
+           (unsigned long) m.prer, (unsigned long) m.ck_apre_hz,
+           (unsigned long) m.ticks);
+    printf("    MEASURED  %lu Hz over %lu counted core cycles\n",
+           (unsigned long) m.core_hz_measured, (unsigned long) m.cycles);
+    printf("    derived   %lu Hz, so %ld parts per million\n",
+           (unsigned long) m.core_hz_derived, (long) m.error_ppm);
+
+    /* The nominal is printed separately from the derived figure because they are
+     * different claims. The derived figure is what this image computed from the
+     * registers; the nominal is what the datasheet says the oscillator is. For
+     * the internal oscillator those differ by a known amount already measured by
+     * two other instruments, and that is the whole point of this comparison. */
+    if (nominal_hz != 0u && m.core_hz_measured != 0u) {
+        const long against_nominal =
+            (long) (((int64_t) m.core_hz_measured - (int64_t) nominal_hz)
+                    * 1000000 / (int64_t) nominal_hz);
+        printf("    nominal   %lu Hz, so %ld parts per million against nominal\n",
+               (unsigned long) nominal_hz, against_nominal);
+    }
+}
+
 int main(void)
 {
     clock280_result_t result;
@@ -167,6 +248,14 @@ int main(void)
 
     report_clock("before");
     dump_registers("the registers as found");
+
+    /* FIRST, on the reset clock, which is the measurement that discriminates.
+     * The internal oscillator has already been measured at 64.17 to 64.18 MHz
+     * by two other instruments, so this reading either agrees with them and
+     * clears the crystal, or it does not and the crystal is the thing that is
+     * wrong. Done before the clock change so a failure in the sequence below
+     * still leaves this result on the console. */
+    report_crystal("on the reset clock", HSI_HZ_NOMINAL);
 
     /* The one thing worth saying before the attempt: what the sequence intends,
      * in the arithmetic a reader can check, so the console carries the claim and
@@ -249,97 +338,9 @@ int main(void)
                "  it costs nothing and would catch an error of a factor.\n");
     }
 
-    /* ---- the independent reference, which is what makes the next step a
-     * measurement rather than a derivation.
-     *
-     * Asked for AFTER the clock is up, deliberately. The crystal is unaffected
-     * by the core clock, so the order does not matter to it, and reporting it
-     * here keeps the clock sequence above as one readable block. A failure here
-     * does not touch the clock: this call writes only PWR_CR1's protection bit
-     * and RCC_BDCR's enable, and nothing in the sequence above depends on it. */
-    {
-        lseref_start_t lse;
-        const int lse_rc = lseref_start(&lse, 3000u);
-
-        printf("\n  the 32.768 kHz crystal, which is the only reference on this\n");
-        printf("  board that does not come from the PLL chain:\n");
-        printf("    RCC_BDCR as found %08lX, after %08lX\n",
-               (unsigned long) lse.bdcr_before, (unsigned long) lse.bdcr_after);
-        printf("    backup domain unlocked %s\n",
-               lse.backup_unlocked ? "yes" : "NO, so the enable was ignored");
-        if (lse.already_running) {
-            printf("    it was ALREADY RUNNING, which is what a system reset "
-                   "leaves behind.\n"
-                   "    The backup domain is not reset by the RESET pin, so a "
-                   "zero wait\n    here means nothing was asked of it. Power "
-                   "cycle for the startup time.\n");
-        } else if (lse_rc == 0) {
-            printf("    STARTED, after about %lu ms of waiting\n",
-                   (unsigned long) lse.waited_ms);
-            printf("    That is the first time this repository has asked this "
-                   "crystal to\n    oscillate. Until now its presence was a "
-                   "datasheet fact.\n");
-        } else {
-            printf("    DID NOT START within 3000 ms, and LSERDY is still "
-                   "clear.\n    Either the crystal is absent or not loaded, or "
-                   "something above\n    is wrong. Nothing else in this image "
-                   "depends on it.\n");
-        }
-        printf("    NOTE: the wait is counted by board_delay_ms, which is "
-               "calibrated\n    against the clock under test, so it is a bound "
-               "and not a measurement.\n");
-
-        /* ---- and now the measurement, which is the point of the crystal.
-         *
-         * Only attempted when the crystal is actually running. Asking for a
-         * frequency against a reference that is not oscillating would produce a
-         * number, and a number from a stopped reference is worse than no
-         * number. */
-        if (lse_rc == 0) {
-            lseref_measure_t m;
-            const int m_rc = lseref_measure_core_hz(&m, 256u);
-
-            printf("\n  THE CORE CLOCK, MEASURED against that crystal:\n");
-            printf("    RCC_APB4ENR %08lX   the RTC bus clock, without which\n"
-                   "                         every register below reads zero\n",
-                   (unsigned long) m.apb4enr);
-            printf("    RCC_BDCR    %08lX   RTCSEL and RTCEN\n",
-                   (unsigned long) m.bdcr);
-            printf("    RTC_ICSR    %08lX   RSF after %lu polls\n",
-                   (unsigned long) m.icsr, (unsigned long) m.rsf_polls);
-            printf("    RTC_PRER    %08lX   so the sub second tick is %lu Hz\n",
-                   (unsigned long) m.prer, (unsigned long) m.ck_apre_hz);
-
-            if (m_rc == 0) {
-                const long ppm = (long) m.error_ppm;
-                printf("    gate        %lu ticks, %lu core cycles counted\n",
-                       (unsigned long) m.ticks, (unsigned long) m.cycles);
-                printf("    MEASURED    %lu Hz\n",
-                       (unsigned long) m.core_hz_measured);
-                printf("    derived     %lu Hz\n",
-                       (unsigned long) m.core_hz_derived);
-                printf("    difference  %ld parts per million\n", ppm);
-                printf("\n    What that number means. The crystal is the floor "
-                       "here: at a few\n    tens of parts per million it cannot "
-                       "resolve better than that, and\n    the counting itself "
-                       "is good to about four parts per BILLION over\n    this "
-                       "gate. So a difference inside a few hundred parts per "
-                       "million\n    confirms the derivation, including that "
-                       "every divider field means\n    what it was read to "
-                       "mean. A difference near 3600 would be N off\n    by one, "
-                       "279 MHz rather than 280, which is the error nothing "
-                       "else\n    in this image could have caught.\n");
-            } else {
-                printf("    THE MEASUREMENT REFUSED, and the registers above say "
-                       "where.\n    A bus clock of zero means RTCAPBEN did not "
-                       "take. RSF never set\n    means the shadow registers "
-                       "never synchronised, which usually means\n    the clock "
-                       "selection did not reach the RTC. A sub second tick of\n"
-                       "    zero means PREDIV_A read back as something this "
-                       "cannot divide by.\n");
-            }
-        }
-    }
+    /* And again at the new clock. Same crystal, same gate, so the two readings
+     * differ only in what they are measuring. */
+    report_crystal("at the new clock", CORE_HZ_TARGET);
 
     /* And then blink, so the board says something a person across the room can
      * read. One second per cycle, from board_delay_ms, which was calibrated
