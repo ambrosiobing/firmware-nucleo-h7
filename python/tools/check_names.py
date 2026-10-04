@@ -41,12 +41,33 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# Names every module gets without binding them, beyond the builtins themselves.
-MODULE_DUNDERS = {
-    "__file__", "__name__", "__doc__", "__package__", "__spec__",
-    "__loader__", "__builtins__", "__path__", "__debug__",
-}
-KNOWN = set(dir(builtins)) | MODULE_DUNDERS
+KNOWN = set(dir(builtins))
+
+
+def interpreter_owns(name):
+    """True for a name in the interpreter's namespace rather than the author's.
+
+    Every dunder is skipped, and that rule was bought rather than guessed. The
+    first version of this file listed the module dunders it knew about, and on
+    Sunday 4 October 2026 it reported python/tests/test_ring.py reading
+    `__conditional_annotations__` and nothing binding it. That name is not in
+    that file or in any file here: it is synthesised by the compiler for a module
+    whose annotations are evaluated lazily, which PEP 649 and PEP 749 introduced,
+    and `_LIBS: dict[int, ctypes.CDLL] = {}` at module level with
+    `from __future__ import annotations` is enough to produce it.
+
+    **The finding is where it disagreed.** Python 3.12.10 on win11 aquamarine
+    emits no such symbol, and CI pins 3.12, so the authoring laptop and CI would
+    both have stayed green while WSL on bing@JPTOUPM678, which has a newer
+    interpreter, went red. A check that answers differently on two laptops is
+    worse than no check, because the disagreement is read as a defect in the code
+    rather than in the check.
+
+    Listing the dunders a given version synthesises would have to be revised for
+    every release, so the rule is the category instead: a dunder belongs to the
+    interpreter, and an undefined one is not a defect this file is for.
+    """
+    return name.startswith("__") and name.endswith("__")
 
 # Where this repository's Python lives. The chapters' code samples are not here
 # and are not importable, which is a separate question answered by lint.py.
@@ -78,7 +99,8 @@ def undefined_in(path):
             # places left to find it are the module and builtins.
             if symbol.is_global() and symbol.is_referenced():
                 name = symbol.get_name()
-                if name not in module and name not in KNOWN:
+                if (name not in module and name not in KNOWN
+                        and not interpreter_owns(name)):
                     # symtable calls the module scope "top", which is not what a
                     # reader of the message wants to be told.
                     where = ("at module level" if table is top

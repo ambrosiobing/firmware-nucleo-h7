@@ -444,7 +444,11 @@ mod tests {
         assert_eq!(analyse(&samples, 100_000.0, 1000.0, &mut r), None);
         assert!(r.edges > 400, "only {} edges in half a second", r.edges);
         assert!(r.rate_within_tolerance, "fit rate {}", r.fit_rate_hz);
-        assert!(r.routes_agree, "count {} fit {}", r.count_rate_hz, r.fit_rate_hz);
+        assert!(
+            r.routes_agree,
+            "count {} fit {}",
+            r.count_rate_hz, r.fit_rate_hz
+        );
         assert_eq!(r.missing_edges, 0);
         assert!(r.pass);
     }
@@ -471,7 +475,10 @@ mod tests {
     fn a_flat_recording_is_refused_rather_than_reported_as_perfect() {
         let samples = vec![1.65; 1000];
         let mut r = Analysis::default();
-        assert_eq!(analyse(&samples, 100_000.0, 1000.0, &mut r), Some(Refused::NoSwing));
+        assert_eq!(
+            analyse(&samples, 100_000.0, 1000.0, &mut r),
+            Some(Refused::NoSwing)
+        );
         assert!(!r.pass);
     }
 
@@ -504,7 +511,11 @@ mod tests {
         let y: Vec<f64> = x.iter().map(|v| 3.0 * v + 7.0).collect();
         let f = fit_line(&x, &y).expect("fits");
         assert!((f.slope - 3.0).abs() < 1e-12, "slope {}", f.slope);
-        assert!((f.intercept - 7.0).abs() < 1e-12, "intercept {}", f.intercept);
+        assert!(
+            (f.intercept - 7.0).abs() < 1e-12,
+            "intercept {}",
+            f.intercept
+        );
         assert!(f.slope_se < 1e-12, "a perfect fit has no standard error");
     }
 
