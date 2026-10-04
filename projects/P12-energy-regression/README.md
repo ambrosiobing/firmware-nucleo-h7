@@ -1,9 +1,29 @@
 # P12: energy as a regression test, and the rig that runs it
 
-Status: c=none cpp=none python=host rust=none
+Status: c=host cpp=host python=host rust=host
 
 Three gates in increasing order of what they cost to run, so the cheap ones fail
 first and the expensive one runs only on code that has already earned it.
+
+**Four implementations of both gates since Sunday 4 October 2026**, proven
+equivalent over twenty eight cases by `python/tests/test_gates_parity.py`.
+[PROTOCOL.md](PROTOCOL.md) is the contract they obey, and it records the decision
+worth arguing about: the four are compared on the rules with the case already
+parsed, not on JSON. The gate is this project's subject and JSON is not, and
+three more hand-written JSON parsers would have become the thing under test,
+where a divergence would far more likely be a disagreement about number syntax
+than about whether a six percent charge regression turns a build red. The Python
+keeps the JSON edge, which is the half `python/tests/test_gates.py` proves
+against the committed files.
+
+**The Python is the reference here, where the C is in the other five parity
+tests.** That is not precedent, it is the reason: the gate that actually runs is
+the Python one. The other three exist to show the rules are stated clearly enough
+to be implemented four times, and writing them found one thing worth having
+independently, which is that each gate is now a verdict as data plus a renderer
+for its English. A verdict that exists only as an English sentence cannot be
+compared without parsing prose, and there is now one set of rules rather than a
+set of rules and a set of sentences that can drift from them.
 
 **State: both gates are written and proven. The hardware job is not.** The
 criterion the chapter states outright is met today:

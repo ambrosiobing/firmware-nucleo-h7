@@ -64,6 +64,44 @@ def _load(path: Path, what: str) -> dict:
 
 # ------------------------------------------------------------------ gate 2, size
 
+def size_verdict(measured: dict, budgets: dict) -> dict:
+    """The size gate's decision as data rather than as prose.
+
+    This exists so the gate can be compared with the C, C++ and Rust
+    implementations of the same rules. `check_sizes` renders its English from
+    this, so there is one set of rules and not two and the wording cannot drift
+    away from the verdict it describes.
+
+    Returns {"refused": tuple or None, "failures": [tuple], "report": [tuple]}.
+    `refused` is the one failure that stops the gate before it looks at anything
+    else, because a gate with no input at all has nothing to report.
+    """
+    if not measured:
+        return {"refused": ("no_sizes",), "failures": [], "report": []}
+
+    failures, report = [], []
+    for target in sorted(measured):
+        got = measured[target]
+        if target not in budgets:
+            failures.append(("no_budget", target))
+            continue
+        want = budgets[target]
+        for field in ("flash", "static_ram"):
+            if field not in got:
+                failures.append(("no_field", target, field))
+                continue
+            limit = want.get(field)
+            if limit is None:
+                failures.append(("no_field_budget", target, field))
+                continue
+            used = got[field]
+            report.append((target, field, used, limit,
+                           (100.0 * used / limit) if limit else 0.0, limit - used))
+            if used > limit:
+                failures.append(("over", target, field, used, limit, used - limit))
+    return {"refused": None, "failures": failures, "report": report}
+
+
 def check_sizes(measured: dict, budgets: dict | None = None) -> list[str]:
     """Compare reported sizes against committed budgets. Returns the report lines.
 
@@ -77,37 +115,33 @@ def check_sizes(measured: dict, budgets: dict | None = None) -> list[str]:
     if budgets is None:
         budgets = _load(BUDGETS, "the size budgets")
 
-    if not measured:
+    verdict = size_verdict(measured, budgets)
+    if verdict["refused"] is not None:
         raise GateFailure(
             "no sizes were reported. The build did not produce the sizes this gate "
             "reads,\nwhich is a build failure wearing a passing gate's clothes.")
 
-    lines, failures = [], []
-    for target in sorted(measured):
-        got = measured[target]
-        if target not in budgets:
+    lines = [
+        "  {:<22} {:<11} {:>7} of {:>7}  {:>5.1f}%  margin {:>7}".format(
+            target, field, used, limit, pct, margin)
+        for target, field, used, limit, pct, margin in verdict["report"]
+    ]
+
+    failures = []
+    for item in verdict["failures"]:
+        kind = item[0]
+        if kind == "no_budget":
             failures.append(
                 "{}: no committed budget. Add one to {} rather than letting a "
-                "binary go unwatched.".format(target, BUDGETS.name))
-            continue
-        want = budgets[target]
-        for field in ("flash", "static_ram"):
-            if field not in got:
-                failures.append("{}: the build reported no {}".format(target, field))
-                continue
-            limit = want.get(field)
-            if limit is None:
-                failures.append("{}: no {} budget committed".format(target, field))
-                continue
-            used = got[field]
-            margin = limit - used
-            pct = (100.0 * used / limit) if limit else 0.0
-            lines.append("  {:<22} {:<11} {:>7} of {:>7}  {:>5.1f}%  margin {:>7}".format(
-                target, field, used, limit, pct, margin))
-            if used > limit:
-                failures.append(
-                    "{} {}: {} bytes over the committed {} by {}".format(
-                        target, field, used, limit, used - limit))
+                "binary go unwatched.".format(item[1], BUDGETS.name))
+        elif kind == "no_field":
+            failures.append("{}: the build reported no {}".format(item[1], item[2]))
+        elif kind == "no_field_budget":
+            failures.append("{}: no {} budget committed".format(item[1], item[2]))
+        elif kind == "over":
+            failures.append(
+                "{} {}: {} bytes over the committed {} by {}".format(
+                    item[1], item[2], item[3], item[4], item[5]))
 
     if failures:
         raise GateFailure("the size gate failed:\n  " + "\n  ".join(failures))
@@ -115,6 +149,66 @@ def check_sizes(measured: dict, budgets: dict | None = None) -> list[str]:
 
 
 # ---------------------------------------------------------------- gate 3, charge
+
+def charge_verdict(measured: dict, baseline: dict,
+                   tolerance: float = CHARGE_TOLERANCE_FRACTION) -> dict:
+    """The charge gate's decision as data rather than as prose.
+
+    The same arrangement as `size_verdict`, and for the same reason: the C, C++
+    and Rust implementations of these rules are compared against this one, and
+    `check_charge` renders its English from this so the wording cannot drift away
+    from the verdict it describes.
+
+    **The order of the four refusals is part of the rules and not an accident of
+    how the code reads.** A ledger with no build identity is refused before its
+    phases are examined, because a capture that cannot be tied to a firmware is
+    not evidence whatever its numbers say. The sum check comes before any phase
+    is compared, because a run whose parts do not reconcile has lost or double
+    counted a phase and no verdict on it is worth anything. An implementation
+    that reported a different first refusal for the same ledger would be a real
+    disagreement, so the parity test compares which refusal came first.
+    """
+    if not measured.get("build"):
+        return {"refused": ("no_build",), "failures": [], "report": []}
+
+    phases = measured.get("phases")
+    want_phases = baseline.get("phases")
+    if not phases or not want_phases:
+        return {"refused": ("no_phases",), "failures": [], "report": []}
+
+    total = measured.get("total_uc")
+    if total is None:
+        return {"refused": ("no_total",), "failures": [], "report": []}
+    # Summed in name order and not in the order the ledger happened to list
+    # them. Addition is not associative in floating point, and this sum appears
+    # in the answer when it does not reconcile, so its order is part of the rules
+    # rather than an accident: the C sorts an array of pointers before summing,
+    # and the C++ and the Rust get the order from their containers. Relying on a
+    # comparison tolerance to absorb the difference would have worked here and
+    # would have been the wrong reason for it to work. P06 taught this one.
+    summed = sum(phases[name] for name in sorted(phases))
+    if abs(summed - total) > max(1.0, 0.05 * total):
+        return {"refused": ("sum_mismatch", summed, total), "failures": [],
+                "report": []}
+
+    failures, report = [], []
+    for phase in sorted(want_phases):
+        if phase not in phases:
+            failures.append(("missing_phase", phase))
+            continue
+        want = want_phases[phase]
+        got = phases[phase]
+        change = (100.0 * (got - want) / want) if want else 0.0
+        report.append((phase, got, want, change))
+        if got > want * (1.0 + tolerance):
+            failures.append(("over", phase, got, want, change))
+
+    for phase in sorted(phases):
+        if phase not in want_phases:
+            failures.append(("not_in_baseline", phase))
+
+    return {"refused": None, "failures": failures, "report": report}
+
 
 def check_charge(measured: dict, baseline: dict | None = None,
                  tolerance: float = CHARGE_TOLERANCE_FRACTION) -> list[str]:
@@ -131,54 +225,45 @@ def check_charge(measured: dict, baseline: dict | None = None,
     if baseline is None:
         baseline = _load(BASELINE, "the charge baseline")
 
-    if not measured.get("build"):
-        raise GateFailure(
-            "this ledger records no build identity, so it is not evidence and "
-            "cannot gate\nanything. scan records git describe; a capture without it "
-            "cannot be tied to the\nfirmware that produced it.")
-
-    phases = measured.get("phases")
-    want_phases = baseline.get("phases")
-    if not phases or not want_phases:
-        raise GateFailure("the ledger or the baseline carries no phases")
-
-    # The phases must sum to the total. Without this the gate can pass while the
-    # measurement has lost a phase, which is the failure that looks most like an
-    # improvement: fewer phases, less total charge, everything green.
-    total = measured.get("total_uc")
-    if total is None:
-        raise GateFailure("the ledger carries no total_uc to reconcile against")
-    summed = sum(phases.values())
-    if abs(summed - total) > max(1.0, 0.05 * total):
+    verdict = charge_verdict(measured, baseline, tolerance)
+    refused = verdict["refused"]
+    if refused is not None:
+        if refused[0] == "no_build":
+            raise GateFailure(
+                "this ledger records no build identity, so it is not evidence and "
+                "cannot gate\nanything. scan records git describe; a capture without "
+                "it cannot be tied to the\nfirmware that produced it.")
+        if refused[0] == "no_phases":
+            raise GateFailure("the ledger or the baseline carries no phases")
+        if refused[0] == "no_total":
+            raise GateFailure("the ledger carries no total_uc to reconcile against")
         raise GateFailure(
             "the phases sum to {:.1f} uC and the ledger reports a total of {:.1f}. "
             "A phase is\nmissing or double counted, and no verdict on this run is "
-            "worth anything.".format(summed, total))
+            "worth anything.".format(refused[1], refused[2]))
 
-    lines, failures = [], []
-    for phase in sorted(want_phases):
-        if phase not in phases:
+    lines = [
+        "  {:<12} {:>9.2f} uC   baseline {:>9.2f}   {:+6.1f}%".format(
+            phase, got, want, change)
+        for phase, got, want, change in verdict["report"]
+    ]
+
+    failures = []
+    for item in verdict["failures"]:
+        kind = item[0]
+        if kind == "missing_phase":
             failures.append(
                 "{}: the ledger is missing this phase. A missing measurement is a "
-                "failure, not a pass.".format(phase))
-            continue
-        want = want_phases[phase]
-        got = phases[phase]
-        limit = want * (1.0 + tolerance)
-        change = (100.0 * (got - want) / want) if want else 0.0
-        lines.append("  {:<12} {:>9.2f} uC   baseline {:>9.2f}   {:+6.1f}%".format(
-            phase, got, want, change))
-        if got > limit:
+                "failure, not a pass.".format(item[1]))
+        elif kind == "over":
             failures.append(
                 "{}: {:.2f} uC against a baseline of {:.2f}, which is {:+.1f}% and "
                 "over the {:.0f}% tolerance".format(
-                    phase, got, want, change, tolerance * 100))
-
-    for phase in sorted(phases):
-        if phase not in want_phases:
+                    item[1], item[2], item[3], item[4], tolerance * 100))
+        elif kind == "not_in_baseline":
             failures.append(
                 "{}: measured but not in the baseline. Add it, or the gate is "
-                "watching less than the run does.".format(phase))
+                "watching less than the run does.".format(item[1]))
 
     if failures:
         raise GateFailure("the charge gate failed:\n  " + "\n  ".join(failures))

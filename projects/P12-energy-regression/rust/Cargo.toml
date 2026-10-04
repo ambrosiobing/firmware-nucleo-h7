@@ -1,0 +1,43 @@
+[package]
+name = "p12-gates"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P12's size and charge gates, no_std with alloc, against the same cases as the C, C++ and Python implementations"
+license = "MIT"
+publish = false
+
+# No dependencies. Both gates are a measurement, a committed expectation, a
+# tolerance and a verdict, which is arithmetic and ordering and nothing else.
+# The C and the C++ make the same choice for the same reason.
+#
+# One dependency was considered and rejected, and the reason is the finding this
+# crate carries. P06's witness had to be std because f64::sqrt lives in std and
+# not in core, and a no_std version would have needed the libm crate. This gate
+# needs one piece of floating-point maths, the absolute difference between a
+# reported total and the sum of its parts, and libm would have bought that one
+# call. It is written as two comparisons instead, so this crate is no_std and
+# needs nothing, and src/lib.rs says so at the line where it happens.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p12_gates"
+path = "src/lib.rs"
+
+# The filter speaks the protocol in ../PROTOCOL.md, which the C++ filter also
+# speaks, so one parity test drives both with the same code. There is no JSON
+# parser here and that is deliberate: the gate is this project's subject and
+# JSON is not, and three more hand-written parsers would become the thing under
+# test. The Python reads the real JSON files, and python/tests/test_gates.py is
+# what proves that edge against the committed baseline and budgets.
+[[bin]]
+name = "p12-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.
