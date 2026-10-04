@@ -17,6 +17,7 @@ members = [
     "projects/P02-ring-buffer/rust",
     "projects/P03-interrupt-receive/rust",
     "projects/P05-framing-crc/rust",
+    "projects/P06-timer-sampling/rust",
     "projects/P08-node-state-machine/rust",
     "projects/P09-payload-codec/rust",
 ]

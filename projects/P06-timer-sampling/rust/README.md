@@ -1,19 +1,92 @@
 # P06 in Rust
 
-**Nothing here yet.** Sampling on a timer at exactly 1 kHz has not started, and
-this directory exists so the four language routes are visible from the beginning
-rather than arriving one at a time.
+**State: written Saturday 3 October 2026, and not yet built.** Written on win11
+aquamarine, which has no cargo. Build and prove it in WSL on the win11 skyhorizon
+demo laptop, bing@JPTOUPM678:
 
-What it will carry. The Rust implementation of sampling on a timer at exactly 1
-kHz, proven against the same oracle as the other three languages, which this
-project has yet to define.
+    cargo clippy --workspace --all-targets -- -D warnings
+    cargo test --workspace
+    cargo build --release --workspace
+    python3 -m pytest python/tests/test_rate_parity.py -q -s
 
-What has to come first is in [../README.md](../README.md). Nothing here is written
-until it can be proven, and an empty source file would be a claim rather than a
-placeholder, which is why there is none.
+| File | What it is |
+|---|---|
+| `Cargo.toml` | the crate `p06-rate`, no dependencies, a workspace member |
+| `src/lib.rs` | the witness |
+| `src/main.rs` | the filter `p06-filter`, the one verb the C++ filter speaks |
 
+## This is the one crate in the workspace that is not `no_std`, and that is the finding
+
+`f64::sqrt`, `f64::abs` and `f64::is_nan` live in `std` and not in `core`.
+Rust's core library has no floating-point maths at all, because those functions
+live in the platform's libm and `core` assumes no platform. A `no_std` version of
+this crate would need the `libm` crate as a dependency.
+
+So the choice was between a dependency added to preserve a pattern and an honest
+exception. The witness reads a recording an instrument produced and decides
+whether a rate claim stands; it has no reason to run on the board. The other four
+crates are `no_std` because they are code the board will link. This one is not.
+
+**The C is different, and the difference is the part worth printing.** `rate.c`
+compiles unchanged for the target, because newlib provides `sqrt`. The same
+program is portable to this part in C and is not in Rust without a crate. That is
+a real cost of the language on this part, in the one direction people do not
+usually expect, and `code.yml` therefore names the five `no_std` packages for the
+`thumbv7em-none-eabihf` build rather than building the workspace.
+
+## One version bump, and why it was worth it
+
+This crate declares `rust-version = "1.77"` where the other four declare 1.75.
+`f64::round_ties_even` was stabilised there, and it is what makes the
+missing-edge count agree with Python's `round` and C's `nearbyint`, all three of
+which round half to even. Rust's `f64::round` rounds half away from zero.
+
+The three would disagree only when an interval is exactly a half multiple of
+nominal, which a real recording never produces and a synthetic one easily could,
+and a parity test over synthetic captures is precisely where that would surface.
+Hand-rolling the tie rule to save a version would have put a rounding rule of my
+own in the one file whose job is agreeing with three other implementations.
+
+`cargo test` carries seven properties that need no other implementation,
+including the clean wave at the wrong rate failing on the rate and not on
+jitter, a flat recording refused rather than called perfect, and a perfect
+straight line fitted with no residual.
 
 ## What it is proven against
 
-The external witness: an edge analysis and a rate analysis that must agree
-before any rate is claimed.
+Nine synthetic captures whose answers are known by construction, written to
+files because a capture is thousands of doubles, and driven through every
+implementation by `python/tests/test_rate_parity.py`:
+
+| Capture | What every implementation must say |
+|---|---|
+| a clean kilohertz square wave | pass, and 1000.014 Hz from the fit |
+| **a clean wave at 1100 Hz** | **fail on the rate, pass on the jitter.** This is the one the project exists for: a clean wave at the wrong rate, which a witness that called it a pass would be worthless for |
+| jitter of two microseconds | pass, standard deviation 7.4 microseconds against the ten the criterion allows |
+| jitter of thirty microseconds | fail on jitter, pass on the rate, because the mean period is unchanged |
+| one dropped edge | one missing edge, from an interval near twice nominal |
+| one doubled edge | two missing edges, from two intervals near a half |
+| offset and attenuated | identical to the clean capture, which is what proves the thresholds come from the observed swing and not from assumed rail voltages |
+| a flat recording | refused for having no swing, rather than reported as perfect |
+| a fragment | refused for having too few edges |
+
+**Why this comparison is numeric where the other four are exact.** The other
+parity tests compare bytes, row indices or integers and demand equality. This one
+compares doubles to a relative tolerance of 1e-12. Double arithmetic is
+deterministic, but the contraction of a multiply and an add into one fused
+instruction is not the same across four toolchains: gcc may contract where rustc
+does not, and the Cortex-M7's floating point unit has a fused multiply-add where
+a host may not. The C and C++ are compiled with `-ffp-contract=off` to remove
+the question where it can be removed, and the tolerance covers what remains. The
+pass criteria are 0.1 percent, so 1e-12 is nine orders of magnitude tighter than
+anything the measurement claims.
+
+The booleans and the counts are compared exactly. A verdict that differed between
+implementations would be a real disagreement whatever the arithmetic did.
+
+## What no host can compare
+
+Whether the board actually samples at 1 kHz. That is what the witness is for, and
+it needs the board, the marker pin and the MCC 118. The three acquisition back
+ends still refuse at run time rather than guessing a converter, timer or transfer
+engine setting RM0455 governs.

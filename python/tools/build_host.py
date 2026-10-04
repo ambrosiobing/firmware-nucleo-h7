@@ -450,6 +450,23 @@ def main() -> int:
                [proj("P08", "c") / "node_sm.c", C_DIR / "payload" / "payload.c"],
                includes=[proj("P08", "c"), C_DIR / "payload"])
 
+    # -ffp-contract=off on both P06 files, and the reason is the comparison
+    # rather than a preference. The witness is floating point, and the
+    # contraction of a multiply and an add into one fused instruction is not the
+    # same across gcc, g++ and rustc. Turning it off removes the question where
+    # it can be removed; the parity test's 1e-12 tolerance covers what remains.
+    print("P06, the rate witness, which decides whether a rate claim stands:")
+    shared_lib("rate", [proj("P06", "c") / "rate.c"],
+               ["-ffp-contract=off"], includes=[proj("P06", "c")])
+
+    print("P06, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         "-ffp-contract=off", *STATIC,
+         "-I", proj("P06", "cpp"),
+         proj("P06", "cpp") / "rate_filter.cpp",
+         "-o", BUILD / ("rate_filter" + exe)],
+        "rate_filter")
+
     print("P03, the attribution, which is the half of it that can be proven:")
     shared_lib("attribute", [proj("P03", "c") / "attribute.c"],
                includes=[proj("P03", "c")])

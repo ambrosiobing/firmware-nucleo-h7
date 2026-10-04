@@ -1,10 +1,31 @@
 # Sampling on a timer at exactly 1 kHz
 
-Status: c=links cpp=none python=host rust=none
+Status: c=links cpp=written python=host rust=written
 
 Chapter 6 of the NUCLEO-H7A3ZI-Q firmware volume. Three ways to sample at
 1 kHz, one application, and an external witness that decides which of them
 actually does.
+
+**Four implementations of the witness since Saturday 3 October 2026**, which is
+the half of this project that can be proven. The three back ends still refuse at
+run time rather than guessing a setting RM0455 governs; the witness is arithmetic
+over a recording, and it is the piece that decides whether a clean square wave at
+a plausible wrong rate is reported as a pass.
+
+`python/tests/test_rate_parity.py` drives nine synthetic captures through every
+implementation. The one that matters is the second: a clean wave at 1100 Hz,
+which every implementation must fail on the rate while passing the jitter
+criterion. It is compared numerically to a relative tolerance of 1e-12 rather
+than exactly, because floating-point contraction is not identical across four
+toolchains, and 1e-12 is nine orders of magnitude tighter than the 0.1 percent
+the measurement claims.
+
+Two language findings came out of writing it. The Rust crate is the only one in
+the workspace that is not `no_std`, because `f64::sqrt` lives in `std` and not in
+`core`, while `rate.c` compiles for the target unchanged: the same program is
+portable to this part in C and is not in Rust without a crate. And the Rust crate
+needs version 1.77 for `round_ties_even`, because Python's `round` and C's
+`nearbyint` round half to even where Rust's `round` does not.
 
 **Started Wednesday 30 September 2026.** Nothing here has been compiled or run
 on hardware. What has been run is the host-side analysis, against synthetic

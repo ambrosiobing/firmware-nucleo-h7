@@ -67,6 +67,14 @@ jobs:
             -c projects/P03-interrupt-receive/cpp/attribute_filter.cpp -o build-host/werror/p03_cpp.o
           gcc -std=c11 -O2 $W -Iprojects/P03-interrupt-receive/c \
             -c projects/P03-interrupt-receive/c/attribute.c -o build-host/werror/p03_c.o
+          # -ffp-contract=off on both P06 files, for the comparison rather than
+          # as a preference: the witness is floating point and the contraction
+          # of a multiply and an add is not the same across gcc, g++ and rustc.
+          gcc -std=c11 -O2 $W -ffp-contract=off -Iprojects/P06-timer-sampling/c \
+            -c projects/P06-timer-sampling/c/rate.c -o build-host/werror/p06_c.o
+          g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti -ffp-contract=off \
+            -Iprojects/P06-timer-sampling/cpp \
+            -c projects/P06-timer-sampling/cpp/rate_filter.cpp -o build-host/werror/p06_cpp.o
 
       - name: P09, the golden vectors
         run: python -m pytest python/tests/test_vectors.py -q
@@ -96,6 +104,9 @@ jobs:
 
       - name: P03, every language attributes every lost byte the same way
         run: python -m pytest python/tests/test_attribute_parity.py -q -s
+
+      - name: P06, every language reads the same rate from the same capture
+        run: python -m pytest python/tests/test_rate_parity.py -q -s
 
       - name: P09, the twin stays inside the MicroPython subset
         run: python -m pytest python/tests/test_micropython_subset.py -q
@@ -170,8 +181,22 @@ jobs:
       # needs cortex-m-rt and a linker script, which is P01's Rust half and is
       # not written. Compiling the codec for the target is still worth a step,
       # because it is what proves the codec is genuinely no_std.
-      - name: Every library compiles for the board's target
-        run: cargo build --release --workspace --lib --target thumbv7em-none-eabihf
+      # Every library EXCEPT p06-rate, named rather than globbed, and the
+      # exception is a finding rather than an oversight. P06's witness is
+      # floating point, and f64::sqrt lives in std and not in core: Rust's core
+      # has no floating-point maths, because those functions live in the
+      # platform's libm and core assumes no platform. A no_std version would
+      # need the libm crate. The witness runs on a host and has no reason to run
+      # on the board, so it is std and is omitted here.
+      #
+      # The C is different, and that is the point worth printing: rate.c
+      # compiles unchanged for the target, because newlib provides sqrt. The
+      # same program is portable to this part in C and is not in Rust without a
+      # crate, which is a cost of the language in the direction people do not
+      # usually expect.
+      - name: Every no_std library compiles for the board's target
+        run: |
+          cargo build --release --target thumbv7em-none-eabihf --lib             -p p02-ring -p p03-attribute -p p05-frame -p p08-node-sm -p p09-payload
 
       - uses: actions/setup-python@v5
         with:
@@ -196,6 +221,9 @@ jobs:
 
       - name: P03, all four attributions over one step list
         run: python -m pytest python/tests/test_attribute_parity.py -q -s
+
+      - name: P06, all four witnesses over one set of captures
+        run: python -m pytest python/tests/test_rate_parity.py -q -s
 
   # A second job with a seed nobody chose. It prints the seed before doing any
   # work, so a failure here is reproducible from the log.

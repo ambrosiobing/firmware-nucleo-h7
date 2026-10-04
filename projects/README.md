@@ -39,13 +39,28 @@ final state, every row index taken, the counters and the stub's frame out; for
 P02, one operation per line and the answer to that one operation, which is the
 opposite shape to P08's and deliberately so, because P02's lists are long and a
 long line is what broke P08's filter; and for P03, a step's five counters in and
-the nine attributed fields out, with a second verb for the ramp's verdict.
+the nine attributed fields out, with a second verb for the ramp's verdict; and
+for P06, a capture's **path** in and the witness's twenty fields out, which is
+the only filter here that takes a path, because a capture is thousands of
+doubles and because a path is how the real witness receives one.
 
 No filter parses its project's oracle, so that stays in the one file no generator
 has ever touched, and `run_filter` in `conftest.py` drives all of them.
 
-**Five projects have a parity test so far**, P09, P05, P08, P02 and P03, and all
-five read four languages agreeing as of Saturday 3 October 2026.
+**Six projects have a parity test so far**, P09, P05, P08, P02, P03 and P06. The
+first five read four languages agreeing as of Saturday 3 October 2026; P06's C,
+C++ and Rust were written that day and none has been compiled yet.
+
+P06's is the only one compared **numerically** rather than exactly. Its witness is
+floating point, and the contraction of a multiply and an add into one fused
+instruction is not the same across four toolchains, so the doubles are compared
+to a relative tolerance of 1e-12 while the verdicts and the counts are compared
+exactly. The pass criteria are 0.1 percent, so that tolerance is nine orders of
+magnitude tighter than anything the measurement claims. The capture that matters
+is a clean wave at 1100 Hz: every implementation must fail it on the rate while
+passing the jitter criterion, because a clean square wave at the wrong rate is
+indistinguishable from a right one without an external witness, and that is the
+project's whole subject.
 
 P03's is the only one where the comparison is of the **analysis** rather than of
 the thing analysed. Its receive path needs a peripheral and still refuses; its
@@ -95,9 +110,9 @@ implementation.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eight of the twenty have code.** 118 checks, of which 106 pass on a laptop with
-no board, no probe and no Raspberry Pi; the other twelve need a compiler and skip
-there, naming the WSL command. The remaining twelve projects need hardware, and
+**Eight of the twenty have code.** 123 checks, of which 107 pass on a laptop with
+no board, no probe and no Raspberry Pi; the other sixteen need a compiler and
+skip there, naming the WSL command. The remaining twelve projects need hardware, and
 nothing in them is written yet rather than written and untested.
 
 **Four states, and the difference between them matters.** Until Friday 2 October
@@ -138,7 +153,7 @@ header named a path the file had never had.
 | [P03](P03-interrupt-receive/) | Receiving on interrupt without losing bytes | host only. The measurement is proven, attributing every lost byte to the target or the bridge. `rx_ring.c` and both documented failure modes are written and have never been built for the target. Four implementations of the attribution since Saturday 3 October 2026, which is the half that can be proven, all four agreeing over 19 synthetic steps and four ramps; the Python is the one the other three were written to be compared against |
 | [P04](P04-dma-idle-line/) | Circular DMA and the idle line | not started. Needs a transfer engine |
 | [P05](P05-framing-crc/) | Framing and the hardware CRC unit | host only, and proven there in all four languages, Saturday 3 October 2026: every one reaches the published check value 0x29B1, produces byte-identical frames over 3008 payloads, and gives the same verdict on 3005 frames corrupted three ways. The C++ and the Rust assert 0x29B1 at compile time, which the C can only assert in a test. Writing them found one divergence worth keeping: the C names the single byte 0x01 a stuffing error where the other three name it too short, because the C's cobs_decode cannot tell an empty frame from a failed one. The peripheral half waits on RM0455 |
-| [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | **links**, all three back ends, since Friday 2 October 2026, and none has been flashed. The witness is proven on synthetic input on the host. Each back end still refuses at run time rather than guessing a converter, timer or transfer engine setting RM0455 governs. The cycle counter it needs now exists and works, which was the first of its dependencies to be settled |
+| [P06](P06-timer-sampling/) | Sampling on a timer at exactly 1 kHz | **links**, all three back ends, since Friday 2 October 2026, and none has been flashed. The witness is proven on synthetic input on the host. Each back end still refuses at run time rather than guessing a converter, timer or transfer engine setting RM0455 governs. The cycle counter it needs now exists and works, which was the first of its dependencies to be settled. Four implementations of the witness since Saturday 3 October 2026, which is the half that can be proven; the C, C++ and Rust are **written and not built**. Two language findings came out of it: the Rust crate is the only one in the workspace that is not no_std, because f64::sqrt lives in std and not in core, while rate.c compiles for the target unchanged, so the same program is portable to this part in C and is not in Rust without a crate |
 | [P07](P07-stop-mode/) | Stop mode, RTC wake, and a battery number | not started. Needs the PPK2 and a running clock tree |
 | [P08](P08-node-state-machine/) | The node's state machine, transmit as a stub | written and proven: all 18 transition rows reachable, and the stub payload matches P09's encoder byte for byte. Four implementations, all four proven on the host Saturday 3 October 2026 and agreeing on **every row index taken** over twenty sequences and 2674 events, which pins the tables to one order rather than only to one behaviour. The Rust crate is the workspace's first inter-crate dependency, on P09's, so the shared criterion holds by construction |
 | [P09](P09-payload-codec/) | The payload codec and its Python twin | **runs on the board**, Saturday 3 October 2026. The negative golden vector, feature -1, encodes to 2405FFFFE8 on the Cortex-M7, byte for byte what the host produces, and decodes back to the value it started from, so sign extension, bit order and field packing agree between the two compilers. It also carries the volume's measurement of placement: four images displaced by 0, 16, 32 and 48 bytes and otherwise identical, where the cold cost tracks the offset within a 32 byte granule (3220.99 cycles at offset 0, 3163.98 at offset 16, the two images at each offset agreeing to the hundredth) and the cached cost is 2378.99 in all four. Host half: all four implementations, C, C++, Python and Rust, agree over the six vectors and 100000 recorded-seed cases, proven Saturday 3 October 2026 in WSL on bing@JPTOUPM678 with rustc 1.99.0, and the Rust library compiles for the board's target, which is the proof it is genuinely no_std |

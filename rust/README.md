@@ -1,8 +1,21 @@
 # Rust on this part
 
-**Five crates since Saturday 3 October 2026**, P09's codec, P05's framing, P08's
-state machine, P02's ring and P03's loss attribution, all in the workspace at the
-repository root.
+**Six crates since Saturday 3 October 2026**, P09's codec, P05's framing, P08's
+state machine, P02's ring, P03's loss attribution and P06's rate witness, all in
+the workspace at the repository root.
+
+**Five of the six are `no_std`, and the sixth is the finding.** `p06-rate` is
+`std`, because `f64::sqrt`, `f64::abs` and `f64::is_nan` live in `std` and not in
+`core`: Rust's core library has no floating-point maths at all, since those
+functions live in the platform's libm and `core` assumes no platform. A `no_std`
+version would need the `libm` crate.
+
+The C is different and that is the part worth printing. `rate.c` compiles
+unchanged for the target, because newlib provides `sqrt`. The same program is
+portable to this part in C and is not in Rust without a crate, which is a cost of
+the language in the one direction people do not usually expect. `code.yml`
+therefore names the five `no_std` packages for the `thumbv7em-none-eabihf` build
+rather than building the workspace, and says why at the step.
 
 **P03's carries the best argument for the language in the volume so far**, and it
 is not about memory safety. Its `Verdict` is an enum of five variants and `match`
