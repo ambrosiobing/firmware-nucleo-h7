@@ -57,6 +57,31 @@ iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
 which says the loop's cost barely moved and is a fact about the flash and the
 pipeline rather than about the clock.
 
+## One thing a reset does not undo
+
+Running `p01-pll280` twice on Sunday 4 October 2026, once after a power cycle and
+once after the black RESET button, gave different starting states:
+
+| | after power is removed | after the RESET pin |
+|---|---|---|
+| `PWR_CR3` | `00000006`, both `LDOEN` and `SMPSEN` set, no supply chosen | `00010004`, `LDOEN` clear, the SMPS still selected |
+| `ACTVOSRDY` | 0, the regulator has not settled | 1, already settled |
+| `HSEBYP` | 0 | 1, still in bypass |
+| supply step | 31 polls to become ready | 0 polls, nothing to do |
+
+**The supply selection, the regulator's ready state and the external clock's
+bypass bit all survive a system reset.** Only removing power restores them. Two
+consequences worth having written down. A reader comparing the image's dump
+against a reset-value column in a manual will find disagreements that are not
+faults, which is why the heading says "as found" rather than "at reset". And the
+supply step is safely idempotent: writing the selection it already holds is a
+no-op that still passes its own read-back gate, which is what ST's own
+`HAL_PWREx_ConfigSupply` has a branch for.
+
+This is also why the earlier failures needed a power cycle rather than the RESET
+button. A locked supply selection is not cleared by a reset, so a wrong choice
+stays wrong until the board loses power.
+
 ## The four causes, because the sequence is the lesson
 
 Three of these were avoided by reading ST's headers before writing anything, and

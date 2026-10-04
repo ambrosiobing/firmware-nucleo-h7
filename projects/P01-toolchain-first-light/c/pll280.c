@@ -44,7 +44,25 @@ extern void board_init(void);
 
 /* The registers the sequence touches, dumped by name so the console line and the
  * reference manual use the same word. Printed before and after, because a
- * before-and-after of the same five registers is the whole experiment. */
+ * before-and-after of the same registers is the whole experiment.
+ *
+ * "AS FOUND" AND NOT "AT RESET", and the difference is a finding rather than
+ * pedantry. On Sunday 4 October 2026 this image was run twice, once after a
+ * power cycle and once after the black RESET button, and three fields differed:
+ *
+ *     after a power cycle   PWR_CR3 00000006  LDOEN 1 SMPSEN 1, ACTVOSRDY 0,
+ *                           HSEBYP 0, and step 1 took 31 polls
+ *     after the RESET pin   PWR_CR3 00010004  LDOEN 0 SMPSEN 1, ACTVOSRDY 1,
+ *                           HSEBYP 1, and step 1 took 0 polls
+ *
+ * The supply selection, the regulator's ready state and the external clock's
+ * bypass bit all SURVIVE a system reset. Only removing power restores them. So a
+ * reader comparing this dump against a reset-value column in a manual will find
+ * disagreements that are not faults, and the heading has to say so.
+ *
+ * It also means the supply step is safely idempotent: writing the selection it
+ * already holds is a no-op that still passes its own read-back gate, which
+ * matches ST's HAL_PWREx_ConfigSupply having a branch for exactly that case. */
 static void dump_registers(const char *when)
 {
     printf("  %s:\n", when);
@@ -147,7 +165,7 @@ int main(void)
     printf("the 280 MHz tree from: %s\n\n", BOARD_CLOCK_280_SOURCE);
 
     report_clock("before");
-    dump_registers("the registers at reset");
+    dump_registers("the registers as found");
 
     /* The one thing worth saying before the attempt: what the sequence intends,
      * in the arithmetic a reader can check, so the console carries the claim and
