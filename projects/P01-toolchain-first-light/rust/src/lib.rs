@@ -91,7 +91,13 @@ pub struct Tree {
 
 impl Tree {
     const fn refused(why: Refusal) -> Self {
-        Self { sys_hz: 0, core_hz: 0, ahb_hz: 0, pclk1_hz: 0, refusal: why }
+        Self {
+            sys_hz: 0,
+            core_hz: 0,
+            ahb_hz: 0,
+            pclk1_hz: 0,
+            refusal: why,
+        }
     }
 }
 
@@ -253,8 +259,7 @@ pub const fn decode(r: &Regs, hsi_nominal: u32, hse_bypass: u32) -> Tree {
 
     let cpu_div =
         ahb_cpu_divider((r.cdcfgr1 & field::CDCFGR1_CDCPRE_MSK) >> field::CDCFGR1_CDCPRE_POS);
-    let ahb_div =
-        ahb_cpu_divider((r.cdcfgr1 & field::CDCFGR1_HPRE_MSK) >> field::CDCFGR1_HPRE_POS);
+    let ahb_div = ahb_cpu_divider((r.cdcfgr1 & field::CDCFGR1_HPRE_MSK) >> field::CDCFGR1_HPRE_POS);
     let apb1_div =
         apb_divider((r.cdcfgr2 & field::CDCFGR2_CDPPRE1_MSK) >> field::CDCFGR2_CDPPRE1_POS);
 
@@ -285,7 +290,11 @@ pub const fn decode(r: &Regs, hsi_nominal: u32, hse_bypass: u32) -> Tree {
 const fn ppm(delta: i64, den: i64) -> i32 {
     let half = den / 2;
     let scaled = delta * 1_000_000;
-    let q = if delta >= 0 { (scaled + half) / den } else { (scaled - half) / den };
+    let q = if delta >= 0 {
+        (scaled + half) / den
+    } else {
+        (scaled - half) / den
+    };
     if q > i32::MAX as i64 {
         return i32::MAX;
     }
@@ -303,7 +312,12 @@ const fn ppm(delta: i64, den: i64) -> i32 {
 #[must_use]
 pub const fn bias(reported_hz: u32, true_hz: u32) -> Bias {
     if reported_hz == 0 || true_hz == 0 {
-        return Bias { ok: false, frequency_ppm: 0, duration_ppm: 0, delay_ppm: 0 };
+        return Bias {
+            ok: false,
+            frequency_ppm: 0,
+            duration_ppm: 0,
+            delay_ppm: 0,
+        };
     }
     let reported = reported_hz as i64;
     let truth = true_hz as i64;
@@ -337,8 +351,10 @@ mod tests {
         };
         let t = decode(&found, 64_000_000, 8_000_000);
         assert_eq!(t.refusal, Refusal::Ok);
-        assert_eq!((t.sys_hz, t.core_hz, t.ahb_hz, t.pclk1_hz),
-                   (64_000_000, 64_000_000, 64_000_000, 64_000_000));
+        assert_eq!(
+            (t.sys_hz, t.core_hz, t.ahb_hz, t.pclk1_hz),
+            (64_000_000, 64_000_000, 64_000_000, 64_000_000)
+        );
 
         let raised = Regs {
             cr: 0x0307_C025,
@@ -351,8 +367,10 @@ mod tests {
         };
         let t = decode(&raised, 64_000_000, 8_000_000);
         assert_eq!(t.refusal, Refusal::Ok);
-        assert_eq!((t.sys_hz, t.core_hz, t.ahb_hz, t.pclk1_hz),
-                   (280_000_000, 280_000_000, 140_000_000, 140_000_000));
+        assert_eq!(
+            (t.sys_hz, t.core_hz, t.ahb_hz, t.pclk1_hz),
+            (280_000_000, 280_000_000, 140_000_000, 140_000_000)
+        );
     }
 
     /// Halves away from zero, which is the rule this language gives least help
@@ -363,7 +381,10 @@ mod tests {
         let up = bias(2_000_001, 2_000_000);
         assert_eq!((up.frequency_ppm, up.duration_ppm, up.delay_ppm), (1, 0, 1));
         let down = bias(1_999_999, 2_000_000);
-        assert_eq!((down.frequency_ppm, down.duration_ppm, down.delay_ppm), (-1, 1, -1));
+        assert_eq!(
+            (down.frequency_ppm, down.duration_ppm, down.delay_ppm),
+            (-1, 1, -1)
+        );
     }
 
     /// The guard that stops a release build wrapping and a test build panicking.
@@ -378,6 +399,9 @@ mod tests {
             cdcfgr1: 0,
             cdcfgr2: 0,
         };
-        assert_eq!(decode(&r, 64_000_000, 8_000_000).refusal, Refusal::PllWouldOverflow);
+        assert_eq!(
+            decode(&r, 64_000_000, 8_000_000).refusal,
+            Refusal::PllWouldOverflow
+        );
     }
 }
