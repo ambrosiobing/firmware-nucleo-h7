@@ -612,6 +612,23 @@
  * The three registers added here sit before that gap, at 0x28, 0x2C and 0x30,
  * where the comments and the declaration order agree, and they were still
  * counted rather than read.
+ *
+ * A SECOND ST EXAMPLE FOR THIS BOARD REACHES 280 MHz DIFFERENTLY, found on
+ * Sunday 4 October 2026 while looking for something else, and it is worth
+ * recording because it is an independent statement about what this part allows.
+ * Projects/NUCLEO-H7A3ZI-Q/Examples/LPTIM/LPTIM_PulseCounter says in its readme:
+ * the CPU at 280 MHz, the AXI and AHB peripherals of both domains at 280 MHz,
+ * and every APB at 280 over 2. So ST runs HPRE at 1 and the bus matrix at the
+ * full 280, where c/board/clock280.c runs HPRE at 2 and every bus at 140.
+ *
+ * NEITHER IS WRONG AND THE DIFFERENCE IS NOT AN OVERSIGHT. Both reach a 280 MHz
+ * core; they differ in what the buses get. What ST's example adds is evidence
+ * that the AHB at 280 MHz is permitted at voltage scale 0 with six flash wait
+ * states, which this repository has never needed to rely on and now knows. The
+ * conservative choice stays: HPRE at 2 keeps every bus at a frequency this
+ * volume has already measured something at, and nothing here is fast enough for
+ * the bus matrix to be the limit. If a project ever is, the ST example is the
+ * precedent and this note is where to start.
  */
 #define BOARD_CLOCK_280_SOURCE \
     "ST CMSIS stm32h7a3xxq.h for the fields; " \

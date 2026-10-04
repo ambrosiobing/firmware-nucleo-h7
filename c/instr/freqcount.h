@@ -11,8 +11,10 @@
  * cycles in a window, and its resolution is the timer clock rather than the
  * gate, so it is better by several orders. It needs an input capture channel.
  *
- * TWO 32-BIT TIMERS EXIST ON THIS PART and chapter 6 spends one of them here.
- * Chapter 20 is careful about who owns it for that reason.
+ * TWO 32-BIT TIMERS EXIST ON THIS PART and chapter 6 was going to spend one of
+ * them here, which is why chapter 20 is careful about who owns it. Both of the
+ * notes below overtake that: the gate moved to the crystal and the counter moved
+ * to LPTIM1, so this instrument now costs chapter 20 no 32-bit timer at all.
  *
  * THE GATE CHANGED ON SUNDAY 4 OCTOBER 2026, before any of this was written, and
  * the reason is a measurement. The design above spends a SECOND timer on the
@@ -28,12 +30,65 @@
  * counter crystal-accurate rather than PLL-accurate. One timer in external clock
  * mode to count edges, and a gate that is already written.
  *
- * WHAT IS STILL UNCONFIRMED is therefore smaller than it was: which timer offers
- * external clock mode on a pin that reaches the Zio header, that pin's alternate
- * function number, and the trigger selection value. The timer clock for the gate
- * is no longer on the list. The pin question is a board fact and needs the
- * MB1363 manual or ST's board support package, which is the same source that
- * settled the console pins on Friday 2 October 2026.
+ * AND LATER THE SAME DAY THE COUNTER CHANGED TOO, because the unconfirmed list
+ * was answered. Until Sunday 4 October 2026 this header said three things were
+ * unknown: which peripheral can count an external signal on a pin this board
+ * exposes, that pin's alternate function number, and the trigger selection
+ * value. All three came out of ST's own source for this exact board, which is
+ * the same authority that settled the console pins on Friday 2 October 2026 and
+ * the 280 MHz dividers on Sunday 4 October 2026.
+ *
+ * The file is
+ * STM32Cube_FW_H7_V1.13.0/Projects/NUCLEO-H7A3ZI-Q/Examples/LPTIM/
+ * LPTIM_PulseCounter, and it is a working pulse counter for this board rather
+ * than for the family:
+ *
+ *   what counts          LPTIM1, CounterSource = LPTIM_COUNTERSOURCE_EXTERNAL
+ *   the pin              PD12, GPIO_AF1_LPTIM1, AF push-pull, pull-up, medium
+ *                        speed, straight out of its HAL_LPTIM_MspInit
+ *   the width            16 bits, so the overflow has to be counted in software
+ *   the gate             lseref.c, already written, on the 32.768 kHz crystal
+ *
+ * IT IS NOT A 32-BIT TIMER AND THAT IS A REAL CHANGE, not a substitution. The
+ * paragraph above still says two 32-bit timers exist and that chapter 6 spends
+ * one of them. It does not need to any more. The 32-bit route is TIM2 or TIM5
+ * with ETRSEL = 0 to select the GPIO, which is the trigger selection value that
+ * was unknown and is defined as TIM_TIM2_ETR_GPIO and TIM_TIM5_ETR_GPIO in ST's
+ * stm32h7xx_hal_tim_ex.h. What is still unknown for that route is which pin
+ * carries TIM2_ETR or TIM5_ETR on this package, because no example in the pack
+ * configures either. So the narrower counter is the one with a complete set of
+ * facts behind it, and this instrument uses that rather than the wider one with
+ * a gap in it.
+ *
+ * AN LPTIM SAMPLES ITS INPUT RATHER THAN COUNTING EDGES ASYNCHRONOUSLY, which is
+ * the constraint that shapes everything else here and which ST states outright
+ * in that example's readme: "the external input is sampled with LSI clock. In
+ * order not to miss any event, the frequency of the changes on the external
+ * Input1 signal should never exceed the frequency of the internal clock provided
+ * to the LPTIM1".
+ *
+ * So this instrument has a CEILING, and the ceiling is a configuration choice
+ * rather than a property of the part. With LPTIM1 on the LSI it counts to about
+ * 32 kHz; on an APB clock it counts far higher. Three things follow and all
+ * three belong in the chapter:
+ *
+ *   - the ceiling has to be printed beside every measurement, because a signal
+ *     above it does not read low, it reads wrong by however many edges were
+ *     missed, and nothing in the count says so.
+ *   - the kernel clock choice does NOT affect accuracy. The count is a number
+ *     of edges and the gate is the crystal, so a PLL-derived kernel clock costs
+ *     range and not correctness. That distinction is the whole reason the gate
+ *     moved to the crystal earlier today and it is worth not confusing.
+ *   - 1 kHz, which is what P06 asks this instrument to check, is three decades
+ *     below even the LSI ceiling. The method document's 0.1 per cent tolerance
+ *     is met by a one second gate with room to spare.
+ *
+ * ONE THING IS STILL A BOARD FACT NOBODY HAS SOURCED: whether PD12 reaches the
+ * Zio header. ST's example drives the pin without saying where it appears on the
+ * connector, and the pack carries no Zio map. That needs UM2407 for the MB1363,
+ * and until it is read this instrument can be written and cannot be wired. The
+ * refusal in freqcount_init is for exactly that and not for anything in the
+ * list above.
  */
 #ifndef FREQCOUNT_H
 #define FREQCOUNT_H
