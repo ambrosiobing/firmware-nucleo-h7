@@ -8,31 +8,41 @@
  * clock would invalidate all of them while changing no line of their code.
  *
  * WHAT IT PRINTS BEFORE IT CHANGES ANYTHING, and why that order is deliberate.
- * The first thing on the console is the reset value of the five registers the
- * sequence is about to write. If the sequence then hangs or faults, that dump is
- * already out of the part and in the terminal, which is the difference between a
- * failure somebody can read and a board that stopped talking. It is also the
- * only way to see a wrong peripheral base address: a register that reads as zero
- * where the manual says it has a reset value is not a register.
+ * The first thing on the console is every register the sequence is about to
+ * write, as found. If the sequence then hangs or faults, that dump is already
+ * out of the part and in the terminal, which is the difference between a failure
+ * somebody can read and a board that stopped talking. It is also the only way to
+ * see a wrong peripheral base address: a register that reads as zero where the
+ * manual says it has a reset value is not a register.
  *
- * WHAT IT DOES NOT CLAIM. 280 MHz here is DERIVED and not MEASURED. The number
- * comes from an 8 MHz board fact multiplied and divided by fields read back out
- * of the registers, and every one of those reads could be right while the clock
- * is something else. Three things in this image are evidence, and the README says
- * what each is worth:
+ * AND IT MEASURES THE CLOCK, which it did not when it was first written. That
+ * paragraph used to say 280 MHz was derived and not measured, name three weaker
+ * pieces of evidence, and point at freqcount.c as the thing that would settle
+ * it. All three of those are now out of date and the corrections matter:
  *
- *   - every step's register read back the value intended, which rules out a
- *     wrong address and a field that moved between parts
- *   - the console stays readable after the switch, which rules out an error of
- *     a factor in the peripheral clock, because the divider is recomputed from
- *     the new frequency and the host's own UART is clocked by the host
- *   - LD1 blinks at one second per cycle by the part's own count, which a reader
- *     can check against a watch, and which rules out the same factor errors by
- *     a cruder and completely independent route
+ *   - the clock IS measured, against this board's 32.768 kHz crystal, which is
+ *     the one reference that does not come from the PLL chain. Not freqcount.c,
+ *     which counts an external signal against the internal clock and therefore
+ *     cannot witness the internal clock at all.
+ *   - the measurement is taken TWICE, on the reset clock and at the new one. The
+ *     second is the interesting number and the first is what makes it credible,
+ *     because the reset oscillator had already been measured by two other
+ *     instruments and the crystal has to agree with them.
+ *   - the blink is NOT independent evidence, which the old comment claimed. The
+ *     delay loop calibrates against DWT_CYCCNT and that counts the clock under
+ *     test. It would catch an error of a factor and nothing finer.
  *
- * None of the three can tell 280 MHz from 279. That needs an instrument that
- * does not share this clock, which is what P06's witness is for and what
- * freqcount.c still refuses to be.
+ * WHAT THE MEASUREMENT FOUND, on Sunday 4 October 2026: the core runs at
+ * 279672822 Hz at the 280 MHz setting, 1168 parts per million low, because the
+ * debugger's clock output is 7990652 Hz and not 8 MHz. The registers were all
+ * correct and the arithmetic was all correct; the assumption nobody had written
+ * down was the input frequency. See CORE_HZ_MEASURED in stm32h7a3_regs.h and
+ * P01's README.
+ *
+ * The readable console remains the other external check and is worth keeping:
+ * the baud divider is recomputed from the new bus frequency and the host's own
+ * serial port is clocked by the host, so clean text bounds the bus clock to
+ * about two per cent. Coarse beside the crystal, and it needs nothing.
  */
 #include <stdint.h>
 #include <stdio.h>

@@ -517,8 +517,23 @@
  * traceable. Substituting it would fit the code to one sample and read as more
  * precise while being less general. The nominal is the honest constant and the
  * measurement is evidence about how good the nominal is, which is what a reader
- * needs. The consequence is stated rather than hidden: every figure derived from
- * board_core_hz() at 280 MHz is about 0.117 per cent high. */
+ * needs.
+ *
+ * THE CONSEQUENCE, AND ITS SIGN, because "0.117 per cent high" is what an earlier
+ * version of this comment said and it is not precise enough. The two clocks are
+ * wrong in OPPOSITE directions, so a derived figure flips sign between the two
+ * images:
+ *
+ *                              reset clock        280 MHz setting
+ *   board_core_hz() reports    64000000           280000000
+ *   the truth, measured        64194318           279672822
+ *   the reported FREQUENCY     3027 ppm LOW       1170 ppm HIGH
+ *   a measured DURATION        3036 ppm LONG      1168 ppm SHORT
+ *   a requested DELAY          3027 ppm SHORT     1170 ppm LONG
+ *
+ * Nothing in this repository quotes a time to better than a part in a thousand,
+ * so nothing published is wrong today. What this table is for is the next figure
+ * that wants to be. */
 #define HSE_HZ_BYPASS      8000000u
 
 /* ------------------------------------------------------------------ the 280 MHz

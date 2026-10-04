@@ -92,9 +92,26 @@ generates it.
 `HSI_HZ_NOMINAL` stays 64000000: the measured figures are this board, this probe,
 one afternoon, against a reference whose own accuracy is not traceable, and
 substituting them would fit the code to one sample while reading as more precise.
-The nominal is the honest constant. The consequence is that **every figure
-derived from `board_core_hz()` at the 280 MHz setting is about 0.117 per cent
-high**, and anything quoted to better than a part in a thousand has to say so.
+The nominal is the honest constant.
+
+**The consequence, with its sign, because the two clocks are wrong in opposite
+directions.** An earlier version of this section said "0.117 per cent high",
+which is true of the reported frequency at one of the two clocks and ambiguous
+about everything else. The table is the precise form:
+
+| | the reset clock | the 280 MHz setting |
+|---|---|---|
+| `board_core_hz()` reports | 64 000 000 Hz | 280 000 000 Hz |
+| the truth, measured | 64 194 318 Hz | 279 672 822 Hz |
+| so the reported **frequency** is | 3027 ppm **low** | 1170 ppm **high** |
+| a measured **duration** comes out | 3036 ppm **long** | 1168 ppm **short** |
+| a requested **delay** is delivered | 3027 ppm **short** | 1170 ppm **long** |
+
+Nothing in this volume quotes a time to better than a part in a thousand, so
+nothing already published is wrong. What the table is for is the next figure that
+wants to be, and for the fact that a figure taken at 64 MHz and the same figure
+taken at 280 MHz carry errors of opposite sign, which would otherwise look like a
+real effect of the clock change.
 
 **And the uncertainty is a few hundred parts per million, not a few tens.** The
 datasheet expectation for a crystal of this kind is tens, and earlier comments in
