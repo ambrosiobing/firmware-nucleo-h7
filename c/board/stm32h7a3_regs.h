@@ -587,7 +587,43 @@
 #define PWR_SRDCR_VOS_POS       14u
 #define PWR_SRDCR_VOS_MSK       (3u << PWR_SRDCR_VOS_POS)
 #define PWR_SRDCR_VOSRDY_MSK    (1u << 13)
+#define PWR_VOS_SCALE3          0u      /* the reset scale, lowest performance */
+#define PWR_VOS_SCALE1          2u      /* the only way to reach scale 0 */
 #define PWR_VOS_SCALE0          3u      /* highest performance ON THIS PART */
+
+/* SCALE 0 IS ONLY REACHABLE FROM SCALE 1, and this was learned from the board
+ * on Sunday 4 October 2026 rather than from the register description.
+ *
+ * The first attempt wrote scale 0 straight over the reset value, which is scale
+ * 3, and read it back correctly: VOS held 3, so the encoding above was right.
+ * VOSRDY never set, for a million polls, which is tens of milliseconds against a
+ * flag that settles in microseconds. Nothing in the field description says why.
+ *
+ * The answer is in the doc comment above __HAL_PWR_VOLTAGESCALING_CONFIG in
+ * stm32h7xx_hal_pwr.h: "Transition to Voltage Scale 0 is only possible when the
+ * system is already in Voltage Scale 1." It is a constraint on the transition
+ * and not on the value, so no amount of reading the VOS field would have
+ * revealed it, and the part does not report it as an error: it simply declines
+ * to become ready.
+ *
+ * WHAT THAT SAYS ABOUT ST'S OWN EXAMPLE, which is the uncomfortable part. The
+ * NUCLEO-H7A3ZI-Q example this file took its dividers from writes scale 0
+ * directly from reset and then waits with while(!VOSRDY){}. On this board that
+ * bit does not set, so that loop does not terminate. The bounded wait in
+ * clock280.c is the only reason this came back as a diagnosis rather than as an
+ * image that stopped.
+ */
+
+/* PWR_CSR1, which reports the scale ACTUALLY IN USE as opposed to the one
+ * selected in SRDCR. Worth having in the dump for the same reason the read-back
+ * is worth having: a selected value and an active value that disagree is a
+ * different fault from a write that did not land, and ACTVOS is the only field
+ * that can tell them apart. Offset 0x04, from the declaration order of
+ * PWR_TypeDef. */
+#define PWR_CSR1                REG32(PWR_BASE + 0x004u)
+#define PWR_CSR1_ACTVOS_POS     14u
+#define PWR_CSR1_ACTVOS_MSK     (3u << PWR_CSR1_ACTVOS_POS)
+#define PWR_CSR1_ACTVOSRDY_MSK  (1u << 13)
 
 /* The flash access latency. The field is four bits at 3:0 and ST's own example
  * for this board passes FLASH_LATENCY_6 at 280 MHz, which is the value 6. The

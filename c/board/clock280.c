@@ -11,16 +11,20 @@
  * a running board. Every intermediate state this function passes through is a
  * state the part can run at 64 MHz:
  *
- *   1  voltage scaling UP, to the highest performance scale. More voltage than
- *      64 MHz needs is not a hazard; less than 280 MHz needs is.
- *   2  flash latency UP, to six wait states. Too many wait states is slow and
+ *   1  voltage scaling UP to scale 1, from whatever the reset scale is.
+ *   2  voltage scaling UP again, scale 1 to scale 0. TWO steps because scale 0
+ *      is only reachable from scale 1, which is a constraint on the transition
+ *      rather than on the value and which this board established by refusing a
+ *      direct write. More voltage than 64 MHz needs is not a hazard; less than
+ *      280 MHz needs is.
+ *   3  flash latency UP, to six wait states. Too many wait states is slow and
  *      correct. Too few returns garbage from flash, which at this point in the
  *      sequence would mean the next instruction fetched.
- *   3  the external 8 MHz clock on, which nothing yet depends on.
- *   4  the PLL configured and locked, while the core still runs on HSI.
- *   5  the bus prescalers set, while sys_ck is still HSI, so the buses divide
+ *   4  the external 8 MHz clock on, which nothing yet depends on.
+ *   5  the PLL configured and locked, while the core still runs on HSI.
+ *   6  the bus prescalers set, while sys_ck is still HSI, so the buses divide
  *      down from 64 MHz for a moment and nothing is out of range.
- *   6  the switch, which is the only irreversible-feeling step and the only one
+ *   7  the switch, which is the only irreversible-feeling step and the only one
  *      taken after every prerequisite has been read back.
  *
  * Reversing any pair of those puts the part somewhere it cannot run. Raising the
@@ -77,13 +81,42 @@
 #define CLOCK280_CDCPRE  RCC_AHBPRE_DIV1
 
 static const char *const step_names[CLOCK280_STEP_COUNT] = {
-    "voltage scaling to the highest scale",
+    "voltage scaling, the reset scale to scale 1",
+    "voltage scaling, scale 1 to scale 0",
     "flash latency to six wait states",
     "the external 8 MHz clock in bypass",
     "the PLL locked at 560 MHz",
     "the bus prescalers",
     "the switch of sys_ck to the PLL",
 };
+
+/* One voltage scaling transition, requested and then waited for.
+ *
+ * SCALE 0 IS ONLY REACHABLE FROM SCALE 1. That is a property of the transition
+ * rather than of the value, it is in ST's doc comment and not in the register
+ * description, and the board taught it on Sunday 4 October 2026 by reading VOS
+ * back as 3 while leaving VOSRDY clear for a million polls. So this is called
+ * twice and the two calls are separate reported steps.
+ *
+ * The read before the poll is deliberate and is what ST's own macro does: it
+ * reads the field back to be sure the write has landed before anything looks at
+ * the ready flag. */
+static bool vos_step(clock280_record_t *r, uint32_t scale)
+{
+    const uint32_t want = scale << PWR_SRDCR_VOS_POS;
+    uint32_t spins;
+    uint32_t got;
+
+    PWR_SRDCR = (PWR_SRDCR & ~PWR_SRDCR_VOS_MSK) | want;
+    got = PWR_SRDCR;                 /* land the write before polling */
+    spins = wait_for(&PWR_SRDCR, PWR_SRDCR_VOSRDY_MSK, true);
+
+    got = PWR_SRDCR;
+    const bool ok = ((got & PWR_SRDCR_VOS_MSK) == want)
+                 && (spins < READY_SPINS_MAX);
+    record(r, want, got, spins, ok);
+    return ok;
+}
 
 const char *board_clock280_step_name(clock280_step_t step)
 {
@@ -138,26 +171,17 @@ int board_clock_raise_to_280(clock280_result_t *out)
     out->failed_at   = CLOCK280_STEP_COUNT;
     out->reached_280 = false;
 
-    /* ---- 1. voltage scaling, up ------------------------------------------ */
-    {
-        clock280_record_t *r = &out->step[CLOCK280_STEP_VOS];
-        const uint32_t want = PWR_VOS_SCALE0 << PWR_SRDCR_VOS_POS;
-        uint32_t spins;
-
-        PWR_SRDCR = (PWR_SRDCR & ~PWR_SRDCR_VOS_MSK) | want;
-        spins = wait_for(&PWR_SRDCR, PWR_SRDCR_VOSRDY_MSK, true);
-
-        const uint32_t got = PWR_SRDCR;
-        const bool ok = ((got & PWR_SRDCR_VOS_MSK) == want)
-                     && (spins < READY_SPINS_MAX);
-        record(r, want, got, spins, ok);
-        if (!ok) {
-            out->failed_at = CLOCK280_STEP_VOS;
-            return -1;
-        }
+    /* ---- 1 and 2. voltage scaling, up, through scale 1 ------------------- */
+    if (!vos_step(&out->step[CLOCK280_STEP_VOS1], PWR_VOS_SCALE1)) {
+        out->failed_at = CLOCK280_STEP_VOS1;
+        return -1;
+    }
+    if (!vos_step(&out->step[CLOCK280_STEP_VOS0], PWR_VOS_SCALE0)) {
+        out->failed_at = CLOCK280_STEP_VOS0;
+        return -1;
     }
 
-    /* ---- 2. flash latency, up -------------------------------------------- */
+    /* ---- 3. flash latency, up -------------------------------------------- */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_LATENCY];
         const uint32_t want = FLASH_LATENCY_280MHZ << FLASH_ACR_LATENCY_POS;
@@ -177,7 +201,7 @@ int board_clock_raise_to_280(clock280_result_t *out)
         }
     }
 
-    /* ---- 3. the external clock ------------------------------------------- */
+    /* ---- 4. the external clock ------------------------------------------- */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_HSE];
         uint32_t spins;
@@ -201,7 +225,7 @@ int board_clock_raise_to_280(clock280_result_t *out)
         }
     }
 
-    /* ---- 4. the PLL ------------------------------------------------------ */
+    /* ---- 5. the PLL ------------------------------------------------------ */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_PLL];
         uint32_t spins;
@@ -265,7 +289,7 @@ int board_clock_raise_to_280(clock280_result_t *out)
         }
     }
 
-    /* ---- 5. the bus prescalers, while sys_ck is still 64 MHz ------------- */
+    /* ---- 6. the bus prescalers, while sys_ck is still 64 MHz ------------- */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_BUSES];
         const uint32_t want = (CLOCK280_CDCPRE << RCC_CDCFGR1_CDCPRE_POS)
@@ -285,7 +309,7 @@ int board_clock_raise_to_280(clock280_result_t *out)
         }
     }
 
-    /* ---- 6. the switch --------------------------------------------------- */
+    /* ---- 7. the switch --------------------------------------------------- */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_SWITCH];
         uint32_t spins = 0u;

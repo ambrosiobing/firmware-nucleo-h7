@@ -53,6 +53,13 @@ static void dump_registers(const char *when)
            (unsigned long) PWR_SRDCR,
            (unsigned long) ((PWR_SRDCR & PWR_SRDCR_VOS_MSK) >> PWR_SRDCR_VOS_POS),
            (unsigned long) ((PWR_SRDCR & PWR_SRDCR_VOSRDY_MSK) ? 1u : 0u));
+    /* The scale ACTUALLY in use, beside the one selected above. A selected
+     * value and an active value that disagree is a different fault from a write
+     * that did not land, and this is the only field that separates them. */
+    printf("    PWR_CSR1      %08lX   ACTVOS %lu  ACTVOSRDY %lu\n",
+           (unsigned long) PWR_CSR1,
+           (unsigned long) ((PWR_CSR1 & PWR_CSR1_ACTVOS_MSK) >> PWR_CSR1_ACTVOS_POS),
+           (unsigned long) ((PWR_CSR1 & PWR_CSR1_ACTVOSRDY_MSK) ? 1u : 0u));
     printf("    FLASH_ACR     %08lX   latency %lu wait states\n",
            (unsigned long) FLASH_ACR,
            (unsigned long) ((FLASH_ACR & FLASH_ACR_LATENCY_MSK)
@@ -137,7 +144,9 @@ int main(void)
     /* The one thing worth saying before the attempt: what the sequence intends,
      * in the arithmetic a reader can check, so the console carries the claim and
      * not only the outcome. */
-    printf("\n  intending: 8 MHz bypass / DIVM1 4 = 2 MHz into the PLL,\n");
+    printf("\n  intending: voltage scale 1 first, then scale 0, because scale 0\n");
+    printf("             is only reachable from scale 1 on this part,\n");
+    printf("             then 8 MHz bypass / DIVM1 4 = 2 MHz into the PLL,\n");
     printf("             times N 280 = 560 MHz oscillator, / P 2 = 280 MHz sys_ck,\n");
     printf("             CDCPRE 1 so the core is 280 MHz, HPRE 2 so every bus is 140\n\n");
 
