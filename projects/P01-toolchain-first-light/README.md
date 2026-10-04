@@ -1,6 +1,6 @@
 # P01: the toolchain, first light, and printf over the ST-LINK
 
-Status: c=board cpp=none python=none rust=none
+Status: c=board cpp=host python=host rust=host
 
 The project every other one here depends on. It owns the cross toolchain file,
 the linker script, the vector table, the reset handler, the clock configuration
@@ -427,8 +427,16 @@ This project's own, in this directory:
     c/pll280.c                    the raise to 280 MHz, and the measurement
     clock_vectors.json            the oracle: 17 decode rows and 8 bias rows,
                                   two of the 17 read off this board
-    cpp/ python/ rust/            the other three languages, a README each and
-                                  no code yet
+    PROTOCOL.md                   the line protocol the C++ and Rust filters
+                                  speak, so one parity test drives both
+    cpp/clocktree.hpp             the decode in C++17, header only
+    cpp/clocktree_filter.cpp      and the filter that drives it
+    python/clocktree.py           the decode in Python, and the three places
+                                  Python had to be made to behave
+    rust/src/lib.rs               the decode as a no_std crate
+    rust/src/main.rs              and its filter binary, p01-filter
+    rust/Cargo.toml               the crate, a workspace member since
+                                  Sunday 4 October 2026
     Use-CubeIDEToolchain.ps1      puts CubeIDE's bundled gcc, cmake and ninja on
                                   PATH for one session. Dot-source it; running it
                                   sets PATH in a child scope and looks like having

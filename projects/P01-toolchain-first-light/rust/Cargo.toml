@@ -1,0 +1,36 @@
+[package]
+name = "p01-clocktree"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P01's clock tree decode, no_std, against the same oracle as the C, C++ and Python"
+license = "MIT"
+publish = false
+
+# No dependencies, and here that is not a close call. The decode is masks,
+# shifts, integer division and a comparison; the bias is integer arithmetic with
+# a rounding rule. Nothing in either needs core's floating point, let alone libm,
+# so this crate is no_std and needs nothing, unlike P06's witness which had to be
+# std because f64::sqrt does not live in core.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p01_clocktree"
+path = "src/lib.rs"
+
+# The filter speaks the protocol in ../PROTOCOL.md, which the C++ filter beside
+# it also speaks, so one parity test drives both with the same code. There is no
+# JSON parser here and that is deliberate: the clock tree is this project's
+# subject and JSON is not, and a hand-written parser would become the thing under
+# test. The Python reads the real clock_vectors.json, and the parity test owns it.
+[[bin]]
+name = "p01-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.

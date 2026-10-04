@@ -438,6 +438,14 @@ def main() -> int:
     shared_lib("clocktree", [C_DIR / "clock" / "clocktree.c"],
                includes=[C_DIR / "clock"])
 
+    print("P01, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         *STATIC,
+         "-I", proj("P01", "cpp"),
+         proj("P01", "cpp") / "clocktree_filter.cpp",
+         "-o", BUILD / ("clocktree_filter" + exe)],
+        "clocktree_filter")
+
     print("P09, the codec, from the same payload.c the board links:")
     shared_lib("payload", [C_DIR / "payload" / "payload.c"], includes=[C_DIR / "payload"])
 

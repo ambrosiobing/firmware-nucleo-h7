@@ -56,6 +56,8 @@ RATE_CPP_FILTER = BUILD / executable_name("rate_filter")
 RATE_RUST_FILTER = ROOT / "target" / "release" / executable_name("p06-filter")
 GATES_CPP_FILTER = BUILD / executable_name("gates_filter")
 GATES_RUST_FILTER = ROOT / "target" / "release" / executable_name("p12-filter")
+CLOCK_CPP_FILTER = BUILD / executable_name("clocktree_filter")
+CLOCK_RUST_FILTER = ROOT / "target" / "release" / executable_name("p01-filter")
 
 #   P08  a sample and then event names per line in; the final state, every row
 #        index taken, the counters and the stub's frame out
@@ -68,6 +70,11 @@ GATES_RUST_FILTER = ROOT / "target" / "release" / executable_name("p12-filter")
 #   P02  one operation per line in, I, P, G or S; the answer to that one
 #        operation out. Short lines and many of them, the opposite of P08, since
 #        P02's comparison runs to hundreds of thousands of operations
+#   P01  "D" and seven register words and two input frequencies, or "B" and a
+#        reported and a true frequency, per line in; four frequencies and a
+#        refusal token, or an ok flag and three signed parts-per-million
+#        figures, out. Decimal throughout, including the registers, so that no
+#        implementation needs a second parser
 FILTER_BUILD_COMMAND = {
     CPP_FILTER: "python python/tools/build_host.py",
     FRAME_CPP_FILTER: "python python/tools/build_host.py",
@@ -83,6 +90,8 @@ FILTER_BUILD_COMMAND = {
     RATE_RUST_FILTER: "cargo build --release --workspace",
     GATES_CPP_FILTER: "python python/tools/build_host.py",
     GATES_RUST_FILTER: "cargo build --release --workspace",
+    CLOCK_CPP_FILTER: "python python/tools/build_host.py",
+    CLOCK_RUST_FILTER: "cargo build --release --workspace",
 }
 
 
