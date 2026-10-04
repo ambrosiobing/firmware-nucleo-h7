@@ -59,4 +59,66 @@ typedef struct {
  * of the startup time. */
 int lseref_start(lseref_start_t *out, uint32_t timeout_ms);
 
+
+/* ----------------------------------------------- the measurement itself
+ *
+ * What it does. Selects the crystal as the real-time clock's source, then counts
+ * core cycles with DWT_CYCCNT over a gate of a whole number of sub second ticks.
+ * The sub second register steps at the crystal divided by PREDIV_A plus one,
+ * which with the reset prescaler is 256 Hz, so a gate of 256 ticks is one second
+ * and the cycle count over it IS the core frequency in hertz.
+ *
+ * WHY THIS IS A MEASUREMENT AND THE REGISTER READ-BACK IS NOT. The 280 MHz claim
+ * is an 8 MHz board fact multiplied and divided by fields that were read back,
+ * and a read-back proves the bits rather than their meaning. This counts the core
+ * clock against a reference that does not come from the PLL chain, so it tests
+ * the interpretation. Over a one second gate the counting resolution is about
+ * four parts per billion and the real floor is the crystal's own accuracy, a few
+ * tens of parts per million, which is two orders better than the 0.36 per cent
+ * separating 280 MHz from 279.
+ *
+ * WHAT IT STILL RESTS ON, because no measurement is free of assumptions:
+ *   - the crystal is 32.768 kHz to its datasheet tolerance, which is the floor
+ *     and is not measured here. Nothing on this board can measure it.
+ *   - PREDIV_A is READ from PRER rather than assumed, so a non-default prescaler
+ *     changes the gate rather than silently scaling the answer
+ *   - DWT_CYCCNT counts core clock cycles, which is what makes this the CORE
+ *     frequency and not the bus frequency
+ *
+ * It writes nothing inside the RTC. Only RCC's bus clock enable and the backup
+ * domain's clock selection, so no write protection key is involved and the
+ * calendar is never touched.
+ */
+typedef struct {
+    bool     ok;
+    uint32_t core_hz_measured;  /* 0 when it could not be measured */
+    uint32_t core_hz_derived;   /* what board_core_hz() believes */
+    int32_t  error_ppm;         /* measured against derived, 0 when either is 0 */
+
+    uint32_t ck_apre_hz;        /* the sub second tick rate, computed from PRER */
+    uint32_t ticks;             /* the gate, in sub second ticks */
+    uint32_t cycles;            /* core cycles counted over the gate */
+
+    uint32_t apb4enr;           /* read back, to show the bus clock is on */
+    uint32_t bdcr;              /* read back, to show which clock is selected */
+    uint32_t prer;              /* read back, because the gate depends on it */
+    uint32_t icsr;              /* read back, for the synchronisation flag */
+    uint32_t rsf_polls;         /* how long the shadow took to report valid */
+    bool     bus_clock_on;
+    bool     clock_selected;
+    bool     synchronised;      /* the shadow registers reported valid */
+} lseref_measure_t;
+
+/* Measure the core frequency against the crystal. `ticks` is the gate in sub
+ * second ticks; 256 is one second with the reset prescaler and is the sensible
+ * default. Returns 0 on success.
+ *
+ * Requires lseref_start() to have succeeded first, and board_cycles_available()
+ * to be true: without the cycle counter there is nothing to count with, and a
+ * count of zero looks exactly like an infinitely fast core.
+ *
+ * Takes `ticks` divided by the tick rate of wall time, so about a second at the
+ * default. Every wait inside is bounded. */
+int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks);
+
 #endif /* LSEREF_H */

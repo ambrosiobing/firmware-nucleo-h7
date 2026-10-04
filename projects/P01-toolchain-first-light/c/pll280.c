@@ -288,6 +288,57 @@ int main(void)
         printf("    NOTE: the wait is counted by board_delay_ms, which is "
                "calibrated\n    against the clock under test, so it is a bound "
                "and not a measurement.\n");
+
+        /* ---- and now the measurement, which is the point of the crystal.
+         *
+         * Only attempted when the crystal is actually running. Asking for a
+         * frequency against a reference that is not oscillating would produce a
+         * number, and a number from a stopped reference is worse than no
+         * number. */
+        if (lse_rc == 0) {
+            lseref_measure_t m;
+            const int m_rc = lseref_measure_core_hz(&m, 256u);
+
+            printf("\n  THE CORE CLOCK, MEASURED against that crystal:\n");
+            printf("    RCC_APB4ENR %08lX   the RTC bus clock, without which\n"
+                   "                         every register below reads zero\n",
+                   (unsigned long) m.apb4enr);
+            printf("    RCC_BDCR    %08lX   RTCSEL and RTCEN\n",
+                   (unsigned long) m.bdcr);
+            printf("    RTC_ICSR    %08lX   RSF after %lu polls\n",
+                   (unsigned long) m.icsr, (unsigned long) m.rsf_polls);
+            printf("    RTC_PRER    %08lX   so the sub second tick is %lu Hz\n",
+                   (unsigned long) m.prer, (unsigned long) m.ck_apre_hz);
+
+            if (m_rc == 0) {
+                const long ppm = (long) m.error_ppm;
+                printf("    gate        %lu ticks, %lu core cycles counted\n",
+                       (unsigned long) m.ticks, (unsigned long) m.cycles);
+                printf("    MEASURED    %lu Hz\n",
+                       (unsigned long) m.core_hz_measured);
+                printf("    derived     %lu Hz\n",
+                       (unsigned long) m.core_hz_derived);
+                printf("    difference  %ld parts per million\n", ppm);
+                printf("\n    What that number means. The crystal is the floor "
+                       "here: at a few\n    tens of parts per million it cannot "
+                       "resolve better than that, and\n    the counting itself "
+                       "is good to about four parts per BILLION over\n    this "
+                       "gate. So a difference inside a few hundred parts per "
+                       "million\n    confirms the derivation, including that "
+                       "every divider field means\n    what it was read to "
+                       "mean. A difference near 3600 would be N off\n    by one, "
+                       "279 MHz rather than 280, which is the error nothing "
+                       "else\n    in this image could have caught.\n");
+            } else {
+                printf("    THE MEASUREMENT REFUSED, and the registers above say "
+                       "where.\n    A bus clock of zero means RTCAPBEN did not "
+                       "take. RSF never set\n    means the shadow registers "
+                       "never synchronised, which usually means\n    the clock "
+                       "selection did not reach the RTC. A sub second tick of\n"
+                       "    zero means PREDIV_A read back as something this "
+                       "cannot divide by.\n");
+            }
+        }
     }
 
     /* And then blink, so the board says something a person across the room can

@@ -744,4 +744,56 @@
  * floor rests on until somebody compares it with a better clock. */
 #define LSE_HZ_NOMINAL          32768u
 
+/* ------------------------------- the real-time clock, as a counter of crystal
+ * ticks and nothing else
+ *
+ * Why the RTC rather than a timer. The crystal has to be OBSERVED for a cycle
+ * count to be gated on it, and the two routes are a timer with the crystal as an
+ * input capture source, which needs the timer's input selection, capture,
+ * compare and control registers, or the RTC's sub second register, which needs
+ * the clock selected and then only reads. The second is five register groups
+ * fewer and writes nothing inside the RTC at all, so no write protection key is
+ * needed and nothing in the backup domain is reconfigured beyond selecting a
+ * clock for it.
+ *
+ * THE ADDRESS IS DERIVED AND THE DERIVATION IS ANCHORED, not recalled. The CMSIS
+ * header gives RTC_BASE as SRD_APB4PERIPH_BASE + 0x4000, and
+ * SRD_APB4PERIPH_BASE as PERIPH_BASE + 0x18000000. PERIPH_BASE is pinned by two
+ * values already in this file: SRD_AHB4PERIPH_BASE is PERIPH_BASE + 0x18020000,
+ * and RCC_BASE of 0x58024400 and PWR_BASE of 0x58024800 are that base plus
+ * 0x4400 and 0x4800. So PERIPH_BASE is 0x40000000, SRD_APB4PERIPH_BASE is
+ * 0x58000000, and the RTC is at 0x58004000.
+ *
+ * THE FAMILY TRAP IS HERE TOO, and this is where it would have been invisible.
+ * This part has RTC_ICSR at offset 0x0C with the registers-synchronised flag at
+ * bit 5. The STM32H743 has RTC_ISR in that position with a different layout, and
+ * almost all STM32H7 material is written against the H743. Offsets below are
+ * member positions in RTC_TypeDef, counted from its declaration order.
+ *
+ * AND THE REGISTERS READ AS ZERO UNTIL THEIR BUS CLOCK IS ON. RCC_APB4ENR's
+ * RTCAPBEN gates access to every register below, and without it they read zero
+ * rather than refusing, which is the same failure shape as the backup domain's
+ * write protection and as the supply configuration. It is enabled and read back.
+ *
+ * Confirmed Sunday 4 October 2026 from the same ST CMSIS header as the rest.
+ */
+#define RCC_APB4ENR             REG32(RCC_BASE + 0x154u)
+#define RCC_APB4ENR_RTCAPBEN_MSK (1u << 16)
+#define RCC_RTCSEL_LSE          1u      /* RCC_BDCR_RTCSEL_0 */
+
+#define RTC_BASE_ADDR           0x58004000u
+#define RTC_SSR                 REG32(RTC_BASE_ADDR + 0x008u)
+#define RTC_ICSR                REG32(RTC_BASE_ADDR + 0x00Cu)
+#define RTC_PRER                REG32(RTC_BASE_ADDR + 0x010u)
+
+#define RTC_ICSR_RSF_MSK        (1u << 5)   /* the shadow registers are valid */
+#define RTC_PRER_PREDIV_A_POS   16u
+#define RTC_PRER_PREDIV_A_MSK   (0x7Fu << RTC_PRER_PREDIV_A_POS)
+#define RTC_SSR_SS_MSK          0xFFFFu
+
+/* The sub second register counts DOWN at the crystal divided by PREDIV_A plus
+ * one, which with the reset value of 127 is 256 Hz. PREDIV_A is READ rather than
+ * assumed, because assuming it is how a gate ends up wrong by a factor while
+ * every other number looks right. */
+
 #endif /* STM32H7A3_REGS_H */

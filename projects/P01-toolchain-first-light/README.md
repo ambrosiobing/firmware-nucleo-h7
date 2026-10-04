@@ -57,6 +57,43 @@ iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
 which says the loop's cost barely moved and is a fact about the flash and the
 pipeline rather than about the clock.
 
+## The 32.768 kHz crystal, asked to oscillate for the first time
+
+It had been a settled board fact since Friday 2 October 2026, from two
+machine-readable sources, and nothing in this repository had ever switched it on.
+On Sunday 4 October 2026 `p01-pll280` did, and it works:
+
+| | |
+|---|---|
+| after a power cycle | `RCC_BDCR` went `00000000` to `00000003`, so `LSEON` and `LSERDY` are both set, after about **1093 ms** of waiting |
+| after the RESET pin | `RCC_BDCR` was already `00000003` and the wait was zero |
+
+**Why it matters more than it looks.** Every frequency in this volume is derived
+from an 8 MHz board fact and register fields that were read back, and a read-back
+proves the bits rather than their meaning: reading `DIVM1` as 4 does not prove
+the field is a plain divisor. This crystal is the only reference on the board that
+does not come from the PLL chain, so counting core cycles against it can settle
+the interpretation, and a crystal at 32.768 kHz is good to a few tens of parts
+per million against the 0.36 per cent that separates 280 MHz from 279.
+
+**The 1093 ms is a bound rather than a measurement**, and the distinction is the
+usual one here. It is counted by `board_delay_ms`, which is calibrated against
+the clock under test, so it carries whatever error that clock has. It is still
+worth having: it is comfortably inside what the datasheets allow for an
+oscillator of that frequency, and it means anything that waits on this crystal
+needs a bound in seconds rather than the tens of milliseconds a PLL ready flag
+takes.
+
+**Two prerequisites that would each have failed silently.** `RCC_BDCR` ignores
+writes while `PWR_CR1`'s `DBP` bit is clear, so the enable would simply not have
+happened and the crystal would have looked absent; `DBP` is set first and read
+back. And the backup domain survives a system reset, exactly as the supply
+selection does, so a zero wait after a RESET press means nothing was asked of the
+crystal rather than that it started instantly, which no oscillator of that
+frequency does. The record carries `RCC_BDCR` as found before any write so the two
+are distinguishable, and the table above is both cases observed rather than
+reasoned.
+
 ## One thing a reset does not undo
 
 Running `p01-pll280` twice on Sunday 4 October 2026, once after a power cycle and
