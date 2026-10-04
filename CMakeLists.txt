@@ -241,8 +241,15 @@ add_firmware(p01-first-light
 # It needs no vendor pack. The registers it writes are in c/board, sourced from
 # ST's CMSIS header on the win11 skyhorizon demo laptop and recorded at
 # BOARD_CLOCK_280_SOURCE, so this builds wherever p01-first-light does.
+#
+# It links c/instr/lseref.c, which starts the 32.768 kHz crystal. That is listed
+# on this target rather than added to the board library on purpose: the crystal
+# is a reference for measuring the clock, not part of bringing it up, and every
+# other image in this volume has no use for it.
 add_firmware(p01-pll280
-    SOURCES projects/P01-toolchain-first-light/c/pll280.c)
+    SOURCES projects/P01-toolchain-first-light/c/pll280.c
+            c/instr/lseref.c
+    INCLUDES c/instr)
 
 # P02, the ring buffer on the target, which is the only place its deliverable can
 # be tested. Four targets, one per ordering mode, because the chapter's subject is

@@ -696,4 +696,52 @@
  * writes it, and no image in this repository programs flash at 280 MHz. When one
  * does, this is the field to read about first. */
 
+/* ---------------------------------------------- the 32.768 kHz crystal
+ *
+ * Why this is here at all. Every frequency in this volume is DERIVED: an 8 MHz
+ * board fact multiplied and divided by fields read back out of registers. The
+ * read-back confirms the bits and not their meaning, and that is the residual
+ * doubt. Reading DIVM1 as 4 does not prove the field is a plain divisor.
+ *
+ * The 32.768 kHz crystal is the one reference on this board that does not come
+ * from the PLL chain, so it is what can settle the interpretation rather than
+ * the bits. A crystal at that frequency is good to a few tens of parts per
+ * million, which is two orders better than the 0.36 per cent separating 280 MHz
+ * from 279, and it needs no instrument and no wiring. That it is fitted is a
+ * settled board fact from the same two machine-readable sources as the LED pins,
+ * and until Sunday 4 October 2026 nothing in this repository had ever asked it
+ * to oscillate.
+ *
+ * THE BACKUP DOMAIN IS WRITE PROTECTED AT RESET, and that is the trap to expect
+ * here: RCC_BDCR ignores writes while PWR_CR1's DBP bit is clear, and ignoring a
+ * write is not an error. The same shape as the supply configuration earlier
+ * today, which declined in silence until a prerequisite was met, so this one is
+ * read back and reported rather than assumed.
+ *
+ * AND THE BACKUP DOMAIN SURVIVES A SYSTEM RESET, like the supply selection does.
+ * So the crystal may already be running when an image starts, and the honest
+ * reading of a zero startup time is "it was already on", which is why the record
+ * carries BDCR as found before anything is written.
+ *
+ * Confirmed Sunday 4 October 2026 from the same ST CMSIS header as the rest.
+ */
+#define PWR_CR1                 REG32(PWR_BASE + 0x000u)
+#define PWR_CR1_DBP_MSK         (1u << 8)   /* clear = the backup domain is read only */
+
+#define RCC_BDCR                REG32(RCC_BASE + 0x070u)
+#define RCC_BDCR_LSEON_MSK      (1u << 0)
+#define RCC_BDCR_LSERDY_MSK     (1u << 1)
+#define RCC_BDCR_LSEBYP_MSK     (1u << 2)   /* an external clock, NOT this board */
+#define RCC_BDCR_LSEDRV_POS     3u
+#define RCC_BDCR_LSEDRV_MSK     (3u << RCC_BDCR_LSEDRV_POS)
+#define RCC_BDCR_RTCSEL_POS     8u
+#define RCC_BDCR_RTCSEL_MSK     (3u << RCC_BDCR_RTCSEL_POS)
+#define RCC_BDCR_RTCEN_MSK      (1u << 15)
+
+/* The nominal, which is what a measurement is compared against rather than
+ * derived from. Not measured here: the crystal's own error is the floor on any
+ * figure this reference produces, and the datasheet tolerance is what that
+ * floor rests on until somebody compares it with a better clock. */
+#define LSE_HZ_NOMINAL          32768u
+
 #endif /* STM32H7A3_REGS_H */

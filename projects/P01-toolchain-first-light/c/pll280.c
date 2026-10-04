@@ -38,6 +38,7 @@
 #include <stdio.h>
 
 #include "board.h"
+#include "lseref.h"
 #include "stm32h7a3_regs.h"
 
 extern void board_init(void);
@@ -246,6 +247,47 @@ int main(void)
                "  loop is calibrated against DWT_CYCCNT and that counts the clock\n"
                "  under test. Against a watch it is still worth a glance, because\n"
                "  it costs nothing and would catch an error of a factor.\n");
+    }
+
+    /* ---- the independent reference, which is what makes the next step a
+     * measurement rather than a derivation.
+     *
+     * Asked for AFTER the clock is up, deliberately. The crystal is unaffected
+     * by the core clock, so the order does not matter to it, and reporting it
+     * here keeps the clock sequence above as one readable block. A failure here
+     * does not touch the clock: this call writes only PWR_CR1's protection bit
+     * and RCC_BDCR's enable, and nothing in the sequence above depends on it. */
+    {
+        lseref_start_t lse;
+        const int lse_rc = lseref_start(&lse, 3000u);
+
+        printf("\n  the 32.768 kHz crystal, which is the only reference on this\n");
+        printf("  board that does not come from the PLL chain:\n");
+        printf("    RCC_BDCR as found %08lX, after %08lX\n",
+               (unsigned long) lse.bdcr_before, (unsigned long) lse.bdcr_after);
+        printf("    backup domain unlocked %s\n",
+               lse.backup_unlocked ? "yes" : "NO, so the enable was ignored");
+        if (lse.already_running) {
+            printf("    it was ALREADY RUNNING, which is what a system reset "
+                   "leaves behind.\n"
+                   "    The backup domain is not reset by the RESET pin, so a "
+                   "zero wait\n    here means nothing was asked of it. Power "
+                   "cycle for the startup time.\n");
+        } else if (lse_rc == 0) {
+            printf("    STARTED, after about %lu ms of waiting\n",
+                   (unsigned long) lse.waited_ms);
+            printf("    That is the first time this repository has asked this "
+                   "crystal to\n    oscillate. Until now its presence was a "
+                   "datasheet fact.\n");
+        } else {
+            printf("    DID NOT START within 3000 ms, and LSERDY is still "
+                   "clear.\n    Either the crystal is absent or not loaded, or "
+                   "something above\n    is wrong. Nothing else in this image "
+                   "depends on it.\n");
+        }
+        printf("    NOTE: the wait is counted by board_delay_ms, which is "
+               "calibrated\n    against the clock under test, so it is a bound "
+               "and not a measurement.\n");
     }
 
     /* And then blink, so the board says something a person across the room can
