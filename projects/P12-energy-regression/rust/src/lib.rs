@@ -435,7 +435,10 @@ mod tests {
             sizes(Some(16384), Some(12288)),
         );
         let mut measured = SizeMap::new();
-        measured.insert("p01-first-light".to_string(), sizes(Some(20000), Some(4000)));
+        measured.insert(
+            "p01-first-light".to_string(),
+            sizes(Some(20000), Some(4000)),
+        );
         let out = size_answer(&measured, &budgets);
         assert!(
             out.contains("over:p01-first-light:flash:20000:16384:3616"),
