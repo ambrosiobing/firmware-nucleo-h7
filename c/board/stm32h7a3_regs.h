@@ -630,12 +630,31 @@
  *     PWR->CR3 = (PWR->CR3 & ~PWR_CR3_SMPSEN) | PWR_CR3_LDOEN;
  *     while ((PWR->CSR1 & PWR_CSR1_ACTVOSRDY) == 0U) {}
  *
- * THE LDO AND NOT THE SMPS, and the reason is which way the risk points. The LDO
- * is on the die and is valid whenever VDD is present. The SMPS needs an external
- * inductor and capacitors on the board, and whether this Nucleo fits them is a
- * board fact this repository has not sourced; selecting it on a board without
- * them would remove the core supply. Choosing the LDO on a board that has the
- * SMPS costs efficiency and nothing else.
+ * THE SMPS AND NOT THE LDO ON THIS BOARD, from two independent sources that
+ * agree. Every CubeIDE project file under Projects/NUCLEO-H7A3ZI-Q defines
+ * USE_PWR_DIRECT_SMPS_SUPPLY, and that branch of ST's ExitRun0Mode is
+ *
+ *     PWR->CR3 &= ~(PWR_CR3_LDOEN);
+ *
+ * which clears the LDO and leaves the SMPS running. ST sets the macro in the
+ * project configuration and not in any header, which is why searching the
+ * headers for it finds nothing.
+ *
+ * THE SECOND SOURCE IS THE BOARD, and it is the only evidence here that comes
+ * from hardware rather than from a file. On Sunday 4 October 2026 this file
+ * briefly did the opposite, clearing SMPSEN and setting LDOEN, on the argument
+ * that the LDO is on the die and therefore the safe choice. The board printed
+ * its banner, reached that write, and stopped: no step report, no reset loop, no
+ * further output. A power cycle recovered it completely and p01-first-light ran
+ * unchanged afterwards. Nothing was damaged, and the reading is that this
+ * board's core is supplied through the SMPS, so removing the SMPS removed the
+ * supply.
+ *
+ * The argument that was wrong is worth keeping next to the answer. "The LDO is
+ * on the die, so selecting it cannot hurt" is true about the die and says
+ * nothing about the board, and a supply is a board fact. Reasoning about which
+ * way a risk points is not a substitute for reading what the board is wired to
+ * do, and this repository's own rule already said so.
  *
  * WHERE THIS WAS FOUND, because the first place looked was the wrong one. There
  * are two files named system_stm32h7xx.c in the pack. The CMSIS template under

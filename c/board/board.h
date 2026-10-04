@@ -218,7 +218,7 @@ typedef enum {
     /* The supply first, and it is first because nothing else works without it.
      * At reset the part is in Run* mode with no supply selected, and in that
      * state the regulator declines every voltage scale change in silence. */
-    CLOCK280_STEP_SUPPLY   = 0,   /* exit Run* mode, select the LDO */
+    CLOCK280_STEP_SUPPLY   = 0,   /* exit Run* mode, select the SMPS */
     CLOCK280_STEP_VOS1     = 1,   /* the reset scale to scale 1 */
     CLOCK280_STEP_VOS0     = 2,   /* scale 1 to scale 0, the only legal route */
     CLOCK280_STEP_LATENCY  = 3,   /* flash wait states, before the frequency */

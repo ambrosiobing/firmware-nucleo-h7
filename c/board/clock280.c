@@ -14,7 +14,9 @@
  *   1  the SUPPLY selected, which exits Run* mode. At reset this part has both
  *      SMPSEN and LDOEN set, which is the absence of a selection rather than a
  *      selection, and in that state the regulator declines every voltage scale
- *      change in silence. Nothing else in this list can work before it.
+ *      change in silence. Nothing else in this list can work before it. On this
+ *      board the selection is the SMPS, which is ST's own project setting and
+ *      which the board confirmed by stopping when the opposite was written.
  *   2  voltage scaling UP to scale 1, from whatever the reset scale is.
  *   3  voltage scaling UP again, scale 1 to scale 0. TWO steps because scale 0
  *      is only reachable from scale 1, which is a constraint on the transition
@@ -180,26 +182,31 @@ int board_clock_raise_to_280(clock280_result_t *out)
     /* ---- 1. the supply, which has to be selected before anything else ---- */
     {
         clock280_record_t *r = &out->step[CLOCK280_STEP_SUPPLY];
-        const uint32_t want = PWR_CR3_LDOEN_MSK;
+        const uint32_t want = PWR_CR3_SMPSEN_MSK;
         uint32_t spins;
 
-        /* The LDO, not the SMPS, and not because the LDO is better. The SMPS
-         * needs an external inductor and capacitors, whether this board fits
-         * them is not sourced here, and selecting it on a board without them
-         * removes the core supply. The LDO is on the die. This write LOCKS the
-         * choice until the next reset, which is why it is the one step in this
-         * file that cannot be retried without the RESET button.
+        /* THE SMPS, by clearing the LDO and leaving the SMPS running. Every
+         * CubeIDE project for this board defines USE_PWR_DIRECT_SMPS_SUPPLY and
+         * that is the write ST's ExitRun0Mode makes for it. The board agrees,
+         * the hard way: this file briefly did the opposite on Sunday
+         * 4 October 2026 and the part stopped at this instruction, because its
+         * core is supplied through the SMPS. See stm32h7a3_regs.h at
+         * PWR_CR3 for the account.
+         *
+         * This write LOCKS the choice until the next reset, so it is the one
+         * step here that cannot be retried without the RESET button, and the
+         * one that can stop the part rather than refuse.
          *
          * ACTVOSRDY in PWR_CSR1 and not VOSRDY in PWR_SRDCR: this is the flag
          * that says the regulator has settled on an actual scale, and it is
          * clear from reset until a supply is chosen. */
-        PWR_CR3 = (PWR_CR3 & ~PWR_CR3_SMPSEN_MSK) | PWR_CR3_LDOEN_MSK;
+        PWR_CR3 &= ~PWR_CR3_LDOEN_MSK;
         (void) PWR_CR3;                  /* land the write before polling */
         spins = wait_for(&PWR_CSR1, PWR_CSR1_ACTVOSRDY_MSK, true);
 
         const uint32_t got = PWR_CR3;
-        const bool ok = ((got & PWR_CR3_LDOEN_MSK) != 0u)
-                     && ((got & PWR_CR3_SMPSEN_MSK) == 0u)
+        const bool ok = ((got & PWR_CR3_LDOEN_MSK) == 0u)
+                     && ((got & PWR_CR3_SMPSEN_MSK) != 0u)
                      && (spins < READY_SPINS_MAX);
         record(r, want, got, spins, ok);
         if (!ok) {

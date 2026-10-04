@@ -152,9 +152,10 @@ int main(void)
     /* The one thing worth saying before the attempt: what the sequence intends,
      * in the arithmetic a reader can check, so the console carries the claim and
      * not only the outcome. */
-    printf("\n  intending: the LDO selected first, to exit Run* mode, because at\n");
-    printf("             reset no supply is chosen and the regulator then refuses\n");
-    printf("             every voltage scale change in silence,\n");
+    printf("\n  intending: the SMPS selected first, by clearing LDOEN, to exit\n");
+    printf("             Run* mode. At reset both enables are set, which is no\n");
+    printf("             selection at all, and the regulator then refuses every\n");
+    printf("             voltage scale change in silence,\n");
     printf("             then voltage scale 1, then scale 0, because scale 0\n");
     printf("             is only reachable from scale 1 on this part,\n");
     printf("             then 8 MHz bypass / DIVM1 4 = 2 MHz into the PLL,\n");
