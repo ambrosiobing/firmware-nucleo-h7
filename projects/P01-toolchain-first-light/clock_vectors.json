@@ -1,0 +1,436 @@
+{
+  "what": "P01's clock tree oracle: register words in, frequencies or a named refusal out, plus the signed bias between a reported and a true frequency.",
+  "how_to_read": "Every row carries both halves written by hand, the register words and the answer, and a why that says what the row is for. Removing a row removes a guarantee; changing an answer to make a test pass is changing the specification and the why has to change with it.",
+  "where_the_numbers_come_from": "The field positions are in c/board/stm32h7a3_regs.h, each with the authority that settled it. The two measured frequencies, 279672822 Hz at the 280 MHz setting and 64194318 Hz on the reset clock, were measured against this board's 32.768 kHz crystal on Sunday 4 October 2026 and are recorded in projects/P01-toolchain-first-light/README.md.",
+  "not_yet_here": "The board's own register words, as dumped by p01-pll280 before it writes anything. Every row below is constructed, which is the right way to reach a refusal and the wrong way to prove the 280 MHz row describes this board. That row arrives with the next console capture.",
+  "decode": [
+    {
+      "name": "the-pll-is-configured-but-sws-still-says-hsi",
+      "why": "The window between configuring the PLL and switching to it. Every PLL field here holds the 280 MHz configuration and the answer is still 64 MHz, because SWS is what says which source drives sys_ck. An implementation that reported the PLL it found configured would pass every other row in this file and fail this one. HPRE is set to divide by 2 so that the AHB answer differs from the core answer, which is the other thing this row pins: the AHB clock comes off the core and not off sys_ck.",
+      "regs": {
+        "cr": 37,
+        "cfgr": 0,
+        "pllckselr": 66,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 8,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 64000000,
+        "core_hz": 64000000,
+        "ahb_hz": 32000000,
+        "pclk1_hz": 32000000,
+        "refusal": "ok"
+      }
+    },
+    {
+      "name": "the-280-mhz-tree-at-the-nominal-input",
+      "why": "The configuration p01-pll280 reached on the board on Sunday 4 October 2026, decoded at the nominal 8 MHz. 8 over 4 is 2, times 280 is 560, over 2 is 280. CDCPRE divides by 1 and HPRE by 2, so the core is 280 and every bus is 140.",
+      "regs": {
+        "cr": 393253,
+        "cfgr": 27,
+        "pllckselr": 66,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 8,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 280000000,
+        "core_hz": 280000000,
+        "ahb_hz": 140000000,
+        "pclk1_hz": 140000000,
+        "refusal": "ok"
+      }
+    },
+    {
+      "name": "the-280-mhz-tree-at-the-measured-input",
+      "why": "The same registers with the input the measurement implies, 7990652 Hz rather than 8 MHz. This is why clocktree_decode takes the two input frequencies as arguments instead of reading the header. The answer is 279672820 and the measurement was 279672822, and the 2 Hz is worth keeping: this chain multiplies the input by exactly 35, so its output is always 35 times an integer, and 279672822 is not. No integer input reproduces the measured figure, which is a statement about the measurement's own resolution rather than about the decode.",
+      "regs": {
+        "cr": 393253,
+        "cfgr": 27,
+        "pllckselr": 66,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 8,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 7990652,
+      "expect": {
+        "sys_hz": 279672820,
+        "core_hz": 279672820,
+        "ahb_hz": 139836410,
+        "pclk1_hz": 139836410,
+        "refusal": "ok"
+      }
+    },
+    {
+      "name": "divm1-of-three-truncates-before-the-multiply",
+      "why": "The row that tells multiply-first from divide-first. 8 MHz over 3 is 2666666 with the remainder thrown away, times 280 is 746666480, over 2 is 373333240. Multiplying first and dividing after would give 373333333, which is 93 Hz different and would never be noticed on this board, because the configuration it actually runs has an M that divides exactly. A second language is exactly where this would drift.",
+      "regs": {
+        "cr": 393253,
+        "cfgr": 27,
+        "pllckselr": 50,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 373333240,
+        "core_hz": 373333240,
+        "ahb_hz": 373333240,
+        "pclk1_hz": 373333240,
+        "refusal": "ok"
+      }
+    },
+    {
+      "name": "hsidiv-divides-the-internal-oscillator-by-eight",
+      "why": "HSIDIV is two bits and the divisor is 1 << field, so field 3 is a divide by 8 and the decode is a right shift rather than a rounded division. 64 MHz becomes 8 MHz exactly.",
+      "regs": {
+        "cr": 61,
+        "cfgr": 0,
+        "pllckselr": 66,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 8000000,
+        "core_hz": 8000000,
+        "ahb_hz": 8000000,
+        "pclk1_hz": 8000000,
+        "refusal": "ok"
+      }
+    },
+    {
+      "name": "the-external-clock-is-selected-but-not-in-bypass",
+      "why": "SWS says HSE and HSEBYP is clear, so the part is running from an oscillator this repository knows nothing about. Returning 8 MHz here would be asserting a board fact that does not apply, which is the whole reason this refusal exists.",
+      "regs": {
+        "cr": 37,
+        "cfgr": 18,
+        "pllckselr": 66,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 0,
+        "core_hz": 0,
+        "ahb_hz": 0,
+        "pclk1_hz": 0,
+        "refusal": "hse-not-bypass"
+      }
+    },
+    {
+      "name": "the-pll-runs-from-an-external-clock-that-is-not-in-bypass",
+      "why": "The same bit, reached through the PLL rather than directly. This is the one reason that got MORE specific when the decode moved out of system.c on Sunday 4 October 2026: the old code reached the path where the PLL reference came back zero and reported an unknown source. The true cause is one bit in RCC_CR and that is where a reader should be sent.",
+      "regs": {
+        "cr": 37,
+        "cfgr": 27,
+        "pllckselr": 66,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 0,
+        "core_hz": 0,
+        "ahb_hz": 0,
+        "pclk1_hz": 0,
+        "refusal": "hse-not-bypass"
+      }
+    },
+    {
+      "name": "the-pll-has-its-fractional-term-enabled",
+      "why": "FRACEN set. FRACN is not decoded anywhere in this volume, and it moves the frequency by an amount this function cannot account for, so a plausible number here would be worse than no number.",
+      "regs": {
+        "cr": 393253,
+        "cfgr": 27,
+        "pllckselr": 66,
+        "pllcfgr": 65537,
+        "pll1divr": 791,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 0,
+        "core_hz": 0,
+        "ahb_hz": 0,
+        "pclk1_hz": 0,
+        "refusal": "pll-fractional"
+      }
+    },
+    {
+      "name": "the-pll-p-output-is-disabled",
+      "why": "DIVP1EN clear. SWS can say PLL1 while the P output is off, and then nothing is driving sys_ck through it, whatever the dividers hold.",
+      "regs": {
+        "cr": 393253,
+        "cfgr": 27,
+        "pllckselr": 66,
+        "pllcfgr": 0,
+        "pll1divr": 791,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 0,
+        "core_hz": 0,
+        "ahb_hz": 0,
+        "pclk1_hz": 0,
+        "refusal": "pll-p-disabled"
+      }
+    },
+    {
+      "name": "the-pll-runs-from-csi",
+      "why": "PLLSRC is CSI, whose nominal frequency is not sourced anywhere in this repository and which nothing here selects.",
+      "regs": {
+        "cr": 393253,
+        "cfgr": 27,
+        "pllckselr": 65,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 0,
+        "core_hz": 0,
+        "ahb_hz": 0,
+        "pclk1_hz": 0,
+        "refusal": "pll-source-unknown"
+      }
+    },
+    {
+      "name": "divm1-is-zero",
+      "why": "The hardware permits writing 0 to DIVM1 and the arithmetic does not permit dividing by it. Checked before the division rather than after.",
+      "regs": {
+        "cr": 393253,
+        "cfgr": 27,
+        "pllckselr": 2,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 0,
+        "core_hz": 0,
+        "ahb_hz": 0,
+        "pclk1_hz": 0,
+        "refusal": "pll-zero-divider"
+      }
+    },
+    {
+      "name": "the-multiply-would-overflow-32-bits",
+      "why": "The internal oscillator at 64 MHz, M of 1 and N of 512. 64000000 times 512 is 3.3e10 and a 32 bit unsigned runs out at 4.29e9, so the product is checked against the limit before it is formed. This part's oscillator stops at 836 MHz, so the margin is real, and it is not wide enough to leave unchecked.",
+      "regs": {
+        "cr": 37,
+        "cfgr": 27,
+        "pllckselr": 16,
+        "pllcfgr": 65536,
+        "pll1divr": 1023,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 0,
+        "core_hz": 0,
+        "ahb_hz": 0,
+        "pclk1_hz": 0,
+        "refusal": "pll-would-overflow"
+      }
+    },
+    {
+      "name": "csi-drives-the-system-clock",
+      "why": "SWS reports CSI. Same reason as the PLL source row, one level up.",
+      "regs": {
+        "cr": 393253,
+        "cfgr": 8,
+        "pllckselr": 66,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 0,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 0,
+        "core_hz": 0,
+        "ahb_hz": 0,
+        "pclk1_hz": 0,
+        "refusal": "sws-unknown"
+      }
+    },
+    {
+      "name": "the-ahb-prescaler-holds-a-ratio-this-volume-has-not-sourced",
+      "why": "HPRE of 0xF. Three of the sixteen encodings are read out of ST's device header and the rest are not, because the remaining ratios are not evenly spaced. Reporting the undivided frequency here would be wrong by exactly the ratio nobody would suspect.",
+      "regs": {
+        "cr": 393253,
+        "cfgr": 27,
+        "pllckselr": 66,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 15,
+        "cdcfgr2": 0
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 0,
+        "core_hz": 0,
+        "ahb_hz": 0,
+        "pclk1_hz": 0,
+        "refusal": "prescaler-undecoded"
+      }
+    },
+    {
+      "name": "the-apb1-prescaler-holds-a-ratio-this-volume-has-not-sourced",
+      "why": "CDPPRE1 of 6. The same refusal reached through the other prescaler encoding, which has three bits rather than four and its own table.",
+      "regs": {
+        "cr": 393253,
+        "cfgr": 27,
+        "pllckselr": 66,
+        "pllcfgr": 65536,
+        "pll1divr": 791,
+        "cdcfgr1": 0,
+        "cdcfgr2": 96
+      },
+      "hsi_nominal": 64000000,
+      "hse_bypass": 8000000,
+      "expect": {
+        "sys_hz": 0,
+        "core_hz": 0,
+        "ahb_hz": 0,
+        "pclk1_hz": 0,
+        "refusal": "prescaler-undecoded"
+      }
+    }
+  ],
+  "bias": [
+    {
+      "name": "the-280-mhz-setting-as-measured",
+      "why": "What board_core_hz() reports against what Sunday 4 October 2026 measured. The reported frequency is high and a measured duration comes out short, which are opposite signs on the same fact.",
+      "reported_hz": 280000000,
+      "true_hz": 279672822,
+      "expect": {
+        "ok": true,
+        "frequency_ppm": 1170,
+        "duration_ppm": -1168,
+        "delay_ppm": 1170
+      }
+    },
+    {
+      "name": "the-reset-clock-as-measured",
+      "why": "The same two questions at the other clock, where every sign is the other way round. This row and the one above are why the single sentence 0.117 per cent high was replaced by a table.",
+      "reported_hz": 64000000,
+      "true_hz": 64194318,
+      "expect": {
+        "ok": true,
+        "frequency_ppm": -3027,
+        "duration_ppm": 3036,
+        "delay_ppm": -3027
+      }
+    },
+    {
+      "name": "no-bias-at-all",
+      "why": "The reported frequency is the truth. All three are zero and none is a rounding artefact.",
+      "reported_hz": 280000000,
+      "true_hz": 280000000,
+      "expect": {
+        "ok": true,
+        "frequency_ppm": 0,
+        "duration_ppm": 0,
+        "delay_ppm": 0
+      }
+    },
+    {
+      "name": "a-half-part-per-million-rounds-away-from-zero",
+      "why": "One hertz high on 2 MHz is exactly half a part per million, so the frequency answer is 1 and not 0. The duration answer divides by the reported frequency instead and lands just under a half, so it rounds to 0. Two of the three quantities differ here by a whole unit, which is the sharpest statement in this file that they are different quantities.",
+      "reported_hz": 2000001,
+      "true_hz": 2000000,
+      "expect": {
+        "ok": true,
+        "frequency_ppm": 1,
+        "duration_ppm": 0,
+        "delay_ppm": 1
+      }
+    },
+    {
+      "name": "a-negative-half-part-per-million-also-rounds-away-from-zero",
+      "why": "The same magnitude below. Halves away from zero means this is -1 and not 0, which is the rule four languages have to share and which neither C nor Rust gives for free.",
+      "reported_hz": 1999999,
+      "true_hz": 2000000,
+      "expect": {
+        "ok": true,
+        "frequency_ppm": -1,
+        "duration_ppm": 1,
+        "delay_ppm": -1
+      }
+    },
+    {
+      "name": "a-ratio-far-enough-from-one-to-saturate",
+      "why": "A reported 4294967295 Hz against a true 1 Hz. The frequency answer saturates at the largest signed 32 bit value, and the duration answer does not, because its denominator is the large number. Saturating rather than refusing keeps the arithmetic total and keeps four languages from needing a second refusal path to agree on.",
+      "reported_hz": 4294967295,
+      "true_hz": 1,
+      "expect": {
+        "ok": true,
+        "frequency_ppm": 2147483647,
+        "duration_ppm": -1000000,
+        "delay_ppm": 2147483647
+      }
+    },
+    {
+      "name": "the-truth-is-not-known",
+      "why": "A bias against an unknown frequency is not a small bias. Refused, with all three left at zero so a caller that ignores the return value gets no number rather than a wrong one.",
+      "reported_hz": 280000000,
+      "true_hz": 0,
+      "expect": {
+        "ok": false,
+        "frequency_ppm": 0,
+        "duration_ppm": 0,
+        "delay_ppm": 0
+      }
+    },
+    {
+      "name": "nothing-was-reported",
+      "why": "The other half of the same guard. board_core_hz() returns 0 when the clock is not established, and that value must never reach this arithmetic as though it were a frequency.",
+      "reported_hz": 0,
+      "true_hz": 279672822,
+      "expect": {
+        "ok": false,
+        "frequency_ppm": 0,
+        "duration_ppm": 0,
+        "delay_ppm": 0
+      }
+    }
+  ]
+}

@@ -104,6 +104,22 @@ uint32_t board_core_hz(void);
  * 0 when not established. */
 uint32_t board_pclk1_hz(void);
 
+/* WHY the clock is not established, as a short stable token, or "ok".
+ *
+ * board_clock_status() has one error value, BOARD_ERR_CLOCK_UNCONFIRMED, and the
+ * decode has eight distinct ways to arrive at it: an unknown system source, an
+ * external clock that is not in bypass, a fractional PLL term, a disabled P
+ * output, an unknown PLL source, a zero divider, a multiply that would overflow,
+ * and a bus prescaler ratio this volume has not sourced. A reader told only
+ * BOARD_ERR_CLOCK_UNCONFIRMED has eight places to look; the same reader told
+ * "hse-not-bypass" has one bit to look at.
+ *
+ * The tokens are the nine in c/clock/clocktree.h, identical in all four
+ * languages, which is why they are hyphenated tokens and not sentences. Never
+ * NULL. "regs-unconfirmed" when the register addresses themselves are still
+ * compiled out, which is a different thing from any of the eight. */
+const char *board_clock_refusal_text(void);
+
 /* Full initialisation: clock, LEDs, console, printf retarget. Safe to call once.
  * Never fails: where a part of it cannot be configured, that part is left
  * unconfigured and the corresponding status function says so. A project that

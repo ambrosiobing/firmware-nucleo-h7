@@ -151,8 +151,13 @@ add_library(board OBJECT
     c/board/cycles.c
     c/board/icache.c
     c/board/clock280.c
-    c/board/retarget.c)
-target_include_directories(board PUBLIC c/board)
+    c/board/retarget.c
+    # The clock tree decode, which system.c calls and which deliberately does not
+    # live under c/board: it touches no register and must stay compilable by a
+    # host compiler so four languages can be compared against it. See
+    # c/clock/clocktree.h.
+    c/clock/clocktree.c)
+target_include_directories(board PUBLIC c/board c/clock)
 
 # One firmware target per project that has target code. A project appears here
 # when its main.c exists, and not before: an empty target that links and does

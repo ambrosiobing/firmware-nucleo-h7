@@ -120,6 +120,65 @@ shown is that two references agree to a few hundred, and this bench cannot say
 which of them is the better one. That is enough to establish the sign and size of
 a 1168 part per million effect, and not enough to quote its last digit.
 
+## The decode can be wrong in eight ways, and now seven of them can be tested
+
+Until Sunday 4 October 2026 the clock tree decode lived as four static functions
+inside `c/board/system.c`, and every one of them dereferenced a memory mapped
+register. That made it correct and untestable in one stroke. Nothing on a host
+could call it, so the only test it had was to flash the board and read the
+banner, and a flash exercises exactly one configuration: whichever one the board
+happens to be in.
+
+It passed that test. The measurement above agrees with the decoded 280 MHz to
+1168 parts per million and the remainder is traced to the input frequency rather
+than to any field. **But the cases that matter most are the refusals**, and they
+are the cases the board has no convenient way to produce. There is no comfortable
+way to ask this part for a PLL with its fractional term enabled, or a bus
+prescaler holding a ratio nobody has sourced, and those are precisely where a
+wrong decode returns a plausible frequency instead of a dead board.
+
+So the decode moved to `../../c/clock/clocktree.c`, taking the seven register
+words as an argument, and `system.c` now reads the registers and calls it. **One
+copy of the field rules, and a host can drive all eight refusals.** The
+arithmetic did not move: the same masks, the same order, the same integer
+truncations, which is what lets the board measurement go on applying to it.
+
+| | |
+|---|---|
+| the oracle | [`clock_vectors.json`](clock_vectors.json), 15 decode rows and 8 bias rows |
+| what each row carries | the seven register words, the four frequencies or the named refusal, and a `why` saying what the row is for |
+| how the answers were obtained | both halves written by hand, then checked against an independent recomputation that refuses to write the file if they disagree |
+| what drives it | `python/tests/test_clocktree.py` through the same object file the firmware links |
+| proven able to fail | three deliberate mutations on Sunday 4 October 2026, each turning exactly one test red: a register named in the decoder's code, a ninth refusal with no vector, and a vector row deleted |
+
+**Three rows are worth naming.** The first configures the PLL completely for
+280 MHz and leaves `SWS` reading HSI, and the answer must still be 64 MHz: an
+implementation that reported the PLL it found configured would pass every other
+row in the file. The second decodes the 280 MHz registers at the measured
+7 990 652 Hz input rather than the nominal, which is why `clocktree_decode` takes
+both input frequencies as arguments instead of reading them from the header; it
+gives 279 672 820 Hz against a measurement of 279 672 822, and the two hertz are
+worth keeping, because this chain multiplies its input by exactly 35 and
+279 672 822 is not a multiple of 35. No integer input reproduces the measured
+figure, which is a statement about the measurement's own resolution and not about
+the decode. The third sets `DIVM1` to 3, where 8 MHz does not divide exactly, and
+pins the order of the arithmetic: divide then multiply gives 373 333 240 and
+multiply then divide gives 373 333 333. The board's own configuration divides
+exactly, so it could never tell those apart.
+
+**And the refusal now says which.** `board_clock_status()` has one error value
+and the decode has eight ways to reach it, so a reader looking at a board that
+reports `BOARD_ERR_CLOCK_UNCONFIRMED` had eight places to look.
+`board_clock_refusal_text()` returns one of nine short tokens, `p01-pll280`
+prints it when there is one, and the tokens are the same nine in every language
+so the parity comparison is of reasons and not only of numbers.
+
+**What is not here yet** is the board's own register words. Every row in the file
+is constructed, which is the right way to reach a refusal on demand and the wrong
+way to show that the 280 MHz row describes this board. `p01-pll280` already dumps
+every register as found, so that row arrives with the next console capture, and
+the file says so itself rather than leaving a reader to notice.
+
 ## The 32.768 kHz crystal, asked to oscillate for the first time
 
 It had been a settled board fact since Friday 2 October 2026, from two

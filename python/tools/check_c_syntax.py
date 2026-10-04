@@ -57,7 +57,7 @@ CANDIDATES = ["gcc", "cc"]
 # running one, and that is the thing this script must not do.
 
 # Directories to check, and the include paths each needs.
-INCLUDE_DIRS = ["c/board", "c/payload", "c/ring", "c/instr",
+INCLUDE_DIRS = ["c/board", "c/clock", "c/payload", "c/ring", "c/instr",
                 "projects/P06-timer-sampling/c", "projects/P03-interrupt-receive/c",
                 "projects/P05-framing-crc/c", "projects/P08-node-state-machine/c",
                 "projects/P09-payload-codec/cpp"]

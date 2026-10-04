@@ -48,6 +48,7 @@
 #include <stdio.h>
 
 #include "board.h"
+#include "clocktree.h"
 #include "lseref.h"
 #include "stm32h7a3_regs.h"
 
@@ -161,6 +162,14 @@ static void report_clock(const char *when)
            (unsigned long) board_core_hz(),
            (unsigned long) board_pclk1_hz(),
            status_word(board_clock_status()));
+
+    /* The reason, printed only when there is one. board_clock_status() has a
+     * single error value and the decode has eight ways to reach it, so a dead
+     * clock used to send a reader to eight places at once. Silent on success,
+     * because "ok" on every line is how a line stops being read. */
+    if (board_clock_status() == BOARD_ERR_CLOCK_UNCONFIRMED) {
+        printf("    the decode refused: %s\n", board_clock_refusal_text());
+    }
 }
 
 /* The crystal, and the core clock counted against it.
@@ -234,13 +243,35 @@ static void report_crystal(const char *when, uint32_t nominal_hz)
      * different claims. The derived figure is what this image computed from the
      * registers; the nominal is what the datasheet says the oscillator is. For
      * the internal oscillator those differ by a known amount already measured by
-     * two other instruments, and that is the whole point of this comparison. */
+     * two other instruments, and that is the whole point of this comparison.
+     *
+     * THREE NUMBERS AND NOT ONE, since Sunday 4 October 2026. This block used to
+     * compute a single figure here and call it "parts per million against
+     * nominal", which is the same ambiguity that put "about 0.117 per cent high"
+     * into three files the same afternoon. A frequency that reads high, a
+     * duration that comes out short and a delay that runs long are three
+     * statements with two values and two signs between them, and the console is
+     * where a reader meets them first. clocktree_bias computes them, the host
+     * suite checks every one against a vector, and this prints what it returns
+     * rather than repeating the arithmetic. */
     if (nominal_hz != 0u && m.core_hz_measured != 0u) {
-        const long against_nominal =
-            (long) (((int64_t) m.core_hz_measured - (int64_t) nominal_hz)
-                    * 1000000 / (int64_t) nominal_hz);
-        printf("    nominal   %lu Hz, so %ld parts per million against nominal\n",
-               (unsigned long) nominal_hz, against_nominal);
+        clocktree_bias_t bias;
+
+        if (clocktree_bias(nominal_hz, m.core_hz_measured, &bias)) {
+            printf("    nominal   %lu Hz, and against the measurement:\n",
+                   (unsigned long) nominal_hz);
+            printf("      the reported frequency is %ld ppm %s\n",
+                   (long) (bias.frequency_ppm < 0 ? -bias.frequency_ppm
+                                                  : bias.frequency_ppm),
+                   bias.frequency_ppm < 0 ? "low" : "high");
+            printf("      a measured duration comes out %ld ppm %s\n",
+                   (long) (bias.duration_ppm < 0 ? -bias.duration_ppm
+                                                 : bias.duration_ppm),
+                   bias.duration_ppm < 0 ? "short" : "long");
+            printf("      a requested delay is delivered %ld ppm %s\n",
+                   (long) (bias.delay_ppm < 0 ? -bias.delay_ppm : bias.delay_ppm),
+                   bias.delay_ppm < 0 ? "short" : "long");
+        }
     }
 }
 

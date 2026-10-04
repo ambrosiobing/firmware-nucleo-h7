@@ -33,6 +33,15 @@ SCRIPT = ROOT / "python" / "tools" / "build_host.py"
 CALL = re.compile(r'proj\("([A-Z]\d\d)",\s*"(\w+)"\)')
 CALL_WITH_FILE = re.compile(r'proj\("([A-Z]\d\d)",\s*"(\w+)"\)\s*/\s*"([\w.]+)"')
 
+# The shared trees under c/, which proj() knows nothing about. Added Sunday
+# 4 October 2026 with the first build step that names one: c/clock/clocktree.c,
+# the clock tree decode, which is shared because the firmware links it and is
+# built here because four languages are compared against it. Until then every
+# source in this script came from a project directory, and the hole was the same
+# one this file exists to close: a path that silently does not exist.
+SHARED_DIR = re.compile(r'C_DIR\s*/\s*"(\w+)"')
+SHARED_FILE = re.compile(r'C_DIR\s*/\s*"(\w+)"\s*/\s*"([\w.]+)"')
+
 
 def build_host():
     """The module itself, imported and not run. `main()` sits behind the usual
@@ -79,3 +88,30 @@ def test_every_source_file_named_in_a_build_step_exists():
     assert not missing, "build_host.py names sources that are not there: {}".format(
         ", ".join(missing))
     print("  {} source files named by build_host.py, all present".format(len(named)))
+
+
+def test_the_pattern_finds_every_shared_tree_the_script_names():
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert text.count("C_DIR /") == len(SHARED_DIR.findall(text)), (
+        "a C_DIR path is written in a shape this test does not recognise, so it "
+        "would not be checked. Widen the pattern rather than deleting this line."
+    )
+
+
+def test_every_shared_directory_and_source_under_c_that_a_build_step_names_exists():
+    module = build_host()
+    text = SCRIPT.read_text(encoding="utf-8")
+    dirs = sorted(set(SHARED_DIR.findall(text)))
+    files = sorted(set(SHARED_FILE.findall(text)))
+    assert dirs, "no build step names a shared tree under c/, which cannot be right"
+    assert files, "no build step names a shared source under c/, which cannot be right"
+
+    missing = [name for name in dirs if not (module.C_DIR / name).is_dir()]
+    assert not missing, "build_host.py names shared trees that are not there: {}".format(
+        ", ".join("c/" + name for name in missing))
+
+    missing = [(d, f) for d, f in files if not (module.C_DIR / d / f).is_file()]
+    assert not missing, "build_host.py names shared sources that are not there: {}".format(
+        ", ".join("c/{}/{}".format(d, f) for d, f in missing))
+    print("  {} shared trees and {} shared sources under c/, all present: {}".format(
+        len(dirs), len(files), ", ".join("c/{}/{}".format(d, f) for d, f in files)))

@@ -24,9 +24,12 @@
 #include "board.h"
 #include "stm32h7a3_regs.h"
 
+#include "../clock/clocktree.h"
+
 static board_status_t g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
 static uint32_t       g_core_hz;        /* 0 until established */
 static uint32_t       g_pclk1_hz;       /* 0 until established */
+static clocktree_refusal_t g_clock_refusal = CLOCKTREE_OK;
 
 /* These are statics written from SystemInit, which is only safe because
  * Reset_Handler copies .data and zeroes .bss BEFORE calling it. The comment at
@@ -38,166 +41,43 @@ static uint32_t       g_pclk1_hz;       /* 0 until established */
 
 #ifdef BOARD_REGS_CONFIRMED
 
-/* The AHB and CPU prescaler fields share one four-bit encoding. Only the three
- * ratios ST's device header names are decoded; everything else refuses, because
- * the remaining ratios are not evenly spaced and writing them from recollection
- * of how this family usually encodes them is how a clock ends up wrong by a
- * factor of two with every register apparently correct. */
-static uint32_t ahb_cpu_divider(uint32_t field)
-{
-    switch (field) {
-    case RCC_AHBPRE_DIV1: return 1u;
-    case RCC_AHBPRE_DIV2: return 2u;
-    case RCC_AHBPRE_DIV4: return 4u;
-    default:              return 0u;
-    }
-}
-
-static uint32_t apb_divider(uint32_t field)
-{
-    switch (field) {
-    case RCC_APBPRE_DIV1: return 1u;
-    case RCC_APBPRE_DIV2: return 2u;
-    case RCC_APBPRE_DIV4: return 4u;
-    default:              return 0u;
-    }
-}
-
-/* The internal oscillator, after its own divider.
+/* THE DECODE MOVED TO c/clock/clocktree.c ON SUNDAY 4 OCTOBER 2026 and what is
+ * left here is the one part only the part itself can do: reading the seven
+ * registers. clocktree.h gives the reasons at length. The short form is that
+ * four static functions which dereference RCC cannot be called by anything on a
+ * host, so the only test the decode had ever had was to flash the board and
+ * believe the banner, and the refusals are precisely the cases the board has no
+ * convenient way to produce on demand.
  *
- * HSIDIV is two bits and the header names all four values: _1, _2, _4 and _8 at
- * field values 0 to 3. So the divisor is 1 << field and the frequency is a right
- * shift, which is exact rather than a rounded division. */
-static uint32_t hsi_hz(void)
-{
-    const uint32_t d = (RCC_CR & RCC_CR_HSIDIV_MSK) >> RCC_CR_HSIDIV_POS;
-    return HSI_HZ_NOMINAL >> d;
-}
-
-/* The external clock, which is a board fact and not a register fact, so this
- * refuses unless the board is in the one configuration the fact covers.
- *
- * On this Nucleo the on-board debugger drives the pin and there is no crystal
- * fitted, which is what HSEBYP being set means. With the bypass bit clear, the
- * part is waiting on or running from an oscillator this repository knows nothing
- * about, and returning 8 MHz then would be asserting a board fact that does not
- * apply. */
-static uint32_t hse_hz(void)
-{
-    const uint32_t cr = RCC_CR;
-
-    if ((cr & RCC_CR_HSEBYP_MSK) == 0u || (cr & RCC_CR_HSERDY_MSK) == 0u) {
-        return 0u;
-    }
-    return HSE_HZ_BYPASS;
-}
-
-/* PLL1's P output, decoded from the three registers that define it, or 0.
- *
- * DECODED AND NOT ASSERTED, which is the point. This function is what makes
- * board_core_hz() equally truthful on the reset clock and on the 280 MHz tree
- * with no second code path, and it is also what would catch the sequence in
- * clock280.c writing a field it did not mean to: the raise asks this decoder
- * afterwards whether it agrees, rather than reporting the target it aimed at.
- *
- * Four things make it refuse rather than return a plausible number:
- *   - a fractional term enabled, because FRACN is not decoded here and it would
- *     move the frequency by an amount this function cannot account for
- *   - a PLL source whose own frequency is unknown, which is CSI and NONE
- *   - a zero divider, which the hardware allows to be written
- *   - a multiply that would overflow 32 bits before the division
- * The last one matters: 32 bits runs out at 4.29 GHz and this part's oscillator
- * goes to 836 MHz, so the margin is real but it is not large enough to leave
- * unchecked. */
-static uint32_t pll1_p_hz(void)
-{
-    const uint32_t sel  = RCC_PLLCKSELR;
-    const uint32_t cfg  = RCC_PLLCFGR;
-    const uint32_t divr = RCC_PLL1DIVR;
-
-    if ((cfg & RCC_PLLCFGR_PLL1FRACEN_MSK) != 0u) {
-        return 0u;
-    }
-    if ((cfg & RCC_PLLCFGR_DIVP1EN_MSK) == 0u) {
-        return 0u;   /* the P output is not enabled, so it is not driving sys_ck */
-    }
-
-    uint32_t ref;
-    switch (sel & RCC_PLLCKSELR_PLLSRC_MSK) {
-    case 0u:              ref = hsi_hz(); break;   /* PLLSRC_HSI */
-    case RCC_PLLSRC_HSE:  ref = hse_hz(); break;
-    default:              return 0u;               /* CSI, or no source */
-    }
-    if (ref == 0u) {
-        return 0u;
-    }
-
-    /* DIVM1 holds the value; N1, P1, Q1 and R1 hold the value minus one. That
-     * asymmetry is ST's and is sourced at RCC_PLL1DIVR_N1_POS, not inferred. */
-    const uint32_t m = (sel & RCC_PLLCKSELR_DIVM1_MSK) >> RCC_PLLCKSELR_DIVM1_POS;
-    const uint32_t n = ((divr & RCC_PLL1DIVR_N1_MSK) >> RCC_PLL1DIVR_N1_POS) + 1u;
-    const uint32_t pdiv = ((divr & RCC_PLL1DIVR_P1_MSK) >> RCC_PLL1DIVR_P1_POS) + 1u;
-
-    if (m == 0u) {
-        return 0u;
-    }
-    const uint32_t in = ref / m;
-    if (in == 0u || in > (0xFFFFFFFFu / n)) {
-        return 0u;
-    }
-    return (in * n) / pdiv;
-}
-
-/* sys_ck, in hertz, or 0 when this code cannot say. CSI is the one source still
- * refused outright: its nominal frequency is not sourced anywhere in this
- * repository, and nothing here selects it. */
-static uint32_t system_source_hz(void)
-{
-    switch ((RCC_CFGR & RCC_CFGR_SWS_MSK) >> RCC_CFGR_SWS_POS) {
-    case RCC_SWS_HSI:  return hsi_hz();
-    case RCC_SWS_HSE:  return hse_hz();
-    case RCC_SWS_PLL1: return pll1_p_hz();
-    default:           return 0u;
-    }
-}
-
-/* Decode rather than assume, so this reports the truth on the reset clock now and
- * on the 280 MHz tree once that is written, with no second code path. */
+ * NOTHING ABOUT THE ARITHMETIC MOVED. The same masks, the same order, the same
+ * integer truncations, which is what lets Sunday's measurement go on applying to
+ * this file. What the split bought is eight refusals drivable from a host, in
+ * four languages, against the vectors in projects/P01-toolchain-first-light, and
+ * a refusal that says WHICH guard fired where this file used to return one
+ * status for all eight. */
 static void clock_establish(void)
 {
-    const uint32_t sys = system_source_hz();
-    if (sys == 0u) {
+    const clocktree_regs_t regs = {
+        .cr        = RCC_CR,
+        .cfgr      = RCC_CFGR,
+        .pllckselr = RCC_PLLCKSELR,
+        .pllcfgr   = RCC_PLLCFGR,
+        .pll1divr  = RCC_PLL1DIVR,
+        .cdcfgr1   = RCC_CDCFGR1,
+        .cdcfgr2   = RCC_CDCFGR2,
+    };
+    clocktree_t tree;
+
+    clocktree_decode(&regs, HSI_HZ_NOMINAL, HSE_HZ_BYPASS, &tree);
+
+    g_clock_refusal = tree.refusal;
+    g_core_hz       = tree.core_hz;
+    g_pclk1_hz      = tree.pclk1_hz;
+
+    if (tree.refusal != CLOCKTREE_OK) {
         g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
-        g_core_hz = 0u;
-        g_pclk1_hz = 0u;
         return;
     }
-
-    const uint32_t cfg1 = RCC_CDCFGR1;
-    const uint32_t cpu_div =
-        ahb_cpu_divider((cfg1 & RCC_CDCFGR1_CDCPRE_MSK) >> RCC_CDCFGR1_CDCPRE_POS);
-    const uint32_t ahb_div =
-        ahb_cpu_divider((cfg1 & RCC_CDCFGR1_HPRE_MSK) >> RCC_CDCFGR1_HPRE_POS);
-    const uint32_t apb1_div =
-        apb_divider((RCC_CDCFGR2 & RCC_CDCFGR2_CDPPRE1_MSK) >> RCC_CDCFGR2_CDPPRE1_POS);
-
-    if (cpu_div == 0u || ahb_div == 0u || apb1_div == 0u) {
-        /* A ratio outside the decoded set. Refusing is right: reporting the
-         * undivided frequency here would be wrong by that very ratio. */
-        g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
-        g_core_hz = 0u;
-        g_pclk1_hz = 0u;
-        return;
-    }
-
-    /* The order of the chain on this part: sys_ck divided by CDCPRE gives the
-     * core clock, the core clock divided by HPRE gives the AHB buses, and the
-     * AHB clock divided by CDPPRE1 gives APB1. Getting that order wrong matters
-     * only when the ratios differ from one, which is why it has to be right now
-     * rather than when it starts to show. */
-    g_core_hz  = sys / cpu_div;
-    g_pclk1_hz = (g_core_hz / ahb_div) / apb1_div;
-
     g_clock_status = (g_core_hz == CORE_HZ_TARGET)
                    ? BOARD_OK
                    : BOARD_CLOCK_AT_RESET_SPEED;
@@ -226,7 +106,12 @@ void SystemInit(void)
      *      frequency changes, and read the register back to confirm it took.
      *   3. Enable the external oscillator in bypass mode, 8 MHz from the
      *      on-board debugger, and wait for it to be ready.
-     *   4. Configure the PLL: 8 / 2, times 140, divided by 2, giving 280 MHz.
+     *   4. Configure the PLL: 8 over 4, times 280, divided by 2, giving
+     *      280 MHz. That division is ST's and not the obvious one. An earlier
+     *      version of this list said 8 over 2 times 140, which reaches the same
+     *      280 MHz through a 4 MHz PLL input. ST pairs a 2 MHz input with the
+     *      input range that contains 2 MHz, c/board/clock280.c does the same,
+     *      and that is the configuration measured on Sunday 4 October 2026.
      *   5. Enable the PLL, wait for lock, then switch the system clock to it.
      *   6. Read the clock configuration register back and derive the frequency
      *      from what it actually says rather than from what was intended.
@@ -235,12 +120,19 @@ void SystemInit(void)
      * a guessed clock into a measured one. Until it is written, the two lines
      * below stay as they are.
      */
-    /* The 280 MHz tree is still not configured, and the steps above are still
-     * what it would take. What changed on Friday 2 October 2026 is that not
-     * configuring it no longer means not knowing the frequency. The registers
-     * state what the clock is, so they are read and decoded, and the status
-     * distinguishes "running at the reset speed, which is this many hertz" from
-     * "cannot say". Those were the same value before and should not have been. */
+    /* SystemInit DOES NOT RAISE THE CLOCK, and that is a different statement
+     * from the one this comment made until Sunday 4 October 2026, when it said
+     * the 280 MHz tree was not configured anywhere. It is: c/board/clock280.c
+     * performs the eight steps above and p01-pll280 reached 280 MHz on the
+     * board that day. What stays true is that it does not happen HERE, before
+     * main, unasked. An image that wants the reset clock gets it, and an image
+     * that wants 280 MHz calls for it and can print every step.
+     *
+     * What changed on Friday 2 October 2026 is that not configuring it stopped
+     * meaning not knowing the frequency. The registers state what the clock is,
+     * so they are read and decoded, and the status distinguishes "running at the
+     * reset speed, which is this many hertz" from "cannot say". Those were one
+     * value before and should not have been. */
     clock_establish();
 #else
     /* Nothing is confirmed, so nothing is claimed. */
@@ -274,9 +166,28 @@ uint32_t board_pclk1_hz(void)
     return g_pclk1_hz;
 }
 
+/* Why the clock is not established, as a short token, or "ok".
+ *
+ * This exists because board_clock_status() has one error value and the decode
+ * has eight ways to reach it. A reader looking at a board that reports
+ * BOARD_ERR_CLOCK_UNCONFIRMED learns nothing about where to look; the same
+ * reader given "hse-not-bypass" is sent to one bit. p01-pll280 prints it. */
+const char *board_clock_refusal_text(void)
+{
+#ifdef BOARD_REGS_CONFIRMED
+    return clocktree_refusal_text(g_clock_refusal);
+#else
+    return "regs-unconfirmed";
+#endif
+}
+
 /* THE loop, and the reason it is a function.
  *
  * The calibration below and board_delay_ms() both call this and nothing else, so
+ * by construction they cost the same per iteration. Calibrating one loop and
+ * then timing a different one is the classic way to get this wrong: the compiler
+ * is free to unroll, reorder or register-allocate two textually identical loops
+ * differently depending on what surrounds them, and the error is silent.
  *
  * MEASURED AT 9.01 CYCLES on Friday 2 October 2026, not the 8.00 a host PC's clock
  * gave earlier the same day, and the difference is the point rather than a
@@ -290,10 +201,6 @@ uint32_t board_pclk1_hz(void)
  * requested 500, with nothing in the build to say so. The calibration absorbed it
  * at startup without being told. The warning in the next paragraph was
  * demonstrated on the very commit that introduced it.
- * by construction they cost the same per iteration. Calibrating one loop and then
- * timing a different one is the classic way to get this wrong: the compiler is
- * free to unroll, reorder or register-allocate two textually identical loops
- * differently depending on what surrounds them, and the error is silent.
  *
  * The counter is volatile, which forces a load and a store to memory on every
  * iteration rather than keeping it in a register. That is what makes the loop

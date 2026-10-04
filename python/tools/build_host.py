@@ -428,6 +428,16 @@ def main() -> int:
              "-o", BUILD / shared_library_name(stem)],
             "{}: link".format(stem))
 
+    # P01's clock tree decode. The only shared library here that is built from
+    # c/ rather than from a project directory, and the reason is that the
+    # firmware links the same file: c/clock/clocktree.c is what system.c calls,
+    # so this is a test of the shipped decode rather than of a host copy of it.
+    # It compiles on a host at all only because it takes the seven register
+    # VALUES as an argument and dereferences nothing.
+    print("P01, the clock tree decode, the same file the board links:")
+    shared_lib("clocktree", [C_DIR / "clock" / "clocktree.c"],
+               includes=[C_DIR / "clock"])
+
     print("P09, the codec, from the same payload.c the board links:")
     shared_lib("payload", [C_DIR / "payload" / "payload.c"], includes=[C_DIR / "payload"])
 
