@@ -475,10 +475,50 @@
  */
 #define CORE_HZ_TARGET     280000000u
 
+/* WHAT 280 MHz ACTUALLY MEASURES AS, because the constant above is the target of
+ * a configuration and not a frequency anybody observed until now.
+ *
+ * Measured 279672822 Hz on Sunday 4 October 2026, against this board's 32.768
+ * kHz crystal over a one second gate, which is 1168 parts per million below the
+ * nominal. The cause is the 8 MHz input and not this part: see HSE_HZ_BYPASS.
+ *
+ * HOW THE CRYSTAL WAS ITSELF CHECKED, since a measurement is only as good as its
+ * reference. The same method was applied to the internal oscillator, which two
+ * other instruments had already measured at 64.17 to 64.18 MHz across six
+ * reductions. The crystal says 64194318 Hz, which agrees with them to between
+ * 223 and 379 parts per million. The alternative explanation for the PLL result,
+ * a crystal running 1171 parts per million fast, would have put that reading
+ * near 64100000 Hz, so it is excluded by a factor of three.
+ *
+ * SO THE UNCERTAINTY IS A FEW HUNDRED PARTS PER MILLION AND NOT A FEW TENS.
+ * Earlier comments in this repository said a 32.768 kHz crystal is good to a few
+ * tens of parts per million, which is a datasheet expectation rather than
+ * anything demonstrated here. What has been demonstrated is that the crystal and
+ * a host PC's clock agree to a few hundred, and the crystal is probably the
+ * better of the two, but this bench cannot show which is wrong. A few hundred
+ * parts per million is enough to establish the sign and size of a 1168 part per
+ * million effect and not enough to quote its last digit. */
+#define CORE_HZ_MEASURED   279672822u
+
 /* The high speed clock this board actually has: the on-board debugger drives it
  * in bypass mode, so there is no crystal to start and HSEBYP must be set before
  * HSEON or the part waits for an oscillator that is not fitted. A settled board
- * fact, from the same two machine-readable sources as the LED pins. */
+ * fact, from the same two machine-readable sources as the LED pins.
+ *
+ * AND IT IS NOT 8 MHz. Measured on Sunday 4 October 2026 against this board's
+ * own 32.768 kHz crystal, it is about 7990652 Hz, which is 1168 parts per
+ * million low. The derivation is short because the PLL's dividers are integers
+ * and its fractional term is off: sys_ck is HSE times 280 over 4 times 2, so
+ * times 35, and a measured 279672822 Hz core puts HSE at 7990652.
+ *
+ * WHY THE CONSTANT STAYS 8000000 ANYWAY, which is the same argument this file
+ * already makes for HSI_HZ_NOMINAL. The measured figure is this probe, on this
+ * board, on one afternoon, against a reference whose own accuracy is not
+ * traceable. Substituting it would fit the code to one sample and read as more
+ * precise while being less general. The nominal is the honest constant and the
+ * measurement is evidence about how good the nominal is, which is what a reader
+ * needs. The consequence is stated rather than hidden: every figure derived from
+ * board_core_hz() at 280 MHz is about 0.117 per cent high. */
 #define HSE_HZ_BYPASS      8000000u
 
 /* ------------------------------------------------------------------ the 280 MHz

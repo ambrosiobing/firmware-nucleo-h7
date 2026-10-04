@@ -8,9 +8,12 @@
  *
  * This crystal is the one reference on the board that does not come from the PLL
  * chain, so counting core cycles against it can settle the interpretation. A
- * crystal at 32.768 kHz is good to a few tens of parts per million, two orders
- * better than the 0.36 per cent that separates 280 MHz from 279, and it needs no
- * instrument and no wiring.
+ * crystal at 32.768 kHz is good to a few tens of parts per million by its
+ * datasheet, two orders better than the 0.36 per cent that separates 280 MHz
+ * from 279, and it needs no instrument and no wiring. The uncertainty actually
+ * DEMONSTRATED on this board is weaker and is recorded at CORE_HZ_MEASURED in
+ * stm32h7a3_regs.h: a few hundred parts per million, which is where this
+ * crystal and a host PC's clock agree on the internal oscillator.
  *
  * THIS HEADER IS THE FIRST STEP ONLY, and the step is worth taking on its own:
  * make the crystal oscillate and say whether it did. That it is fitted has been
@@ -74,8 +77,12 @@ int lseref_start(lseref_start_t *out, uint32_t timeout_ms);
  * clock against a reference that does not come from the PLL chain, so it tests
  * the interpretation. Over a one second gate the counting resolution is about
  * four parts per billion and the real floor is the crystal's own accuracy, a few
- * tens of parts per million, which is two orders better than the 0.36 per cent
- * separating 280 MHz from 279.
+ * tens of parts per million by its datasheet, which is two orders better than
+ * the 0.36 per cent separating 280 MHz from 279. What has since been
+ * DEMONSTRATED on this board is weaker than that and is recorded at
+ * CORE_HZ_MEASURED: the crystal agrees with a host PC's clock on the internal
+ * oscillator to a few hundred parts per million, which is the honest
+ * uncertainty here.
  *
  * WHAT IT STILL RESTS ON, because no measurement is free of assumptions:
  *   - the crystal is 32.768 kHz to its datasheet tolerance, which is the floor

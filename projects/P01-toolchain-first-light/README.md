@@ -16,7 +16,9 @@ What is measured and what it rests on:
 | `printf` over COM13 | 115200 baud, divider 556 |
 | User button on PC13 | input with a pull-down, active high |
 | Core, AHB, APB1 clocks | 64 MHz at reset, decoded from RCC at startup rather than hardcoded |
-| The 280 MHz tree | reached Sunday 4 October 2026 by `p01-pll280`: core 280 MHz, AHB and APB1 140 MHz, every one of eight steps reading back what it wrote |
+| The 280 MHz tree | reached Sunday 4 October 2026 by `p01-pll280`: the configuration is at the target, AHB and APB1 at half the core, every one of eight steps reading back what it wrote |
+| The core clock, **measured** | **279 672 822 Hz** against this board's 32.768 kHz crystal, 1168 parts per million below the 280 MHz nominal. The cause is the debugger's clock output at 7 990 652 Hz |
+| The reset clock, **measured** | **64 194 318 Hz** against the same crystal, which agrees to within 379 parts per million with the 64.17 to 64.18 MHz two other instruments found |
 | Oscillator | 64.17 to 64.18 MHz, six reductions, two instruments, spread 0.031 per cent |
 | Delay loop | 9.00 cycles per iteration at 64 MHz and 8.96 at 280 MHz, the same binary, measured against `DWT_CYCCNT` every boot |
 | A 100 ms request | lands within 20 parts per million, checked by the part itself |
@@ -57,6 +59,50 @@ iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
 which says the loop's cost barely moved and is a fact about the flash and the
 pipeline rather than about the clock.
 
+## The core clock, measured: it is 279.67 MHz and not 280
+
+**This is the first frequency in this volume that is measured rather than
+derived**, and it does not agree with the nominal. Both readings are against this
+board's own 32.768 kHz crystal, over a one second gate, on Sunday 4 October 2026:
+
+| what was measured | reading | against its nominal |
+|---|---|---|
+| the core at the 280 MHz setting | **279 672 822 Hz** | 1168 parts per million low |
+| the core on the reset clock | **64 194 318 Hz** | 3036 parts per million high |
+
+**The first number is the finding and the second is what makes it believable.**
+A single measurement 1168 parts per million from nominal cannot say whether the
+clock is wrong or the reference is: a crystal running 1171 parts per million fast
+would produce exactly the same reading. The reset clock settles it, because that
+oscillator had already been measured at 64.17 to 64.18 MHz by two other
+instruments across six reductions against a host PC. The crystal says 64 194 318,
+which agrees with them to between 223 and 379 parts per million. A crystal fast
+enough to explain the PLL result would have read near 64 100 000, so that
+explanation is excluded by a factor of three.
+
+**So the 8 MHz is not 8 MHz.** The PLL's dividers are integers and its fractional
+term is off, so sys_ck is the input times 280 over 4 times 2, which is times 35.
+A measured 279 672 822 Hz core puts the debugger's clock output at **7 990 652
+Hz**, 1168 parts per million low. That is far outside anything a crystal-derived
+8 MHz would do, which is itself informative about how the on-board probe
+generates it.
+
+**What this changes, stated rather than left implied.** `CORE_HZ_TARGET` stays
+280000000 and `HSE_HZ_BYPASS` stays 8000000, for the same reason
+`HSI_HZ_NOMINAL` stays 64000000: the measured figures are this board, this probe,
+one afternoon, against a reference whose own accuracy is not traceable, and
+substituting them would fit the code to one sample while reading as more precise.
+The nominal is the honest constant. The consequence is that **every figure
+derived from `board_core_hz()` at the 280 MHz setting is about 0.117 per cent
+high**, and anything quoted to better than a part in a thousand has to say so.
+
+**And the uncertainty is a few hundred parts per million, not a few tens.** The
+datasheet expectation for a crystal of this kind is tens, and earlier comments in
+this repository said so as though it had been shown. It has not. What has been
+shown is that two references agree to a few hundred, and this bench cannot say
+which of them is the better one. That is enough to establish the sign and size of
+a 1168 part per million effect, and not enough to quote its last digit.
+
 ## The 32.768 kHz crystal, asked to oscillate for the first time
 
 It had been a settled board fact since Friday 2 October 2026, from two
@@ -74,7 +120,11 @@ proves the bits rather than their meaning: reading `DIVM1` as 4 does not prove
 the field is a plain divisor. This crystal is the only reference on the board that
 does not come from the PLL chain, so counting core cycles against it can settle
 the interpretation, and a crystal at 32.768 kHz is good to a few tens of parts
-per million against the 0.36 per cent that separates 280 MHz from 279.
+per million by its datasheet against the 0.36 per cent that separates 280 MHz
+from 279. What this bench has actually demonstrated is weaker and is below: the
+crystal and a host PC's clock agree on the internal oscillator to a few hundred
+parts per million, and which of the two is the better reference is not something
+this bench can show.
 
 **The 1093 ms is a bound rather than a measurement**, and the distinction is the
 usual one here. It is counted by `board_delay_ms`, which is calibrated against
