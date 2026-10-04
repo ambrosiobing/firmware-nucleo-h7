@@ -107,7 +107,7 @@ def test_the_signed_bias_agrees_with_the_oracle(lib, row):
     assert got == row["expect"], row["why"]
 
 
-def test_a_delay_and_a_frequency_carry_the_same_bias_and_a_duration_does_not(lib):
+def test_a_delay_and_a_frequency_carry_the_same_bias_and_a_duration_never_does(lib):
     """The result that the three quantities are two, asserted rather than claimed.
 
     A requested delay runs long by exactly the fraction the reported frequency is
@@ -115,17 +115,30 @@ def test_a_delay_and_a_frequency_carry_the_same_bias_and_a_duration_does_not(lib
     by the reported one instead, so it differs. Saying "0.117 per cent high" with
     no quantity named was wrong in three files on Sunday 4 October 2026 for
     exactly this reason.
+
+    THE WEAKER CLAIM IS THE TRUE ONE: never the same sign, rather than always the
+    opposite sign. The first version of this test asserted the stronger thing and
+    was contradicted by its own oracle on the first compiler to run it, gcc 15 in
+    WSL on bing@JPTOUPM678 on Sunday 4 October 2026. The row that did it is
+    a-half-part-per-million-rounds-away-from-zero, where one hertz above 2 MHz
+    gives a frequency of +1 and a duration of 0: the frequency divides by 2000000
+    and lands on exactly half, which rounds away from zero, while the duration
+    divides by 2000001 and lands just under, which rounds to nothing. The row
+    below it is not its mirror for the same reason, the smaller denominator
+    pushing it over instead. Both were in the vector file, both were predicted,
+    and the C produced both. The generalisation was what was wrong.
     """
-    checked = 0
+    strict = 0
     for row in ORACLE["bias"]:
         out = BiasOut()
         if not lib.clocktree_bias(row["reported_hz"], row["true_hz"], ctypes.byref(out)):
             continue
         assert out.delay_ppm == out.frequency_ppm, row["name"]
-        if out.frequency_ppm != 0:
-            assert (out.duration_ppm < 0) == (out.frequency_ppm > 0), row["name"]
-            checked += 1
-    assert checked >= 4, "too few rows with a non-zero bias to make the point"
+        assert out.duration_ppm * out.frequency_ppm <= 0, row["name"]
+        if out.duration_ppm != 0 and out.frequency_ppm != 0:
+            assert (out.duration_ppm < 0) != (out.frequency_ppm < 0), row["name"]
+            strict += 1
+    assert strict >= 3, "too few rows where both are non-zero to make the point"
 
 
 def test_every_refusal_the_enum_can_produce_has_a_vector():

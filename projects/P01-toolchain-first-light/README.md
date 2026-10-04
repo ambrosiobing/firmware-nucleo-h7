@@ -147,9 +147,10 @@ truncations, which is what lets the board measurement go on applying to it.
 |---|---|
 | the oracle | [`clock_vectors.json`](clock_vectors.json), 15 decode rows and 8 bias rows |
 | what each row carries | the seven register words, the four frequencies or the named refusal, and a `why` saying what the row is for |
-| how the answers were obtained | both halves written by hand, then checked against an independent recomputation that refuses to write the file if they disagree |
+| how the answers were obtained | both halves written by hand, then checked against an independent recomputation that refuses to write the file if they disagree: [`gen_clock_vectors.py`](../../python/tools/gen_clock_vectors.py), which nothing in the build or the suite calls |
 | what drives it | `python/tests/test_clocktree.py` through the same object file the firmware links |
 | proven able to fail | three deliberate mutations on Sunday 4 October 2026, each turning exactly one test red: a register named in the decoder's code, a ninth refusal with no vector, and a vector row deleted |
+| what the first compiler found | nothing wrong with the decode, and one test of its own asserting more than the oracle says. The `a-half-part-per-million` rows carry a frequency of 1 and a duration of 0, because one divides by 2000000 and lands on exactly half while the other divides by 2000001 and lands just under. The two quantities never carry the SAME sign; they do not always carry opposite signs, and the assertion now says the weaker true thing |
 
 **Three rows are worth naming.** The first configures the PLL completely for
 280 MHz and leaves `SWS` reading HSI, and the answer must still be 64 MHz: an

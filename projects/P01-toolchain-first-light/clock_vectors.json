@@ -386,7 +386,7 @@
     },
     {
       "name": "a-negative-half-part-per-million-also-rounds-away-from-zero",
-      "why": "The same magnitude below. Halves away from zero means this is -1 and not 0, which is the rule four languages have to share and which neither C nor Rust gives for free.",
+      "why": "The same magnitude below, and NOT the mirror of the row above, which is the useful part. Halves away from zero makes the frequency -1 rather than 0, the rule four languages have to share and which neither C nor Rust gives for free. The duration comes out +1 here where the row above gives 0, because it divides by the reported frequency and 1999999 is the smaller denominator, which pushes the quotient just over a half instead of just under. A test written on Sunday 4 October 2026 asserted that the two quantities always carry opposite signs, and these two rows contradicted it on the first compiler to run it. They never carry the SAME sign, which is a weaker claim and the true one.",
       "reported_hz": 1999999,
       "true_hz": 2000000,
       "expect": {
