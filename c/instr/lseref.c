@@ -124,7 +124,6 @@ int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks)
     out->ok                = false;
     out->core_hz_measured  = 0u;
     out->core_hz_derived   = board_core_hz();
-    out->error_ppm         = 0;
     out->ck_apre_hz        = 0u;
     out->ticks             = ticks;
     out->cycles            = 0u;
@@ -246,12 +245,6 @@ int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks)
             return -1;
         }
         out->core_hz_measured = (uint32_t) hz;
-    }
-
-    if (out->core_hz_derived != 0u) {
-        const int64_t diff = (int64_t) out->core_hz_measured
-                           - (int64_t) out->core_hz_derived;
-        out->error_ppm = (int32_t) ((diff * 1000000) / (int64_t) out->core_hz_derived);
     }
 
     out->ok = true;

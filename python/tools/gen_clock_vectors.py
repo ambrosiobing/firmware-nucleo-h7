@@ -159,7 +159,14 @@ VECTORS = [
                "keeping: this chain multiplies the input by exactly 35, so its output "
                "is always 35 times an integer, and 279672822 is not. No integer input "
                "reproduces the measured figure, which is a statement about the "
-               "measurement's own resolution rather than about the decode.",
+               "measurement's own resolution rather than about the decode. "
+               "A SECOND RUN the same day implies 7983868 Hz instead, 849 parts per "
+               "million from this one, and this row keeps run 1's figure rather than "
+               "gaining a twin: nothing in the decode depends on which, it is linear "
+               "in its input, and the row already proves a non-nominal input is "
+               "carried through the whole chain. The spread belongs in the README and "
+               "in stm32h7a3_regs.h, where it is evidence about the probe, and not in "
+               "a vector, where it would be two tests of one thing.",
         "regs": regs(CR_HSE_BYPASS, SWS_PLL1, SEL_280, CFG_P_ON, DIVR_280, 0x00000008, 0x00000000),
         "hsi_nominal": 64000000, "hse_bypass": 7990652,
         "expect": expect(279672820, 279672820, 139836410, 139836410),

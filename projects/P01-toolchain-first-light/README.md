@@ -17,8 +17,8 @@ What is measured and what it rests on:
 | User button on PC13 | input with a pull-down, active high |
 | Core, AHB, APB1 clocks | 64 MHz at reset, decoded from RCC at startup rather than hardcoded |
 | The 280 MHz tree | reached Sunday 4 October 2026 by `p01-pll280`: the configuration is at the target, AHB and APB1 at half the core, every one of eight steps reading back what it wrote |
-| The core clock, **measured** | **279 672 822 Hz** against this board's 32.768 kHz crystal, 1168 parts per million below the 280 MHz nominal. The cause is the debugger's clock output at 7 990 652 Hz |
-| The reset clock, **measured** | **64 194 318 Hz** against the same crystal, which agrees to within 379 parts per million with the 64.17 to 64.18 MHz two other instruments found |
+| The core clock, **measured twice** | **279 672 822 Hz** and then **279 435 368 Hz** against this board's 32.768 kHz crystal, 1168 and 2017 parts per million below the 280 MHz nominal. Below nominal in both runs and 849 parts per million apart, so the sign reproduces and the digits do not. The cause is the debugger's clock output, which the two runs put at 7 990 652 Hz and 7 983 868 Hz |
+| The reset clock, **measured twice** | **64 194 318 Hz** and then **64 186 657 Hz** against the same crystal, agreeing to within 379 and 260 parts per million with the 64.17 to 64.18 MHz two other instruments found. It moved only 119 parts per million where the PLL moved 849, which is what rules out the crystal as the thing that changed |
 | Oscillator | 64.17 to 64.18 MHz, six reductions, two instruments, spread 0.031 per cent |
 | Delay loop | 9.00 cycles per iteration at 64 MHz and 8.96 at 280 MHz, the same binary, measured against `DWT_CYCCNT` every boot |
 | A 100 ms request | lands within 20 parts per million, checked by the part itself |
@@ -59,50 +59,78 @@ iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
 which says the loop's cost barely moved and is a fact about the flash and the
 pipeline rather than about the clock.
 
-## The core clock, measured: it is 279.67 MHz and not 280
+## The core clock, measured twice: below nominal both times, 849 ppm apart
 
 **This is the first frequency in this volume that is measured rather than
-derived**, and it does not agree with the nominal. Both readings are against this
-board's own 32.768 kHz crystal, over a one second gate, on Sunday 4 October 2026:
+derived**, it does not agree with the nominal, and **it does not agree with
+itself** either. Two runs of the same image on the same board a few hours apart
+on Sunday 4 October 2026, both gated by this board's own 32.768 kHz crystal over
+one second:
 
-| what was measured | reading | against its nominal |
-|---|---|---|
-| the core at the 280 MHz setting | **279 672 822 Hz** | 1168 parts per million low |
-| the core on the reset clock | **64 194 318 Hz** | 3036 parts per million high |
+| | run 1 | run 2 | between the runs |
+|---|---|---|---|
+| the core at the 280 MHz setting | **279 672 822 Hz** | **279 435 368 Hz** | -849 ppm |
+| against its 280 MHz nominal | 1168 ppm low | 2017 ppm low | |
+| the core on the reset clock | **64 194 318 Hz** | **64 186 657 Hz** | -119 ppm |
+| against its 64 MHz nominal | 3036 ppm high | 2917 ppm high | |
+| the implied input, core over 35 | 7 990 652 Hz | 7 983 868 Hz | -849 ppm |
 
-**The first number is the finding and the second is what makes it believable.**
-A single measurement 1168 parts per million from nominal cannot say whether the
-clock is wrong or the reference is: a crystal running 1171 parts per million fast
-would produce exactly the same reading. The reset clock settles it, because that
-oscillator had already been measured at 64.17 to 64.18 MHz by two other
-instruments across six reductions against a host PC. The crystal says 64 194 318,
-which agrees with them to between 223 and 379 parts per million. A crystal fast
-enough to explain the PLL result would have read near 64 100 000, so that
-explanation is excluded by a factor of three.
+**So a nine-digit figure was never supportable**, and for a few hours this
+section and `stm32h7a3_regs.h` carried one as though it were. What reproduces is
+the sign and the order of magnitude: the core runs below its nominal by one to
+two parts in a thousand, and the cause is the input frequency rather than this
+part. Both readings are now recorded, as `CORE_HZ_MEASURED_1` and
+`CORE_HZ_MEASURED_2`, named for their runs rather than averaged, because the mean
+of two readings taken under conditions nobody controlled is a third number with
+no better claim than either.
 
-**So the 8 MHz is not 8 MHz.** The PLL's dividers are integers and its fractional
-term is off, so sys_ck is the input times 280 over 4 times 2, which is times 35.
-A measured 279 672 822 Hz core puts the debugger's clock output at **7 990 652
-Hz**, 1168 parts per million low. That is far outside anything a crystal-derived
-8 MHz would do, which is itself informative about how the on-board probe
-generates it.
+**The second run is worth more than the first, because it excludes the easy
+explanation.** A single reading 1168 parts per million from nominal cannot say
+whether the clock is wrong or the reference is: a crystal running 1171 parts per
+million fast produces exactly the same number. Two readings can, and they do it
+twice over.
 
-**What this changes, stated rather than left implied.** `CORE_HZ_TARGET` stays
-280000000 and `HSE_HZ_BYPASS` stays 8000000, for the same reason
-`HSI_HZ_NOMINAL` stays 64000000: the measured figures are this board, this probe,
-one afternoon, against a reference whose own accuracy is not traceable, and
-substituting them would fit the code to one sample while reading as more precise.
-The nominal is the honest constant.
+The first argument is the one the first run already made. The reset clock is a
+different oscillator, and it had been measured at 64.17 to 64.18 MHz by two other
+instruments across six reductions against a host PC. The crystal puts it at
+64 194 318 and then 64 186 657, agreeing with that range to between 223 and 379
+parts per million on the first run and 104 and 260 on the second. A crystal fast
+enough to explain run 2's PLL reading would have put the reset clock near
+64 129 000, so that explanation is excluded by a factor of three in both runs.
+
+The second argument is new and is the stronger one. **Both frequencies in a run
+are gated by the same crystal**, so a crystal that drifted between the runs would
+move both readings by the same relative amount. The internal oscillator moved 119
+parts per million and the PLL moved 849, so the external clock moved **730 parts
+per million relative to the internal one**. No drift of the shared reference can
+produce that, and no error in the gate can either. Something outside both the
+crystal and the part changed between the runs.
+
+**And that something is the debugger's 8 MHz.** The PLL's dividers are integers
+and its fractional term is off, so sys_ck is the input times 280 over 4 times 2,
+which is times 35. The two core readings put the probe's clock output at
+7 990 652 Hz and then 7 983 868 Hz. A crystal-derived 8 MHz does not move 849
+parts per million in an afternoon on a bench at room temperature; an RC
+oscillator does. Under the rule that one observation is not a mechanism, this is
+the second observation and it points where the first one did.
+
+**What this changes in the code: nothing.** `CORE_HZ_TARGET` stays 280000000 and
+`HSE_HZ_BYPASS` stays 8000000, for the same reason `HSI_HZ_NOMINAL` stays
+64000000, and the second run makes that reasoning stronger rather than weaker.
+Substituting a measured figure would have fitted the code to one sample, and the
+sample moved. The nominal is the honest constant.
 
 **The consequence, with its sign, because the two clocks are wrong in opposite
 directions.** An earlier version of this section said "0.117 per cent high",
 which is true of the reported frequency at one of the two clocks and ambiguous
-about everything else. The table is the precise form:
+about everything else. The table is the precise form, for run 1; run 2's figures
+differ in magnitude and not in sign, and the board now prints all three for
+whichever run it is having:
 
 | | the reset clock | the 280 MHz setting |
 |---|---|---|
 | `board_core_hz()` reports | 64 000 000 Hz | 280 000 000 Hz |
-| the truth, measured | 64 194 318 Hz | 279 672 822 Hz |
+| the truth, run 1 | 64 194 318 Hz | 279 672 822 Hz |
 | so the reported **frequency** is | 3027 ppm **low** | 1170 ppm **high** |
 | a measured **duration** comes out | 3036 ppm **long** | 1168 ppm **short** |
 | a requested **delay** is delivered | 3027 ppm **short** | 1170 ppm **long** |
@@ -116,69 +144,11 @@ real effect of the clock change.
 **And the uncertainty is a few hundred parts per million, not a few tens.** The
 datasheet expectation for a crystal of this kind is tens, and earlier comments in
 this repository said so as though it had been shown. It has not. What has been
-shown is that two references agree to a few hundred, and this bench cannot say
-which of them is the better one. That is enough to establish the sign and size of
-a 1168 part per million effect, and not enough to quote its last digit.
-
-## The decode can be wrong in eight ways, and now seven of them can be tested
-
-Until Sunday 4 October 2026 the clock tree decode lived as four static functions
-inside `c/board/system.c`, and every one of them dereferenced a memory mapped
-register. That made it correct and untestable in one stroke. Nothing on a host
-could call it, so the only test it had was to flash the board and read the
-banner, and a flash exercises exactly one configuration: whichever one the board
-happens to be in.
-
-It passed that test. The measurement above agrees with the decoded 280 MHz to
-1168 parts per million and the remainder is traced to the input frequency rather
-than to any field. **But the cases that matter most are the refusals**, and they
-are the cases the board has no convenient way to produce. There is no comfortable
-way to ask this part for a PLL with its fractional term enabled, or a bus
-prescaler holding a ratio nobody has sourced, and those are precisely where a
-wrong decode returns a plausible frequency instead of a dead board.
-
-So the decode moved to `../../c/clock/clocktree.c`, taking the seven register
-words as an argument, and `system.c` now reads the registers and calls it. **One
-copy of the field rules, and a host can drive all eight refusals.** The
-arithmetic did not move: the same masks, the same order, the same integer
-truncations, which is what lets the board measurement go on applying to it.
-
-| | |
-|---|---|
-| the oracle | [`clock_vectors.json`](clock_vectors.json), 15 decode rows and 8 bias rows |
-| what each row carries | the seven register words, the four frequencies or the named refusal, and a `why` saying what the row is for |
-| how the answers were obtained | both halves written by hand, then checked against an independent recomputation that refuses to write the file if they disagree: [`gen_clock_vectors.py`](../../python/tools/gen_clock_vectors.py), which nothing in the build or the suite calls |
-| what drives it | `python/tests/test_clocktree.py` through the same object file the firmware links |
-| proven able to fail | three deliberate mutations on Sunday 4 October 2026, each turning exactly one test red: a register named in the decoder's code, a ninth refusal with no vector, and a vector row deleted |
-| what the first compiler found | nothing wrong with the decode, and one test of its own asserting more than the oracle says. The `a-half-part-per-million` rows carry a frequency of 1 and a duration of 0, because one divides by 2000000 and lands on exactly half while the other divides by 2000001 and lands just under. The two quantities never carry the SAME sign; they do not always carry opposite signs, and the assertion now says the weaker true thing |
-
-**Three rows are worth naming.** The first configures the PLL completely for
-280 MHz and leaves `SWS` reading HSI, and the answer must still be 64 MHz: an
-implementation that reported the PLL it found configured would pass every other
-row in the file. The second decodes the 280 MHz registers at the measured
-7 990 652 Hz input rather than the nominal, which is why `clocktree_decode` takes
-both input frequencies as arguments instead of reading them from the header; it
-gives 279 672 820 Hz against a measurement of 279 672 822, and the two hertz are
-worth keeping, because this chain multiplies its input by exactly 35 and
-279 672 822 is not a multiple of 35. No integer input reproduces the measured
-figure, which is a statement about the measurement's own resolution and not about
-the decode. The third sets `DIVM1` to 3, where 8 MHz does not divide exactly, and
-pins the order of the arithmetic: divide then multiply gives 373 333 240 and
-multiply then divide gives 373 333 333. The board's own configuration divides
-exactly, so it could never tell those apart.
-
-**And the refusal now says which.** `board_clock_status()` has one error value
-and the decode has eight ways to reach it, so a reader looking at a board that
-reports `BOARD_ERR_CLOCK_UNCONFIRMED` had eight places to look.
-`board_clock_refusal_text()` returns one of nine short tokens, `p01-pll280`
-prints it when there is one, and the tokens are the same nine in every language
-so the parity comparison is of reasons and not only of numbers.
-
-**What is not here yet** is the board's own register words. Every row in the file
-is constructed, which is the right way to reach a refusal on demand and the wrong
-way to show that the 280 MHz row describes this board. `p01-pll280` already dumps
-every register as found, so that row arrives with the next console capture, and
-the file says so itself rather than leaving a reader to notice.
+shown is that two references agree to a few hundred, that this bench cannot say
+which of them is the better one, and now that the quantity being measured moves
+by 849 parts per million between two runs of the same image. Enough to establish
+the sign of an effect of one to two parts in a thousand; not enough to quote its
+last digit.
 
 ## The 32.768 kHz crystal, asked to oscillate for the first time
 

@@ -475,12 +475,32 @@
  */
 #define CORE_HZ_TARGET     280000000u
 
-/* WHAT 280 MHz ACTUALLY MEASURES AS, because the constant above is the target of
- * a configuration and not a frequency anybody observed until now.
+/* WHAT 280 MHz ACTUALLY MEASURES AS, AND IT MEASURES AS TWO DIFFERENT THINGS.
+ * The constant above is the target of a configuration. These are observations,
+ * and there are two because the second one disagreed with the first.
  *
- * Measured 279672822 Hz on Sunday 4 October 2026, against this board's 32.768
- * kHz crystal over a one second gate, which is 1168 parts per million below the
- * nominal. The cause is the 8 MHz input and not this part: see HSE_HZ_BYPASS.
+ *   run 1   279672822 Hz   1168 ppm below nominal
+ *   run 2   279435368 Hz   2017 ppm below nominal
+ *
+ * Both on Sunday 4 October 2026, both on this board, both the same image
+ * measuring against this board's 32.768 kHz crystal over a one second gate, a
+ * few hours apart with a rebuild and a reflash between them. They differ by 849
+ * parts per million.
+ *
+ * SO A NINE DIGIT FIGURE HERE WAS NEVER SUPPORTABLE, and for a few hours this
+ * file carried one as though it were. What reproduces is the sign and the order
+ * of magnitude: the core runs below its nominal by one to two parts in a
+ * thousand, and the cause is the input frequency and not this part. See
+ * HSE_HZ_BYPASS.
+ *
+ * THE SECOND RUN EXCLUDES THE EASY EXPLANATION, which is why it is worth more
+ * than the first. Both frequencies are gated by the same crystal, so a crystal
+ * that drifted would move both readings by the same relative amount. The
+ * internal oscillator moved 119 parts per million between the runs and the PLL
+ * moved 849, so the external clock moved 730 parts per million RELATIVE to the
+ * internal one. No drift of the shared reference can produce that. It is a
+ * second observation of what the first run could only infer: whatever generates
+ * the debugger's 8 MHz is not a crystal.
  *
  * HOW THE CRYSTAL WAS ITSELF CHECKED, since a measurement is only as good as its
  * reference. The same method was applied to the internal oscillator, which two
@@ -496,28 +516,47 @@
  * anything demonstrated here. What has been demonstrated is that the crystal and
  * a host PC's clock agree to a few hundred, and the crystal is probably the
  * better of the two, but this bench cannot show which is wrong. A few hundred
- * parts per million is enough to establish the sign and size of a 1168 part per
- * million effect and not enough to quote its last digit. */
-#define CORE_HZ_MEASURED   279672822u
+ * parts per million is enough to establish the sign of an effect of one to two
+ * parts in a thousand, and not enough to quote its last digit. The 849 parts per
+ * million between the two runs says the same thing from the other direction.
+ *
+ * NOTHING COMPUTES FROM EITHER OF THESE. They are recorded observations, named
+ * for their runs rather than averaged, because the mean of two readings taken
+ * under conditions nobody controlled is a third number with no better claim than
+ * either of them. */
+#define CORE_HZ_MEASURED_1 279672822u
+#define CORE_HZ_MEASURED_2 279435368u
 
 /* The high speed clock this board actually has: the on-board debugger drives it
  * in bypass mode, so there is no crystal to start and HSEBYP must be set before
  * HSEON or the part waits for an oscillator that is not fitted. A settled board
  * fact, from the same two machine-readable sources as the LED pins.
  *
- * AND IT IS NOT 8 MHz. Measured on Sunday 4 October 2026 against this board's
- * own 32.768 kHz crystal, it is about 7990652 Hz, which is 1168 parts per
- * million low. The derivation is short because the PLL's dividers are integers
- * and its fractional term is off: sys_ck is HSE times 280 over 4 times 2, so
- * times 35, and a measured 279672822 Hz core puts HSE at 7990652.
+ * AND IT IS NOT 8 MHz, AND IT IS NOT STEADY EITHER. Measured twice on Sunday
+ * 4 October 2026 against this board's own 32.768 kHz crystal, a few hours apart:
+ * about 7990652 Hz and then about 7983868 Hz, 1168 and 2017 parts per million
+ * low, 849 parts per million apart from each other. The derivation is short
+ * because the PLL's dividers are integers and its fractional term is off:
+ * sys_ck is HSE times 280 over 4 times 2, so times 35, and the two measured
+ * cores of 279672822 and 279435368 Hz put HSE at those two figures.
+ *
+ * THE MOVEMENT IS THE EVIDENCE, not a nuisance in it. Both clocks in a run are
+ * gated by the same crystal, so a crystal that drifted between the runs would
+ * move both readings by the same relative amount. The internal oscillator moved
+ * 119 parts per million and the PLL moved 849, so this clock moved 730 parts per
+ * million RELATIVE to the internal one. A crystal-derived 8 MHz does not do that
+ * on a bench at room temperature in an afternoon; an RC oscillator does. Under
+ * the rule that one observation is not a mechanism, that is the second
+ * observation, and it agrees with what the first run could only infer.
  *
  * WHY THE CONSTANT STAYS 8000000 ANYWAY, which is the same argument this file
- * already makes for HSI_HZ_NOMINAL. The measured figure is this probe, on this
- * board, on one afternoon, against a reference whose own accuracy is not
- * traceable. Substituting it would fit the code to one sample and read as more
+ * already makes for HSI_HZ_NOMINAL and which the second run strengthens. The
+ * measured figure is this probe, on this board, at one moment, against a
+ * reference whose own accuracy is not traceable, and the figure moved.
+ * Substituting it would have fitted the code to one sample and read as more
  * precise while being less general. The nominal is the honest constant and the
- * measurement is evidence about how good the nominal is, which is what a reader
- * needs.
+ * measurements are evidence about how good the nominal is, which is what a
+ * reader needs.
  *
  * THE CONSEQUENCE, AND ITS SIGN, because "0.117 per cent high" is what an earlier
  * version of this comment said and it is not precise enough. The two clocks are
@@ -526,10 +565,14 @@
  *
  *                              reset clock        280 MHz setting
  *   board_core_hz() reports    64000000           280000000
- *   the truth, measured        64194318           279672822
+ *   the truth, run 1           64194318           279672822
  *   the reported FREQUENCY     3027 ppm LOW       1170 ppm HIGH
  *   a measured DURATION        3036 ppm LONG      1168 ppm SHORT
  *   a requested DELAY          3027 ppm SHORT     1170 ppm LONG
+ *
+ * The figures are run 1's. Run 2 differs in magnitude and not in sign, which is
+ * the only part of this table anybody should rely on, and clocktree_bias prints
+ * all three for whichever run the board is having.
  *
  * Nothing in this repository quotes a time to better than a part in a thousand,
  * so nothing published is wrong today. What this table is for is the next figure

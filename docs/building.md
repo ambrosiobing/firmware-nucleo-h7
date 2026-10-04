@@ -72,9 +72,31 @@ replaced by the copy above.
 PowerShell's `;` does not stop on failure. A sequence that configures, builds and
 copies will copy a stale binary after a failed compile and then print a success
 message, which produces a board running old firmware while the terminal says it was
-reflashed. Every stage is therefore conditional on the one before it:
+reflashed. Every stage is therefore conditional on the one before it.
 
-    . .\projects\P01-toolchain-first-light\Use-CubeIDEToolchain.ps1; $cfg = $true; if (-not (Test-Path build-fw\CMakeCache.txt)) { cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"; $cfg = ($LASTEXITCODE -eq 0) }; if ($cfg) { cmake --build build-fw --target p09-codec; if ($LASTEXITCODE -eq 0) { Copy-Item build-fw\p09-codec.bin D:\ -Force; Write-Host 'built and reflashed' } else { Write-Host 'BUILD FAILED, board untouched, old image still on it' } } else { Write-Host 'CONFIGURE FAILED, nothing built, board untouched' }
+**And the version of this command that stood here until Sunday 4 October 2026 did
+the very thing the paragraph above warns about.** It guarded the configure on the
+configure's exit status and the build on the build's, and then ran `Copy-Item` and
+printed `built and reflashed` unconditionally. On Sunday 4 October 2026 the probe
+disk was not mounted, `Copy-Item` reported `Cannot find drive. A drive with the name
+'D' does not exist`, and the next line said `built and reflashed`. Nothing had been
+flashed.
+
+The cause is specific and worth knowing, because it will catch anything else
+written this way: **`$LASTEXITCODE` reflects native executables only.** `cmake` and
+`ninja` set it; `Copy-Item` is a cmdlet and does not touch it. So a guard reading
+`$LASTEXITCODE` after a cmdlet is reading the exit status of whatever ran before the
+cmdlet, which in this command was a successful `cmake --build`. A cmdlet needs
+`-ErrorAction Stop` inside `try`/`catch`, or `$?`, and this one now uses the first.
+The drive letter is also found by label rather than assumed, so a board that
+enumerated elsewhere is reported rather than silently missed:
+
+    . .\projects\P01-toolchain-first-light\Use-CubeIDEToolchain.ps1; $cfg = $true; if (-not (Test-Path build-fw\CMakeCache.txt)) { cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"; $cfg = ($LASTEXITCODE -eq 0) }; if (-not $cfg) { Write-Host 'CONFIGURE FAILED, nothing built, board untouched' } else { cmake --build build-fw --target p09-codec; if ($LASTEXITCODE -ne 0) { Write-Host 'BUILD FAILED, board untouched, old image still on it' } else { $v = Get-Volume | Where-Object { $_.FileSystemLabel -eq 'NOD_H7A3ZIQ' }; if (-not $v) { Write-Host 'BUILT BUT NOT FLASHED: no volume labelled NOD_H7A3ZIQ, so the board is off, unplugged or still enumerating. The old image is still on it.' } else { $d = "$($v.DriveLetter):\"; try { Copy-Item build-fw\p09-codec.bin $d -Force -ErrorAction Stop; Write-Host "built and copied to $d, the board is programming" } catch { Write-Host "BUILT BUT COPY FAILED, board untouched: $_" } } } }
+
+Note what the success message now says: copied, and the board is programming. Not
+"reflashed". The copy is the last thing this laptop can observe; whether the probe
+then programmed the part is a question only the console can answer, and P01's
+image prints enough to answer it.
 
 ## The real target names
 

@@ -36,7 +36,9 @@
  * 279672822 Hz at the 280 MHz setting, 1168 parts per million low, because the
  * debugger's clock output is 7990652 Hz and not 8 MHz. The registers were all
  * correct and the arithmetic was all correct; the assumption nobody had written
- * down was the input frequency. See CORE_HZ_MEASURED in stm32h7a3_regs.h and
+ * down was the input frequency. A second run measured 279435368 Hz, 849 parts
+ * per million from the first, so each figure is an observation and not a
+ * constant. See CORE_HZ_MEASURED_1 and _2 in stm32h7a3_regs.h and
  * P01's README.
  *
  * The readable console remains the other external check and is worth keeping:
@@ -142,6 +144,16 @@ static void dump_registers(const char *when)
                             >> RCC_CDCFGR1_CDCPRE_POS),
            (unsigned long) ((RCC_CDCFGR1 & RCC_CDCFGR1_HPRE_MSK)
                             >> RCC_CDCFGR1_HPRE_POS));
+
+    /* ADDED SUNDAY 4 OCTOBER 2026, because this dump had a gap. The sequence
+     * never writes CDCFGR2, so it was never printed, but the decode READS it for
+     * the APB1 prescaler. That made the dump useless for the one thing
+     * clock_vectors.json wants from it, a row of this board's own register
+     * words: six of the seven were here, and six of seven is none. */
+    printf("    RCC_CDCFGR2   %08lX   CDPPRE1 %lu\n",
+           (unsigned long) RCC_CDCFGR2,
+           (unsigned long) ((RCC_CDCFGR2 & RCC_CDCFGR2_CDPPRE1_MSK)
+                            >> RCC_CDCFGR2_CDPPRE1_POS));
 #else
     printf("    the registers are not confirmed, so nothing is read\n");
 #endif
@@ -236,8 +248,10 @@ static void report_crystal(const char *when, uint32_t nominal_hz)
            (unsigned long) m.ticks);
     printf("    MEASURED  %lu Hz over %lu counted core cycles\n",
            (unsigned long) m.core_hz_measured, (unsigned long) m.cycles);
-    printf("    derived   %lu Hz, so %ld parts per million\n",
-           (unsigned long) m.core_hz_derived, (long) m.error_ppm);
+    /* The derived figure with no parts per million of its own: the block below
+     * prints the comparison, all three of it, from one implementation. */
+    printf("    derived   %lu Hz, from the registers\n",
+           (unsigned long) m.core_hz_derived);
 
     /* The nominal is printed separately from the derived figure because they are
      * different claims. The derived figure is what this image computed from the
@@ -358,12 +372,19 @@ int main(void)
         }
     } else {
         printf("\n  Every step read back what was written and the decoder agrees "
-               "with\n  the target. THIS IS STILL NOT A MEASUREMENT. 280 MHz "
-               "here is 8 MHz\n  of board fact multiplied and divided by fields "
-               "read out of these\n  registers. What makes it a measurement is an "
-               "instrument that does\n  not share this clock, and this repository "
-               "does not have one wired\n  up yet: freqcount.c refuses, because "
-               "the timer registers it needs\n  are not confirmed.\n");
+               "with\n  the target. THAT IS A STATEMENT ABOUT THE REGISTERS AND NOT "
+               "ABOUT\n  THE FREQUENCY. 280 MHz on the line above is 8 MHz of board "
+               "fact\n  multiplied and divided by fields read back out of these "
+               "registers,\n  so it tests the configuration and the arithmetic, not "
+               "the\n  assumption underneath both: that the 8 MHz is 8 MHz.\n");
+        printf("\n  THE MEASUREMENT IS BELOW, against the 32.768 kHz crystal, "
+               "which is\n  the one reference on this board that does not come from "
+               "the PLL\n  chain. Until Sunday 4 October 2026 this paragraph said "
+               "the clock\n  was not measured and named freqcount.c as the "
+               "instrument that\n  would settle it. Both halves were wrong: the "
+               "crystal settles it,\n  and freqcount.c counts an EXTERNAL signal "
+               "against the internal\n  clock, so it could never have witnessed the "
+               "internal clock.\n");
         printf("\n  THAT YOU CAN READ THIS LINE IS THE BEST EXTERNAL CHECK HERE,\n"
                "  and it is stronger than it looks. The baud divider was just\n"
                "  recomputed from APB1 at 140 MHz, and the host's serial port is\n"

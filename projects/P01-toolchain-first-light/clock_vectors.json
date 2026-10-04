@@ -50,7 +50,7 @@
     },
     {
       "name": "the-280-mhz-tree-at-the-measured-input",
-      "why": "The same registers with the input the measurement implies, 7990652 Hz rather than 8 MHz. This is why clocktree_decode takes the two input frequencies as arguments instead of reading the header. The answer is 279672820 and the measurement was 279672822, and the 2 Hz is worth keeping: this chain multiplies the input by exactly 35, so its output is always 35 times an integer, and 279672822 is not. No integer input reproduces the measured figure, which is a statement about the measurement's own resolution rather than about the decode.",
+      "why": "The same registers with the input the measurement implies, 7990652 Hz rather than 8 MHz. This is why clocktree_decode takes the two input frequencies as arguments instead of reading the header. The answer is 279672820 and the measurement was 279672822, and the 2 Hz is worth keeping: this chain multiplies the input by exactly 35, so its output is always 35 times an integer, and 279672822 is not. No integer input reproduces the measured figure, which is a statement about the measurement's own resolution rather than about the decode. A SECOND RUN the same day implies 7983868 Hz instead, 849 parts per million from this one, and this row keeps run 1's figure rather than gaining a twin: nothing in the decode depends on which, it is linear in its input, and the row already proves a non-nominal input is carried through the whole chain. The spread belongs in the README and in stm32h7a3_regs.h, where it is evidence about the probe, and not in a vector, where it would be two tests of one thing.",
       "regs": {
         "cr": 393253,
         "cfgr": 27,

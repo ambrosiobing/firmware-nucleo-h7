@@ -11,7 +11,8 @@
  * crystal at 32.768 kHz is good to a few tens of parts per million by its
  * datasheet, two orders better than the 0.36 per cent that separates 280 MHz
  * from 279, and it needs no instrument and no wiring. The uncertainty actually
- * DEMONSTRATED on this board is weaker and is recorded at CORE_HZ_MEASURED in
+ * DEMONSTRATED on this board is weaker and is recorded at CORE_HZ_MEASURED_1
+ * and CORE_HZ_MEASURED_2 in
  * stm32h7a3_regs.h: a few hundred parts per million, which is where this
  * crystal and a host PC's clock agree on the internal oscillator.
  *
@@ -80,7 +81,8 @@ int lseref_start(lseref_start_t *out, uint32_t timeout_ms);
  * tens of parts per million by its datasheet, which is two orders better than
  * the 0.36 per cent separating 280 MHz from 279. What has since been
  * DEMONSTRATED on this board is weaker than that and is recorded at
- * CORE_HZ_MEASURED: the crystal agrees with a host PC's clock on the internal
+ * CORE_HZ_MEASURED_1 and _2: the crystal agrees with a host PC's clock on the
+ * internal
  * oscillator to a few hundred parts per million, which is the honest
  * uncertainty here.
  *
@@ -96,11 +98,22 @@ int lseref_start(lseref_start_t *out, uint32_t timeout_ms);
  * domain's clock selection, so no write protection key is involved and the
  * calendar is never touched.
  */
+/* NO PARTS PER MILLION IN HERE, SINCE SUNDAY 4 OCTOBER 2026, and the reason is
+ * that there used to be. This structure carried an error_ppm field, the measured
+ * frequency against the derived one, truncated. c/clock/clocktree.c then grew
+ * clocktree_bias, which answers the same question with halves rounded away from
+ * zero and with the three quantities told apart by name.
+ *
+ * Both then appeared on one console. The board printed "so 2916 parts per
+ * million" on one line and "a measured duration comes out 2917 ppm long" four
+ * lines below, for the same 2916.5156, because one truncated and the other
+ * rounded. Two numbers for one quantity is worse than either of them alone, so
+ * this instrument now reports what it measured and leaves the comparison to its
+ * caller. */
 typedef struct {
     bool     ok;
     uint32_t core_hz_measured;  /* 0 when it could not be measured */
     uint32_t core_hz_derived;   /* what board_core_hz() believes */
-    int32_t  error_ppm;         /* measured against derived, 0 when either is 0 */
 
     uint32_t ck_apre_hz;        /* the sub second tick rate, computed from PRER */
     uint32_t ticks;             /* the gate, in sub second ticks */
