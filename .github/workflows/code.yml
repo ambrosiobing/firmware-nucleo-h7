@@ -37,6 +37,16 @@ jobs:
             --out-c c/payload --out-py python/firmkit \
             --out-rs projects/P09-payload-codec/rust/src --check
 
+      # Before the build and not after, because that is the point of it. Every
+      # path build_host.py names is checked without a compiler, so a project key
+      # or a source filename that is wrong is a message here rather than a
+      # traceback part way through a build. It is in the suite because
+      # build_host.py is the one script never run on the authoring laptop, which
+      # is how P06's missing project key survived to WSL on Sunday
+      # 4 October 2026.
+      - name: Every path build_host.py names, before it builds anything
+        run: python -m pytest python/tests/test_build_host_paths.py -q -s
+
       - name: Build everything the suite needs
         run: python python/tools/build_host.py
 
