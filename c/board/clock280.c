@@ -90,33 +90,6 @@ static const char *const step_names[CLOCK280_STEP_COUNT] = {
     "the switch of sys_ck to the PLL",
 };
 
-/* One voltage scaling transition, requested and then waited for.
- *
- * SCALE 0 IS ONLY REACHABLE FROM SCALE 1. That is a property of the transition
- * rather than of the value, it is in ST's doc comment and not in the register
- * description, and the board taught it on Sunday 4 October 2026 by reading VOS
- * back as 3 while leaving VOSRDY clear for a million polls. So this is called
- * twice and the two calls are separate reported steps.
- *
- * The read before the poll is deliberate and is what ST's own macro does: it
- * reads the field back to be sure the write has landed before anything looks at
- * the ready flag. */
-static bool vos_step(clock280_record_t *r, uint32_t scale)
-{
-    const uint32_t want = scale << PWR_SRDCR_VOS_POS;
-    uint32_t spins;
-    uint32_t got;
-
-    PWR_SRDCR = (PWR_SRDCR & ~PWR_SRDCR_VOS_MSK) | want;
-    got = PWR_SRDCR;                 /* land the write before polling */
-    spins = wait_for(&PWR_SRDCR, PWR_SRDCR_VOSRDY_MSK, true);
-
-    got = PWR_SRDCR;
-    const bool ok = ((got & PWR_SRDCR_VOS_MSK) == want)
-                 && (spins < READY_SPINS_MAX);
-    record(r, want, got, spins, ok);
-    return ok;
-}
 
 const char *board_clock280_step_name(clock280_step_t step)
 {
@@ -152,6 +125,34 @@ static void record(clock280_record_t *r, uint32_t wrote, uint32_t read_back,
     r->read_back = read_back;
     r->spins     = spins;
     r->ok        = ok;
+}
+
+/* One voltage scaling transition, requested and then waited for.
+ *
+ * SCALE 0 IS ONLY REACHABLE FROM SCALE 1. That is a property of the transition
+ * rather than of the value, it is in ST's doc comment and not in the register
+ * description, and the board taught it on Sunday 4 October 2026 by reading VOS
+ * back as 3 while leaving VOSRDY clear for a million polls. So this is called
+ * twice and the two calls are separate reported steps.
+ *
+ * The read before the poll is deliberate and is what ST's own macro does: it
+ * reads the field back to be sure the write has landed before anything looks at
+ * the ready flag. */
+static bool vos_step(clock280_record_t *r, uint32_t scale)
+{
+    const uint32_t want = scale << PWR_SRDCR_VOS_POS;
+    uint32_t spins;
+    uint32_t got;
+
+    PWR_SRDCR = (PWR_SRDCR & ~PWR_SRDCR_VOS_MSK) | want;
+    got = PWR_SRDCR;                 /* land the write before polling */
+    spins = wait_for(&PWR_SRDCR, PWR_SRDCR_VOSRDY_MSK, true);
+
+    got = PWR_SRDCR;
+    const bool ok = ((got & PWR_SRDCR_VOS_MSK) == want)
+                 && (spins < READY_SPINS_MAX);
+    record(r, want, got, spins, ok);
+    return ok;
 }
 
 int board_clock_raise_to_280(clock280_result_t *out)

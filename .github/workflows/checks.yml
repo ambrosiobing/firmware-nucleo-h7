@@ -77,6 +77,15 @@ jobs:
       - name: Every name the Python reads is bound by something
         run: python python/tools/check_names.py
 
+      # The C counterpart of the check above, and added for the same reason on
+      # Sunday 4 October 2026: a helper in c/board/clock280.c was placed above
+      # the two functions it calls, which is an implicit declaration and three
+      # errors under this repository's warning set. Nothing on the authoring
+      # laptop could have seen it, because compiling there is forbidden, so the
+      # C is written where it is never compiled. This needs no compiler.
+      - name: Every static C function is defined before it is called
+        run: python python/tools/check_c_order.py
+
       - name: No assembled volume and no PDF is published
         run: |
           set -e
