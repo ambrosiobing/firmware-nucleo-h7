@@ -477,21 +477,37 @@
 
 /* WHAT 280 MHz ACTUALLY MEASURES AS, WHICH IS A DIFFERENT NUMBER EVERY TIME.
  * The constant above is the target of a configuration. Below are observations,
- * three of them, all on Sunday 4 October 2026, all on this board, all the same
- * image gated by this board's 32.768 kHz crystal over one second, minutes to
- * hours apart:
+ * four of them, on this board, from the same image gated by this board's
+ * 32.768 kHz crystal over one second. The first three are Sunday 4 October 2026,
+ * minutes to hours apart. The fourth is Monday 5 October 2026 after about eight
+ * hours with the board away, which turns out to matter:
  *
  *            the core        vs nominal      the internal osc   vs nominal
  *   run 1    279672822 Hz    1019 to 2017    64194318 Hz        3036 ppm high
  *   run 2    279435368 Hz    ppm BELOW       64186657 Hz        2917 ppm high
  *   run 3    279714764 Hz    nominal         64180090 Hz        2814 ppm high
+ *   run 4    279634208 Hz                    64191988 Hz        3000 ppm high
  *
- * IT IS SCATTER AND NOT DRIFT, and the difference matters because the first two
- * runs looked like drift. The core readings span 1000 parts per million with run
- * 2 lowest and run 3 highest, so there is no trend to extrapolate and no "latest
- * value" to prefer. The internal oscillator over the same three runs falls
- * monotonically by 119 then 102 parts per million, 222 in total, which is what a
- * warming part looks like and is a different behaviour entirely.
+ * THE CORE IS SCATTER AND NOT DRIFT, and the difference matters because the
+ * first two runs looked like drift. The readings span 1000 parts per million
+ * with run 2 lowest and run 3 highest and run 4 in the middle, so there is no
+ * trend to extrapolate and no latest value to prefer.
+ *
+ * AND THE INTERNAL OSCILLATOR IS NOT DRIFTING EITHER, which corrects what this
+ * comment said after three runs. It claimed the internal reading fell
+ * MONOTONICALLY, 119 then 102 parts per million, and called that a smooth drift
+ * consistent with a warming part. Run 4 is 185 parts per million HIGHER than run
+ * 3, so the monotonic claim is false.
+ *
+ * What replaces it is better evidence rather than worse. Run 4 sits within 36
+ * parts per million of run 1, and runs 2 and 3 fall between them. Run 1 was the
+ * first measurement of that day and run 4 follows eight hours with the board
+ * unpowered, so both are cold, while the two low readings were taken after it
+ * had been running at 280 MHz. That is a temperature effect and not a drift, and
+ * unlike a drift it PREDICTS something: a reading taken after the board has been
+ * warm for a while should fall again toward 64180000. Nobody has tested that
+ * prediction yet and this comment is where to record the result when somebody
+ * does.
  *
  * SO NO PER-RUN CONSTANT LIVES HERE ANY MORE. For part of Sunday 4 October 2026
  * this file carried CORE_HZ_MEASURED as nine digits, and then CORE_HZ_MEASURED_1
@@ -505,9 +521,15 @@
  * and the sub second tick is 32768/128 = 256 Hz exactly, 256 ticks of it is one
  * second exactly, and one core cycle is 0.0036 parts per million of that. If the
  * crystal or the gate were producing a 1000 part per million spread, the
- * internal oscillator's readings would scatter too. They do not; they fall
- * smoothly. The instrument is therefore bounded far below the effect, and the
- * scatter belongs to the external clock.
+ * internal oscillator's readings would show it too. They span 222 parts per
+ * million across all four runs, a factor of four and a half smaller, and they
+ * return to where they started when the board cools. The instrument is therefore
+ * bounded far below the effect, and the scatter belongs to the external clock.
+ *
+ * The run-to-run relative movement says the same thing three times. Between each
+ * pair of runs the external clock moved against the internal one by -730, then
+ * +1102, then -473 parts per million. No drift of the shared reference can
+ * produce a figure that changes sign twice.
  *
  * WHICH UPGRADES THE CLAIM RATHER THAN WEAKENING IT. One run could only infer
  * that the 8 MHz is not 8 MHz. Three runs show it is UNSTABLE at the part per

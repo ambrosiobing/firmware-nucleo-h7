@@ -83,6 +83,23 @@
  *     below even the LSI ceiling. The method document's 0.1 per cent tolerance
  *     is met by a one second gate with room to spare.
  *
+ * CONFIRMED ON THE BOARD ON MONDAY 5 OCTOBER 2026, which is what p01-pll280's
+ * freqcount section exists for. freqcount_init returned 0 both before and after
+ * the clock was raised, which means LPTIM1 accepted the configuration and read
+ * back an autoreload of 0xFFFF. That is the test of LPTIM1_BASE, which this
+ * repository DERIVED at 0x40002400 from USART3's absolute address rather than
+ * read anywhere, and a wrong base would have failed exactly there. The sampling
+ * ceiling read 64000000 Hz on the reset clock and 140000000 Hz at the 280 MHz
+ * setting, tracking the clock tree as it should.
+ *
+ * WHAT THAT RUN DID NOT SHOW, because nothing was connected to PD12: the
+ * counting path. Both measurements returned 0 millihertz, which is the correct
+ * frequency of an idle line held high by its pull-up and is also what a refusal
+ * returns. The next thing this instrument needs is a known frequency on that
+ * pin, and ST's sibling example LPTIM_PWMExternalClock puts LPTIM1_OUT on PD13
+ * and LPTIM1_IN1 on PD12, adjacent pins, so one wire between them would let the
+ * counter check itself.
+ *
  * ONE THING IS STILL A BOARD FACT NOBODY HAS SOURCED: whether PD12 reaches the
  * Zio header. ST's example drives the pin without saying where it appears on the
  * connector, and the pack carries no Zio map. That needs UM2407 for the MB1363,
