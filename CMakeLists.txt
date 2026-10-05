@@ -262,6 +262,7 @@ add_firmware(p01-pll280
     SOURCES projects/P01-toolchain-first-light/c/pll280.c
             c/instr/lseref.c
             c/instr/freqcount.c
+            c/instr/freqmath.c
     INCLUDES c/instr)
 
 # P02, the ring buffer on the target, which is the only place its deliverable can
@@ -373,6 +374,7 @@ foreach(BACKEND systick timer dma)
                 projects/P06-timer-sampling/c/marker.c
                 c/instr/cyccnt.c
                 c/instr/freqcount.c
+                c/instr/freqmath.c
                 ${ACQ}
         INCLUDES projects/P06-timer-sampling/c c/instr
         VENDOR_INCLUDES ${CMSIS_DEVICE_DIR} ${CMSIS_CORE_DIR}

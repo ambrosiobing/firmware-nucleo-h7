@@ -18,6 +18,14 @@
  * arithmetic at all; it only sets how fast an input can be before an edge is
  * missed, which is a range limit and not an error term.
  *
+ * THE ARITHMETIC IS NOT IN THIS FILE, since Monday 5 October 2026. Everything
+ * that is only a calculation lives in c/instr/freqmath.c, which reads no
+ * register and is therefore driven from a host against a table of cases in
+ * python/tests/test_freqmath.py. This file keeps what only the part can do:
+ * configuring LPTIM1, configuring the pin, and reading the counter. The reason
+ * for the split is c/clock/clocktree.h's reason: an arithmetic error that only a
+ * flash can find is an arithmetic error nobody will find.
+ *
  * AND WHAT MAKES ONE WRONG. Two things, both reported rather than hidden:
  *
  *   - an input above the ceiling. The counter does not saturate or read low, it
@@ -35,6 +43,7 @@
  */
 #include "freqcount.h"
 
+#include "freqmath.h"
 #include "lseref.h"
 #include "../board/board.h"
 #include "../board/stm32h7a3_regs.h"
@@ -205,12 +214,12 @@ uint32_t freqcount_ceiling_hz(void)
  * can account for, so the input must stay below 65536 edges per 3906
  * microseconds, which is about 16.8 MHz. freqcount_measure_mhz refuses above
  * that rather than reporting a figure short by a multiple of 65536. */
-static uint64_t counter_now(void)
+static uint32_t counter_now(void)
 {
     if (take_wrap()) {
         g_wraps++;
     }
-    return ((uint64_t) g_wraps << 16) | (uint64_t) (LPTIM1_CNT & 0xFFFFu);
+    return freqmath_compose(g_wraps, LPTIM1_CNT);
 }
 
 uint64_t freqcount_measure_mhz(uint32_t gate_ms)
@@ -227,13 +236,14 @@ uint64_t freqcount_measure_mhz(uint32_t gate_ms)
      * different PRER would give a gate of a different length than the caller
      * asked for while still producing a correct frequency. That is the right way
      * round: the reading stays true and only the window moves. */
-    uint32_t ticks = (gate_ms * FREQCOUNT_EXPECTED_TICK_HZ) / 1000u;
+    const uint32_t ticks = freqmath_ticks_for_ms(gate_ms,
+                                                FREQCOUNT_EXPECTED_TICK_HZ);
     if (ticks == 0u) {
-        ticks = 1u;
+        return 0u;
     }
 
     lseref_measure_t gate;
-    const uint32_t before = (uint32_t) counter_now();
+    const uint32_t before = counter_now();
 
     /* Arguments in lseref's order, out first. Worth a word because getting it
      * the other way round compiles in C only if the types happen to allow it,
@@ -242,55 +252,22 @@ uint64_t freqcount_measure_mhz(uint32_t gate_ms)
         return 0u;
     }
 
-    const uint32_t after = (uint32_t) counter_now();
-    if (gate.ck_apre_hz == 0u || gate.ticks == 0u) {
-        return 0u;
-    }
+    const uint32_t after = counter_now();
 
-    const uint64_t edges = (uint64_t) (after - before);
-
-    /* Millihertz so a caller needs no floating point: edges times the tick rate
-     * times a thousand, over the number of ticks. The multiply is done before
-     * the divide, which matters: at 1 kHz over one second the edge count is 1000
-     * and dividing first would throw away three digits of the answer. 64 bits
-     * holds it comfortably, 65535 times 256 times 1000 being about 1.7e10. */
-    const uint64_t mhz = (edges * (uint64_t) gate.ck_apre_hz * 1000u)
-                       / (uint64_t) gate.ticks;
-
-    /* THE TWO REFUSALS, both of which are a wrong answer this instrument can
-     * produce and must not.
-     *
-     * The first is the sampling ceiling: above the kernel clock, edges are
-     * missed rather than counted.
-     *
-     * The second is tighter and is the real limit. counter_now() can account for
-     * at most ONE wrap between two looks, and it looks once per crystal tick, so
-     * the most it can follow is one full counter per tick: 65536 edges in
-     * 1/256 of a second, which is 16777216 Hz exactly. That is derived here from
-     * the autoreload and the tick rate that came back rather than written as a
-     * constant, so a different PRER or a different autoreload moves it without
-     * anybody having to remember to. */
-    const uint64_t hz = mhz / 1000u;
-    const uint32_t ceiling = freqcount_ceiling_hz();
-    if (ceiling != 0u && hz >= (uint64_t) ceiling) {
-        return 0u;
-    }
-    const uint64_t usable = ((uint64_t) FREQCOUNT_ARR + 1u) * (uint64_t) gate.ck_apre_hz;
-    if (hz >= usable) {
-        return 0u;
-    }
-    return mhz;
+    /* The arithmetic, the two refusals and the derived usable maximum are all
+     * freqmath's now, driven from a host against a table of cases. What this
+     * function contributes is the four measured inputs: the edges, the tick rate
+     * and tick count the gate actually used, and the sampling ceiling. */
+    return freqmath_mhz(freqmath_edges(before, after),
+                        gate.ck_apre_hz,
+                        gate.ticks,
+                        freqcount_ceiling_hz(),
+                        FREQCOUNT_ARR);
 }
 
 uint64_t freqcount_resolution_mhz(uint32_t gate_ms)
 {
-    if (gate_ms == 0u) {
-        return 0u;
-    }
-    /* One edge in the gate, in millihertz. A one second gate resolves one hertz,
-     * which is a thousand millihertz, and that is the figure the method document
-     * compares its 0.1 per cent tolerance against at 1 kHz. */
-    return 1000000u / (uint64_t) gate_ms;
+    return freqmath_resolution_mhz(gate_ms);
 }
 
 #else   /* the register addresses are not confirmed */
@@ -299,12 +276,12 @@ int freqcount_init(void) { return -1; }
 uint32_t freqcount_ceiling_hz(void) { return 0u; }
 uint64_t freqcount_measure_mhz(uint32_t gate_ms) { (void) gate_ms; return 0u; }
 
+/* The resolution is arithmetic and does not need a confirmed register, so this
+ * branch answers it properly rather than returning 0. A reader can ask what the
+ * instrument's resolution would be before the instrument exists. */
 uint64_t freqcount_resolution_mhz(uint32_t gate_ms)
 {
-    if (gate_ms == 0u) {
-        return 0u;
-    }
-    return 1000000u / (uint64_t) gate_ms;
+    return freqmath_resolution_mhz(gate_ms);
 }
 
 #endif  /* BOARD_REGS_CONFIRMED */

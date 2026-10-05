@@ -13,14 +13,34 @@ be finished and proven today.
 It is not a second build system. It takes no options and it will be deleted the
 day ninja is installed.
 
-What it builds:
+What it builds. This list had fallen four libraries behind by Monday
+5 October 2026, which is its own small lesson about lists maintained by hand, so
+it is now in the order the script produces them:
+
+  freqmath.{dll,so}       the frequency counter's arithmetic, split out of
+                          freqcount.c so a host can test the divide
+  clocktree.{dll,so}      P01's clock tree decode, the same object the board links
+  clocktree_filter        and its C++ variant, as a filter the tests drive
   payload.{dll,so}        P09's codec, from the same source the board links
-  cpp_filter              P09's C++ variant, as a filter the tests drive
-  ring0..ring3.{dll,so}   P02's ring, once per ordering mode
+  cpp_filter              P09's C++ variant
   frame.{dll,so}          P05's COBS, CRC-16 and frame, host and target alike
+  frame_filter            P05's C++ variant
   node_sm.{dll,so}        P08's state machine, linking P09's codec
+  node_sm_filter          P08's C++ variant
+  rate.{dll,so}           P06's rate witness
+  rate_filter             P06's C++ variant
+  gates.{dll,so}          P12's size and charge gates
+  gates_filter            P12's C++ variant
+  attribute.{dll,so}      P03's attribution
+  attribute_filter        P03's C++ variant
+  ring_filter             P02's C++ variant
+  ring0..ring3.{dll,so}   P02's ring, once per ordering mode
+  property_test0..3       P02's property test, once per ordering mode
   soak_threads            P02's two-thread soak
   object sizes            for the tables in the project READMEs
+
+The Rust filters are not here: cargo builds those, and conftest.py looks for
+them under target/release.
 """
 from __future__ import annotations
 
@@ -434,6 +454,15 @@ def main() -> int:
     # so this is a test of the shipped decode rather than of a host copy of it.
     # It compiles on a host at all only because it takes the seven register
     # VALUES as an argument and dereferences nothing.
+    # The frequency counter's arithmetic, split out of c/instr/freqcount.c on
+    # Monday 5 October 2026 for the same reason the clock tree was split out of
+    # c/board/system.c: the register work cannot be called on a host, so the
+    # divide had no test. freqmath.c reads nothing and is the same object the
+    # firmware links.
+    print("The frequency counter's arithmetic, the same file the board links:")
+    shared_lib("freqmath", [C_DIR / "instr" / "freqmath.c"],
+               includes=[C_DIR / "instr"])
+
     print("P01, the clock tree decode, the same file the board links:")
     shared_lib("clocktree", [C_DIR / "clock" / "clocktree.c"],
                includes=[C_DIR / "clock"])
