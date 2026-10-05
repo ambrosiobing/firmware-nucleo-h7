@@ -95,12 +95,61 @@
  * WHAT THAT RUN DID NOT SHOW, because nothing was connected to PD12: the
  * counting path. Both measurements returned 0 millihertz, which is the correct
  * frequency of an idle line held high by its pull-up and is also what a refusal
- * returns. The next thing this instrument needs is a known frequency on that
- * pin, and ST's sibling example LPTIM_PWMExternalClock puts LPTIM1_OUT on PD13
- * and LPTIM1_IN1 on PD12, adjacent pins, so one wire between them would let the
- * counter check itself.
+ * returns.
  *
- * ONE THING IS STILL A BOARD FACT NOBODY HAS SOURCED: whether PD12 reaches the
+ * ---------------------------------------------------------------------------
+ * THE EXPERIMENT THAT WOULD SHOW IT, designed Monday 5 October 2026 and not yet
+ * built. It is written out here because the design took three wrong turns and
+ * the reasons are worth more than the conclusion.
+ *
+ * WRONG TURN ONE: wire LPTIM1_OUT to LPTIM1_IN1. ST's LPTIM_PWMExternalClock for
+ * this board puts LPTIM1_OUT on PD13 and LPTIM1_IN1 on PD12, adjacent pins, so
+ * one wire looks like a self test. It is not. That example's name says why: the
+ * counter is CLOCKED by IN1 and the compare generates the PWM on OUT, so the
+ * output frequency is derived from the input. Wiring one to the other makes a
+ * feedback loop, and counting a signal generated from the counter being tested
+ * proves nothing at all.
+ *
+ * WRONG TURN TWO: use ST's LL PWM example, which is the obvious source for a
+ * known frequency. Examples_LL/TIM/TIM_PWMOutput drives TIM3 channel 3 on PB0 at
+ * alternate function 2. PB0 is LD1, the green LED, which this header has carried
+ * as a settled board fact since Friday 2 October 2026 and which p01-pll280
+ * blinks as part of its own evidence. Taking that pin would fight the one
+ * indicator the image uses.
+ *
+ * WHAT IS LEFT, and it collides with nothing: TIM1 channel 3 on PE13 at
+ * alternate function 1, push-pull with a pull-up, from
+ * Projects/NUCLEO-H7A3ZI-Q/Examples/TIM/TIM_DMA in STM32Cube_FW_H7_V1.13.0. PE13
+ * is not LD1 on PB0, not LD2 on PE1, not LD3 on PB14, not the button on PC13,
+ * not the console on PD8 and PD9, and not the counting input on PD12. The
+ * arrangement is therefore one wire from PE13 to PD12 and a PWM frequency
+ * chosen well under the 16777216 Hz usable maximum.
+ *
+ * WHY THIS IS BETTER THAN A SELF TEST, which is the part worth keeping. A
+ * general purpose timer's output is derived from its APB clock and therefore
+ * from the PLL. ST's own LL example makes that explicit, computing its prescaler
+ * from SystemCoreClock. So counting that output against the crystal gate
+ * compares the PLL to the crystal through a path that shares NOTHING with
+ * c/instr/lseref.c: lseref counts core cycles inside the part with DWT_CYCCNT,
+ * while this counts edges arriving on a pin from outside the counter. Two
+ * instruments, one quantity, no common component but the crystal itself.
+ *
+ * AND IT CAN FAIL INFORMATIVELY, which a self test cannot. If the two agree, the
+ * crystal gate and the cycle counter are confirmed against each other and the
+ * four core clock readings of Sunday 4 October 2026 and Monday 5 October 2026
+ * gain a second witness. If they disagree, one of them is wrong and the SIZE of
+ * the disagreement says which kind: a ratio near a small integer points at a
+ * prescaler or a divider misread, a few hundred parts per million points at the
+ * crystal, and a disagreement that moves between runs points back at the
+ * debugger's 8 MHz, which is already known to move by a part in a thousand.
+ *
+ * WHAT STILL BLOCKS IT is the connector and nothing else. Both pins have to
+ * reach the Zio header for a wire to join them, and the pack carries no Zio map.
+ * That is UM2407 for the MB1363, now needed for PE13 as well as PD12. Every
+ * register fact for both ends is in hand.
+ * --------------------------------------------------------------------------- */
+
+/* ONE THING IS STILL A BOARD FACT NOBODY HAS SOURCED: whether PD12 reaches the
  * Zio header. ST's example drives the pin without saying where it appears on the
  * connector, and the pack carries no Zio map. That needs UM2407 for the MB1363,
  * and until it is read this instrument can be written and cannot be wired. The
