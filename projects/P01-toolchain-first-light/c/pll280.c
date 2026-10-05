@@ -52,6 +52,7 @@
 
 #include "board.h"
 #include "clocktree.h"
+#include "freqcount.h"
 #include "lseref.h"
 #include "stm32h7a3_regs.h"
 
@@ -290,6 +291,57 @@ static void report_crystal(const char *when, uint32_t nominal_hz)
     }
 }
 
+/* The frequency counter, asked only whether it comes up.
+ *
+ * WHAT THIS PROVES AND WHAT IT CANNOT, stated first because the distinction is
+ * the whole value of the section. Nothing is connected to PD12, and the pin is
+ * configured with a pull-up, so it sits high and no edges arrive. The count is
+ * therefore 0 and the reported frequency is 0, which is also what
+ * freqcount_measure_mhz returns when it refuses. So this run says NOTHING about
+ * whether the counting path works.
+ *
+ * What it does say is worth the lines anyway. freqcount_init returning 0 means
+ * LPTIM1 accepted a configuration and read back an autoreload of 0xFFFF from the
+ * address this repository DERIVED rather than read: ST's header gives LPTIM1 as
+ * CD_APB1PERIPH_BASE + 0x2400 and this header knew that base only through
+ * USART3. A wrong base would fail that read-back here rather than in P06 later.
+ * And the ceiling is computed from the clock tree, so it should read 64 MHz
+ * before the raise and 140 MHz after it, which is a second check on the same
+ * decode the rest of this image is about.
+ *
+ * THE SELF TEST THIS WANTS NEXT, named so it is not forgotten: ST's sibling
+ * example LPTIM_PWMExternalClock configures PD13 as LPTIM1_OUT and PD12 as
+ * LPTIM1_IN1, which are adjacent pins. A known frequency generated on one pin
+ * and a wire to the other would make the counter check itself, and that is the
+ * first arrangement in this volume that could show the counting path is right
+ * rather than merely configured. */
+static void report_freqcount(const char *when)
+{
+    const int rc = freqcount_init();
+
+    printf("\n  the frequency counter, %s:\n", when);
+    printf("    freqcount_init %s\n",
+           (rc == 0) ? "returned 0, so LPTIM1 took the configuration and its "
+                       "autoreload read back"
+                     : "REFUSED, which is a wrong address, a write that was "
+                       "never acknowledged, or a crystal that did not start");
+    if (rc != 0) {
+        return;
+    }
+
+    const uint32_t ceiling = freqcount_ceiling_hz();
+    printf("    sampling ceiling %lu Hz, the LPTIM1 kernel clock, which is APB1\n",
+           (unsigned long) ceiling);
+    printf("    usable maximum   16777216 Hz, one 16 bit wrap per crystal tick\n");
+    printf("    resolution over a 1000 ms gate: %lu millihertz\n",
+           (unsigned long) freqcount_resolution_mhz(1000u));
+
+    const uint64_t mhz = freqcount_measure_mhz(1000u);
+    printf("    measured %lu millihertz with NOTHING CONNECTED to PD12, which is\n"
+           "    the expected answer and proves only that the path returns\n",
+           (unsigned long) mhz);
+}
+
 int main(void)
 {
     clock280_result_t result;
@@ -312,6 +364,7 @@ int main(void)
      * wrong. Done before the clock change so a failure in the sequence below
      * still leaves this result on the console. */
     report_crystal("on the reset clock", HSI_HZ_NOMINAL);
+    report_freqcount("on the reset clock");
 
     /* The one thing worth saying before the attempt: what the sequence intends,
      * in the arithmetic a reader can check, so the console carries the claim and
@@ -404,6 +457,7 @@ int main(void)
     /* And again at the new clock. Same crystal, same gate, so the two readings
      * differ only in what they are measuring. */
     report_crystal("at the new clock", CORE_HZ_TARGET);
+    report_freqcount("at the new clock");
 
     /* And then blink, so the board says something a person across the room can
      * read. One second per cycle, from board_delay_ms, which was calibrated

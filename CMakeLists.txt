@@ -251,9 +251,17 @@ add_firmware(p01-first-light
 # on this target rather than added to the board library on purpose: the crystal
 # is a reference for measuring the clock, not part of bringing it up, and every
 # other image in this volume has no use for it.
+#
+# It also links c/instr/freqcount.c since Monday 5 October 2026, for the same
+# kind of reason and the opposite conclusion. The counter is not part of raising
+# the clock either, but this is the only image in the volume that already starts
+# the crystal the counter gates on, so exercising it here costs one flash instead
+# of two. P06's targets link it as well and are the ones that will use it in
+# anger; this image only asks whether it initialises.
 add_firmware(p01-pll280
     SOURCES projects/P01-toolchain-first-light/c/pll280.c
             c/instr/lseref.c
+            c/instr/freqcount.c
     INCLUDES c/instr)
 
 # P02, the ring buffer on the target, which is the only place its deliverable can
