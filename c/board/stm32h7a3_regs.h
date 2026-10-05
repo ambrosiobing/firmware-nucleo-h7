@@ -911,6 +911,128 @@
 #define RCC_APB4ENR_RTCAPBEN_MSK (1u << 16)
 #define RCC_RTCSEL_LSE          1u      /* RCC_BDCR_RTCSEL_0 */
 
+/* ---------------------------------------------------------------- LPTIM1
+ *
+ * THE FREQUENCY COUNTER'S PERIPHERAL, confirmed Monday 5 October 2026 from the
+ * same two authorities as everything else here: ST's CMSIS device header for
+ * this die for the addresses and bit positions, and ST's own working example
+ * for this exact board for the pin. The example is
+ * Projects/NUCLEO-H7A3ZI-Q/Examples/LPTIM/LPTIM_PulseCounter in
+ * STM32Cube_FW_H7_V1.13.0, and c/instr/freqcount.h says at length why this is
+ * an LPTIM rather than one of the two 32-bit timers.
+ *
+ * THE OFFSETS WERE COUNTED AND THEN CHECKED AGAINST THREE KNOWN ONES, which is
+ * worth saying because this header's longest comment is about how the trailing
+ * comments in that file are the STM32H743's from RSR onward. A script walked
+ * RCC_TypeDef's declaration adding four bytes per member and produced
+ * RSR 0x130, AHB4ENR 0x140 and APB1LENR 0x148: exactly the three values this
+ * header had already derived by hand and the board had already accepted. So the
+ * same walk's answer for CDCCIP2R, 0x054, is trustworthy on the same evidence.
+ *
+ * The whole RCC map from that walk, recorded once so nothing has to be counted
+ * again: CR 0x00, HSICFGR 0x04, CRRCR 0x08, CSICFGR 0x0C, CFGR 0x10,
+ * CDCFGR1 0x18, CDCFGR2 0x1C, SRDCFGR 0x20, PLLCKSELR 0x28, PLLCFGR 0x2C,
+ * PLL1DIVR 0x30, PLL1FRACR 0x34, PLL2DIVR 0x38, PLL2FRACR 0x3C, PLL3DIVR 0x40,
+ * PLL3FRACR 0x44, CDCCIPR 0x4C, CDCCIP1R 0x50, CDCCIP2R 0x54, SRDCCIPR 0x58,
+ * CIER 0x60, CIFR 0x64, CICR 0x68, BDCR 0x70, CSR 0x74, AHB3RSTR 0x7C,
+ * AHB1RSTR 0x80, AHB2RSTR 0x84, AHB4RSTR 0x88, APB3RSTR 0x8C, APB1LRSTR 0x90,
+ * APB1HRSTR 0x94, APB2RSTR 0x98, APB4RSTR 0x9C, SRDAMR 0xA8, CKGAENR 0xB0,
+ * RSR 0x130, AHB3ENR 0x134, AHB1ENR 0x138, AHB2ENR 0x13C, AHB4ENR 0x140,
+ * APB3ENR 0x144, APB1LENR 0x148, APB1HENR 0x14C, APB2ENR 0x150, APB4ENR 0x154.
+ */
+#define RCC_CDCCIP2R            REG32(RCC_BASE + 0x054u)
+
+#define RCC_APB1LENR_LPTIM1EN_POS   9u
+
+/* WHICH CLOCK SAMPLES THE COUNTING INPUT, and therefore what this instrument's
+ * ceiling is. Three bits at 28, read out of ST's stm32h7xx_hal_rcc_ex.h where
+ * each RCC_LPTIM1CLKSOURCE_* is spelled as a combination of LPTIM1SEL bits:
+ *
+ *   0  the CD domain APB1 clock, which board_pclk1_hz() already decodes
+ *   1  PLL2        2  PLL3        3  the LSE        4  the LSI       5  CLKP
+ *
+ * 3 is the 32.768 kHz crystal that already gates the measurement, which would
+ * make one reference do both jobs and cap the input near 32 kHz. 0 is chosen
+ * instead, because the count is a number of edges either way and the gate stays
+ * the crystal, so the kernel clock buys range and costs nothing in accuracy.
+ * freqcount.c explains that choice where it makes it. */
+#define RCC_CDCCIP2R_LPTIM1SEL_POS  28u
+#define RCC_CDCCIP2R_LPTIM1SEL_MSK  (7u << RCC_CDCCIP2R_LPTIM1SEL_POS)
+#define RCC_LPTIM1SEL_PCLK1         0u
+#define RCC_LPTIM1SEL_LSE           3u
+
+/* LPTIM1 itself. CD_APB1PERIPH_BASE + 0x2400, and that base is derived the same
+ * way CONSOLE_USART_BASE above is: ST's header says LPTIM1 is at
+ * CD_APB1PERIPH_BASE + 0x2400 and USART3 at + 0x4800, and USART3's absolute
+ * address is already known here to be 0x40004800, which puts the base at
+ * 0x40000000 and LPTIM1 at 0x40002400. Two registers derived from one anchor,
+ * which is the same method that produced RTC_BASE_ADDR. */
+#define LPTIM1_BASE             0x40002400u
+
+/* The offsets are from LPTIM_TypeDef's declaration order, and for this struct
+ * the trailing comments agree with the count, because it sits entirely before
+ * any reserved gap. There is one reserved word at 0x20, which is why CFGR2 is
+ * at 0x24 and not 0x20. */
+#define LPTIM1_ISR              REG32(LPTIM1_BASE + 0x000u)
+#define LPTIM1_ICR              REG32(LPTIM1_BASE + 0x004u)
+#define LPTIM1_IER              REG32(LPTIM1_BASE + 0x008u)
+#define LPTIM1_CFGR             REG32(LPTIM1_BASE + 0x00Cu)
+#define LPTIM1_CR               REG32(LPTIM1_BASE + 0x010u)
+#define LPTIM1_CMP              REG32(LPTIM1_BASE + 0x014u)
+#define LPTIM1_ARR              REG32(LPTIM1_BASE + 0x018u)
+#define LPTIM1_CNT              REG32(LPTIM1_BASE + 0x01Cu)
+#define LPTIM1_CFGR2            REG32(LPTIM1_BASE + 0x024u)
+
+/* CKSEL and COUNTMODE ARE A PAIR AND NOT ALTERNATIVES, which is the single
+ * thing most likely to be got wrong here. CKSEL chooses what clocks the
+ * peripheral and stays 0, meaning the kernel clock selected above. COUNTMODE is
+ * what makes the counter advance on an edge of Input1 instead of on that kernel
+ * clock. Both are needed and they do different jobs: the counter counts the
+ * input, and the kernel clock is what SAMPLES the input, which is why ST's
+ * readme warns that the input frequency must never exceed it. */
+#define LPTIM_CFGR_CKSEL_MSK        (1u << 0)
+#define LPTIM_CFGR_PRESC_MSK        (7u << 9)
+#define LPTIM_CFGR_COUNTMODE_MSK    (1u << 23)
+
+#define LPTIM_CR_ENABLE_MSK         (1u << 0)
+#define LPTIM_CR_CNTSTRT_MSK        (1u << 2)
+#define LPTIM_CR_COUNTRST_MSK       (1u << 3)
+
+/* ARROK is the write-acknowledge for ARR and is why that register cannot simply
+ * be assigned. The peripheral may be clocked more slowly than the core, so a
+ * write crosses a domain and takes effect later; ARROK says it landed and
+ * ARROKCF in ICR clears it. ARRM is the wrap, which this instrument counts in
+ * software because LPTIM1 is 16 bits. */
+#define LPTIM_ISR_ARRM_MSK          (1u << 1)
+#define LPTIM_ISR_ARROK_MSK         (1u << 4)
+#define LPTIM_ICR_ARRMCF_MSK        (1u << 1)
+#define LPTIM_ICR_ARROKCF_MSK       (1u << 4)
+
+/* A DEFECT IN ST'S HEADER, recorded because this volume is about exactly this.
+ * stm32h7a3xxq.h defines
+ *
+ *     #define LPTIM_CR_SNGSTRT_Msk  (0x40001UL << LPTIM_CR_SNGSTRT_Pos)
+ *
+ * with SNGSTRT_Pos being 1, so the mask evaluates to 0x00080002: bit 1 as
+ * intended, and a stray bit 19. LPTIM_CR has fields only in bits 0 to 4, so bit
+ * 19 is reserved, and the trailing comment says 0x00080002 too, so the comment
+ * confirms the wrong value rather than catching it. Nothing here uses SNGSTRT,
+ * because continuous counting is CNTSTRT, so this costs nothing. It is written
+ * down because the next person to reach for a single-shot start would otherwise
+ * write a reserved bit and have both ST's macro and ST's comment agreeing that
+ * it was correct. */
+
+/* THE COUNTING PIN, which is a board fact and comes from ST's example for this
+ * board rather than from the Nucleo-144 convention: PD12 as LPTIM1_IN1 at
+ * alternate function 1, push-pull with a pull-up, which is what that example's
+ * HAL_LPTIM_MspInit configures. What is NOT established is whether PD12 appears
+ * on the Zio header, so the instrument can be built and cannot yet be wired.
+ * That needs UM2407 for the MB1363, and c/instr/freqcount.h names it. */
+#define FREQCOUNT_IN_PORT       GPIOD
+#define FREQCOUNT_IN_PIN        12u
+#define FREQCOUNT_IN_AF         1u
+#define RCC_AHB4ENR_GPIODEN     (1u << RCC_AHB4ENR_GPIODEN_POS)
+
 #define RTC_BASE_ADDR           0x58004000u
 #define RTC_SSR                 REG32(RTC_BASE_ADDR + 0x008u)
 #define RTC_ICSR                REG32(RTC_BASE_ADDR + 0x00Cu)

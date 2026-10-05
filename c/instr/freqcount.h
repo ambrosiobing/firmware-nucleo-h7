@@ -95,8 +95,33 @@
 
 #include <stdint.h>
 
-/* Returns 0 on success, negative if a required value is unconfirmed. */
+/* Configure LPTIM1 to count edges on PD12, and start the crystal the gate needs.
+ *
+ * Returns 0 when the counter is running. Negative when something it wrote did
+ * not read back, when the autoreload write was never acknowledged, or when the
+ * 32.768 kHz crystal did not start within three seconds. Each of those is a
+ * refusal rather than a degraded mode: a counter that is not counting the signal
+ * reports a plausible frequency, which is the failure this whole volume is
+ * about.
+ *
+ * It does NOT fail because PD12's route to the Zio header is unestablished. That
+ * is a wiring question and this is a register one, and conflating them would
+ * make the code refuse for a reason the code cannot check. */
 int freqcount_init(void);
+
+/* The highest input frequency the SAMPLING clock can follow, in hertz, or 0 when
+ * the clock tree could not be decoded.
+ *
+ * This is the LPTIM1 kernel clock, which freqcount.c selects as the APB1 clock,
+ * so it is 64 MHz on the reset clock and 140 MHz at the 280 MHz setting and
+ * board_pclk1_hz() is where it comes from. Above it, edges are missed rather
+ * than counted, and a missed edge does not announce itself.
+ *
+ * THE USABLE LIMIT IS LOWER THAN THIS AND freqcount.c DERIVES IT: the counter is
+ * 16 bits and its wrap flag is polled once per crystal tick, so at most one wrap
+ * can be accounted for per tick, which is 65536 edges in 1/256 of a second, or
+ * 16777216 Hz. A measurement at or above either limit returns 0. */
+uint32_t freqcount_ceiling_hz(void);
 
 /* Blocking measurement over a gate of the given length. Returns the frequency
  * in millihertz so the caller does not need floating point, or 0 on failure.

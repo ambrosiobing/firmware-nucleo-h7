@@ -14,7 +14,11 @@
  *   - no Ethernet controller on this part
  *   - the 32.768 kHz crystal is fitted, so the real-time clock is usable
  *   - the high-speed clock arrives from the on-board debugger in bypass mode at
- *     8 MHz, and 8 / 2 times 140 / 2 gives 280 MHz
+ *     a nominal 8 MHz, and 8 over 4 times 280 over 2 gives 280 MHz. That is ST's
+ *     division and not the obvious one; an earlier version of this line said
+ *     8 over 2 times 140, which reaches the same product through a 4 MHz PLL
+ *     input that nothing configures. And the 8 MHz is nominal: measured three
+ *     times on Sunday 4 October 2026 it came out 7990652, 7983868 and 7991850 Hz
  *
  * Settled on Sunday 4 October 2026, after being refused since Friday
  * 2 October 2026:
@@ -26,11 +30,23 @@
  *   - that this board's core is supplied through the SMPS and not the LDO, which
  *     the board established by stopping when the LDO was selected
  *
+ * Settled on Monday 5 October 2026:
+ *   - everything freqcount.c needs to count an external signal: LPTIM1, its
+ *     registers, and PD12 at alternate function 1 as the counting input, from
+ *     ST's own pulse counter example for this exact board. What is open there is
+ *     no longer a register but a connector: whether PD12 reaches the Zio header,
+ *     which needs UM2407
+ *
  * Open, and therefore refused rather than guessed:
  *   - the virtual COM port pins, believed USART3 on PD8 and PD9 by Nucleo-144
  *     convention but not read from the MB1363 board manual
- *   - the timer registers freqcount.c needs, which is why no frequency in this
- *     repository is MEASURED by an instrument that does not share the clock
+ *
+ * No longer open, and the line that used to say so was wrong twice over. It read
+ * "the timer registers freqcount.c needs, which is why no frequency in this
+ * repository is MEASURED by an instrument that does not share the clock". The
+ * core clock has been measured against the 32.768 kHz crystal since Sunday
+ * 4 October 2026, and that crystal does not come from the PLL chain, so the
+ * second half stopped being true before the first did.
  *
  * The consequence is the shape of this interface. The part boots on its internal
  * oscillator, so an LED can blink using only settled facts, and that is what
@@ -119,6 +135,18 @@ uint32_t board_pclk1_hz(void);
  * NULL. "regs-unconfirmed" when the register addresses themselves are still
  * compiled out, which is a different thing from any of the eight. */
 const char *board_clock_refusal_text(void);
+
+/* A pin into alternate function mode: mode 10, push-pull, the given pull, and
+ * the function number in the right nibble of AFRL or AFRH.
+ *
+ * Public since Monday 5 October 2026 and private to uart.c before that, because
+ * c/instr/freqcount.c became a second caller and the AFRL-above-pin-7 rule is
+ * worth having once. `pupd` is a PUPDR field value, so GPIO_PUPD_PULLUP for a
+ * line that must not float.
+ *
+ * Does nothing when the register addresses are not confirmed, like everything
+ * else in this board support. */
+void board_pin_alternate(uint32_t port, uint32_t pin, uint32_t af, uint32_t pupd);
 
 /* Full initialisation: clock, LEDs, console, printf retarget. Safe to call once.
  * Never fails: where a part of it cannot be configured, that part is left

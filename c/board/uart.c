@@ -42,50 +42,13 @@ static board_status_t g_console = BOARD_ERR_UART_PINS_UNCONFIRMED;
 
 #if defined(BOARD_REGS_CONFIRMED) && defined(BOARD_CONSOLE_PINS_CONFIRMED)
 
-/* A pin in alternate function mode, with the function number written into the
- * right half of the alternate function register.
- *
- * Pins 0 to 7 use AFRL and pins 8 to 15 use AFRH, four bits each. PD8 and PD9 are
- * both in AFRH, at bits 3 to 0 and 7 to 4, which is why the shift subtracts 8.
- * Using AFRL for a pin above 7 writes the function number onto a different pin
- * entirely and leaves this one at function 0, and neither pin reports anything
- * about it. */
-static void pin_alternate(uint32_t port, uint32_t pin, uint32_t af, uint32_t pupd)
-{
-    /* Mode 10, alternate function, two bits per pin. */
-    uint32_t moder = GPIO_REG(port, GPIO_MODER);
-    moder &= ~(3u << (pin * 2u));
-    moder |=  (2u << (pin * 2u));
-    GPIO_REG(port, GPIO_MODER) = moder;
-
-    /* Push-pull, set explicitly so that a second call after something else used
-     * the pin does not inherit a different type. */
-    GPIO_REG(port, GPIO_OTYPER) &= ~(1u << pin);
-
-    /* The pull matters here and used to be cleared unconditionally. A serial line
-     * idles HIGH, so a pin that is briefly undriven, or driven by a peripheral
-     * that is not yet enabled, presents a falling edge to the receiver at the
-     * other end. The receiver reads that as a start bit and delivers one garbage
-     * byte. A pull-up holds the line at its idle level through any such gap. */
-    uint32_t pupdr = GPIO_REG(port, GPIO_PUPDR);
-    pupdr &= ~(3u << (pin * 2u));
-    pupdr |=  (pupd << (pin * 2u));
-    GPIO_REG(port, GPIO_PUPDR) = pupdr;
-
-    const uint32_t reg   = (pin < 8u) ? GPIO_AFRL : GPIO_AFRH;
-    const uint32_t shift = ((pin < 8u) ? pin : (pin - 8u)) * 4u;
-
-    uint32_t afr = GPIO_REG(port, reg);
-    afr &= ~(0xFu << shift);
-    afr |=  (af   << shift);
-    GPIO_REG(port, reg) = afr;
-
-    /* Output speed is deliberately left at its reset value. ST's board support
-     * package asks for GPIO_SPEED_FREQ_HIGH, which costs nothing and is right for
-     * a shared helper, but at 115200 baud this pin changes state at most about
-     * 115 thousand times a second and the slowest setting has margin to spare.
-     * Naming the reason beats copying the setting. */
-}
+/* THE ALTERNATE FUNCTION HELPER MOVED TO board.c ON MONDAY 5 OCTOBER 2026, as
+ * board_pin_alternate, because c/instr/freqcount.c became a second caller and
+ * the AFRL and AFRH split is the part of it worth having in one place. The pull
+ * stays an argument, so this file still asks for a pull-up and still owns the
+ * reason: a serial line idles HIGH, so a pin that is briefly undriven presents a
+ * falling edge the receiver reads as a start bit and turns into one garbage
+ * byte. */
 
 #endif  /* the registers and the console pins are both confirmed */
 
@@ -175,8 +138,8 @@ void board_console_init(void)
      * on both: the transmit line so it never presents a false edge, and the
      * receive line so a floating input at this end cannot invent start bits when
      * the host is not transmitting. */
-    pin_alternate(CONSOLE_TX_PORT, CONSOLE_TX_PIN, CONSOLE_AF, GPIO_PUPD_PULLUP);
-    pin_alternate(CONSOLE_RX_PORT, CONSOLE_RX_PIN, CONSOLE_AF, GPIO_PUPD_PULLUP);
+    board_pin_alternate(CONSOLE_TX_PORT, CONSOLE_TX_PIN, CONSOLE_AF, GPIO_PUPD_PULLUP);
+    board_pin_alternate(CONSOLE_RX_PORT, CONSOLE_RX_PIN, CONSOLE_AF, GPIO_PUPD_PULLUP);
 
     g_console = BOARD_OK;
 #else

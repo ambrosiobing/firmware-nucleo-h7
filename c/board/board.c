@@ -53,6 +53,57 @@ static uint32_t led_pin(board_led_t led)
  * stable, it can be either level, and it can change when a hand comes near the
  * board. ST's board support package configures this pin with an internal
  * pull-down, which says MB1363 fits no resistor of its own. */
+/* A pin in alternate function mode, with the function number written into the
+ * right half of the alternate function register.
+ *
+ * MOVED HERE FROM uart.c ON MONDAY 5 OCTOBER 2026 and made public, because
+ * c/instr/freqcount.c became a second caller. Two copies of the rule below would
+ * be two chances to get it wrong, and it is the kind of wrong that does not
+ * report itself.
+ *
+ * Pins 0 to 7 use AFRL and pins 8 to 15 use AFRH, four bits each, which is why
+ * the shift subtracts 8 above pin 7. Using AFRL for a pin above 7 writes the
+ * function number onto a DIFFERENT pin entirely and leaves this one at function
+ * 0, and neither pin reports anything about it. The console's PD8 and PD9 are
+ * both in AFRH; the frequency counter's PD12 is too.
+ *
+ * The pull is an argument rather than a policy, because the two callers want it
+ * for unrelated reasons: a serial line idles high, and ST's pulse counter
+ * example asks for a pull-up on the counting input so an unconnected pin does
+ * not float and count noise.
+ *
+ * Output speed is deliberately left at its reset value. ST asks for
+ * GPIO_SPEED_FREQ_HIGH for the console and MEDIUM for the LPTIM input, and
+ * neither pin is anywhere near needing either: the console changes state about
+ * 115 thousand times a second and the counting pin is an input, where the speed
+ * field governs the output driver and has nothing to do. Naming the reason beats
+ * copying the setting. */
+void board_pin_alternate(uint32_t port, uint32_t pin, uint32_t af, uint32_t pupd)
+{
+    /* Mode 10, alternate function, two bits per pin. */
+    uint32_t moder = GPIO_REG(port, GPIO_MODER);
+    moder &= ~(3u << (pin * 2u));
+    moder |=  (2u << (pin * 2u));
+    GPIO_REG(port, GPIO_MODER) = moder;
+
+    /* Push-pull, set explicitly so that a second call after something else used
+     * the pin does not inherit a different type. */
+    GPIO_REG(port, GPIO_OTYPER) &= ~(1u << pin);
+
+    uint32_t pupdr = GPIO_REG(port, GPIO_PUPDR);
+    pupdr &= ~(3u << (pin * 2u));
+    pupdr |=  (pupd << (pin * 2u));
+    GPIO_REG(port, GPIO_PUPDR) = pupdr;
+
+    const uint32_t reg   = (pin < 8u) ? GPIO_AFRL : GPIO_AFRH;
+    const uint32_t shift = ((pin < 8u) ? pin : (pin - 8u)) * 4u;
+
+    uint32_t afr = GPIO_REG(port, reg);
+    afr &= ~(0xFu << shift);
+    afr |=  (af   << shift);
+    GPIO_REG(port, reg) = afr;
+}
+
 static void pin_input_pull(uint32_t port, uint32_t pin, uint32_t pupd)
 {
     /* Mode 00, input, two bits per pin. */
@@ -125,6 +176,8 @@ void board_button_debug(uint32_t *moder, uint32_t *pupdr, uint32_t *idr)
 /* Inert rather than wrong. Writing to address zero would fault, and faulting is
  * not better than refusing: a fault at an LED call tells the reader nothing
  * about which manual to open. */
+void board_pin_alternate(uint32_t port, uint32_t pin, uint32_t af, uint32_t pupd)
+{ (void) port; (void) pin; (void) af; (void) pupd; }
 void board_led_set(board_led_t led, bool on)    { (void) led; (void) on; }
 void board_led_toggle(board_led_t led)          { (void) led; }
 bool board_button_pressed(void)                 { return false; }
