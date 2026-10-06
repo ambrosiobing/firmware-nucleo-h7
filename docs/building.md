@@ -125,3 +125,48 @@ the report is gone. The port buffers, so output that appears late may have been
 produced earlier; a capture without a timestamp cannot establish when a board did
 something, which has already produced one wrong conclusion about the part resetting
 every three seconds.
+
+## Reading what CI did, and what it costs to ask
+
+    python python/tools/read_ci.py                 the recent runs, one line each
+    python python/tools/read_ci.py <sha>           the jobs of one commit
+
+This reads the pages under `github.com` rather than `api.github.com`, and the
+reason is a mistake. The API allows 60 requests an hour per address without a
+token. On Monday 5 October 2026 a twenty second poll waiting for a run to finish
+spent 180 of them inside one hour, after which the question the poll had been
+asking could not be answered at all until the hour turned over. The run list and
+the per commit checks page carry the same facts, are served from a different and
+much larger budget, and are server rendered, which was not the expectation: the
+Actions view is a React application and the first guess was that a fetch would
+return an empty shell. The run rows are in the HTML. The job list on an
+individual run page is not, which is why the per commit view is
+`/commit/<sha>/checks` and not `/actions/runs/<id>`.
+
+A short SHA is expanded against the local clone before the request goes out,
+because `/commit/0e2c748/checks` answers 404 and that reads exactly like a commit
+that does not exist.
+
+**How to read a cancelled run, which took an hour to understand on Monday 5
+October 2026.** Six runs across two commits and all three workflows each lasted
+`15m 2s`. The run list calls every one of them failed. The run page's own icon
+calls it cancelled. The jobs say "This job was cancelled" with not one step
+having run. A green run of the same three workflows finishes in 32 to 39
+seconds, so the duration alone separates the two cases: about fifteen minutes
+with no steps is a job that never got a runner. Nothing in this repository asks
+for that. There is no `timeout-minutes` and no `concurrency` block in any of
+`checks.yml`, `code.yml` or `firmware.yml`, so no workflow edit can change it,
+and the five job identifiers in those files account for all five rows. The thing
+to do with such a run is to start it again, which every one of the three
+workflows allows through `workflow_dispatch` without a new commit.
+
+**What the reader refuses to do.** It parses markup that belongs to GitHub and
+can change without notice, and a parser that stops matching returns an empty
+list of runs, which reads exactly like a repository with nothing red in it. So
+zero parsed rows is a refusal with exit status 2 and the word REFUSED, never an
+empty table. It reads no step, no log, no annotation and no artefact, it cannot
+start or re-run anything, and it sees only what a signed out visitor sees. For a
+step list or a log, open the run in a browser, or spend the API quota
+deliberately and once. Nothing in the build or the test suite calls it, for the
+reason `python/tools/check_links.py` gives in its own header: a check that needs
+the network fails for reasons that have nothing to do with this repository.

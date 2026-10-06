@@ -187,7 +187,7 @@ Chapter NN is the written design for project PNN.
 | `rust/` | Rust that more than one project will use. No workspace file yet, deliberately: one listing no members would be a file that cannot be built |
 | `python/firmkit/` | Python that more than one project imports: the codec twin, the rate analysis, the serialisation-size arithmetic |
 | `python/tests/` | every suite, central, and none of which touches a device |
-| `python/tools/` | the codec generator, the host build, and the checks that prove the checks work, including `check_status.py` |
+| `python/tools/` | the codec generator, the host build, and the checks that prove the checks work, including `check_status.py`. Also `read_ci.py`, which reads what CI did from the `github.com` pages rather than the rate limited API, and which nothing in the build or the suite calls |
 | `CMakeLists.txt`, `cmake/arm-none-eabi.cmake` | the firmware build and the cross toolchain file, both P01's |
 | `requirements.txt` | `pytest`, and nothing else |
 | `requirements-hardware.txt` | what only matters when something is plugged in; the suite and the runner never install it |
