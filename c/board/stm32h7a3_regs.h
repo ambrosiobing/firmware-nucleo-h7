@@ -502,6 +502,13 @@
  *   run 12   279348956 Hz    (WIRE IN)       64188825 Hz        2950 ppm high
  *   run 13   not printed     (WIRE IN)       64203931 Hz        3186 ppm high
  *   run 14   279486828 Hz    (WIRE IN)       64205341 Hz        3208 ppm high
+ *   run 15   not printed     (COUNTER FIXED) 64168296 Hz        2630 ppm high
+ *   run 16   279411320 Hz    (COUNTER FIXED) 64177416 Hz        2772 ppm high
+ *
+ * RUN 15 IS THE LOWEST INTERNAL READING OF ALL SIXTEEN, 11794 Hz below the
+ * previous lowest, which widened the internal spread from 395 to 579 parts per
+ * million. Its core figure did not print because a 40 second capture window was
+ * no longer long enough for the report, which had grown; run 16 used 90.
  *
  * RUNS 6 AND 8 ARE HALF READINGS AND THE REASON IS WORTH RECORDING. Neither
  * core figure printed, because the black RESET button was pressed a second time
@@ -556,13 +563,17 @@
  *
  * AND THE INTERNAL SPREAD HAS NOW WIDENED TOO, AFTER HOLDING SIX TIMES. Runs 13
  * and 14 read 64203931 and 64205341, both above the 64202948 that had been the
- * ceiling since run 5. The internal spread goes from 357 parts per million
- * across twelve readings to 395 across fourteen. The core held at 1306 across
- * eleven.
+ * ceiling since run 5, which took the internal spread from 357 parts per million
+ * across twelve readings to 395 across fourteen. Run 15 then read 64168296,
+ * 11794 Hz BELOW the lowest of all fourteen, and took it to 579 across sixteen.
+ * The core, by contrast, held at 1306 across eleven readings and again across
+ * twelve when run 16 landed inside its existing span, which is the first bound
+ * on this board to survive a further reading instead of being widened by it.
  *
  * NO CAUSE IS OFFERED FOR THAT EITHER, and there is a difference worth naming
- * without attributing anything to it: runs 12, 13 and 14 are the first readings
+ * without attributing anything to it: runs 12 to 16 are the first readings
  * taken with the jumper fitted and LPTIM1 actually counting about a megahertz,
+ * and runs 15 and 16 the first with the counter's two defects fixed,
  * which no earlier reading had. That is a change in the conditions, not an
  * explanation, and this comment has already spent three explanations on this
  * quantity.
@@ -579,22 +590,35 @@
  *
  * The core read 998 parts per million across seven printed figures and then run
  * 10 came in at 279424340 Hz, which is 2056 parts per million below nominal and
- * 11028 Hz below the previous lowest reading. So the core spread is 1037 parts
- * per million across eight figures, and the claim that it had stopped moving
- * lasted about an hour.
+ * 11028 Hz below the previous lowest reading. So the core spread BECAME 1037
+ * parts per million across eight figures, and the claim that it had stopped
+ * moving lasted about an hour. It is 1306 across twelve now; the 1037 is kept
+ * here as the figure of that moment and not as a current one.
  *
  * WHICH IS THE FIFTH TIME IN TWO DAYS THAT NAMING A PATTERN HERE HAS INVITED THE
  * NEXT READING TO REMOVE IT: drift, temperature, and now a bound said to have
- * settled. The internal oscillator's 357 is the one figure that has survived
- * every test put to it, and even that is a bound and not a cause.
+ * settled. This paragraph then said the internal oscillator's 357 was the one
+ * figure that had survived every test put to it. IT DID NOT SURVIVE: runs 13 and
+ * 14 widened it to 395 and run 15 to 579, which makes this sentence the sixth
+ * instance of the thing it was written to warn about. The lesson it was reaching
+ * for stands and the example it chose was wrong, so both are left here.
 
  *
  * SO NO THIRD MECHANISM IS OFFERED HERE. Two were proposed from the pattern in
  * hand and the next observation removed each one, which is twice now that this
  * quantity has answered a guess with a correction. What survives is a bound and
- * not a cause: across fourteen readings the internal oscillator on this part
- * reproduces only to 395 parts per million on this bench, and nothing in this
+ * not a cause: across sixteen readings the internal oscillator on this part
+ * reproduces only to 579 parts per million on this bench, and nothing in this
  * repository may quote it, or any figure derived from it, to better than that.
+ *
+ * THAT BOUND HAS NOW WIDENED FIVE TIMES: 357 held through five readings, seven,
+ * nine, ten and twelve, then runs 13 and 14 took it to 395 and run 15 took it to
+ * 579. Each widening withdrew a claim this file or P01's page had just made about
+ * the quantity settling. The figure to quote is therefore the current bound and
+ * not a settled one, and the right way to read the history is that every attempt
+ * to say something more than "it scatters" has so far been removed by the next
+ * reading. The core, by contrast, held at 1306 parts per million across twelve
+ * readings when run 16 landed inside its existing span.
  *
  * AND THERE IS A THIRD PATTERN IN THE DATA, WHICH IS NAMED HERE AND NOT CLAIMED.
  * The four cold readings, runs 1, 4, 6 and 7, span 68 parts per million. The

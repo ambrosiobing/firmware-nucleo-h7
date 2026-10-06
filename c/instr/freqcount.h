@@ -213,11 +213,21 @@ uint32_t freqcount_ceiling_hz(void);
  * Its own resolution is reported by freqcount_resolution_mhz so a caller can
  * never quote a figure finer than the instrument supports. */
 /* TWO DEFECTS WERE FOUND IN THIS FUNCTION ON TUESDAY 6 OCTOBER 2026, the day the
- * counter first counted anything, and both are FIXED IN CODE AND NOT YET
- * CONFIRMED ON THE BOARD. They are recorded here rather than in a tracker
- * because a reader reaching for this declaration is exactly the reader who needs
- * them, and the state is written as two separate facts because they are two: the
- * code changed, and the hardware has not yet said so.
+ * counter first counted anything, and both are FIXED AND CONFIRMED ON THE BOARD
+ * the same day, runs 15 and 16. They are kept here rather than deleted because a
+ * reader reaching for this declaration is exactly the reader who needs to know
+ * what this function used to get wrong and how the fix was checked.
+ *
+ * THE CONFIRMATION, IN ONE NUMBER, AND IT IS NOT A FREQUENCY. The quantity that
+ * each defect moves is the IMPLIED GATE LENGTH: the measured rate divided by the
+ * rate the crystal-measured clock says the source must be, times the ticks
+ * asked for. Twelve ticks were asked for in all six readings:
+ *
+ *     before the fix    12.39, 12.46, 12.50 ticks     always above 12
+ *     after the fix     12.002, 11.999, 12.002        straddling 12
+ *
+ * Always above is a bias; straddling is noise. That is the whole result. The
+ * 256 tick gate reads 256.014, 256.008 and 256.000 after the fix.
  *
  * ONE: THE WRAP COUNT WAS SAMPLED TWICE, NOT ACCUMULATED. This function read the
  * counter once before the gate and once after. Each read could add at most one
@@ -266,18 +276,49 @@ uint32_t freqcount_ceiling_hz(void);
  * is the right instrument for something in P01 that must run while the core is
  * NOT in this loop; this measurement is that loop.
  *
- * WHAT THE BOARD HAS TO SHOW, AND IT IS NOT A ROUND NUMBER. With a source
- * derived from APB2 and a gate taken from the crystal, the parts per million
- * between the reading and the source must equal the clock's own offset, same
- * sign and size, within the 21 Hz a twelve-tick gate resolves, which at a
- * megahertz is about 21 ppm. So: about +3186 ppm on the reset clock and about
- * MINUS 1833 at the 280 MHz setting, where the broken version returned +41579,
- * +41877 and +32768. A return to exactly 1000000000 millihertz would be the
- * WRONG result to hope for, because the source is not exactly a megahertz: it is
- * APB2 over a whole number and carries this part's clock error with it.
- * p01-pll280 prints both figures so they can be compared without arithmetic, and
- * the long gate is kept beside the short one so that a shortfall which is a
- * whole number of 65536s would still be recognised if it came back. */
+ * WHAT THE BOARD SHOWED. The pass condition was that the parts per million
+ * between the reading and the source equal the clock's own offset, same sign and
+ * size, because the source is APB2 over a whole number and so follows the clock
+ * while the gate is the crystal. Subtracting one from the other leaves the
+ * instrument's own residual:
+ *
+ *     gate       run 15 reset   run 16 reset   run 16 at 280 MHz
+ *     256 ticks  +54 ppm        +33 ppm        -0.6 ppm
+ *     12 ticks   +165 ppm       -105 ppm       +140 ppm
+ *
+ * THE BEST READING THIS INSTRUMENT HAS TAKEN is the -0.6 ppm, inside its own
+ * one-hertz resolution over that gate. Two paths to one quantity, sharing no
+ * component but the crystal, agreeing to better than a part in a million.
+ *
+ * AND A CORRECTION TO HOW THE SHORT GATE WAS DESCRIBED HERE AND IN p01-pll280.
+ * It was called the sensitive one without saying sensitive to what. It is
+ * sensitive to a GATE-WIDTH error, which it amplifies about twenty-one fold over
+ * the long gate, and that is what it was built for. It is at the same time the
+ * LEAST precise frequency reading in the report, because one edge is 21 ppm
+ * there against 1 ppm over a second. Both statements are true and only the
+ * first was written, which made the short gate look like the better instrument
+ * when it is the better detector and the worse meter.
+ *
+ * SO THE RESIDUAL IS READ OFF THE LONG GATE AND NOT THE SHORT ONE. The short
+ * gate's three figures change sign, +165, -105, +140, which is scatter and not
+ * bias. Its own quantisation is one edge at each boundary, about 43 ppm, and the
+ * rest is the time taken by one pass of the waiting loop at each boundary, which
+ * is NOT MEASURED. That unmeasured figure is the one thing that would turn this
+ * scatter from unexplained into bounded, and measuring it is a separate job.
+ *
+ * NO CAUSE IS OFFERED for the long gate reading +54 and +33 at the reset clock
+ * and -0.6 at 280 MHz. There is one difference worth naming without attributing
+ * anything to it: at the reset clock both instruments are derived from the
+ * internal oscillator, whose reproducibility between runs on this bench is 579
+ * parts per million and whose stability WITHIN a run has never been measured,
+ * while at 280 MHz the chain runs from the debugger's 8 MHz in bypass. That is
+ * one observation at each clock. This page has already withdrawn four
+ * explanations of this part's clock scatter, so it offers no fifth.
+ *
+ * A return to exactly 1000000000 millihertz would have been the WRONG result to
+ * hope for, because the source is not exactly a megahertz. The long gate is kept
+ * beside the short one so that a shortfall which is a whole number of 65536s
+ * would still be recognised if it came back. */
 uint64_t freqcount_measure_mhz(uint32_t gate_ms);
 
 uint64_t freqcount_resolution_mhz(uint32_t gate_ms);
