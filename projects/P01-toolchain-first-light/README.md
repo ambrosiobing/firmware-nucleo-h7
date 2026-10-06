@@ -555,6 +555,21 @@ Shared, at the repository root, because every project links or uses it:
     c/instr/lseref.h              the crystal reference's interface
     c/instr/lseref.c              starts the crystal and counts core cycles
                                   against its sub-second tick
+    c/instr/freqcount.h           the frequency counter's design, and the two
+                                  times it changed
+    c/instr/freqcount.c           LPTIM1 counting edges on PD12, gated by the
+                                  crystal
+    c/instr/freqmath.h            and its arithmetic, which reads no register
+    c/instr/freqmath.c            so a host can test the divide
+    c/instr/pwmsrc.h              the signal source's design, and why a self
+                                  test was rejected for a feedback loop
+    c/instr/pwmsrc.c              TIM1 channel 3 on PE13, the known frequency
+                                  the counter needs in order to be shown to
+                                  count at all
+    c/instr/pwmmath.h             and its arithmetic, split out before the
+                                  driver existed rather than after
+    c/instr/pwmmath.c             the prescaler choice, the two off-by-ones and
+                                  four refusals
     python/tools/gen_clock_vectors.py
                                   the oracle's double entry, run by hand
 
@@ -563,7 +578,7 @@ This project's own, in this directory:
     c/main.c                      first light: LED, banner, button
     c/pll280.c                    the raise to 280 MHz, and the measurement
     clock_vectors.json            the oracle: 20 decode rows and 8 bias rows,
-                                  two of the 17 read off this board
+                                  two of the 20 read off this board
     PROTOCOL.md                   the line protocol the C++ and Rust filters
                                   speak, so one parity test drives both
     cpp/clocktree.hpp             the decode in C++17, header only

@@ -258,11 +258,18 @@ add_firmware(p01-first-light
 # the crystal the counter gates on, so exercising it here costs one flash instead
 # of two. P06's targets link it as well and are the ones that will use it in
 # anger; this image only asks whether it initialises.
+# pwmsrc.c and pwmmath.c join it on Tuesday 6 October 2026. TIM1 channel 3 on
+# PE13 is the known frequency the counter needs in order to be shown to count at
+# all, and one wire from PE13 to PD12 completes the arrangement. Linked here
+# rather than in a separate image because the experiment IS this image: raise the
+# clock, start the source, count it against the crystal.
 add_firmware(p01-pll280
     SOURCES projects/P01-toolchain-first-light/c/pll280.c
             c/instr/lseref.c
             c/instr/freqcount.c
             c/instr/freqmath.c
+            c/instr/pwmsrc.c
+            c/instr/pwmmath.c
     INCLUDES c/instr)
 
 # P02, the ring buffer on the target, which is the only place its deliverable can
