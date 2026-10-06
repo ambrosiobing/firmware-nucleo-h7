@@ -495,13 +495,30 @@
  *   run 5    279624968 Hz    (warm)          64202948 Hz        3171 ppm high
  *   run 6    not printed     (cold)          64189988 Hz        2969 ppm high
  *   run 7    279541148 Hz    (cold)          64192428 Hz        3007 ppm high
+ *   run 8    not printed     (not noted)     64194888 Hz        3045 ppm high
+ *   run 9    279692180 Hz    (not noted)     64190072 Hz        2970 ppm high
  *
- * RUN 6 IS HALF A READING AND THE REASON IS WORTH RECORDING. Its core figure
- * never printed because the black RESET button was pressed a second time while
- * the first report was still going out of the port, which truncated it mid
- * sentence. So runs 6 and 7 are seconds apart, both cold, and they are closer to
- * one sample of the cold state than to two. The internal figure survived in both
- * because the image prints it before the clock is raised.
+ * RUNS 6 AND 8 ARE HALF READINGS AND THE REASON IS WORTH RECORDING. Neither
+ * core figure printed, because the black RESET button was pressed a second time
+ * while the first report was still going out of the port, which truncated it
+ * mid sentence. It happened twice, on two separate captures, so it is a property
+ * of the arrangement rather than a slip: the report takes about ten seconds, two
+ * one-second gates plus the printing, and a second press inside that window
+ * loses the second half. The internal figure survives because the image prints
+ * it before the clock is raised. So runs 6 and 7 are seconds apart and closer to
+ * one sample than two, and the same is true of 8 and 9.
+ *
+ * RUNS 8 AND 9 CARRY NO THERMAL STATE, which is deliberate rather than an
+ * oversight. The board had been powered through a build and was then reflashed
+ * and reset, and nobody wrote down how long. Guessing would be worse than
+ * leaving it blank, and it is a third reason not to claim the cold against warm
+ * pattern below.
+ *
+ * AND THEY COME FROM A DIFFERENT IMAGE. From Tuesday 6 October 2026 p01-pll280
+ * also runs TIM1 channel 3 at one megahertz, so runs 8 and 9 were taken with a
+ * timer running that runs 1 to 7 did not have. Nothing in the measurement path
+ * touches TIM1, and the readings land inside the previous span, but the binary
+ * is not the same one and this record says so.
  *
  * THE CORE IS SCATTER AND NOT DRIFT, and the difference matters because the
  * first two runs looked like drift. The readings span 998 parts per million with
@@ -530,13 +547,19 @@
  * warm differ at all or whether this is simply scatter, so two cold readings
  * were taken after five minutes unpowered. Both land INSIDE the previous five:
  * 64189988 and 64192428 against a span that already ran from 64180090 to
- * 64202948. The spread over seven readings is the same 357 parts per million it
- * was over five, to the hertz.
+ * 64202948.
+ *
+ * AND THE SPREAD HAS NOT MOVED THROUGH THREE ROUNDS OF THIS. It was 357 parts
+ * per million on five readings, 357 on seven, and 357 on nine, to the hertz each
+ * time, because every reading after the fifth has landed inside the span the
+ * first five set. The core's 998 parts per million has done the same across
+ * seven printed core figures. A bound that four later observations failed to
+ * widen is a different kind of statement from a bound measured once.
  *
  * SO NO THIRD MECHANISM IS OFFERED HERE. Two were proposed from the pattern in
  * hand and the next observation removed each one, which is twice now that this
  * quantity has answered a guess with a correction. What survives is a bound and
- * not a cause: across seven readings the internal oscillator on this part
+ * not a cause: across nine readings the internal oscillator on this part
  * reproduces only to 357 parts per million on this bench, and nothing in this
  * repository may quote it, or any figure derived from it, to better than that.
  *
@@ -545,12 +568,14 @@
  * three warm ones, runs 2, 3 and 5, span the whole 357. Read quickly that says
  * the warm readings are the unstable ones.
  *
- * It is not claimed, for three reasons, and the reasons are the point. Runs 6
+ * It is not claimed, for four reasons, and the reasons are the point. Runs 6
  * and 7 are seconds apart and are close to one sample, so the cold set has three
  * independent members and not four. The word warm means a different duration in
  * each of runs 2, 3 and 5, because only run 5 was taken with the elapsed time
- * written down. And this quantity has already offered two patterns that looked
- * at least this good and the next observation removed both.
+ * written down. Runs 8 and 9 carry no thermal state at all, so the two newest
+ * readings cannot be sorted into either group. And this quantity has already
+ * offered two patterns that looked at least this good and the next observation
+ * removed both.
  *
  * WHAT WOULD TEST IT, so the next person does not have to invent the design:
  * five or more readings in each state, with warm defined as a stated number of
@@ -1213,6 +1238,17 @@
 /* TIM1's clock enable. RCC_APB2ENR is at 0x150, from this file's own validated
  * table and confirmed by the struct walk above; ST's trailing comment says 0xF0
  * and is the H743's. TIM1EN is bit 0, from RCC_APB2ENR_TIM1EN_Pos. */
+/* AND 0x150 IS CONFIRMED ON THE BOARD AS OF TUESDAY 6 OCTOBER 2026, which is
+ * worth stating because this is the one place in this header where a walk of
+ * ST's struct was trusted over ST's own comment.
+ *
+ * The argument is short. If this address were wrong, TIM1EN would be written
+ * somewhere else, TIM1 would stay unclocked, and writes to its registers would
+ * not stick. pwmsrc_start reads PSC, ARR, CCR3, CCMR2 and CCER back before it
+ * enables the output, and on p01-pll280 it returned ok at both clocks with the
+ * fields holding what was written. So the clock enable reached TIM1, so this
+ * offset is right and the 0xF0 in ST's comment is the H743's. The same run
+ * confirms TIM1_BASE at 0x40010000 by the same reasoning. */
 #define RCC_APB2ENR             REG32(RCC_BASE + 0x150u)
 #define RCC_APB2ENR_TIM1EN_POS  0u
 #define RCC_APB2ENR_TIM1EN      (1u << RCC_APB2ENR_TIM1EN_POS)

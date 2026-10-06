@@ -17,8 +17,8 @@ What is measured and what it rests on:
 | User button on PC13 | input with a pull-down, active high |
 | Core, AHB, APB1 clocks | 64 MHz at reset, decoded from RCC at startup rather than hardcoded |
 | The 280 MHz tree | reached Sunday 4 October 2026 by `p01-pll280`: the configuration is at the target, AHB and APB1 at half the core, every one of eight steps reading back what it wrote |
-| The core clock, **measured six times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208**, **279 624 968** and **279 541 148 Hz** against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306, 1339 and 1639 parts per million below the 280 MHz nominal. Always low, never the same, spanning 998 parts per million with no trend, so the sign reproduces and the digits do not. The cause is the debugger's clock output, which the six runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549, 7 989 285 and 7 986 890 Hz. A seventh run measured the reset clock only, because a second RESET press truncated its report |
-| The reset clock, **measured seven times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988**, **64 202 948**, **64 189 988** and **64 192 428 Hz** against the same crystal, spanning 357 parts per million where the PLL spans 998. Two explanations have been offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5, so no third is offered. Runs 6 and 7 were taken cold to ask whether cold and warm differ at all, and both landed inside the previous five without widening the spread by one part per million. What stands is a bound: this oscillator reproduces to 357 parts per million on this bench and no better |
+| The core clock, **measured seven times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208**, **279 624 968**, **279 541 148** and **279 692 180 Hz** against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306, 1339, 1639 and 1099 parts per million below the 280 MHz nominal. Always low, never the same, spanning 998 parts per million with no trend, so the sign reproduces and the digits do not, and four readings after the fifth have failed to widen that spread by one part per million. The cause is the debugger's clock output, which the seven runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549, 7 989 285, 7 986 890 and 7 991 205 Hz. Two further runs measured the reset clock only, because in each a second RESET press truncated the report before its core figure printed |
+| The reset clock, **measured nine times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988**, **64 202 948**, **64 189 988**, **64 192 428**, **64 194 888** and **64 190 072 Hz** against the same crystal, spanning 357 parts per million where the PLL spans 998. Two explanations have been offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5, so no third is offered. The spread was 357 parts per million on five readings, 357 on seven and 357 on nine, to the hertz each time, because every reading after the fifth has landed inside the span the first five set. What stands is a bound that four later observations failed to widen: this oscillator reproduces to 357 parts per million on this bench and no better |
 | Oscillator | 64.17 to 64.18 MHz, six reductions, two instruments, spread 0.031 per cent |
 | Delay loop | 9.00 cycles per iteration at 64 MHz and 8.96 at 280 MHz, the same binary, measured against `DWT_CYCCNT` every boot |
 | A 100 ms request | lands within 20 parts per million, checked by the part itself |
@@ -59,17 +59,22 @@ iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
 which says the loop's cost barely moved and is a fact about the flash and the
 pipeline rather than about the clock.
 
-## The core clock, measured seven times, and two explanations refuted
+## The core clock, measured nine times, and two explanations refuted
 
 **This is the first frequency in this volume that is measured rather than
 derived**, it does not agree with the nominal, and it does not agree with itself.
-Seven runs of the same image on the same board, each gated by this board's own
-32.768 kHz crystal over one second. Runs 1 to 3 are Sunday 4 October 2026,
-minutes to hours apart. Run 4 is Monday 5 October 2026 after about eight hours
-with the board away, so cold. Runs 5 to 7 are Tuesday 6 October 2026: run 5 after
-about fifteen minutes at 280 MHz, so warm, and runs 6 and 7 after five minutes
-unpowered, so cold. The last three were each taken to settle a question rather
-than to add a number, and the questions are below the table:
+Nine runs on the same board, each gated by this board's own 32.768 kHz crystal
+over one second. Runs 1 to 3 are Sunday 4 October 2026, minutes to hours apart.
+Run 4 is Monday 5 October 2026 after about eight hours with the board away, so
+cold. Runs 5 to 9 are Tuesday 6 October 2026: run 5 after about fifteen minutes
+at 280 MHz, so warm; runs 6 and 7 after five minutes unpowered, so cold; and runs
+8 and 9 with the thermal state not written down, which is recorded as a blank
+rather than guessed at.
+
+**Runs 8 and 9 also come from a different image**, and the record says so: from
+Tuesday 6 October 2026 `p01-pll280` also runs TIM1 channel 3 at one megahertz.
+Nothing in the measurement path touches TIM1 and both readings land inside the
+existing span, but the binary is not the same one that produced runs 1 to 7:
 
 | | the core | against 280 MHz | the internal oscillator | against 64 MHz | the implied input |
 |---|---|---|---|---|---|
@@ -80,13 +85,18 @@ than to add a number, and the questions are below the table:
 | run 5 | **279 624 968 Hz** (warm) | 1339 ppm low | 64 202 948 Hz | 3171 ppm high | 7 989 285 Hz |
 | run 6 | not printed (cold) | | 64 189 988 Hz | 2969 ppm high | |
 | run 7 | **279 541 148 Hz** (cold) | 1639 ppm low | 64 192 428 Hz | 3007 ppm high | 7 986 890 Hz |
+| run 8 | not printed | | 64 194 888 Hz | 3045 ppm high | |
+| run 9 | **279 692 180 Hz** | 1099 ppm low | 64 190 072 Hz | 2970 ppm high | 7 991 205 Hz |
 
-**Run 6 is half a reading, and the reason belongs in the record.** Its core figure
-never printed because the black RESET button was pressed a second time while the
-first report was still going out of the port, which cut it off mid sentence. So
-runs 6 and 7 are seconds apart, both cold, and together they are closer to one
-sample of the cold state than to two. The internal figure survived in both,
-because the image reports it before the clock is raised.
+**Runs 6 and 8 are half readings, and the reason belongs in the record.** Neither
+core figure printed, because the black RESET button was pressed a second time
+while the first report was still going out of the port, which cut it off mid
+sentence. It happened on two separate captures, so it is a property of the
+arrangement and not a slip: the report takes about ten seconds, two one-second
+gates plus the printing, and a second press inside that window loses the second
+half. The internal figure survives because the image reports it before the clock
+is raised. So runs 6 and 7 are seconds apart and closer to one sample than two,
+and the same is true of 8 and 9.
 
 **The core is scatter and not drift**, and the first two runs looked like drift.
 The readings span 998 parts per million with run 2 lowest, run 3 highest and runs
@@ -118,9 +128,16 @@ against a span that already ran from 64 180 090 to 64 202 948, and the spread
 over seven readings is the same 357 parts per million it was over five, to the
 hertz.
 
+**And the spread has not moved through three rounds of this.** It was 357 parts
+per million on five readings, 357 on seven, and 357 on nine, to the hertz each
+time, because every reading after the fifth has landed inside the span the first
+five set. The core's 998 parts per million has done the same across seven printed
+core figures. A bound that four later observations failed to widen is a different
+kind of statement from a bound measured once.
+
 **So no third mechanism is offered.** Two were proposed from the pattern in hand
 and the next observation removed each one. What survives is a bound and not a
-cause: across seven readings this part's internal oscillator reproduces only to
+cause: across nine readings this part's internal oscillator reproduces only to
 **357 parts per million** on this bench, and nothing here may quote it, or any
 figure derived from it, to better than that.
 
@@ -129,12 +146,13 @@ it.** The four cold readings, runs 1, 4, 6 and 7, span 68 parts per million; the
 three warm ones, runs 2, 3 and 5, span the whole 357. Read quickly, that says the
 warm readings are the unstable ones.
 
-It is not claimed, and the three reasons are the point. Runs 6 and 7 are seconds
+It is not claimed, and the four reasons are the point. Runs 6 and 7 are seconds
 apart and amount to about one sample, so the cold set has three independent
 members rather than four. The word warm means a different duration in each of
 runs 2, 3 and 5, because only run 5 was taken with the elapsed time written down.
-And this quantity has already offered two patterns that looked at least this
-convincing, and the next observation removed both.
+Runs 8 and 9 carry no thermal state at all, so the two newest readings cannot be
+sorted into either group. And this quantity has already offered two patterns that
+looked at least this convincing, and the next observation removed both.
 
 **What would test it**, so nobody has to invent the design later: five or more
 readings in each state, with warm defined as a stated number of minutes at
@@ -245,6 +263,20 @@ are possible and the report says which one it got:
 | `measured 0 millihertz while the source produces 1000000000` | the source runs and no wire carries it. This is the reading to expect until PE13, Arduino D3, is joined to PD12, Arduino D29 |
 | the two figures a few parts per million apart | the counting path works, and the crystal gate and the PLL agree to that figure through paths sharing no component but the crystal |
 | `pwmsrc_start apb2-prescaler-undecoded` | `CDPPRE2` is not at divide by one, so the timer clock depends on the half of the `TIMPRE` rule that lives in RM0455 and has not been read. A refusal rather than a guess |
+
+**It got the first of those on Tuesday 6 October 2026, and three things that no
+host could settle held with it.**
+
+| | |
+|---|---|
+| **`RCC_APB2ENR` is at `0x150`, not the `0xF0` ST's comment says** | This header took `0x150` from walking `RCC_TypeDef` by declaration order rather than reading its trailing comments, which are the STM32H743's from `RSR` onward. If the address were wrong, `TIM1EN` would be written elsewhere, TIM1 would stay unclocked, and its registers would not hold writes. `pwmsrc_start` reads `PSC`, `ARR`, `CCR3`, `CCMR2` and `CCER` back before enabling the output and returned `ok` at both clocks, so the enable reached TIM1. The same argument confirms `TIM1_BASE` at `0x40010000` |
+| **the APB2 decode** | the source reported its timer clock as 64 000 000 Hz on the reset clock and 140 000 000 Hz after the raise, both with `CDPPRE2` at divide by one, which is the field added to the decode the same day |
+| **the arithmetic, against the hardware rather than against a table** | `PSC 0 ARR 63 CCR3 32` at 64 MHz and `PSC 0 ARR 139 CCR3 70` at 140 MHz, both reported as producing exactly 1 000 000 000 millihertz, 0 ppm from the target. Those are the fields `python/tests/test_pwmmath.py` predicts from the definition, now written into a real timer that accepted them |
+
+**What it still does not show** is that the pin wiggles. Every readback confirms
+the registers hold what was intended, including the `MOE` bit the output is gated
+by, and none of that is the same as an edge arriving somewhere. Only the wire
+settles that, and the counter is what will say so.
 
 **One megahertz is not an arbitrary target.** It divides both timer clocks
 exactly, and with different fields: PSC 0 and ARR 63 at the reset clock's 64 MHz
