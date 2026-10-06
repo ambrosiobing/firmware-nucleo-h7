@@ -106,6 +106,7 @@ the build and several of them name nothing.
 | Target                  | Chapter | State |
 | ----------------------- | ------- | ----- |
 | `p01-first-light`       | 1       | runs on the board |
+| `p01-pll280`            | 1       | runs on the board. The raise to 280 MHz in eight gated steps, then the clock measured against the 32.768 kHz crystal, then the frequency counter and the signal source. This is the image every measured frequency in the volume comes from. It was missing from this table from Sunday 4 October 2026 until Tuesday 6 October 2026, which is what `python/tests/test_target_table_is_complete.py` now exists to prevent |
 | `p02-ring-<mode>`, four of them | 2 | runs on the board |
 | `p06-sampling-<backend>`, three | 6 | has no independent build check, no CMSIS pack in CI |
 | `p09-codec`             | 9       | runs on the board |
