@@ -17,8 +17,8 @@ What is measured and what it rests on:
 | User button on PC13 | input with a pull-down, active high |
 | Core, AHB, APB1 clocks | 64 MHz at reset, decoded from RCC at startup rather than hardcoded |
 | The 280 MHz tree | reached Sunday 4 October 2026 by `p01-pll280`: the configuration is at the target, AHB and APB1 at half the core, every one of eight steps reading back what it wrote |
-| The core clock, **measured five times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208** and **279 624 968 Hz** against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306 and 1339 parts per million below the 280 MHz nominal. Always low, never the same, spanning 998 parts per million with no trend, so the sign reproduces and the digits do not. The cause is the debugger's clock output, which the five runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549 and 7 989 285 Hz |
-| The reset clock, **measured five times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988** and **64 202 948 Hz** against the same crystal, spanning 357 parts per million where the PLL spans 998. Two explanations have been offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5, so no third is offered. What stands is a bound: this oscillator reproduces to 357 parts per million on this bench and no better |
+| The core clock, **measured six times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208**, **279 624 968** and **279 541 148 Hz** against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306, 1339 and 1639 parts per million below the 280 MHz nominal. Always low, never the same, spanning 998 parts per million with no trend, so the sign reproduces and the digits do not. The cause is the debugger's clock output, which the six runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549, 7 989 285 and 7 986 890 Hz. A seventh run measured the reset clock only, because a second RESET press truncated its report |
+| The reset clock, **measured seven times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988**, **64 202 948**, **64 189 988** and **64 192 428 Hz** against the same crystal, spanning 357 parts per million where the PLL spans 998. Two explanations have been offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5, so no third is offered. Runs 6 and 7 were taken cold to ask whether cold and warm differ at all, and both landed inside the previous five without widening the spread by one part per million. What stands is a bound: this oscillator reproduces to 357 parts per million on this bench and no better |
 | Oscillator | 64.17 to 64.18 MHz, six reductions, two instruments, spread 0.031 per cent |
 | Delay loop | 9.00 cycles per iteration at 64 MHz and 8.96 at 280 MHz, the same binary, measured against `DWT_CYCCNT` every boot |
 | A 100 ms request | lands within 20 parts per million, checked by the part itself |
@@ -59,16 +59,17 @@ iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
 which says the loop's cost barely moved and is a fact about the flash and the
 pipeline rather than about the clock.
 
-## The core clock, measured five times, and two explanations refuted
+## The core clock, measured seven times, and two explanations refuted
 
 **This is the first frequency in this volume that is measured rather than
 derived**, it does not agree with the nominal, and it does not agree with itself.
-Five runs of the same image on the same board, each gated by this board's own
+Seven runs of the same image on the same board, each gated by this board's own
 32.768 kHz crystal over one second. Runs 1 to 3 are Sunday 4 October 2026,
 minutes to hours apart. Run 4 is Monday 5 October 2026 after about eight hours
-with the board away, so cold. Run 5 is Tuesday 6 October 2026 after about fifteen
-minutes powered and running at 280 MHz, so warm, and it was taken on purpose to
-test a prediction this section used to make:
+with the board away, so cold. Runs 5 to 7 are Tuesday 6 October 2026: run 5 after
+about fifteen minutes at 280 MHz, so warm, and runs 6 and 7 after five minutes
+unpowered, so cold. The last three were each taken to settle a question rather
+than to add a number, and the questions are below the table:
 
 | | the core | against 280 MHz | the internal oscillator | against 64 MHz | the implied input |
 |---|---|---|---|---|---|
@@ -77,6 +78,15 @@ test a prediction this section used to make:
 | run 3 | **279 714 764 Hz** | 1019 ppm low | 64 180 090 Hz | 2814 ppm high | 7 991 850 Hz |
 | run 4 | **279 634 208 Hz** (cold) | 1306 ppm low | 64 191 988 Hz | 3000 ppm high | 7 989 549 Hz |
 | run 5 | **279 624 968 Hz** (warm) | 1339 ppm low | 64 202 948 Hz | 3171 ppm high | 7 989 285 Hz |
+| run 6 | not printed (cold) | | 64 189 988 Hz | 2969 ppm high | |
+| run 7 | **279 541 148 Hz** (cold) | 1639 ppm low | 64 192 428 Hz | 3007 ppm high | 7 986 890 Hz |
+
+**Run 6 is half a reading, and the reason belongs in the record.** Its core figure
+never printed because the black RESET button was pressed a second time while the
+first report was still going out of the port, which cut it off mid sentence. So
+runs 6 and 7 are seconds apart, both cold, and together they are closer to one
+sample of the cold state than to two. The internal figure survived in both,
+because the image reports it before the clock is raised.
 
 **The core is scatter and not drift**, and the first two runs looked like drift.
 The readings span 998 parts per million with run 2 lowest, run 3 highest and runs
@@ -100,11 +110,36 @@ for a while should fall again toward 64 180 000. Run 5 is that reading, taken wa
 on purpose. It is 64 202 948 Hz: **22 948 Hz above the figure the prediction
 named, 10 960 Hz above the cold run 4, and the highest of all five.** Refuted.
 
+**Runs 6 and 7 were taken to close the question, and they closed it.** With the
+temperature direction refuted, what remained was whether cold and warm differ at
+all or whether this is simply scatter. Two cold readings after five minutes
+unpowered both land **inside** the previous five, 64 189 988 and 64 192 428
+against a span that already ran from 64 180 090 to 64 202 948, and the spread
+over seven readings is the same 357 parts per million it was over five, to the
+hertz.
+
 **So no third mechanism is offered.** Two were proposed from the pattern in hand
 and the next observation removed each one. What survives is a bound and not a
-cause: across five readings this part's internal oscillator reproduces only to
+cause: across seven readings this part's internal oscillator reproduces only to
 **357 parts per million** on this bench, and nothing here may quote it, or any
 figure derived from it, to better than that.
+
+**There is a third pattern in the data, and this page names it without claiming
+it.** The four cold readings, runs 1, 4, 6 and 7, span 68 parts per million; the
+three warm ones, runs 2, 3 and 5, span the whole 357. Read quickly, that says the
+warm readings are the unstable ones.
+
+It is not claimed, and the three reasons are the point. Runs 6 and 7 are seconds
+apart and amount to about one sample, so the cold set has three independent
+members rather than four. The word warm means a different duration in each of
+runs 2, 3 and 5, because only run 5 was taken with the elapsed time written down.
+And this quantity has already offered two patterns that looked at least this
+convincing, and the next observation removed both.
+
+**What would test it**, so nobody has to invent the design later: five or more
+readings in each state, with warm defined as a stated number of minutes at
+280 MHz and recorded per reading, then the two spreads compared. Until that
+exists, the bound above is the whole of what this board supports.
 
 That is worth more than a mechanism would have been. A cause stated from four
 points and believed would have been carried into every later chapter; a bound

@@ -479,12 +479,13 @@
 
 /* WHAT 280 MHz ACTUALLY MEASURES AS, WHICH IS A DIFFERENT NUMBER EVERY TIME.
  * The constant above is the target of a configuration. Below are observations,
- * five of them, on this board, from the same image gated by this board's
+ * seven of them, on this board, from the same image gated by this board's
  * 32.768 kHz crystal over one second. Runs 1 to 3 are Sunday 4 October 2026,
  * minutes to hours apart. Run 4 is Monday 5 October 2026 after about eight hours
- * with the board away, so cold. Run 5 is Tuesday 6 October 2026 after about
- * fifteen minutes powered and running at 280 MHz, so warm, and it was taken
- * deliberately to test a prediction this comment used to make:
+ * with the board away, so cold. Runs 5 to 7 are Tuesday 6 October 2026: run 5
+ * after about fifteen minutes powered and running at 280 MHz, so warm, and runs
+ * 6 and 7 after five minutes unpowered, so cold. Runs 5, 6 and 7 were each taken
+ * to settle a question rather than to add a number.
  *
  *            the core        vs nominal      the internal osc   vs nominal
  *   run 1    279672822 Hz    1019 to 2017    64194318 Hz        3036 ppm high
@@ -492,12 +493,22 @@
  *   run 3    279714764 Hz    nominal         64180090 Hz        2814 ppm high
  *   run 4    279634208 Hz    (cold)          64191988 Hz        3000 ppm high
  *   run 5    279624968 Hz    (warm)          64202948 Hz        3171 ppm high
+ *   run 6    not printed     (cold)          64189988 Hz        2969 ppm high
+ *   run 7    279541148 Hz    (cold)          64192428 Hz        3007 ppm high
+ *
+ * RUN 6 IS HALF A READING AND THE REASON IS WORTH RECORDING. Its core figure
+ * never printed because the black RESET button was pressed a second time while
+ * the first report was still going out of the port, which truncated it mid
+ * sentence. So runs 6 and 7 are seconds apart, both cold, and they are closer to
+ * one sample of the cold state than to two. The internal figure survived in both
+ * because the image prints it before the clock is raised.
  *
  * THE CORE IS SCATTER AND NOT DRIFT, and the difference matters because the
  * first two runs looked like drift. The readings span 998 parts per million with
- * run 2 lowest and run 3 highest and runs 4 and 5 in the middle, so there is no
- * trend to extrapolate and no latest value to prefer. Five runs have not widened
- * that spread at all, which is the one thing about this quantity that has held.
+ * run 2 lowest and run 3 highest and the rest in the middle, so there is no
+ * trend to extrapolate and no latest value to prefer. Seven runs have not
+ * widened that spread by one part per million, which is the one thing about this
+ * quantity that has held through three refuted explanations.
  *
  * AND THE INTERNAL OSCILLATOR HAS NOW REFUTED TWO EXPLANATIONS IN A ROW, both of
  * them written here, both of them read off the data that existed at the time.
@@ -514,12 +525,37 @@
  * figure the prediction named, 10960 Hz above the cold run 4, and the HIGHEST of
  * all five. Refuted.
  *
+ * RUNS 6 AND 7 WERE TAKEN TO CLOSE THE QUESTION AND THEY CLOSED IT. With the
+ * temperature direction refuted, the remaining question was whether cold and
+ * warm differ at all or whether this is simply scatter, so two cold readings
+ * were taken after five minutes unpowered. Both land INSIDE the previous five:
+ * 64189988 and 64192428 against a span that already ran from 64180090 to
+ * 64202948. The spread over seven readings is the same 357 parts per million it
+ * was over five, to the hertz.
+ *
  * SO NO THIRD MECHANISM IS OFFERED HERE. Two were proposed from the pattern in
  * hand and the next observation removed each one, which is twice now that this
  * quantity has answered a guess with a correction. What survives is a bound and
- * not a cause: across five readings the internal oscillator on this part
+ * not a cause: across seven readings the internal oscillator on this part
  * reproduces only to 357 parts per million on this bench, and nothing in this
  * repository may quote it, or any figure derived from it, to better than that.
+ *
+ * AND THERE IS A THIRD PATTERN IN THE DATA, WHICH IS NAMED HERE AND NOT CLAIMED.
+ * The four cold readings, runs 1, 4, 6 and 7, span 68 parts per million. The
+ * three warm ones, runs 2, 3 and 5, span the whole 357. Read quickly that says
+ * the warm readings are the unstable ones.
+ *
+ * It is not claimed, for three reasons, and the reasons are the point. Runs 6
+ * and 7 are seconds apart and are close to one sample, so the cold set has three
+ * independent members and not four. The word warm means a different duration in
+ * each of runs 2, 3 and 5, because only run 5 was taken with the elapsed time
+ * written down. And this quantity has already offered two patterns that looked
+ * at least this good and the next observation removed both.
+ *
+ * WHAT WOULD TEST IT, so the next person does not have to invent the design:
+ * five or more readings in each state, with warm defined as a stated number of
+ * minutes at 280 MHz and recorded per reading, and the two spreads compared.
+ * Until that exists the bound above is the whole of what this board supports.
  *
  * SO NO PER-RUN CONSTANT LIVES HERE EITHER. For part of Sunday 4 October 2026
  * this file carried CORE_HZ_MEASURED as nine digits, and then CORE_HZ_MEASURED_1
