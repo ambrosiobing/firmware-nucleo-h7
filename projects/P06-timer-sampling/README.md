@@ -168,6 +168,35 @@ because `EXTSEL` selects a trigger for a peripheral that is not configured and
 the timer clock drives a TRGO that nothing consumes. The honest order is the
 bring-up first, then the three values, then a measurement.
 
+### The converter bring-up: what reading ST's HAL established, and what it did not
+
+`stm32h7xx_hal_adc.c` from STM32Cube_FW_H7_V1.13.0 was searched on Tuesday 6
+October 2026 for the six fields that decide this. It is a transcription job from
+ST's C into register writes, and the point of searching before writing is that
+three of the findings are traps a clean transcription walks straight into.
+
+| what the search found | why it matters |
+|---|---|
+| **`PCSEL` has two spellings**, at lines 2901 and 2905: `PCSEL_RES0` in one branch and `PCSEL` in the other | channel preselection is H7-specific, and which name applies to this part is a conditional in ST's own source rather than a fact about the family. Material written for another STM32 family has no such register at all, so a sequence copied from one reads as complete and samples nothing |
+| **a silicon erratum workaround**, lines 3713 to 3716: "if `ADEN` is set less than 4 ADC clock cycles after the `ADCAL` bit ... continue setting `ADEN` until `ADRDY` becomes 1" | the obvious implementation, one write to `ADEN` then poll `ADRDY`, is WRONG. The enable has to be re-asserted inside the wait. A converter that starts most of the time is worse than one that refuses |
+| **`ADCAL`, `ADDIS` and `ADEN` are "read-set"**, line 906 | they cannot be cleared by writing zero, so the read-modify-write habit that works on every other register here silently does nothing |
+| **boost mode is its own function**, `ADC_ConfigureBoostMode` called at lines 781 and 785 | the setting depends on the ADC clock frequency, and this board's clock is the quantity seven explanations have been withdrawn for. The honest implementation computes it from `board_pclk2_hz()` and refuses outside the range it can justify, rather than hard-coding a value that happens to work |
+
+**And what the search did NOT establish**, which is why no code was written from
+it. The lines found for `DEEPPWD` and `ADVREGEN`, 909 and 910, are the **deinit**
+path: they set deep power-down and clear the regulator, which is the sequence for
+putting the converter away. The init path's opposite lives in ST's LL header and
+has not been read, so the START of the sequence is still missing. So is the
+ordering between calibration, enable and channel configuration, and so is the
+regulator's start-up wait, which is a time rather than a flag and therefore the
+one step a missing delay turns into a build that works on a fast image and fails
+on a slow one.
+
+**Three further reads settle it**: `LL_ADC_DisableDeepPowerDown` and
+`LL_ADC_EnableInternalRegulator` in the LL header for the entry sequence,
+`ADC_ConfigureBoostMode`'s body for the clock-dependent rule, and which of the
+two `PCSEL` branches this part compiles. None of them needs the board.
+
 **What the three images do today** is compile, link, start, print which value is
 unconfirmed, and stop. That is the refusal path working, and it is the correct
 behaviour for a project whose central claim is that a clean square wave at the
