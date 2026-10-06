@@ -557,6 +557,64 @@ static void report_freqcount(const char *when, uint64_t source_mhz)
     printf("      AND NEAR 65536 PLUS A RESIDUE, roughly 65000 to 131000 Hz,\n"
            "      would mean the wrap fix regressed, which is the one reading\n"
            "      this gate was originally built to look for.\n");
+
+    /* AND THE ONE QUANTITY THE RESIDUAL STILL RESTED ON, now measured instead of
+     * estimated. freqcount.h's declaration of freqcount_last_poll carries the
+     * argument; what matters here is that the THRESHOLD is stated before the
+     * number is printed, because a figure that can be read either way after the
+     * fact is not a test.
+     *
+     * The short gate scattered by about 140 parts per million on Tuesday 6
+     * October 2026. Two boundaries, each detected to within one pass of the
+     * waiting loop, give an uncertainty of 2 over (passes per tick times ticks).
+     * Setting that equal to 140 ppm over 12 ticks gives about 1190 passes per
+     * tick. So:
+     *
+     *   near 1200 passes per tick    the loop's own granularity accounts for the
+     *                                scatter and the residual is bounded
+     *   near 20000                   it accounts for about 8 ppm of 140, and
+     *                                something else is in there
+     *
+     * The comment at FREQCOUNT_TICK_POLLS_MAX estimated fifty core cycles per
+     * pass, which at the reset clock would be about 5000 passes per tick, which
+     * is between the two. That estimate has never been checked and is the reason
+     * this print exists rather than an argument for either answer. */
+    const freqcount_poll_t poll = freqcount_last_poll();
+
+    if (!poll.ok || poll.ticks == 0u || poll.tick_hz == 0u) {
+        printf("\n    the waiting loop reported no pass counts, which should not\n"
+               "    happen after a measurement that returned a figure\n");
+        return;
+    }
+
+    const uint32_t mean = poll.polls_total / poll.ticks;
+
+    if (mean == 0u) {
+        printf("\n    the waiting loop reported zero passes per tick, which would\n"
+               "    mean the tick changed on the first look every time\n");
+        return;
+    }
+
+    printf("\n    the waiting loop, MEASURED rather than estimated:\n");
+    printf("      %lu passes per tick on average over the gate just run, the\n"
+           "      fewest %lu and the most %lu, across %lu ticks of %lu Hz\n",
+           (unsigned long) mean,
+           (unsigned long) poll.polls_min,
+           (unsigned long) poll.polls_max,
+           (unsigned long) poll.ticks,
+           (unsigned long) poll.tick_hz);
+    printf("      so one pass takes about %lu ns at this clock\n",
+           (unsigned long) (1000000000ull
+                            / ((uint64_t) poll.tick_hz * (uint64_t) mean)));
+    printf("      EACH BOUNDARY IS DETECTED TO WITHIN ONE PASS, so a gate carries\n"
+           "      two passes of uncertainty: %lu parts per billion over 12 ticks\n"
+           "      and %lu over 256. The 12 tick scatter to beat is 140000 ppb.\n",
+           (unsigned long) (2000000000ull / (12ull * (uint64_t) mean)),
+           (unsigned long) (2000000000ull / (256ull * (uint64_t) mean)));
+    printf("      AND THIS RUNS AT BOTH CLOCKS, so the two pass times together\n"
+           "      say whether the loop is core bound or bus bound: core bound\n"
+           "      falls by about the clock ratio of 4.4 from the reset clock to\n"
+           "      280 MHz, bus bound falls by less. Nothing here predicts which.\n");
 }
 
 int main(void)

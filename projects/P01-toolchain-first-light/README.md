@@ -418,9 +418,30 @@ each reading leaves the instrument's own disagreement:
 
 The short gate's three figures **change sign**, so they are scatter and not bias.
 Its own quantisation is one edge at each boundary, about 43 ppm, and the rest is the
-time one pass of the waiting loop takes at each boundary, which **is not measured**.
+time one pass of the waiting loop takes at each boundary, which **was not measured**.
 That unmeasured figure is the single thing that would turn this scatter from
 unexplained into bounded.
+
+**So the loop now reports what it already counted, and the threshold is written here
+before the number exists.** It increments a poll counter on every pass in order to
+bound itself against a tick that never arrives, and that count was being discarded;
+`freqcount_last_poll` makes it readable at no cost to the loop. Two boundaries, each
+detected to within one pass, give a gate-length uncertainty of two over passes per
+tick times ticks. Setting that equal to the observed 140 ppm over twelve ticks gives
+about **1190 passes per tick**, so:
+
+| what the board reports | what it means |
+|---|---|
+| near 1200 passes per tick | the loop's own granularity accounts for the scatter, and the residual is bounded |
+| near 20 000 | it accounts for about 8 ppm of 140, and something else is in there |
+
+`freqcount.c`'s own comment had estimated fifty core cycles per pass, which at the
+reset clock is about 5000 passes per tick, which sits **between** the two outcomes.
+That estimate has never been checked, and the fact that it does not pick a side is
+the reason this is worth measuring rather than arguing about. The report also prints
+it at both clocks, so the pair says whether the loop is core bound, in which case the
+pass time should fall by about the clock ratio of 4.4, or bus bound, in which case it
+falls by less. Nothing here predicts which.
 
 **No cause is offered for the long gate reading +54 and +33 at the reset clock and
 minus 0.6 at 280 MHz.** There is one difference worth naming without attributing

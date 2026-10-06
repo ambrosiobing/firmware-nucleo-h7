@@ -110,6 +110,11 @@ static bool g_ready;
  * arguments would make the loop longer without making it clearer. */
 static uint32_t g_wraps;
 
+/* How many passes the waiting loop took per tick, over the last gate. Static
+ * for the same reason and read back by freqcount_last_poll, whose declaration
+ * carries the argument for measuring this at all. */
+static freqcount_poll_t g_poll;
+
 /* Clear the wrap flag, then return whether it had been set.
  *
  * READ THEN CLEAR AND NOT THE OTHER WAY. ARRM is set by hardware and cleared by
@@ -258,7 +263,7 @@ uint32_t freqcount_ceiling_hz(void)
  * one. A poll inside the loop that is already running has no such latency, and
  * it adds no vector, no priority decision and no NVIC entry to a project that
  * has not yet earned any of the three. */
-static bool wait_tick(uint32_t *mark)
+static bool wait_tick(uint32_t *mark, uint32_t *passes)
 {
     const uint32_t was = *mark;
     uint32_t polls = 0u;
@@ -272,6 +277,11 @@ static bool wait_tick(uint32_t *mark)
         now = lseref_tick_mark();
         if (now != was) {
             *mark = now;
+            /* polls counted the passes that did NOT see the tick, so the pass
+             * that did is one more. Reporting polls alone would be short by one
+             * per tick, which at twenty thousand passes is five parts in a
+             * hundred thousand of the figure and is free to get right. */
+            *passes = polls + 1u;
             return true;
         }
         polls++;
@@ -383,6 +393,8 @@ uint64_t freqcount_measure_mhz(uint32_t gate_ms)
     uint32_t after;
     uint32_t ticks;
     uint32_t n;
+    uint32_t align_passes = 0u;   /* the alignment wait's count, deliberately
+                                   * discarded: it starts mid tick */
 
     if (!g_ready || gate_ms == 0u) {
         return 0u;
@@ -410,10 +422,19 @@ uint64_t freqcount_measure_mhz(uint32_t gate_ms)
      * nothing is sampled until it has finished. Wraps found while waiting are
      * counted by wait_tick and then thrown away with the zeroing below, because
      * they happened before the gate opened. */
+    g_poll.ok          = false;
+    g_poll.ticks       = 0u;
+    g_poll.tick_hz     = 0u;
+    g_poll.polls_min   = 0xFFFFFFFFu;
+    g_poll.polls_max   = 0u;
+    g_poll.polls_total = 0u;
+
     mark = lseref_tick_mark();
-    if (!wait_tick(&mark)) {
+    if (!wait_tick(&mark, &align_passes)) {
         return 0u;
     }
+
+    (void) align_passes;
 
     /* The gate opens on this sample. The zeroing comes AFTER it, not before,
      * because sample_counter counts any match it has to clear on its way to an
@@ -425,10 +446,22 @@ uint64_t freqcount_measure_mhz(uint32_t gate_ms)
     g_wraps = 0u;
 
     for (n = 0u; n < ticks; n++) {
-        if (!wait_tick(&mark)) {
+        uint32_t passes = 0u;
+
+        if (!wait_tick(&mark, &passes)) {
             return 0u;
         }
+        if (passes < g_poll.polls_min) {
+            g_poll.polls_min = passes;
+        }
+        if (passes > g_poll.polls_max) {
+            g_poll.polls_max = passes;
+        }
+        g_poll.polls_total += passes;
     }
+    g_poll.ticks   = ticks;
+    g_poll.tick_hz = tick.ck_apre_hz;
+    g_poll.ok      = true;
 
     /* And closes on this one, on the tick the loop just saw. Here the matches
      * sample_counter clears ARE inside the gate and are kept. */
@@ -461,11 +494,22 @@ uint64_t freqcount_resolution_mhz(uint32_t gate_ms)
     return freqmath_resolution_mhz(gate_ms);
 }
 
+freqcount_poll_t freqcount_last_poll(void)
+{
+    return g_poll;
+}
+
 #else   /* the register addresses are not confirmed */
 
 int freqcount_init(void) { return -1; }
 uint32_t freqcount_ceiling_hz(void) { return 0u; }
 uint64_t freqcount_measure_mhz(uint32_t gate_ms) { (void) gate_ms; return 0u; }
+
+freqcount_poll_t freqcount_last_poll(void)
+{
+    const freqcount_poll_t none = { false, 0u, 0u, 0u, 0u, 0u };
+    return none;
+}
 
 /* The resolution is arithmetic and does not need a confirmed register, so this
  * branch answers it properly rather than returning 0. A reader can ask what the

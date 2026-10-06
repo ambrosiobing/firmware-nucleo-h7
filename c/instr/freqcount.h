@@ -323,4 +323,55 @@ uint64_t freqcount_measure_mhz(uint32_t gate_ms);
 
 uint64_t freqcount_resolution_mhz(uint32_t gate_ms);
 
+
+/* ------------------------------------- how fast the waiting loop actually is
+ *
+ * WHY THIS EXISTS, added Tuesday 6 October 2026. After both gate defects were
+ * fixed, the twelve tick gate still scattered by about 140 parts per million
+ * with a changing sign, and the residual was explained only in part. One edge at
+ * each boundary accounts for about 43 ppm of it. The rest is that each boundary
+ * is detected to within one pass of the waiting loop, and the time one pass
+ * takes had never been measured, only estimated at fifty core cycles in a
+ * comment. An estimate in a comment is not a bound.
+ *
+ * SO THE LOOP REPORTS WHAT IT ALREADY COUNTS. It increments a poll counter on
+ * every pass in order to bound itself against a tick that never arrives; this
+ * makes that count readable instead of discarding it. No work is added to the
+ * loop: the increment was already there.
+ *
+ * WHAT A READER DOES WITH IT. Passes per tick, divided into the tick period,
+ * gives the time one pass takes. Two boundaries are each uncertain by one pass,
+ * so a gate of n ticks carries a gate-length uncertainty of two passes in n
+ * ticks, which is 2e9 / (n * passes_per_tick) parts per billion. If that comes
+ * out near the observed scatter, the scatter is bounded and explained; if it
+ * comes out far below, something else is in the residual and this measurement
+ * has narrowed the search rather than ended it. Either answer is worth having,
+ * which is what makes it worth printing.
+ *
+ * AND IT IS MEASURED AT BOTH CLOCKS FOR FREE, because p01-pll280 runs the
+ * counter at the reset clock and again at 280 MHz. If the loop is core bound the
+ * pass time should fall by about the clock ratio, 4.4; if it is bus bound it
+ * should fall by less. Nothing here predicts which, and the two numbers will
+ * say. */
+typedef struct {
+    bool     ok;           /* false until a measurement has run */
+    uint32_t ticks;        /* the gate these passes were counted over */
+    uint32_t tick_hz;      /* the tick rate that gate used */
+    uint32_t polls_min;    /* fewest passes in any one tick of the gate */
+    uint32_t polls_max;
+    uint32_t polls_total;  /* cannot overflow: the per-tick bound is 10000000
+                            * and the longest gate in this volume is 256 ticks,
+                            * so the worst case is 2.56e9 against a limit of
+                            * 4.29e9 */
+} freqcount_poll_t;
+
+/* The pass counts from the LAST completed measurement, or ok false.
+ *
+ * Returned by value rather than through a pointer, because there is no null to
+ * check and no lifetime to explain. Describes the in-gate waits only: the
+ * alignment wait before the gate opens starts at an arbitrary point inside a
+ * tick, so its count is a fraction of a tick's worth and would drag the minimum
+ * down for a reason that has nothing to do with the loop's speed. */
+freqcount_poll_t freqcount_last_poll(void);
+
 #endif /* FREQCOUNT_H */
