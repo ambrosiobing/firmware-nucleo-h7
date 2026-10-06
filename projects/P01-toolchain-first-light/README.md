@@ -17,8 +17,8 @@ What is measured and what it rests on:
 | User button on PC13 | input with a pull-down, active high |
 | Core, AHB, APB1 clocks | 64 MHz at reset, decoded from RCC at startup rather than hardcoded |
 | The 280 MHz tree | reached Sunday 4 October 2026 by `p01-pll280`: the configuration is at the target, AHB and APB1 at half the core, every one of eight steps reading back what it wrote |
-| The core clock, **measured fifteen times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208**, **279 624 968**, **279 541 148**, **279 692 180**, **279 424 340**, **279 522 728**, **279 348 956**, **279 486 828**, **279 411 320**, **279 551 130**, **279 352 464** and **279 359 440** Hz against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306, 1339, 1639, 1099, 2056, 1705, 2325, 1833, 2102, 1603, 2313 and 2288 parts per million below the 280 MHz nominal. Always low, never the same, spanning 1306 parts per million with no trend, so the sign reproduces and the digits do not. EACH IS THE FIRST READING OF ITS RUN, which has been a stated convention since run 20 showed the clock moving by up to 383 parts per million inside a single run: these figures therefore bound what the bench reproduces and are not a figure for the oscillator's stability. That spread was 998 through seven readings, 1037 through eight and 1306 through ten, each widening withdrawing a claim this page had just made, and it has now HELD at 1306 through eleven to fifteen. The cause is the debugger's clock output, which the fifteen runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549, 7 989 285, 7 986 890, 7 991 205, 7 983 553, 7 986 364, 7 981 399, 7 985 338, 7 983 181, 7 987 175, 7 981 499 and 7 981 698 Hz. Six further runs measured the reset clock only, because in four a second RESET press truncated the report before its core figure printed and in two the capture window was too short |
-| The reset clock, **measured twenty-one times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988**, **64 202 948**, **64 189 988**, **64 192 428**, **64 194 888**, **64 190 072**, **64 199 102**, **64 200 306**, **64 188 825**, **64 203 931**, **64 205 341**, **64 168 296**, **64 177 416**, **64 197 336**, **64 181 938**, **64 189 764**, **64 191 672** and **64 194 351** Hz against the same crystal, spanning 579 parts per million where the PLL spans 1306, and again each is the FIRST reading of its run. Two explanations have been offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5. The spread held at 357 parts per million through five readings, seven, nine, ten and twelve, runs 13 and 14 widened it to 395, run 15 came in 11 794 Hz below the previous lowest and widened it to 579, and runs 16 to 21 all landed inside. Five widenings and six consecutive holds. What stands is a bound and not a cause: this bench reproduces this oscillator to 579 parts per million and no better, which since run 20 is known to include within-run drift as well as run-to-run variation |
+| The core clock, **measured sixteen times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208**, **279 624 968**, **279 541 148**, **279 692 180**, **279 424 340**, **279 522 728**, **279 348 956**, **279 486 828**, **279 411 320**, **279 551 130**, **279 352 464**, **279 359 440** and **279 247 016** Hz against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306, 1339, 1639, 1099, 2056, 1705, 2325, 1833, 2102, 1603, 2313, 2288 and 2689 parts per million below the 280 MHz nominal. Always low, never the same, SPANNING 1671 parts per million. Each is the first reading of its run, and run 23 then took forty-eight readings inside one run and found 990 parts per million of WANDER in a single 24 second window, which is the same order as this spread across sixteen separate runs. So this figure is not a bound, not reproducibility and not converging: it is what has been SEEN, and it grows with the number of readings. It read 998 through seven, 1037 through eight, 1306 through ten to fifteen, and 1671 through sixteen. The cause of the offset from nominal is the debugger's clock output, which the sixteen runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549, 7 989 285, 7 986 890, 7 991 205, 7 983 553, 7 986 364, 7 981 399, 7 985 338, 7 983 181, 7 987 175, 7 981 499, 7 981 698 and 7 978 486 Hz. Seven further runs measured the reset clock only, because in four a second RESET press truncated the report and in three the capture window was too short |
+| The reset clock, **measured twenty-three times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988**, **64 202 948**, **64 189 988**, **64 192 428**, **64 194 888**, **64 190 072**, **64 199 102**, **64 200 306**, **64 188 825**, **64 203 931**, **64 205 341**, **64 168 296**, **64 177 416**, **64 197 336**, **64 181 938**, **64 189 764**, **64 191 672**, **64 194 351**, **64 208 451** and **64 203 516** Hz against the same crystal, spanning 627 parts per million where the PLL spans 1671, and again each is the FIRST reading of its run. Two mechanisms were offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5; the spread was then called settled twice and was not. Run 23 settled it differently by measuring the SHAPE: forty-eight readings in one window read as wander, 990 parts per million wide, which is the same order as the between-run spread and means there was never a pattern in these figures to find. The sequence 357, 395, 579, 627 across five widenings, six holds and a seventh widening is what sampling a wandering quantity looks like. What stands is a span seen on this bench and no cause |
 | Oscillator | 64.17 to 64.18 MHz, six reductions, two instruments, spread 0.031 per cent |
 | Delay loop | 9.00 cycles per iteration at 64 MHz and 8.96 at 280 MHz, the same binary, measured against `DWT_CYCCNT` every boot |
 | A 100 ms request | lands within 20 parts per million, checked by the part itself |
@@ -59,14 +59,14 @@ iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
 which says the loop's cost barely moved and is a fact about the flash and the
 pipeline rather than about the clock.
 
-## The core clock, measured twenty-one times, and five claims withdrawn
+## The core clock, measured twenty-three times, and seven claims withdrawn
 
 **This is the first frequency in this volume that is measured rather than
 derived**, it does not agree with the nominal, and it does not agree with itself.
-Twenty-one runs on the same board, each gated by this board's own 32.768 kHz crystal
+Twenty-three runs on the same board, each gated by this board's own 32.768 kHz crystal
 over one second. Runs 1 to 3 are Sunday 4 October 2026, minutes to hours apart.
 Run 4 is Monday 5 October 2026 after about eight hours with the board away, so
-cold. Runs 5 to 21 are Tuesday 6 October 2026: run 5 after about fifteen minutes
+cold. Runs 5 to 23 are Tuesday 6 October 2026: run 5 after about fifteen minutes
 at 280 MHz, so warm; runs 6 and 7 after five minutes unpowered, so cold; and runs
 8 to 14 with the thermal state not written down, which is recorded as a blank
 rather than guessed at.
@@ -106,6 +106,8 @@ existing span, but the binary is not the same one that produced runs 1 to 7:
 | run 19 | **279 352 464 Hz** (loop measured) | 2313 ppm low | 64 189 764 Hz | 2965 ppm high | 7 981 499 Hz |
 | run 20 | not printed (drift measured) | | 64 191 672 Hz | 2995 ppm high | |
 | run 21 | **279 359 440 Hz** (drift measured) | 2288 ppm low | 64 194 351 Hz | 3037 ppm high | 7 981 698 Hz |
+| run 22 | not printed (shape measured) | | 64 208 451 Hz | 3257 ppm high | |
+| run 23 | **279 247 016 Hz** (shape measured) | 2689 ppm low | 64 203 516 Hz | 3180 ppm high | 7 978 486 Hz |
 
 **Runs 6 and 8 are half readings, and the reason belongs in the record.** Neither
 core figure printed, because the black RESET button was pressed a second time
@@ -163,17 +165,25 @@ across ten and 357 across twelve, to the hertz each time. Runs 13 and 14 then re
 64 203 931 and 64 205 341, both above the 64 202 948 that had been the ceiling
 since run 5. Run 15 then read 64 168 296, which is 11 794 Hz below the previous
 lowest of all fourteen, and widened the internal spread to **579 parts per
-million**. Runs 16 to 19 then all landed inside it, so 579 across nineteen is
-where it stands, and the core **held at 1306** across twelve, thirteen and
-fourteen as runs 16, 17 and 19 each landed inside its existing span.
+million**. Runs 16 to 21 then all landed inside it, six consecutive holds, and
+the core held at 1306 across twelve to fifteen.
 
-**Four consecutive holds is a new state for this board and it is not settlement.**
-Every bound named on this page before now was widened by the reading after it. The
-internal 357 also held six times, through five readings, seven, nine, ten and
-twelve, before runs 13 and 14 removed it, and a sentence in
+**Then runs 22 and 23 widened both again**, to **627 parts per million across
+twenty-three** internal readings and **1671 across sixteen** core readings. Five
+widenings, six holds, a seventh widening. This paragraph said "579 across
+nineteen" for one commit after it had become 579 across twenty-one, which is a
+stale count of the kind the guard checks in the heading and the two summary rows
+and does not reach in prose.
+
+**And run 23 said why that sequence was never going to end**, by measuring the
+shape rather than the spread: forty-eight readings inside one run read as wander,
+990 parts per million wide in a 24 second window, which is the same order as the
+whole between-run spread. There was no pattern in these figures to find, which is
+why every reading of one was removed by the next observation. The internal 357
+also held six times before runs 13 and 14 removed it, and a sentence in
 `c/board/stm32h7a3_regs.h` that said 357 had survived every test put to it is
-still there with its correction beside it, because what that kind of confidence
-is worth is part of the record.
+still there with its correction beside it, because what that kind of confidence is
+worth is part of the record.
 
 **That is the fifth claim about this quantity withdrawn in two days**, after
 drift, after temperature, after the core bound, and after the internal bound's
@@ -184,11 +194,12 @@ scatters, and the two spreads are the current bound rather than a settled one.
 
 **So no third mechanism is offered.** Two were proposed from the pattern in hand
 and the next observation removed each one. What survives is a bound and not a
-cause: across twenty-one readings this part's internal oscillator reproduces only
-to **579 parts per million** on this bench, and nothing here may quote it, or any
-figure derived from it, to better than that. Since runs 20 and 21 that figure is
-known to contain within-run drift as well as run-to-run variation, which makes it
-no less a bound and no longer a statement about the oscillator alone.
+cause: across twenty-three readings this part's internal oscillator has been SEEN
+to span **627 parts per million** on this bench, and nothing here may quote it, or
+any figure derived from it, to better than that. Since run 23 that figure is known
+not to be a bound at all: the quantity wanders by 990 parts per million inside a
+single 24 second window, so the span across N readings grows with N rather than
+settling, and "reproduces to" was the wrong phrase for it.
 
 **There is a third pattern in the data, and this page names it without claiming
 it.** The four cold readings, runs 1, 4, 6 and 7, span 68 parts per million; the
@@ -559,13 +570,19 @@ drift predicts. That is noted, not explained.
 
 **Every spread figure on this page means something slightly different now, which
 is the consequence I did not see coming.** Each is built from one reading per run,
-and no two readings were taken at the same point in their runs. So the 579 parts
-per million for the internal oscillator and the 1306 for the core were never
-bounds on run-to-run reproducibility alone: they contain within-run drift as well.
-Both remain correct **as bounds on what this bench reproduces**, which is what
-anything quoting them needs. Neither is a figure for an oscillator's stability, and
-this page has been calling them that. The table column is now stated to be the
-first reading of each run, so it stays comparable.
+and no two readings were taken at the same point in their runs, so none of them
+was ever a figure for run-to-run reproducibility alone: each contains within-run
+movement as well. The table column is now stated to be the first reading of each
+run, so it stays comparable.
+
+**Run 23 then went further than this paragraph did**, by measuring the shape
+rather than reasoning about the contents of the spread. The movement is WANDER, 990
+parts per million inside one 24 second window against 1671 across sixteen runs, so
+the spread figures are not bounds of any kind: they grow with the number of
+readings. The figures current at the time of writing this paragraph, 579 and 1306,
+are now 627 and 1671 for that reason. The section further down carries the series
+and supersedes this one; it is kept because being two thirds of the way to a
+finding is worth seeing.
 
 **And one surprise is named without being explained.** At 280 MHz the chain runs
 from the debugger's 8 MHz in bypass, which is quartz-derived, and the gate is a
@@ -621,14 +638,75 @@ against the reset clock's 164, and 24 seconds of report is the cost. If the shap
 turns out to be interesting the reset clock can have its own series, and nothing
 here assumes the two behave alike.
 
+### The shape is wander, and that explains the whole two days
+
+**Run 23, Tuesday 6 October 2026.** Forty-eight readings at 500 ms, offsets from
+the first in parts per million:
+
+```
+       0   -108   -299    -33     26   -276   -138   -412
+      67    143    346    105   -157   -438   -644   -419
+    -391   -179   -639   -469   -450    -75     -2   -363
+    -162    244   -228   -133    336     70   -239   -361
+    -286     35   -199   -112    -97     76    -78     43
+      11     -4     -4   -278    -43    -60    -56     -8
+```
+
+Span minus 644 to +346, so **990 ppm wide**. Biggest single step 479. Sixteen
+steps above a quarter of the span, **six up and ten down**. Mixed signs, so by the
+rule published before the run: **WANDER**. Not a ramp, not a step, not a
+staircase.
+
+**990 ppm inside one 24-second window, against 1671 ppm across sixteen separate
+runs.** Those are the same order, and that single comparison explains everything
+this page has recorded about this quantity for two days. None of the spread
+figures was a convergent estimate of anything. Each was one sample of a wandering
+quantity, and a spread across N samples of a wandering quantity grows with N.
+
+**So there was never a pattern to read, which is why no reading of it survived.**
+Five widenings, then six holds, then a seventh widening on runs 22 and 23, which
+took the internal spread to **627 ppm across twenty-three** readings and the core
+to **1671 across sixteen**. Drift was proposed and refuted, temperature was
+proposed and refuted, the core bound was called settled and was not, the internal
+395 was called settled and was not. Each of those was an attempt to find structure
+in samples of a process that has none at this timescale.
+
+**The figures stay usable and the word for them changes.** 627 and 1671 parts per
+million are what this bench has been **seen to span**, which is what anything
+quoting a derived figure needs. They are not reproducibility, not stability, and
+not converging. Calling them bounds was wrong in a way that mattered: a bound
+implies a limit, and a wandering quantity sampled more often simply exceeds it.
+
+**And this withdraws two claims made on this page two commits ago**, both of them
+mine and both from three samples.
+
+| the claim | what runs 22 and 23 say |
+|---|---|
+| "three for three on sign", the drift agreeing with the counter's residual | It mixed two different separations to reach three pairs. On the consistent comparison, the after-counter drift against the counter residual, it is **2 of 4**, which is what wander predicts: no sign relationship at all |
+| "the clock holds over one gate and moves over four seconds" | The one-second figures now reach **230 ppm** against the four-second 383, so the distinction is far weaker than three samples suggested |
+
+**What survives of that commit is the part that was arithmetic rather than
+pattern:** the counter's error budget over a one-second gate is 5.4 ppm, so
+residuals of hundreds cannot be the counter. That was an elimination and it still
+holds. The sign agreement was a pattern and patterns on this quantity have a
+record of not holding.
+
+**What is not offered, for the seventh time, is a cause.** A clock that wanders by
+a part in a thousand over tens of seconds is a fact about this bench as
+configured, with the debugger attached and its 8 MHz feeding the PLL. Whether it
+is the ST-Link's output, the PLL, the crystal gate or the measurement is not
+separated by anything done here, and the one thing this page has learned about
+this quantity is what happens to explanations of it.
+
 **No cause is offered for the long gate reading +54 and +33 at the reset clock and
 minus 0.6 at 280 MHz.** There is one difference worth naming without attributing
 anything to it: at the reset clock both instruments descend from the internal
-oscillator, whose reproducibility between runs on this bench is 579 parts per
-million and whose stability **within** a run has never been measured here, while at
-280 MHz the chain runs from the debugger's 8 MHz in bypass. That is one observation
-at each clock. This page has withdrawn five explanations of this part's clock
-scatter and it offers no sixth.
+oscillator, whose span across twenty-three readings on this bench is 627 parts per
+million and whose movement **within** a run was not yet measured when this was
+written, while at 280 MHz the chain runs from the debugger's 8 MHz in bypass. That
+is one observation at each clock. This page has withdrawn seven explanations of
+this part's clock scatter and it offers no eighth; run 23's series, further down,
+is why it never will from figures of this kind.
 
 **An interrupt was considered and rejected on the facts**, not on taste. `ARRM` is
 a flag and not a counter, so a handler late by one autoreload loses a match

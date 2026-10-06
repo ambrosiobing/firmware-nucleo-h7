@@ -509,6 +509,13 @@
  *   run 19   279352464 Hz    (LOOP MEASURED) 64189764 Hz        2965 ppm high
  *   run 20   not printed     (DRIFT MEASURED) 64191672 Hz       2995 ppm high
  *   run 21   279359440 Hz    (DRIFT MEASURED) 64194351 Hz       3037 ppm high
+ *   run 22   not printed     (SHAPE MEASURED) 64208451 Hz       3257 ppm high
+ *   run 23   279247016 Hz    (SHAPE MEASURED) 64203516 Hz       3180 ppm high
+ *
+ * BOTH SPREADS WIDENED ON THESE TWO, ending six consecutive holds. Run 22's
+ * 64208451 is the highest internal reading of all twenty-three and takes that
+ * spread from 579 to 627 parts per million; run 23's 279247016 is the lowest core
+ * reading of all sixteen and takes that spread from 1306 to 1671.
  *
  * AND FROM RUN 20 THE FIGURES IN THIS TABLE ARE THE FIRST OF SEVERAL PER RUN,
  * which matters for how the spread below is read. The clock is now measured more
@@ -518,11 +525,13 @@
  * always the first reading of its run, so it is comparable across runs, and that
  * is now a stated convention rather than an accident of there being only one.
  *
- * RUNS 17, 18 AND 19 ALL LANDED INSIDE BOTH EXISTING SPANS, so the internal
- * bound holds at 579 parts per million across nineteen readings and the core at
- * 1306 across fourteen. That is three consecutive readings widening neither,
- * after five widenings in two days. Run 18's core figure did not print because
- * the capture window held two boots and cut the first one at step 1.
+ * RUNS 17, 18 AND 19 ALL LANDED INSIDE BOTH EXISTING SPANS, so at that point the
+ * internal spread STOOD at 579 parts per million across nineteen readings and the
+ * core at 1306 across fourteen: three consecutive readings widening neither,
+ * after five widenings in two days. Runs 22 and 23 widened both again, and the
+ * wander paragraph below says why neither figure was ever going to settle. Run
+ * 18's core figure did not print because the capture window held two boots and
+ * cut the first one at step 1.
  *
  * RUN 15 IS THE LOWEST INTERNAL READING OF ALL SIXTEEN, 11794 Hz below the
  * previous lowest, which widened the internal spread from 395 to 579 parts per
@@ -589,23 +598,35 @@
  * The core held at 1306 across eleven readings and then across twelve, thirteen
  * and fourteen as runs 16, 17 and 19 each landed inside its existing span.
  *
- * SO BOTH BOUNDS HAVE NOW SURVIVED SEVERAL READINGS, which is a different state
- * from the one this file has described all along and is stated as such rather
- * than as a settlement. The history is five widenings followed by six holds.
- * Six holds is not a guarantee: the 357 figure held six times before run 13
- * removed it, and the paragraph further down that said it had survived every
- * test is still there as the record of what that kind of confidence is worth.
+ * SIX HOLDS THEN GAVE WAY TO A SEVENTH WIDENING on runs 22 and 23, which is the
+ * last entry in a sequence this file no longer reads as a sequence. Five
+ * widenings, six holds, one widening: that is what sampling a wandering quantity
+ * looks like, and every attempt to say more about it has been removed by the next
+ * reading. The attempts are left above with their corrections because the pattern
+ * of attempting is the finding.
  *
- * AND WHAT THOSE SPREADS MEASURE IS NOT WHAT THIS FILE HAS BEEN SAYING, which is
- * a correction of interpretation rather than of arithmetic. Every figure in the
- * table is one reading taken at one moment of its run, and on Tuesday 6 October
- * 2026 the clock was measured twice inside a single run for the first time and
- * found to move by 164 and 382 parts per million over three to four seconds. So
- * the 579 and the 1306 were never bounds on run-to-run reproducibility alone:
- * they contain within-run drift as well, because no two readings were taken at
- * the same point in their runs. Both numbers remain correct AS BOUNDS on what
- * this bench reproduces. Neither is a figure for the oscillator's stability, and
- * this file has been calling them that.
+ * AND THE WHOLE HISTORY OF WIDENINGS ABOVE HAS ONE EXPLANATION, measured on
+ * Tuesday 6 October 2026 and not guessed. Run 23 took forty-eight readings of the
+ * core at 500 ms intervals across 24 seconds and the series READS AS WANDER: a
+ * span of 990 parts per million inside that one window, sixteen steps each larger
+ * than a quarter of the span, six of them upward and ten downward. Not a ramp,
+ * not a step, not a staircase. The statistics were chosen and tested against
+ * synthetic series before the board ran it, and the series itself is in P01's
+ * page so a reader can disagree.
+ *
+ * 990 PPM IN ONE WINDOW AGAINST 1671 ACROSS SIXTEEN RUNS. Those are the same
+ * order. So none of the figures in the table above is a convergent estimate of
+ * anything: each is one sample of a wandering quantity, and the spread across N
+ * of them grows with N rather than settling. That is why this file has recorded
+ * five widenings, then six holds, then a seventh widening, and it is why no
+ * reading of the pattern survived. There was no pattern to read.
+ *
+ * SO THE FIGURES REMAIN USABLE AND THE WORD FOR THEM CHANGES. 627 and 1671 parts
+ * per million are what this bench has been SEEN to span, which is what anything
+ * quoting a derived figure needs, and they are not reproducibility, not
+ * stability, and not converging. This file called them bounds on the oscillator
+ * and that was wrong in a way that mattered: a bound implies a limit, and a
+ * wandering quantity sampled more often simply exceeds it.
  *
  * NO CAUSE IS OFFERED FOR THAT EITHER, and there is a difference worth naming
  * without attributing anything to it: runs 12 to 19 are the first readings
@@ -644,10 +665,12 @@
  *
  * SO NO THIRD MECHANISM IS OFFERED HERE. Two were proposed from the pattern in
  * hand and the next observation removed each one, which is twice now that this
- * quantity has answered a guess with a correction. What survives is a bound and
- * not a cause: across sixteen readings the internal oscillator on this part
- * reproduces only to 579 parts per million on this bench, and nothing in this
- * repository may quote it, or any figure derived from it, to better than that.
+ * quantity has answered a guess with a correction. What survives is a SPAN SEEN
+ * and not a cause, and since run 23 not even a bound: across twenty-three
+ * readings the internal oscillator on this part has been seen to span 627 parts
+ * per million on this bench, that figure grows with the number of readings rather
+ * than settling, and nothing in this repository may quote it, or any figure
+ * derived from it, to better than that.
  *
  * THAT BOUND HAS NOW WIDENED FIVE TIMES: 357 held through five readings, seven,
  * nine, ten and twelve, then runs 13 and 14 took it to 395 and run 15 took it to
