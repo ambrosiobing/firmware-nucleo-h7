@@ -268,3 +268,95 @@ def test_the_resolution_meets_the_method_documents_tolerance_at_one_kilohertz(li
     resolution_hz = lib.freqmath_resolution_mhz(1000) / 1000.0
     assert resolution_hz == 1.0
     assert resolution_hz / 1000.0 == pytest.approx(0.001)
+
+
+# ------------------------------------- the accounting freqcount.c actually uses
+
+# The composition at freqcount.c's call site, since Tuesday 6 October 2026:
+# wraps counted from the OPENING sample, so the opening residue composes with a
+# wrap count of zero and the closing one with the count the gate accumulated.
+# Expected values entered by hand, with the arithmetic written out, and then
+# recomputed independently in the test below.
+GATE_EDGES = [
+    dict(name="no wrap at all, a plain difference",
+         why="A megahertz over a twelve tick gate is 46875 edges and the "
+             "counter started at zero, so no wrap and the difference is the "
+             "count.",
+         wraps=0, before=0, after=46_875, edges=46_875),
+    dict(name="an idle input over any gate",
+         why="Same count at both ends and no wrap is zero edges, which is the "
+             "correct reading of a line with nothing on it rather than a "
+             "failure.",
+         wraps=0, before=60_000, after=60_000, edges=0),
+    dict(name="exactly one wrap, back to the same residue",
+         why="One match and the same 16-bit value at both ends is 65536 edges, "
+             "not zero. The old two-sample scheme got this case right, which is "
+             "why it looked plausible.",
+         wraps=1, before=60_000, after=60_000, edges=65_536),
+    dict(name="THE BORROW: one wrap and a smaller closing residue",
+         why="65536 + 1000 - 60000 = 6536. The subtraction borrows one 65536 "
+             "out of the wrap field on its own, which is the whole reason the "
+             "composition is 32-bit and modular. A signed difference with an "
+             "absolute value would give 59000 here.",
+         wraps=1, before=60_000, after=1_000, edges=6_536),
+    dict(name="one wrap and a larger closing residue",
+         why="65536 + 60000 - 1000 = 124536. No borrow, so this is the case "
+             "that would still pass if the borrow were broken, and it is here "
+             "to sit beside the one above.",
+         wraps=1, before=1_000, after=60_000, edges=124_536),
+    dict(name="the real borrow at a megahertz over twelve ticks",
+         why="46875 edges from a start of 50000 ends at 96875, which is one "
+             "wrap and a residue of 31339. 65536 + 31339 - 50000 = 46875, the "
+             "same answer as the no-wrap case above from a different pair of "
+             "residues. This is the case the board runs.",
+         wraps=1, before=50_000, after=31_339, edges=46_875),
+    dict(name="fifteen wraps, which the old scheme reported as one",
+         why="15 * 65536 = 983040 edges. The two-sample scheme returned 65536 "
+             "for this gate, short by fourteen wraps, and that is the defect "
+             "this accounting replaces.",
+         wraps=15, before=0, after=0, edges=983_040),
+    dict(name="three wraps across the top of the counter",
+         why="3 * 65536 + 0 - 65535 = 131073. Three matches but only two full "
+             "counters of edges plus one, because the gate opened one count "
+             "below a wrap and closed on one.",
+         wraps=3, before=65_535, after=0, edges=131_073),
+    dict(name="a one second gate at the stated usable maximum",
+         why="256 wraps is 16777216 edges, which is 65536 times 256 and is the "
+             "figure freqmath_usable_max_hz states for a 256 Hz tick. The "
+             "residues cancel, so this is the limit case entered as a count "
+             "rather than as a rate.",
+         wraps=256, before=12_345, after=12_345, edges=16_777_216),
+]
+
+
+@pytest.mark.parametrize("case", GATE_EDGES, ids=lambda c: c["name"])
+def test_the_gate_edges_are_composed_the_way_freqcount_composes_them(lib, case):
+    """The exact call freqcount.c makes, so the test and the target agree.
+
+    freqcount.c computes:
+
+        freqmath_edges(freqmath_compose(0, before), freqmath_compose(wraps, after))
+
+    and nothing else, so that is what is driven here. A test that recomputed the
+    edges in Python and compared would be testing Python.
+    """
+    got = lib.freqmath_edges(lib.freqmath_compose(0, case["before"]),
+                             lib.freqmath_compose(case["wraps"], case["after"]))
+    assert got == case["edges"], case["why"]
+
+
+@pytest.mark.parametrize("case", GATE_EDGES, ids=lambda c: c["name"])
+def test_the_hand_written_gate_edges_survive_a_second_derivation(case):
+    """Double entry, which has found three errors in this repository's tables.
+
+    The expected column above was written by hand from the arithmetic in each
+    `why`. This recomputes it from the definition instead, wraps times the
+    counter width plus the difference of the residues, and reads no C at all. A
+    disagreement means the table is wrong, which is the failure a table checked
+    only against the implementation cannot have.
+    """
+    derived = case["wraps"] * 0x10000 + case["after"] - case["before"]
+    assert derived == case["edges"], (
+        "{}: the table says {} and the definition gives {}".format(
+            case["name"], case["edges"], derived))
+    assert derived >= 0, "a gate cannot contain a negative number of edges"

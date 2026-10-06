@@ -34,12 +34,22 @@
  *     the reading is at or above the ceiling rather than returning a number it
  *     cannot stand behind.
  *   - a wrap nobody counted. LPTIM1 is 16 bits, so a one second gate on
- *     anything above 65535 Hz wraps. The autoreload is left at 0xFFFF and the
- *     wrap flag is polled rather than interrupt-driven, because this is a
- *     blocking measurement and an interrupt would need a vector this project
- *     does not own. A wrap that the poll misses would read low by 65536, so the
- *     poll interval is the thing that bounds the usable input, and it is checked
- *     rather than assumed: see the comment at the counting loop.
+ *     anything above 65535 Hz wraps, and ARRM is a FLAG rather than a count: it
+ *     says one or more matches happened since it was last cleared, and nothing
+ *     latches how many. Until Tuesday 6 October 2026 this file read that flag
+ *     twice per measurement, once at each end of the gate, so a gate spanning
+ *     fifteen matches contributed one and any one second reading was capped at
+ *     131071 Hz. The board showed it: 87903 millihertz against a megahertz.
+ *     The flag is now read inside the gate loop, thousands of times per tick,
+ *     and cleared on every match so that the next one is visible. See the loop.
+ *
+ * THAT FIX ARRIVED SECOND, AFTER A TEST THAT COULD HAVE REFUTED IT. A gate of
+ * twelve ticks is too short for a megahertz to wrap twice, so the two-sample
+ * scheme was exact over it; if the short gate had also read 65536 plus a
+ * residue, the model would have been wrong and this edit would have been the
+ * wrong edit. It read 1041579, 1041877 and 1032768 Hz where the refuting band
+ * was 65000 to 131000. projects/P01-toolchain-first-light/README.md carries the
+ * numbers.
  */
 #include "freqcount.h"
 
@@ -54,11 +64,36 @@
  * it can and every wrap is exactly 65536 edges. */
 #define FREQCOUNT_ARR 0xFFFFu
 
-/* The sub second tick rate this board is expected to report, used only to turn
- * a caller's milliseconds into lseref's ticks. RTC_PRER reads 007F00FF, so
- * PREDIV_A is 127 and the rate is 32768 over 128. The measurement does not
- * depend on this being right: it uses the rate lseref reports. */
-#define FREQCOUNT_EXPECTED_TICK_HZ 256u
+/* How many polls to allow while waiting for one crystal tick.
+ *
+ * Bounded in polls rather than in time, for lseref's reason: time is what is
+ * being measured. One iteration of the waiting loop below reads LPTIM1_ISR and
+ * RTC_SSR, two accesses across a peripheral bus, so call it fifty core cycles.
+ * At the reset clock a 256 Hz tick is 250000 cycles, which is about five
+ * thousand iterations, and at 280 MHz it is 1093750, which is about twenty two
+ * thousand. So ten million is a margin of two thousand at the reset clock and
+ * about four hundred and fifty at 280 MHz, and the TIGHTER margin is at the
+ * faster clock because more iterations fit inside one tick there. Running out is
+ * reported rather than hung: a real-time clock whose tick never arrives would
+ * otherwise spin here for as long as the board is powered.
+ *
+ * The same figure read the other way is the bound on this instrument's input.
+ * Fifty cycles at 64 MHz is 780 nanoseconds, and a 16-bit counter takes 3.9
+ * milliseconds to wrap at the stated usable maximum of 16777216 Hz, so the poll
+ * is five thousand times faster than it needs to be. That margin is the point
+ * of polling here instead of once per tick, where the two figures were 3.906 ms
+ * against 3.9 ms and a second wrap could hide inside the first. */
+#define FREQCOUNT_TICK_POLLS_MAX  10000000u
+
+/* How many times to re-take a boundary sample whose wrap flag was ambiguous.
+ *
+ * A sample is ambiguous when the flag becomes set between the counter read and
+ * the check just after it, because then which side of the read the match fell
+ * on is not knowable. The window is a few core cycles wide, so one retry is
+ * already more than the hardware will ask for; eight consecutive ambiguous
+ * samples is not reachable below the usable maximum and is reported as a
+ * refusal rather than resolved by a guess. */
+#define FREQCOUNT_SAMPLE_ATTEMPTS  8u
 
 /* How long to wait for ARR to be acknowledged. The write crosses into the
  * peripheral's clock domain, so it takes effect some kernel clock cycles later
@@ -175,11 +210,11 @@ int freqcount_init(void)
 
     (void) take_wrap();
 
-    /* THE CRYSTAL, WITHOUT WHICH THERE IS NO GATE. lseref_measure_core_hz
-     * requires lseref_start to have succeeded, and its header says so; this
-     * function is the only sensible place to satisfy that, because a caller who
-     * wanted a frequency should not have to know that the gate is a real time
-     * clock. Three seconds is lseref's own bound for a 32.768 kHz crystal, which
+    /* THE CRYSTAL, WITHOUT WHICH THERE IS NO GATE. lseref_tick_open requires
+     * lseref_start to have succeeded, and its header says so; this function is
+     * the only sensible place to satisfy that, because a caller who wanted a
+     * frequency should not have to know that the gate is a real time clock.
+     * Three seconds is lseref's own bound for a 32.768 kHz crystal, which
      * takes far longer to start than any PLL and is why that bound is in seconds
      * rather than milliseconds. */
     lseref_start_t start;
@@ -200,67 +235,223 @@ uint32_t freqcount_ceiling_hz(void)
     return board_pclk1_hz();
 }
 
-/* The counter, sampled once, with the wraps accumulated.
+/* Wait for the next crystal tick, counting every wrap that happens while
+ * waiting. Returns false if the tick never arrived.
  *
- * WHY THIS IS A FUNCTION AND WHY IT IS CALLED OFTEN. A wrap is only visible
- * while ARRM is set, and nothing latches how many happened. So the flag has to
- * be taken often enough that two wraps cannot fall between two looks. At the
- * ceiling, 140 MHz, a 16 bit counter wraps every 468 microseconds, and the loop
- * below runs this between every pair of crystal ticks, which are 3906
- * microseconds apart. That is not often enough, and it is exactly why the
- * usable input is bounded well below the sampling ceiling rather than at it.
+ * THIS IS THE WHOLE FIX. The wrap flag is read on every pass of this loop, not
+ * once per gate and not once per tick, and every match found is cleared so that
+ * the next one is visible. The loop is already waiting; reading a flag while it
+ * waits costs nothing and is the only thing that makes `wraps` a count rather
+ * than a boolean.
  *
- * The honest statement of the limit: one wrap per tick interval is the most this
- * can account for, so the input must stay below 65536 edges per 3906
- * microseconds, which is about 16.8 MHz. freqcount_measure_mhz refuses above
- * that rather than reporting a figure short by a multiple of 65536. */
-static uint32_t counter_now(void)
+ * THE ORDER INSIDE THE LOOP IS NOT FREE. The flag is taken BEFORE the tick mark
+ * is read, so that the pass which notices the tick has already accounted for any
+ * wrap that preceded it. Reading the mark first and returning would leave a
+ * match sitting in the flag for the boundary sample to deal with, which is where
+ * the next function comes in, and that function is written for it.
+ *
+ * AND NOT AN INTERRUPT. An ARRM interrupt would be the same defect in a
+ * different place: the flag still says one or more rather than how many, so a
+ * handler that ran late by one autoreload would lose a match exactly as two
+ * samples did. At the usable maximum a wrap takes 3.9 ms against a 3.906 ms
+ * tick, which is precisely where a handler driven at tick rate could be late by
+ * one. A poll inside the loop that is already running has no such latency, and
+ * it adds no vector, no priority decision and no NVIC entry to a project that
+ * has not yet earned any of the three. */
+static bool wait_tick(uint32_t *mark)
 {
-    if (take_wrap()) {
-        g_wraps++;
+    const uint32_t was = *mark;
+    uint32_t polls = 0u;
+
+    while (polls < FREQCOUNT_TICK_POLLS_MAX) {
+        uint32_t now;
+
+        if (take_wrap()) {
+            g_wraps++;
+        }
+        now = lseref_tick_mark();
+        if (now != was) {
+            *mark = now;
+            return true;
+        }
+        polls++;
     }
-    return freqmath_compose(g_wraps, LPTIM1_CNT);
+    return false;
 }
 
+/* Sample the counter at a gate boundary, with the wrap flag resolved rather
+ * than guessed. Returns false if it could not be resolved.
+ *
+ * WHAT IS BEING RESOLVED. Two reads are involved, the flag and the counter, and
+ * the counter can wrap between them. Three outcomes, and each has to be handled
+ * differently or 65536 edges go missing or arrive twice:
+ *
+ *   - the flag is already set on entry. That match happened before this sample,
+ *     so it belongs to the interval that is closing. It is counted and cleared,
+ *     and the sample is taken again now that the flag is clean.
+ *   - the flag is clear, the counter is read, and the flag is still clear. The
+ *     reading is unambiguous and is returned.
+ *   - the flag is clear, the counter is read, and the flag is set afterwards.
+ *     Whether the match fell before or after the read is not knowable, so the
+ *     reading is discarded and the next pass counts the match and reads again.
+ *     The retry costs a few cycles, which is the one place where this sample
+ *     moves away from the tick boundary. Twenty cycles at 280 MHz is 71
+ *     nanoseconds, which against the shortest gate this volume runs, 46.875 ms,
+ *     is 1.5 parts per million, and against a one second gate is 0.07. It is
+ *     also not paid on every sample but only on the rare pass where the flag
+ *     was ambiguous.
+ *
+ * The caller decides what the counted wraps mean. At the gate's opening
+ * boundary they belong to whatever came before and are discarded by zeroing the
+ * count after this returns; at the closing boundary they are inside the gate and
+ * are kept. That decision is at the call site because it is the only place the
+ * two boundaries look different. */
+static bool sample_counter(uint32_t *out)
+{
+    uint32_t attempt;
+
+    for (attempt = 0u; attempt < FREQCOUNT_SAMPLE_ATTEMPTS; attempt++) {
+        uint32_t cnt;
+
+        if (take_wrap()) {
+            g_wraps++;
+            continue;
+        }
+
+        /* READ ONCE, AND ONE QUESTION LEFT OPEN. RM0455 carries a rule that an
+         * LPTIM counter clocked asynchronously must be read twice and the two
+         * values compared, and whether it applies in COUNTMODE with the kernel
+         * clock taken from PCLK1, which is this configuration, is not sourced
+         * here. A blind double read is not the safe choice it looks like: at the
+         * usable maximum the counter changes every 60 nanoseconds, so two reads
+         * legitimately disagree, and a loop demanding agreement would refuse
+         * fast inputs for a reason that has nothing to do with the hardware.
+         * Reading RM0455's LPTIM chapter is what settles this, and it is not
+         * read yet, so the single read stands and the question is written down
+         * rather than answered by preference. */
+        cnt = LPTIM1_CNT;
+
+        if ((LPTIM1_ISR & LPTIM_ISR_ARRM_MSK) == 0u) {
+            *out = cnt;
+            return true;
+        }
+    }
+    return false;
+}
+
+/* THIS FUNCTION OWNS THE GATE, since Tuesday 6 October 2026, and that is the
+ * change rather than an implementation detail of it.
+ *
+ * WHAT IT USED TO DO. It sampled the counter, called lseref_measure_core_hz to
+ * pass the time, and sampled again. Two defects came out of those three lines
+ * and both were visible on the board the first day the counter counted:
+ *
+ *   - the wrap count could only reach one, because the flag was read twice,
+ *     which capped a one second reading at 131071 Hz
+ *   - the edge window was WIDER THAN THE GATE IT WAS DIVIDED BY, because
+ *     lseref_measure_core_hz waits for its own tick boundary before it starts
+ *     counting and that wait sat inside the counter's window while the divisor
+ *     was only `ticks`. A twelve tick gate measured 12.5 ticks long, which is an
+ *     extra half tick on average and is exactly what a uniform wait of nought to
+ *     one tick looks like
+ *
+ * The second was the better find and it was free: the short gate's parts per
+ * million should have equalled the clock offset printed beside it, because the
+ * source follows this part's clock while the gate is the crystal, and it came
+ * back 32768 to 41877 ppm out instead. Nothing was designed to catch that. Two
+ * instruments were pointed at one quantity and they disagreed.
+ *
+ * WHAT IT DOES NOW. It opens the tick source, waits for a boundary so that the
+ * first sample sits on one, samples, waits exactly `ticks` boundaries while
+ * polling the wrap flag between them, and samples again. The gate is the
+ * interval between those two samples and the divisor is the number of ticks that
+ * interval contains, with nothing else in between. The core is not measured here
+ * at all any more; a caller who wants the core frequency asks lseref for it,
+ * which is the right place to ask.
+ *
+ * THE PASS CONDITION, written here because a fix without one is a hope. The
+ * short gate's parts per million must come out equal to the clock offset, same
+ * sign and same size, within the 21 Hz that a twelve tick gate resolves. Not a
+ * return to 1000000000 millihertz: the source is not exactly a megahertz, it is
+ * APB2 over a whole number and so it carries the clock's own error, and a fix
+ * judged against a round number would be judged against the wrong number. */
 uint64_t freqcount_measure_mhz(uint32_t gate_ms)
 {
+    lseref_tick_t tick;
+    uint32_t mark;
+    uint32_t before;
+    uint32_t after;
+    uint32_t ticks;
+    uint32_t n;
+
     if (!g_ready || gate_ms == 0u) {
         return 0u;
     }
 
-    /* THE GATE IS REQUESTED IN TICKS AND NOT IN MILLISECONDS, which is a wart in
-     * lseref's interface rather than here, and it has to be handled honestly.
-     * The tick rate comes out of RTC_PRER and is 256 Hz on this board, but this
-     * function cannot know that before it asks. So the conversion ASSUMES 256
-     * and the arithmetic below USES the rate that came back, which means a
-     * different PRER would give a gate of a different length than the caller
-     * asked for while still producing a correct frequency. That is the right way
-     * round: the reading stays true and only the window moves. */
-    const uint32_t ticks = freqmath_ticks_for_ms(gate_ms,
-                                                FREQCOUNT_EXPECTED_TICK_HZ);
+    /* The tick source, opened on every measurement rather than once at init, so
+     * that the rate going into the arithmetic below comes from the same register
+     * read as the gate it describes. It also removes a wart this function used
+     * to carry: the millisecond-to-tick conversion had to ASSUME 256 Hz because
+     * the rate was not known until lseref had already been called. It is known
+     * before the conversion now. */
+    if (lseref_tick_open(&tick) != 0) {
+        return 0u;
+    }
+
+    ticks = freqmath_ticks_for_ms(gate_ms, tick.ck_apre_hz);
     if (ticks == 0u) {
         return 0u;
     }
 
-    lseref_measure_t gate;
-    const uint32_t before = counter_now();
-
-    /* Arguments in lseref's order, out first. Worth a word because getting it
-     * the other way round compiles in C only if the types happen to allow it,
-     * and here they do not, which is the one piece of luck in this file. */
-    if (lseref_measure_core_hz(&gate, ticks) != 0) {
+    /* ALIGN FIRST. This wait is the one that used to be inside the measurement
+     * and outside the divisor. It is still here, because a first sample taken
+     * wherever the call happened to land would make the gate a fraction of a
+     * tick longer than `ticks` says, but it is now OUTSIDE the counter's window:
+     * nothing is sampled until it has finished. Wraps found while waiting are
+     * counted by wait_tick and then thrown away with the zeroing below, because
+     * they happened before the gate opened. */
+    mark = lseref_tick_mark();
+    if (!wait_tick(&mark)) {
         return 0u;
     }
 
-    const uint32_t after = counter_now();
+    /* The gate opens on this sample. The zeroing comes AFTER it, not before,
+     * because sample_counter counts any match it has to clear on its way to an
+     * unambiguous reading, and at this boundary those matches belong to the time
+     * before the gate. */
+    if (!sample_counter(&before)) {
+        return 0u;
+    }
+    g_wraps = 0u;
+
+    for (n = 0u; n < ticks; n++) {
+        if (!wait_tick(&mark)) {
+            return 0u;
+        }
+    }
+
+    /* And closes on this one, on the tick the loop just saw. Here the matches
+     * sample_counter clears ARE inside the gate and are kept. */
+    if (!sample_counter(&after)) {
+        return 0u;
+    }
 
     /* The arithmetic, the two refusals and the derived usable maximum are all
-     * freqmath's now, driven from a host against a table of cases. What this
+     * freqmath's, driven from a host against a table of cases. What this
      * function contributes is the four measured inputs: the edges, the tick rate
-     * and tick count the gate actually used, and the sampling ceiling. */
-    return freqmath_mhz(freqmath_edges(before, after),
-                        gate.ck_apre_hz,
-                        gate.ticks,
+     * and the tick count of the gate it just ran, and the sampling ceiling.
+     *
+     * THE EDGES ARE wraps TIMES 65536 PLUS after MINUS before, AND THE BORROW IS
+     * THE MODULAR SUBTRACTION'S. Composing `before` with a wrap count of zero is
+     * what makes that true: the wraps are counted from the opening sample, so
+     * they sit above the opening residue, and when the closing residue is the
+     * smaller of the two the subtraction borrows one 65536 out of the wrap field
+     * on its own. python/tests/test_freqmath.py drives this composition in the
+     * shape this call site uses it, borrow included. */
+    return freqmath_mhz(freqmath_edges(freqmath_compose(0u, before),
+                                       freqmath_compose(g_wraps, after)),
+                        tick.ck_apre_hz,
+                        ticks,
                         freqcount_ceiling_hz(),
                         FREQCOUNT_ARR);
 }

@@ -324,38 +324,31 @@ static void report_crystal(const char *when, uint32_t nominal_hz)
  * to falsify one model and nothing else, so it is worth stating what the model
  * is before the number arrives.
  *
- * ON TUESDAY 6 OCTOBER 2026 THE COUNTER COUNTED FOR THE FIRST TIME, with a wire
- * from CN10 pin 10 to CN10 pin 21, and reported 87903 and 82019 millihertz
- * against a source producing about a megahertz. Low by a factor of eleven to
- * twelve, and different between the two clocks.
+ * IT WAS BUILT AS A FALSIFIER AND IT IS NOW THE PASS CONDITION, which is two
+ * jobs for one gate and worth keeping both histories because the second only
+ * means anything given the first.
  *
- * THE MODEL FOR THAT, read out of the code rather than guessed:
- * freqcount_measure_mhz samples the counter twice, once before the gate and once
- * after, and each sample increments the wrap count by at most one, because
- * LPTIM1_ISR's ARRM is a flag meaning one or more matches since ARRMCF and not a
- * count of them. So a gate spanning fifteen matches contributes one. The
- * reported edges are then 65536 plus the 16-bit residue, whatever the input,
- * which caps any one-second reading at 131071 Hz.
+ * WHAT IT FALSIFIED. On Tuesday 6 October 2026 the counter counted for the first
+ * time, with a wire from CN10 pin 10 to CN10 pin 21, and reported 87903 and
+ * 82019 millihertz against a source producing about a megahertz: low by a factor
+ * of eleven to twelve. The model for that, read out of the code rather than
+ * guessed, was that freqcount_measure_mhz sampled the counter twice and ARRM is
+ * a flag meaning one or more matches rather than a count, so a gate spanning
+ * fifteen matches contributed one and any one-second reading was capped at
+ * 131071 Hz. Twelve ticks of the 256 Hz tick is 46.875 ms, and any source below
+ * 65536 / 0.046875 = 1398101 Hz puts fewer than two matches inside that window,
+ * where the two-sample scheme was EXACT rather than approximate. So if the short
+ * gate had also read 65536 plus a residue, between about 65000 and 131000 Hz,
+ * the model would have been refuted and the fix written against it would have
+ * been the wrong edit. It read 1041579, 1041877 and 1032768 Hz. The model held.
  *
- * Both readings sit on that model within 0.24 and 0.19 per cent, and both are
- * under the cap. That is agreement, not proof.
- *
- * SO HERE IS THE FALSIFIER. Twelve ticks of the 256 Hz crystal tick is 46.875
- * ms. Any source below 65536 / 0.046875 = 1398101 Hz puts fewer than two matches
- * inside that window, and the two-sample scheme is EXACT when at most one match
- * occurs: the before sample clears ARRM, the after sample counts the one that
- * happened, and the arithmetic closes. This source is about a megahertz.
- *
- *   if the short gate reads about a megahertz, the model is confirmed and the
- *   defect is the wrap accounting over long gates, nothing else
- *
- *   if the short gate ALSO reads 65536 plus a residue, the model is wrong, the
- *   fault is elsewhere, and a fix written against the model would be the wrong
- *   edit
- *
- * NO FIX IS IN THIS CHANGE, deliberately. The long gate is left exactly as it
- * was so that one capture shows both, same wire, same source, same run: the
- * broken reading is the control for the short one.
+ * WHAT IT CHECKS NOW. The wrap accounting was fixed in the same afternoon, and
+ * this gate is the gate that says whether the fix worked, because the same
+ * capture that confirmed the model also exposed a second defect which only the
+ * SHORT gate makes visible: the edge window used to include a boundary wait that
+ * the divisor did not, worth an extra half tick, which is 4 per cent at twelve
+ * ticks and 0.2 at 256. So the long gate is the headline and the short gate is
+ * the sensitive one, and both are printed from one run.
  *
  * 47 is the smallest whole number of milliseconds that asks for 12 ticks, since
  * freqmath_ticks_for_ms truncates 47 * 256 / 1000 to 12.
@@ -447,7 +440,12 @@ static void report_freqcount(const char *when, uint64_t source_mhz)
     const uint32_t ceiling = freqcount_ceiling_hz();
     printf("    sampling ceiling %lu Hz, the LPTIM1 kernel clock, which is APB1\n",
            (unsigned long) ceiling);
-    printf("    usable maximum   16777216 Hz, one 16 bit wrap per crystal tick\n");
+    printf("    usable maximum   16777216 Hz, which is deliberately low: it is\n"
+           "                     what one wrap read per crystal tick would\n"
+           "                     support, and the flag is now polled inside the\n"
+           "                     gate loop thousands of times per tick. The real\n"
+           "                     limit is higher and is not measured, so the low\n"
+           "                     figure is the one that refuses\n");
     printf("    resolution over a 1000 ms gate: %lu millihertz\n",
            (unsigned long) freqcount_resolution_mhz(1000u));
 
@@ -484,15 +482,18 @@ static void report_freqcount(const char *when, uint64_t source_mhz)
            "    these two numbers reach the same quantity through paths that\n"
            "    share no component but the crystal. If they disagree, the SIZE\n"
            "    says which kind of error it is: a shortfall that is a whole\n"
-           "    number of 65536s is the wrap accounting, a ratio near a small\n"
-           "    integer is a prescaler or divider misread, a few hundred ppm is\n"
-           "    the crystal, and a figure that moves between runs is the\n"
+           "    number of 65536s is the wrap accounting, which was the defect\n"
+           "    measured on this board earlier today and is now fixed, so\n"
+           "    seeing it again means the fix regressed; a ratio near a small\n"
+           "    integer is a prescaler or divider misread; a few hundred ppm is\n"
+           "    the crystal; and a figure that moves between runs is the\n"
            "    debugger's 8 MHz, which is known to move by a part in a\n"
            "    thousand.\n");
 
-    /* AND THE SAME SIGNAL OVER A GATE TOO SHORT TO WRAP TWICE, which is the
-     * falsifier for the wrap model and not a second opinion on the frequency.
-     * The constant's comment carries the argument. */
+    /* AND THE SAME SIGNAL OVER A GATE TOO SHORT TO WRAP TWICE. This started as
+     * the falsifier for the wrap model and is now the sensitive test of the fix,
+     * because the gate-width defect shows up here twenty times larger than it
+     * does over a second. The constant's comment carries both arguments. */
     const uint32_t source_hz = (uint32_t) (source_mhz / 1000u);
     if (source_hz > FREQCOUNT_SHORT_GATE_MAX_HZ) {
         printf("\n    the short gate is SKIPPED: this source is %lu Hz, above the\n"
@@ -506,7 +507,7 @@ static void report_freqcount(const char *when, uint64_t source_mhz)
     const uint64_t short_mhz = freqcount_measure_mhz(FREQCOUNT_SHORT_GATE_MS);
     const int32_t short_ppm = pwmmath_error_ppm(short_mhz, source_hz);
 
-    printf("\n    the same signal over a SHORT gate, the falsifier:\n");
+    printf("\n    the same signal over a SHORT gate, which is the sensitive one:\n");
     printf("      asked %lu ms, which truncates to 12 ticks of 256 Hz, so\n"
            "      46.875 ms. Under one counter match for any source below\n"
            "      %lu Hz, and this one is %lu Hz\n",
@@ -517,17 +518,26 @@ static void report_freqcount(const char *when, uint64_t source_mhz)
            (unsigned long) short_mhz, (long) short_ppm);
     printf("      resolution over the gate: %lu millihertz, about 21 Hz\n",
            (unsigned long) freqcount_resolution_mhz(FREQCOUNT_SHORT_GATE_MS));
-    printf("      WHAT TO READ: near %lu confirms the wrap model and leaves the\n"
-           "      defect in the long gate alone. Near 65536 plus a residue, so\n"
-           "      roughly 65000 to 131000 Hz, refutes it and the fault is\n"
-           "      somewhere else.\n",
-           (unsigned long) source_hz);
-    printf("      AND ONE MORE THING THE ppm ABOVE SHOULD SATISFY: the source is\n"
-           "      APB2 divided by a whole number, so it follows this part's\n"
-           "      clock, while the gate is the crystal. So that ppm figure\n"
-           "      should come out equal to the clock's own offset printed above,\n"
-           "      same sign and size. Two instruments, one quantity, and no\n"
-           "      arithmetic added to make it so.\n");
+    printf("      WHAT TO READ, AND IT IS THE ppm AND NOT THE FREQUENCY. The\n"
+           "      source is APB2 divided by a whole number, so it follows this\n"
+           "      part's clock, while the gate is the crystal. So that ppm\n"
+           "      figure must come out EQUAL TO THE CLOCK'S OWN OFFSET printed\n"
+           "      further up this report, same sign and same size, within the\n"
+           "      21 Hz this gate resolves, which at a megahertz is about 21\n"
+           "      ppm. Two instruments, one quantity, and no arithmetic added\n"
+           "      to make it so.\n");
+    printf("      A RETURN TO EXACTLY %lu millihertz WOULD BE THE WRONG RESULT\n"
+           "      to hope for, because the source is not exactly that: it\n"
+           "      carries this part's clock error with it, and a fix judged\n"
+           "      against a round number is judged against the wrong number.\n",
+           (unsigned long) source_mhz);
+    printf("      WHAT THE BROKEN VERSION RETURNED, for comparison: +41579,\n"
+           "      +41877 and +32768 ppm, against clock offsets of about +3186\n"
+           "      at reset and about -1833 at 280 MHz. The implied gates were\n"
+           "      12.50, 12.50 and 12.39 ticks where 12 was asked for.\n");
+    printf("      AND NEAR 65536 PLUS A RESIDUE, roughly 65000 to 131000 Hz,\n"
+           "      would mean the wrap fix regressed, which is the one reading\n"
+           "      this gate was originally built to look for.\n");
 }
 
 int main(void)

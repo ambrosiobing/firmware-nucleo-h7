@@ -110,40 +110,37 @@ static bool wait_ssr_change(uint32_t *ssr)
     return false;
 }
 
-int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks)
+/* Everything lseref_measure_core_hz used to do before its gate opened, lifted
+ * out on Tuesday 6 October 2026 so that a second caller can have a tick source
+ * without also measuring the core.
+ *
+ * Unchanged in substance from the version inside that function: the same four
+ * steps in the same order, each refusing rather than continuing, and the tick
+ * rate still computed from RTC_PRER rather than assumed. The struct is zeroed
+ * first so that a refusal at step one leaves the later fields at zero, which is
+ * what a reader of them expects and what the previous version did. */
+static int open_tick_source(lseref_tick_t *t)
 {
-    uint32_t ssr;
-    uint32_t t0;
-    uint32_t t1;
     uint32_t prediv_a;
-    uint32_t n;
 
-    if (out == NULL || ticks == 0u) {
-        return -1;
-    }
-    out->ok                = false;
-    out->core_hz_measured  = 0u;
-    out->core_hz_derived   = board_core_hz();
-    out->ck_apre_hz        = 0u;
-    out->ticks             = ticks;
-    out->cycles            = 0u;
-    out->apb4enr           = 0u;
-    out->bdcr              = 0u;
-    out->prer              = 0u;
-    out->icsr              = 0u;
-    out->rsf_polls         = 0u;
-    out->bus_clock_on      = false;
-    out->clock_selected    = false;
-    out->synchronised      = false;
+    t->apb4enr        = 0u;
+    t->bdcr           = 0u;
+    t->prer           = 0u;
+    t->icsr           = 0u;
+    t->rsf_polls      = 0u;
+    t->ck_apre_hz     = 0u;
+    t->bus_clock_on   = false;
+    t->clock_selected = false;
+    t->synchronised   = false;
 
     /* The RTC's registers read as ZERO until this bus clock is on, which is a
      * silent failure rather than a refusal, so it is enabled and read back
      * before anything below is believed. */
     RCC_APB4ENR |= RCC_APB4ENR_RTCAPBEN_MSK;
     (void) RCC_APB4ENR;
-    out->apb4enr = RCC_APB4ENR;
-    out->bus_clock_on = ((out->apb4enr & RCC_APB4ENR_RTCAPBEN_MSK) != 0u);
-    if (!out->bus_clock_on) {
+    t->apb4enr = RCC_APB4ENR;
+    t->bus_clock_on = ((t->apb4enr & RCC_APB4ENR_RTCAPBEN_MSK) != 0u);
+    if (!t->bus_clock_on) {
         return -1;
     }
 
@@ -168,17 +165,17 @@ int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks)
             RCC_BDCR = (RCC_BDCR & ~RCC_BDCR_RTCSEL_MSK)
                      | (RCC_RTCSEL_LSE << RCC_BDCR_RTCSEL_POS);
         } else if (sel != RCC_RTCSEL_LSE) {
-            out->bdcr = RCC_BDCR;
+            t->bdcr = RCC_BDCR;
             return -1;
         }
         RCC_BDCR |= RCC_BDCR_RTCEN_MSK;
         (void) RCC_BDCR;
-        out->bdcr = RCC_BDCR;
-        out->clock_selected =
-            (((out->bdcr & RCC_BDCR_RTCSEL_MSK) >> RCC_BDCR_RTCSEL_POS)
+        t->bdcr = RCC_BDCR;
+        t->clock_selected =
+            (((t->bdcr & RCC_BDCR_RTCSEL_MSK) >> RCC_BDCR_RTCSEL_POS)
              == RCC_RTCSEL_LSE)
-            && ((out->bdcr & RCC_BDCR_RTCEN_MSK) != 0u);
-        if (!out->clock_selected) {
+            && ((t->bdcr & RCC_BDCR_RTCEN_MSK) != 0u);
+        if (!t->clock_selected) {
             return -1;
         }
     }
@@ -194,10 +191,10 @@ int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks)
             }
             polls++;
         }
-        out->rsf_polls = polls;
-        out->icsr = RTC_ICSR;
-        out->synchronised = ((out->icsr & RTC_ICSR_RSF_MSK) != 0u);
-        if (!out->synchronised) {
+        t->rsf_polls = polls;
+        t->icsr = RTC_ICSR;
+        t->synchronised = ((t->icsr & RTC_ICSR_RSF_MSK) != 0u);
+        if (!t->synchronised) {
             return -1;
         }
     }
@@ -206,10 +203,74 @@ int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks)
      * prescaler gives 256 Hz and nothing here changes it, but reading it is what
      * makes a non-default prescaler change the gate instead of silently scaling
      * the answer. */
-    out->prer = RTC_PRER;
-    prediv_a = (out->prer & RTC_PRER_PREDIV_A_MSK) >> RTC_PRER_PREDIV_A_POS;
-    out->ck_apre_hz = LSE_HZ_NOMINAL / (prediv_a + 1u);
-    if (out->ck_apre_hz == 0u) {
+    t->prer = RTC_PRER;
+    prediv_a = (t->prer & RTC_PRER_PREDIV_A_MSK) >> RTC_PRER_PREDIV_A_POS;
+    t->ck_apre_hz = LSE_HZ_NOMINAL / (prediv_a + 1u);
+    if (t->ck_apre_hz == 0u) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int lseref_tick_open(lseref_tick_t *out)
+{
+    if (out == NULL) {
+        return -1;
+    }
+    return open_tick_source(out);
+}
+
+uint32_t lseref_tick_mark(void)
+{
+    return RTC_SSR & RTC_SSR_SS_MSK;
+}
+
+int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks)
+{
+    lseref_tick_t tick;
+    uint32_t ssr;
+    uint32_t t0;
+    uint32_t t1;
+    uint32_t n;
+    int rc;
+
+    if (out == NULL || ticks == 0u) {
+        return -1;
+    }
+    out->ok                = false;
+    out->core_hz_measured  = 0u;
+    out->core_hz_derived   = board_core_hz();
+    out->ck_apre_hz        = 0u;
+    out->ticks             = ticks;
+    out->cycles            = 0u;
+    out->apb4enr           = 0u;
+    out->bdcr              = 0u;
+    out->prer              = 0u;
+    out->icsr              = 0u;
+    out->rsf_polls         = 0u;
+    out->bus_clock_on      = false;
+    out->clock_selected    = false;
+    out->synchronised      = false;
+
+    rc = open_tick_source(&tick);
+
+    /* The diagnostics come across whether or not it succeeded, because they are
+     * the reason this struct carries them: a caller reads them to find out WHICH
+     * step failed, and a failure that reports nothing is the failure this file
+     * is written to avoid. Copied field by field rather than nesting the struct,
+     * so that no caller of lseref_measure_t changes in the commit that fixes the
+     * counter. */
+    out->apb4enr        = tick.apb4enr;
+    out->bdcr           = tick.bdcr;
+    out->prer           = tick.prer;
+    out->icsr           = tick.icsr;
+    out->rsf_polls      = tick.rsf_polls;
+    out->ck_apre_hz     = tick.ck_apre_hz;
+    out->bus_clock_on   = tick.bus_clock_on;
+    out->clock_selected = tick.clock_selected;
+    out->synchronised   = tick.synchronised;
+    if (rc != 0) {
         return -1;
     }
 
@@ -218,7 +279,9 @@ int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks)
     }
 
     /* Gate on ticks, not on time. Start at a tick boundary so the first partial
-     * tick is not counted, then count exactly `ticks` intervals. */
+     * tick is not counted, then count exactly `ticks` intervals. This is the
+     * rule lseref.h now states for lseref_tick_mark's callers as well, because
+     * it is the same rule and the counter got it wrong by not having it. */
     ssr = RTC_SSR & RTC_SSR_SS_MSK;
     if (!wait_ssr_change(&ssr)) {
         return -1;
@@ -265,6 +328,20 @@ int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks)
     (void) out;
     (void) ticks;
     return -1;
+}
+
+int lseref_tick_open(lseref_tick_t *out)
+{
+    (void) out;
+    return -1;
+}
+
+/* 0, which lseref.h says means nothing. A caller that reads this without having
+ * had a 0 from lseref_tick_open would see a mark that never changes, which is
+ * the correct description of a tick source that does not exist. */
+uint32_t lseref_tick_mark(void)
+{
+    return 0u;
 }
 
 #endif /* BOARD_REGS_CONFIRMED */

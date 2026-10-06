@@ -212,53 +212,72 @@ uint32_t freqcount_ceiling_hz(void);
  * in millihertz so the caller does not need floating point, or 0 on failure.
  * Its own resolution is reported by freqcount_resolution_mhz so a caller can
  * never quote a figure finer than the instrument supports. */
-/* TWO DEFECTS ARE KNOWN IN THIS FUNCTION AS OF TUESDAY 6 OCTOBER 2026, both
- * found the day the counter first counted anything, and neither fixed yet. They
- * are recorded here rather than in a tracker because a reader reaching for this
- * declaration is exactly the reader who needs them.
+/* TWO DEFECTS WERE FOUND IN THIS FUNCTION ON TUESDAY 6 OCTOBER 2026, the day the
+ * counter first counted anything, and both are FIXED IN CODE AND NOT YET
+ * CONFIRMED ON THE BOARD. They are recorded here rather than in a tracker
+ * because a reader reaching for this declaration is exactly the reader who needs
+ * them, and the state is written as two separate facts because they are two: the
+ * code changed, and the hardware has not yet said so.
  *
- * ONE: THE WRAP COUNT IS SAMPLED TWICE, NOT ACCUMULATED. This function reads the
- * counter once before the gate and once after. Each read can add at most one
+ * ONE: THE WRAP COUNT WAS SAMPLED TWICE, NOT ACCUMULATED. This function read the
+ * counter once before the gate and once after. Each read could add at most one
  * wrap, because LPTIM1_ISR's ARRM is a flag meaning one or more matches since
- * ARRMCF and not a count of them. A gate spanning fifteen matches contributes
- * one, so the reported edges are 65536 plus the 16-bit residue whatever the
- * input, and any one-second reading is capped at 131071 Hz.
+ * ARRMCF and not a count of them. A gate spanning fifteen matches contributed
+ * one, so the reported edges were 65536 plus the 16-bit residue whatever the
+ * input, and any one-second reading was capped at 131071 Hz.
  *
- * Confirmed rather than inferred: a gate of twelve crystal ticks, 46.875 ms, is
- * too short for a second match below 1398101 Hz, and the two-sample scheme is
- * exact there. At one megahertz the long gate read 87938, 88101 and 82550 Hz
- * while the short gate read 1041579, 1041877 and 1032768. The refuting band was
- * 65000 to 131000 and none of the short readings is in it.
+ * Confirmed rather than inferred, before anything was edited: a gate of twelve
+ * crystal ticks, 46.875 ms, is too short for a second match below 1398101 Hz,
+ * and the two-sample scheme is exact there. At one megahertz the long gate read
+ * 87938, 88101 and 82550 Hz while the short gate read 1041579, 1041877 and
+ * 1032768. The refuting band was 65000 to 131000 and none of the short readings
+ * is in it, so the fix below is aimed at something that was established and not
+ * at something that merely fitted.
  *
- * TWO: THE EDGE WINDOW IS WIDER THAN THE GATE IT IS DIVIDED BY. This function
- * brackets lseref_measure_core_hz rather than owning the gate:
+ * TWO: THE EDGE WINDOW WAS WIDER THAN THE GATE IT WAS DIVIDED BY. This function
+ * bracketed lseref_measure_core_hz rather than owning the gate:
  *
  *     before = counter_now();
  *     lseref_measure_core_hz(&gate, ticks);
  *     after  = counter_now();
  *
  * lseref gates the CORE correctly, waiting for a tick boundary before its first
- * cycle count. The LPTIM samples sit outside that, so the edges include lseref's
- * setup and its initial boundary wait, nought to one tick, while the divisor is
- * only ticks. At twelve ticks that is up to 8.3 per cent and was measured at 3.5
- * to 3.9; at 256 it is up to 0.39 and was the residual previously mistaken for
- * sampling noise.
+ * cycle count. The LPTIM samples sat outside that, so the edges included
+ * lseref's setup and its initial boundary wait, nought to one tick, while the
+ * divisor was only ticks. At twelve ticks that is up to 8.3 per cent and was
+ * measured at 3.5 to 3.9; at 256 it is up to 0.39 and was the residual
+ * previously mistaken for sampling noise. This one was free: nothing was
+ * designed to catch it, and the short gate's parts per million disagreeing with
+ * the clock offset printed beside it is what exposed it.
  *
- * BOTH HAVE ONE CAUSE and one fix: this function has to own the gate loop. Start
- * the counter, clear ARRM, wait one tick so the first sample is on a boundary,
- * sample, then for exactly ticks intervals poll ARRM faster than one counter
- * period and count every match, then sample on the closing tick. The poll has to
- * stay inside 3.9 ms, which is one wrap at the stated usable maximum.
+ * BOTH HAD ONE CAUSE and one fix, now written. This function owns the gate loop.
+ * It opens the tick source, waits one tick so the first sample is on a boundary,
+ * samples, then for exactly ticks intervals polls ARRM between tick reads and
+ * counts and clears every match, then samples on the closing tick. The poll runs
+ * thousands of times per tick instead of once, against a 3.9 ms wrap at the
+ * stated usable maximum, so the 131071 Hz ceiling is gone; and both samples are
+ * now inside a window whose length is exactly the ticks it is divided by.
  *
- * NOT AN INTERRUPT. ARRM is a flag and not a counter, so a handler late by one
- * autoreload loses a match exactly as two samples do. At 16777216 Hz a wrap takes
- * 3.9 ms against a 3.906 ms tick, which is precisely where two can hide in one.
+ * NOT AN INTERRUPT, which was considered and rejected on the facts. ARRM is a
+ * flag and not a counter, so a handler late by one autoreload loses a match
+ * exactly as two samples did. At 16777216 Hz a wrap takes 3.9 ms against a 3.906
+ * ms tick, which is precisely where two can hide in one. A poll inside a loop
+ * that is already waiting has no such latency and adds no vector. The interrupt
+ * is the right instrument for something in P01 that must run while the core is
+ * NOT in this loop; this measurement is that loop.
  *
- * AND THE PASS CONDITION IS NOT A ROUND NUMBER. With a source derived from APB2
- * and a gate taken from the crystal, the parts per million between the reading
- * and the source must equal the clock's own offset, same sign and size, within
- * the 21 Hz a twelve-tick gate resolves. p01-pll280 prints both so they can be
- * compared without arithmetic. */
+ * WHAT THE BOARD HAS TO SHOW, AND IT IS NOT A ROUND NUMBER. With a source
+ * derived from APB2 and a gate taken from the crystal, the parts per million
+ * between the reading and the source must equal the clock's own offset, same
+ * sign and size, within the 21 Hz a twelve-tick gate resolves, which at a
+ * megahertz is about 21 ppm. So: about +3186 ppm on the reset clock and about
+ * MINUS 1833 at the 280 MHz setting, where the broken version returned +41579,
+ * +41877 and +32768. A return to exactly 1000000000 millihertz would be the
+ * WRONG result to hope for, because the source is not exactly a megahertz: it is
+ * APB2 over a whole number and carries this part's clock error with it.
+ * p01-pll280 prints both figures so they can be compared without arithmetic, and
+ * the long gate is kept beside the short one so that a shortfall which is a
+ * whole number of 65536s would still be recognised if it came back. */
 uint64_t freqcount_measure_mhz(uint32_t gate_ms);
 
 uint64_t freqcount_resolution_mhz(uint32_t gate_ms);

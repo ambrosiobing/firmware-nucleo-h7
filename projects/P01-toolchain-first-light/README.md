@@ -362,17 +362,42 @@ That predicts an excess of nought to 8.3 per cent at twelve ticks and nought to
 0.24 per cent residual left on the wrap-model fit at 256 ticks, which had been put
 down to sampling noise. One defect, two symptoms, scaled by the gate.
 
-**Neither is fixed here, deliberately.** Both have one cause: `freqcount` brackets
-a call it does not control. The fix is for it to own the gate loop, poll and clear
-`ARRM` inside that loop faster than one counter period, and sample the counter at
-the boundaries it then controls. An interrupt is the wrong instrument: `ARRM` is a
-flag and not a counter, so a handler late by one autoreload loses a match exactly
-as two samples do, and at the usable ceiling of 16 777 216 Hz a wrap takes 3.9 ms
-against a 3.906 ms tick, which is precisely where two can hide in one.
+**Both have one cause and the fix is now written, and not yet proven.** The cause
+was that `freqcount` bracketed a call it did not control. It owns the gate loop
+as of Tuesday 6 October 2026: it opens the tick source itself, waits one tick so
+the first sample sits on a boundary, samples, then waits exactly `ticks`
+boundaries while polling and clearing `ARRM` between them, and samples again. The
+poll runs thousands of times per tick instead of twice per gate, so the 131 071 Hz
+cap is gone, and both samples now sit inside a window whose length is exactly the
+ticks it is divided by.
 
-**And the pass condition for that fix is not a return to a round number.** It is
-that the short gate's parts per million equals the clock offset printed above it,
-same sign and size, within the 21 Hz the twelve-tick gate resolves.
+**That is three states and not two, which is why this paragraph exists.** The code
+has changed; the board has not spoken. Nothing on this page claims the fix works,
+and the next flash either moves this to proven or produces a third defect, which
+on the evidence of the last two days is not the unlikely outcome.
+
+**An interrupt was considered and rejected on the facts**, not on taste. `ARRM` is
+a flag and not a counter, so a handler late by one autoreload loses a match
+exactly as two samples did, and at the usable ceiling of 16 777 216 Hz a wrap
+takes 3.9 ms against a 3.906 ms tick, which is precisely where two can hide in
+one. A poll inside a loop that is already waiting has no such latency and adds no
+vector. The interrupt stays the right instrument for something that must run while
+the core is not in this loop; this measurement is that loop.
+
+**And the pass condition is not a return to a round number.** It is that the short
+gate's parts per million equals the clock offset printed above it, same sign and
+size, within the 21 Hz the twelve-tick gate resolves, which at a megahertz is
+about 21 ppm. So about **+3186 ppm** at the reset clock and about **minus 1833** at
+280 MHz, against the +41 579, +41 877 and +32 768 the broken version returned. A
+reading of exactly 1 000 000 000 millihertz would be the wrong thing to hope for:
+the source is APB2 over a whole number and carries this part's clock error with
+it.
+
+**The arithmetic the fix depends on is checked off the board**, in
+`python/tests/test_freqmath.py`, which drives the composition in the shape
+`freqcount.c` calls it with nine hand-written cases including the borrow, and
+then recomputes every expected value a second way from the definition. Double
+entry has found three errors in this repository's hand tables already.
 
 **One megahertz is not an arbitrary target.** It divides both timer clocks
 exactly, and with different fields: PSC 0 and ARR 63 at the reset clock's 64 MHz

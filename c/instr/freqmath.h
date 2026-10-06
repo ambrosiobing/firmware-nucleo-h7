@@ -22,10 +22,11 @@
  *     wraps and reports a frequency that is not merely wrong but unrelated.
  *   - TWO REFUSALS WITH DIFFERENT THRESHOLDS. The sampling ceiling is the
  *     kernel clock. The usable maximum is lower and is the counter's width
- *     times the tick rate, because the wrap flag is only polled once per tick.
- *     Getting either comparison the wrong side of its boundary turns a refusal
- *     into a wrong answer, which is the one outcome this instrument must not
- *     have.
+ *     times the tick rate, which is what one wrap read per tick would support
+ *     and is now deliberately conservative: see the note on
+ *     freqmath_usable_max_hz. Getting either comparison the wrong side of its
+ *     boundary turns a refusal into a wrong answer, which is the one outcome
+ *     this instrument must not have.
  *   - THE COUNTER DIFFERENCE ACROSS A WRAP. The composed counter is the wrap
  *     count in the high bits and LPTIM1's 16-bit value in the low ones, and the
  *     subtraction has to be modular so that a gate spanning a composed wrap
@@ -59,9 +60,19 @@ uint32_t freqmath_edges(uint32_t before, uint32_t after);
 /* The highest input this instrument can account for, in hertz.
  *
  * (arr + 1) times the tick rate: the counter holds arr + 1 distinct values and
- * its wrap flag is read once per tick, so one full counter per tick is the most
- * that can be followed. With arr 0xFFFF and 256 Hz that is 16777216 Hz exactly.
- * 0 when either argument is 0, because a limit nobody can state is not a limit. */
+ * one full counter per tick is taken as the most that can be followed. With arr
+ * 0xFFFF and 256 Hz that is 16777216 Hz exactly. 0 when either argument is 0,
+ * because a limit nobody can state is not a limit.
+ *
+ * SINCE TUESDAY 6 OCTOBER 2026 THIS FIGURE IS CONSERVATIVE AND IS KEPT ANYWAY.
+ * It was the true limit while freqcount.c read the wrap flag once per tick. That
+ * file now polls the flag inside its gate loop, thousands of times per tick, so
+ * the real limit is set by the poll interval and is much higher. It is not
+ * stated here because it is not measured: the poll interval depends on the core
+ * clock and on what the compiler made of the loop, and a limit derived from a
+ * guess about either would be worse than a limit that is merely low. Refusing
+ * below a true ceiling costs range; claiming one that is too high costs a wrong
+ * answer, and only one of those two is recoverable by a reader. */
 uint32_t freqmath_usable_max_hz(uint32_t arr, uint32_t tick_hz);
 
 /* The frequency, in MILLIHERTZ, or 0 when it will not be stood behind.

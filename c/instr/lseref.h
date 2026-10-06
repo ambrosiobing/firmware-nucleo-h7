@@ -141,4 +141,67 @@ typedef struct {
  * default. Every wait inside is bounded. */
 int lseref_measure_core_hz(lseref_measure_t *out, uint32_t ticks);
 
+
+/* ------------------------------------------------- the tick source alone
+ *
+ * WHY THIS EXISTS, added Tuesday 6 October 2026. The frequency counter needs the
+ * crystal's ticks, and until today it got them by bracketing a call to
+ * lseref_measure_core_hz: sample the counter, measure the core, sample the
+ * counter again. That was wrong by construction. lseref_measure_core_hz waits
+ * for a tick boundary before it starts counting, so the counter's window
+ * included that wait while the divisor was only `ticks`, and a twelve tick gate
+ * came out half a tick long. The counter has to own its own loop.
+ *
+ * AND THE DEPENDENCY HAS TO POINT THIS WAY. The alternative was a callback from
+ * here into the counter, once per tick. That would make the reference know about
+ * the thing being measured, which is backwards, and it would also be too slow:
+ * a caller that must poll something faster than once per tick cannot be served
+ * by a per-tick callback. So this file hands out the two pieces a caller needs
+ * to write its own loop, and learns nothing about what the loop is for.
+ *
+ * WHAT A CALLER HAS TO DO WITH THEM, because the pair is only correct in one
+ * order: open the source once, read the mark, then wait for the mark to CHANGE
+ * before taking any first sample, so that the first sample sits on a boundary
+ * rather than wherever the call happened to land. Then each further change is
+ * one tick. A gate of n ticks is n changes after that first one, and its length
+ * is n divided by ck_apre_hz with no term for setup, which is the property the
+ * bracketed version did not have. */
+typedef struct {
+    uint32_t apb4enr;
+    uint32_t bdcr;
+    uint32_t prer;
+    uint32_t icsr;
+    uint32_t rsf_polls;
+    uint32_t ck_apre_hz;        /* the tick rate, FROM RTC_PRER, 256 by default */
+    bool     bus_clock_on;
+    bool     clock_selected;
+    bool     synchronised;
+} lseref_tick_t;
+
+/* Make the sub second register advance, and report the rate it advances at.
+ *
+ * Does exactly what lseref_measure_core_hz does before its gate opens, because
+ * it is the same code: the real-time clock's bus clock on, the backup domain
+ * unlocked, the crystal selected if nothing else already is, the shadow
+ * registers reported valid, and the tick rate computed from RTC_PRER rather than
+ * assumed. Returns 0 when RTC_SSR is advancing at out->ck_apre_hz.
+ *
+ * Requires lseref_start() to have succeeded. Cheap enough to call before every
+ * measurement, and worth calling there rather than once at init: the rate that
+ * goes into a caller's arithmetic then comes from the same register read as the
+ * gate it describes. */
+int lseref_tick_open(lseref_tick_t *out);
+
+/* The sub second register's counting field, which changes once per tick.
+ *
+ * A mark and not a time. It counts DOWN from PREDIV_S and reloads, so the
+ * numbers themselves are not a monotonic clock and nothing should be subtracted
+ * from them. The only thing a caller may read into it is that a different value
+ * means a tick has passed, which is why it is named for what it is good for.
+ *
+ * Returns 0 and means nothing if lseref_tick_open has not succeeded: a real-time
+ * clock whose bus clock is off reads zero at every register, which is the silent
+ * failure lseref_tick_open exists to rule out first. */
+uint32_t lseref_tick_mark(void);
+
 #endif /* LSEREF_H */
