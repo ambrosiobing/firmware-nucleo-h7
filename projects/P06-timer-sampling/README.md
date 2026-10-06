@@ -182,20 +182,66 @@ three of the findings are traps a clean transcription walks straight into.
 | **`ADCAL`, `ADDIS` and `ADEN` are "read-set"**, line 906 | they cannot be cleared by writing zero, so the read-modify-write habit that works on every other register here silently does nothing |
 | **boost mode is its own function**, `ADC_ConfigureBoostMode` called at lines 781 and 785 | the setting depends on the ADC clock frequency, and this board's clock is the quantity seven explanations have been withdrawn for. The honest implementation computes it from `board_pclk2_hz()` and refuses outside the range it can justify, rather than hard-coding a value that happens to work |
 
-**And what the search did NOT establish**, which is why no code was written from
-it. The lines found for `DEEPPWD` and `ADVREGEN`, 909 and 910, are the **deinit**
-path: they set deep power-down and clear the regulator, which is the sequence for
-putting the converter away. The init path's opposite lives in ST's LL header and
-has not been read, so the START of the sequence is still missing. So is the
-ordering between calibration, enable and channel configuration, and so is the
-regulator's start-up wait, which is a time rather than a flag and therefore the
-one step a missing delay turns into a build that works on a fast image and fails
-on a slow one.
+### The sequence, complete and cited
 
-**Three further reads settle it**: `LL_ADC_DisableDeepPowerDown` and
-`LL_ADC_EnableInternalRegulator` in the LL header for the entry sequence,
-`ADC_ConfigureBoostMode`'s body for the clock-dependent rule, and which of the
-two `PCSEL` branches this part compiles. None of them needs the board.
+Five further reads of the pack on Tuesday 6 October 2026 finished it. Every step
+below carries the file and line it came from, in STM32Cube_FW_H7_V1.13.0.
+
+| step | what to write | source |
+|---|---|---|
+| 1 | clear `DEEPPWD`, forcing the read-set bits to their reset state: `CR &= ~(DEEPPWD | ADC_CR_BITS_PROPERTY_RS)` | `stm32h7xx_ll_adc.h:6823` |
+| 2 | set `ADVREGEN` the same way: `MODIFY_REG(CR, ADC_CR_BITS_PROPERTY_RS, ADVREGEN)` | `:6856` |
+| 3 | wait **10 microseconds**. A delay, not a poll | `:1537`, `LL_ADC_DELAY_INTERNAL_REGUL_STAB_US`, which is `tADCVREG_STUP` |
+| 4 | boost mode, from the ADC clock | `stm32h7xx_hal_adc.c:3939` to `:4008` |
+| 5 | calibrate, then enable by **re-asserting `ADEN` until `ADRDY` reads 1** | `:3713` to `:3716`, an erratum workaround |
+| 6 | `PCSEL \|= 1 << (channel & 0x1F)` | `:2905` |
+| 7 | `EXTSEL` = 13 for TIM6 TRGO, plus the edge in `EXTEN` | `stm32h7xx_ll_adc.h:993` |
+| 8 | the sequencer rank for the channel | `stm32h7xx_hal_adc.c:2910` |
+
+**The read-set mask is seven bits**, from `stm32h7xx_hal_adc.c:366`: `ADCAL`,
+`JADSTP`, `ADSTP`, `JADSTART`, `ADSTART`, `ADDIS` and `ADEN`. "Writing 0 has no
+effect on the bit value." ST forces them to reset state on every write to `CR`
+rather than read-modify-writing, and steps 1 and 2 have to do the same.
+
+**The boost rule, and the input is not APB2.** An earlier note here said the
+setting would be computed from `board_pclk2_hz()`. That was wrong.
+`ADC_ConfigureBoostMode` branches at line 3942 on the clock mode: synchronous
+takes **HCLK** divided by the `CKMODE` prescaler, asynchronous takes a different
+clock entirely, `RCC_PERIPHCLK_ADC`. Then, for this part:
+
+```
+freq = adc_clk / 2
+BOOST = 0  if freq <= 6 250 000
+        1  if freq <= 12 500 000
+        2  if freq <= 25 000 000
+        3  otherwise
+```
+
+### Four forks, and why that count is the finding
+
+Each of these would have produced code that compiles, links, flashes and samples
+at the wrong rate or not at all. None was visible without reading the `#if` or
+the caption.
+
+| fork | resolved how |
+|---|---|
+| `PCSEL` or `PCSEL_RES0` | `PCSEL_RES0` sits behind `#if defined(ADC_VER_V5_V90)`, and that macro does not appear in `stm32h7a3xxq.h`. So plain `PCSEL` |
+| the boost rule's two branches | `#if defined(ADC_VER_V5_3)`, and that macro **is** defined, at `stm32h7a3xxq.h:2621`. So the threshold table above |
+| a silicon-revision dependency | the `HAL_GetREVID() <= REV_ID_Y` rule is in the `#else`, which this part never compiles. **There is no revision fork for the H7A3** |
+| synchronous or asynchronous ADC clock | not a fork in ST's code but a configuration this project must choose and justify, and it decides which clock feeds the boost rule |
+
+**That count is why this goes into a host-testable file before it goes into a
+register.** Four points where correctness depends on part identity, in a
+repository whose thesis is that material written for the STM32H7 family is not
+material written for this part. So the shape is the one `clocktree.c` and
+`pwmmath.c` already use: the four decisions and the boost arithmetic as pure
+functions of their inputs, reading no register, driven from a table of cases on
+the authoring laptop, and then the register writes calling into that and refusing
+on anything the table cannot answer.
+
+**What is still a choice rather than a fact**: the clock mode, the channel and
+its sampling time, and the resolution. Those are this project's to decide and to
+justify against the 1 kHz the chapter is about, not ST's to tell us.
 
 **What the three images do today** is compile, link, start, print which value is
 unconfirmed, and stop. That is the refusal path working, and it is the correct
