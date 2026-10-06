@@ -17,8 +17,8 @@ What is measured and what it rests on:
 | User button on PC13 | input with a pull-down, active high |
 | Core, AHB, APB1 clocks | 64 MHz at reset, decoded from RCC at startup rather than hardcoded |
 | The 280 MHz tree | reached Sunday 4 October 2026 by `p01-pll280`: the configuration is at the target, AHB and APB1 at half the core, every one of eight steps reading back what it wrote |
-| The core clock, **measured seven times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208**, **279 624 968**, **279 541 148** and **279 692 180 Hz** against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306, 1339, 1639 and 1099 parts per million below the 280 MHz nominal. Always low, never the same, spanning 998 parts per million with no trend, so the sign reproduces and the digits do not, and four readings after the fifth have failed to widen that spread by one part per million. The cause is the debugger's clock output, which the seven runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549, 7 989 285, 7 986 890 and 7 991 205 Hz. Two further runs measured the reset clock only, because in each a second RESET press truncated the report before its core figure printed |
-| The reset clock, **measured nine times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988**, **64 202 948**, **64 189 988**, **64 192 428**, **64 194 888** and **64 190 072 Hz** against the same crystal, spanning 357 parts per million where the PLL spans 998. Two explanations have been offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5, so no third is offered. The spread was 357 parts per million on five readings, 357 on seven and 357 on nine, to the hertz each time, because every reading after the fifth has landed inside the span the first five set. What stands is a bound that four later observations failed to widen: this oscillator reproduces to 357 parts per million on this bench and no better |
+| The core clock, **measured eight times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208**, **279 624 968**, **279 541 148**, **279 692 180** and **279 424 340 Hz** against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306, 1339, 1639, 1099 and 2056 parts per million below the 280 MHz nominal. Always low, never the same, spanning 1037 parts per million with no trend, so the sign reproduces and the digits do not. That spread was 998 parts per million through seven readings and the eighth widened it, which withdrew a claim this page had made an hour earlier. The cause is the debugger's clock output, which the eight runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549, 7 989 285, 7 986 890, 7 991 205 and 7 983 553 Hz. Two further runs measured the reset clock only, because in each a second RESET press truncated the report before its core figure printed |
+| The reset clock, **measured ten times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988**, **64 202 948**, **64 189 988**, **64 192 428**, **64 194 888**, **64 190 072** and **64 199 102 Hz** against the same crystal, spanning 357 parts per million where the PLL spans 1037. Two explanations have been offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5, so no third is offered. The spread was 357 parts per million on five readings, 357 on seven, 357 on nine and 357 on ten, to the hertz each time, because every reading after the fifth has landed inside the span the first five set. Five consecutive observations have failed to widen it, which is more than can be said for the core's, whose eighth reading widened it from 998 to 1037. What stands is a bound: this oscillator reproduces to 357 parts per million on this bench and no better |
 | Oscillator | 64.17 to 64.18 MHz, six reductions, two instruments, spread 0.031 per cent |
 | Delay loop | 9.00 cycles per iteration at 64 MHz and 8.96 at 280 MHz, the same binary, measured against `DWT_CYCCNT` every boot |
 | A 100 ms request | lands within 20 parts per million, checked by the part itself |
@@ -59,16 +59,16 @@ iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
 which says the loop's cost barely moved and is a fact about the flash and the
 pipeline rather than about the clock.
 
-## The core clock, measured nine times, and two explanations refuted
+## The core clock, measured ten times, and three claims withdrawn
 
 **This is the first frequency in this volume that is measured rather than
 derived**, it does not agree with the nominal, and it does not agree with itself.
-Nine runs on the same board, each gated by this board's own 32.768 kHz crystal
+Ten runs on the same board, each gated by this board's own 32.768 kHz crystal
 over one second. Runs 1 to 3 are Sunday 4 October 2026, minutes to hours apart.
 Run 4 is Monday 5 October 2026 after about eight hours with the board away, so
-cold. Runs 5 to 9 are Tuesday 6 October 2026: run 5 after about fifteen minutes
+cold. Runs 5 to 10 are Tuesday 6 October 2026: run 5 after about fifteen minutes
 at 280 MHz, so warm; runs 6 and 7 after five minutes unpowered, so cold; and runs
-8 and 9 with the thermal state not written down, which is recorded as a blank
+8 to 10 with the thermal state not written down, which is recorded as a blank
 rather than guessed at.
 
 **Runs 8 and 9 also come from a different image**, and the record says so: from
@@ -87,6 +87,7 @@ existing span, but the binary is not the same one that produced runs 1 to 7:
 | run 7 | **279 541 148 Hz** (cold) | 1639 ppm low | 64 192 428 Hz | 3007 ppm high | 7 986 890 Hz |
 | run 8 | not printed | | 64 194 888 Hz | 3045 ppm high | |
 | run 9 | **279 692 180 Hz** | 1099 ppm low | 64 190 072 Hz | 2970 ppm high | 7 991 205 Hz |
+| run 10 | **279 424 340 Hz** | 2056 ppm low | 64 199 102 Hz | 3111 ppm high | 7 983 553 Hz |
 
 **Runs 6 and 8 are half readings, and the reason belongs in the record.** Neither
 core figure printed, because the black RESET button was pressed a second time
@@ -128,12 +129,27 @@ against a span that already ran from 64 180 090 to 64 202 948, and the spread
 over seven readings is the same 357 parts per million it was over five, to the
 hertz.
 
-**And the spread has not moved through three rounds of this.** It was 357 parts
-per million on five readings, 357 on seven, and 357 on nine, to the hertz each
-time, because every reading after the fifth has landed inside the span the first
-five set. The core's 998 parts per million has done the same across seven printed
-core figures. A bound that four later observations failed to widen is a different
-kind of statement from a bound measured once.
+**The two spreads have now behaved differently, and the core's widened.** That
+corrects what this page said a few hours earlier on Tuesday 6 October 2026, which
+was that both bounds had survived four later observations. The internal one has.
+The core's has not.
+
+The internal oscillator reads **357 parts per million** across five readings, 357
+across seven, 357 across nine and 357 across ten, to the hertz each time, because
+every reading after the fifth has landed inside the span the first five set. That
+is five consecutive observations failing to widen it.
+
+The core read 998 parts per million across seven printed figures, and then run 10
+came in at **279 424 340 Hz**: 2056 parts per million below nominal and 11 028 Hz
+below the previous lowest reading. So the core spread is **1037 parts per million**
+across eight figures, and the claim that it had stopped moving lasted about an
+hour.
+
+**That is the third claim about this quantity withdrawn in two days**, after drift
+and after temperature, and the shape is the same each time: a pattern read off
+the readings in hand, stated, and removed by the next reading. The internal
+oscillator's 357 is the one figure that has survived every test put to it, and
+even that is a bound rather than a cause.
 
 **So no third mechanism is offered.** Two were proposed from the pattern in hand
 and the next observation removed each one. What survives is a bound and not a
@@ -321,9 +337,33 @@ prescaler or a divider misread, a few hundred parts per million points at the
 crystal, and a disagreement that moves between runs points back at the
 debugger's 8 MHz, which is already known to move by a part in a thousand.
 
-**The connector, which was the last thing blocking it, is settled as of Tuesday
-6 October 2026.** Both pins reach the ST Zio header: PE13 is Arduino D3 and PD12
-is Arduino D29. Neither source is ST, so neither was taken alone. Zephyr's board
+**The connector positions are sourced from ST, and both pins are on the same
+header.** PE13 is **CN10 pin 10** and PD12 is **CN10 pin 21**, so the wire is one
+jumper across one connector:
+
+| | from ST, for this board |
+|---|---|
+| PE13 | `Examples/TIM/TIM_DMA/readme.txt`: "TIM1 CH3 (PE.13) is connected to pin 10 (D3) on CN10 Connector" |
+| PD12 | `Examples/LPTIM/LPTIM_PulseCounter/readme.txt`: "Generate pulses on PD12 (pin 21 in CN10 connector)" |
+| PD12 again | `Examples/LPTIM/LPTIM_PWMExternalClock/readme.txt`: "Connect a clock signal to PD.12 (connected to pin 21 in CN10 connector)" |
+
+all under `Projects/NUCLEO-H7A3ZI-Q` in `STM32Cube_FW_H7_V1.13.0`, read Tuesday 6
+October 2026.
+
+**That also confirmed the Arduino numbering from a third source, and caught ST
+disagreeing with itself.** D3 for PE13 had come from Zephyr and from the STM32
+Arduino core, which agreed; ST's own readme now says it too. Those readmes give
+twelve further port-pin to Arduino-number pairs and the Arduino core agrees with
+twelve of the thirteen. The thirteenth is ST against ST: one file says
+`CLK Pin: PA5 (CN07.D10)` and another says `PA5 : CN7.D13`. Zephyr and the Arduino
+core both say D13, and on an Arduino Uno R3 header D13 is SCK while D10 is the
+chip select, so D13 is right and the D10 is a slip. Nothing here depends on PA5,
+but it is worth knowing these readmes are not individually authoritative.
+
+**The Arduino name D29 for PD12 is the weaker of the two labels** and the
+difference is kept deliberately. CN10 pin 21 comes from ST; D29 comes from the
+Arduino core's variant index and no ST file for this board says it. Wiring needs
+the pin number, so that is the fact to carry. Neither source is ST, so neither was taken alone. Zephyr's board
 `nucleo_h7a3zi_q` maps PE13 to `ARDUINO_HEADER_R3_D3`; the STM32 Arduino core's
 variant for this exact part puts `PE_13` at `digitalPin` index 3 and `PD_12` at
 index 29, in an array holding only pins the header exposes. The two were written

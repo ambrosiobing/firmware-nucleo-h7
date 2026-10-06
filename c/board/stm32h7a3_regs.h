@@ -497,6 +497,7 @@
  *   run 7    279541148 Hz    (cold)          64192428 Hz        3007 ppm high
  *   run 8    not printed     (not noted)     64194888 Hz        3045 ppm high
  *   run 9    279692180 Hz    (not noted)     64190072 Hz        2970 ppm high
+ *   run 10   279424340 Hz    (not noted)     64199102 Hz        3111 ppm high
  *
  * RUNS 6 AND 8 ARE HALF READINGS AND THE REASON IS WORTH RECORDING. Neither
  * core figure printed, because the black RESET button was pressed a second time
@@ -549,12 +550,27 @@
  * 64189988 and 64192428 against a span that already ran from 64180090 to
  * 64202948.
  *
- * AND THE SPREAD HAS NOT MOVED THROUGH THREE ROUNDS OF THIS. It was 357 parts
- * per million on five readings, 357 on seven, and 357 on nine, to the hertz each
- * time, because every reading after the fifth has landed inside the span the
- * first five set. The core's 998 parts per million has done the same across
- * seven printed core figures. A bound that four later observations failed to
- * widen is a different kind of statement from a bound measured once.
+ * THE TWO SPREADS HAVE NOW BEHAVED DIFFERENTLY, AND THE CORE'S WIDENED. That
+ * corrects something this comment said earlier on Tuesday 6 October 2026, which
+ * was that both bounds had survived four later observations. The internal one
+ * has. The core's has not.
+ *
+ * The internal oscillator reads 357 parts per million across five readings, 357
+ * across seven, 357 across nine and 357 across ten, to the hertz each time,
+ * because every reading after the fifth has landed inside the span the first
+ * five set. That is five consecutive observations failing to widen it.
+ *
+ * The core read 998 parts per million across seven printed figures and then run
+ * 10 came in at 279424340 Hz, which is 2056 parts per million below nominal and
+ * 11028 Hz below the previous lowest reading. So the core spread is 1037 parts
+ * per million across eight figures, and the claim that it had stopped moving
+ * lasted about an hour.
+ *
+ * WHICH IS THE FIFTH TIME IN TWO DAYS THAT NAMING A PATTERN HERE HAS INVITED THE
+ * NEXT READING TO REMOVE IT: drift, temperature, and now a bound said to have
+ * settled. The internal oscillator's 357 is the one figure that has survived
+ * every test put to it, and even that is a bound and not a cause.
+
  *
  * SO NO THIRD MECHANISM IS OFFERED HERE. Two were proposed from the pattern in
  * hand and the next observation removed each one, which is twice now that this
@@ -1152,6 +1168,23 @@
  * UM2407 until Tuesday 6 October 2026. UM2407 documents MB1364, the
  * NUCLEO-H743ZI2, which is the sibling board this whole file exists to keep
  * separate from this one; UM2408 documents MB1363, which is this board. */
+/* AND ITS POSITION ON THE CONNECTOR, sourced Tuesday 6 October 2026 and stated
+ * twice by ST for this exact board: PD12 IS CN10 PIN 21.
+ *
+ *   Examples/LPTIM/LPTIM_PulseCounter/readme.txt
+ *       "Generate pulses on PD12 (pin 21 in CN10 connector)."
+ *   Examples/LPTIM/LPTIM_PWMExternalClock/readme.txt
+ *       "Connect a clock signal to PD.12 (connected to pin 21 in CN10 connector)."
+ *
+ * both under Projects/NUCLEO-H7A3ZI-Q in STM32Cube_FW_H7_V1.13.0. Two files, one
+ * number, this board.
+ *
+ * THE ARDUINO NAME D29 IS WEAKER THAN THE PIN NUMBER, and the difference is
+ * worth keeping. CN10 pin 21 comes from ST. D29 comes from the STM32 Arduino
+ * core's variant for this part, where PD_12 sits at index 29 of digitalPin[],
+ * and no ST file for this board names PD12 as D29. Wiring needs the pin number,
+ * so the pin number is what this header carries and the Arduino name is a
+ * convenience. */
 #define FREQCOUNT_IN_PORT       GPIOD
 #define FREQCOUNT_IN_PIN        12u
 #define FREQCOUNT_IN_AF         1u
@@ -1263,6 +1296,27 @@
  * before it: LPTIM1_OUT on PD13, because clocking the counter from its own
  * output is a feedback loop, and TIM3 channel 3 on PB0, because PB0 is LD1 and
  * p01-pll280 blinks it as part of its own evidence. */
+/* AND ITS POSITION, from ST and for this board: PE13 IS CN10 PIN 10, WHICH IS
+ * ARDUINO D3. Examples/TIM/TIM_DMA/readme.txt, under Projects/NUCLEO-H7A3ZI-Q in
+ * STM32Cube_FW_H7_V1.13.0, says exactly: "TIM1 CH3 (PE.13) is connected to pin
+ * 10 (D3) on CN10 Connector". One sentence that gives the peripheral, the
+ * channel, the port pin, the connector, the pin number and the Arduino name.
+ *
+ * SO BOTH ENDS OF THE SELF TEST WIRE ARE ON CN10, pin 10 to pin 21, which is one
+ * jumper across one header rather than a lead between two.
+ *
+ * AND IT CONFIRMS THE ARDUINO NUMBERING FROM A THIRD SOURCE. D3 for PE13 had
+ * come from Zephyr's nucleo_h7a3zi_q and from the STM32 Arduino core, which
+ * agreed; ST's own readme now says it too. The same readmes give twelve more
+ * port-pin to Arduino-number pairs, and the Arduino core agrees with twelve of
+ * the thirteen.
+ *
+ * THE THIRTEENTH IS ST DISAGREEING WITH ITSELF, which is worth recording because
+ * it means these readmes are not individually authoritative. One says "CLK Pin:
+ * PA5 (CN07.D10)" and another says "PA5 : CN7.D13 (connected to pin D13 of CN7
+ * connector)". Zephyr and the Arduino core both say D13, and on an Arduino Uno
+ * R3 header D13 is SCK while D10 is the chip select, so D13 is right and the
+ * D10 is a slip. Nothing in this volume depends on PA5. */
 #define PWMSRC_OUT_PORT         GPIOE
 #define PWMSRC_OUT_PIN          13u
 #define PWMSRC_OUT_AF           1u
