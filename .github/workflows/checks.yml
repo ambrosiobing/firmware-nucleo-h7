@@ -97,6 +97,17 @@ jobs:
       - name: Every C header includes what its own declarations use
         run: python python/tools/check_c_includes.py
 
+      # The fourth of the family, and the one that guards the worst defect this
+      # project has produced: six arguments into a five placeholder format
+      # string, which three implementations then agreed about while all three
+      # were wrong. gcc's -Wformat catches the C side, but only where a compiler
+      # runs, and this file's report text is rewritten often enough that the
+      # check was run by hand four times on Tuesday 6 October 2026 before it was
+      # made a tool. A mismatch prints a wrong number that reads as a
+      # measurement.
+      - name: Every printf format matches its argument count
+        run: python python/tools/check_printf_args.py
+
       - name: No assembled volume and no PDF is published
         run: |
           set -e
