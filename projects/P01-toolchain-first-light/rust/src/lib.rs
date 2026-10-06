@@ -378,13 +378,16 @@ mod tests {
         assert_eq!(t.refusal, Refusal::Ok);
         assert_eq!(
             (t.sys_hz, t.core_hz, t.ahb_hz, t.pclk1_hz, t.pclk2_hz),
-            (280_000_000, 280_000_000, 140_000_000, 140_000_000, 140_000_000)
+            (
+                280_000_000,
+                280_000_000,
+                140_000_000,
+                140_000_000,
+                140_000_000
+            )
         );
     }
 
-    /// Halves away from zero, which is the rule this language gives least help
-    /// with, and the asymmetry between the two rows is real: one hertz above
-    /// 2 MHz lands on exactly half and one hertz below does not.
     /// APB2 is a separate quantity, not a second name for APB1 or the AHB.
     ///
     /// Every row in clock_vectors.json before Tuesday 6 October 2026 held
@@ -428,6 +431,9 @@ mod tests {
         assert_eq!(t.pclk2_hz, 0);
     }
 
+    /// Halves away from zero, which is the rule this language gives least help
+    /// with, and the asymmetry between the two rows is real: one hertz above
+    /// 2 MHz lands on exactly half and one hertz below does not.
     #[test]
     fn halves_round_away_from_zero_and_the_two_rows_are_not_mirrors() {
         let up = bias(2_000_001, 2_000_000);

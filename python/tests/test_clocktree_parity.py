@@ -14,6 +14,24 @@ The other fifteen are constructed, which is the only way to reach a refusal on
 demand. There is no comfortable way to ask this part for a PLL with its
 fractional term enabled.
 
+THREE OF THE FIVE ANSWER BUILDERS HERE ONCE DROPPED THE REFUSAL TOKEN, on
+Tuesday 6 October 2026, and the way it was caught is worth keeping. When APB2
+was added, each builder gained a sixth argument and kept a five placeholder
+format string. str.format ignores extra positional arguments without a word, so
+the C line, the Python line and the ORACLE line all silently lost their refusal
+token.
+
+Because all three go through the same shape of Python helper, all three lost it
+the same way, and all three therefore agreed with each other. An oracle that
+agrees with two implementations because the same mistake was made in all three
+is worse than no oracle.
+
+What caught it is that C++ and Rust build their answer strings in their own
+languages. They kept all six fields and reported DISAGREES against a broken
+oracle. That is the duplication this project keeps paying for, collecting:
+a defect in the shared plumbing was found by the two implementations that do
+not share any.
+
 APB2 JOINED THE ANSWER ON TUESDAY 6 OCTOBER 2026, so the decode line carries
 five frequencies rather than four. TIM1 is on APB2 and the frequency counter's
 self test needs TIM1's clock, and the register word the decode already read for
@@ -65,6 +83,7 @@ from conftest import (
     BUILD,
     CLOCK_CPP_FILTER,
     CLOCK_RUST_FILTER,
+    FILTER_BUILD_COMMAND,
     ROOT,
     assert_not_vacuous,
     run_filter,
@@ -131,7 +150,7 @@ def c_answers():
         tree = Tree()
         lib.clocktree_decode(ctypes.byref(regs), row["hsi_nominal"],
                              row["hse_bypass"], ctypes.byref(tree))
-        out.append("{} {} {} {} {}".format(
+        out.append("{} {} {} {} {} {}".format(
             tree.sys_hz, tree.core_hz, tree.ahb_hz, tree.pclk1_hz, tree.pclk2_hz,
             lib.clocktree_refusal_text(tree.refusal).decode("ascii")))
     for row in ORACLE["bias"]:
@@ -147,7 +166,7 @@ def python_answers():
     for row in ORACLE["decode"]:
         tree = py_clock.decode(py_clock.Regs(**row["regs"]),
                                row["hsi_nominal"], row["hse_bypass"])
-        out.append("{} {} {} {} {}".format(
+        out.append("{} {} {} {} {} {}".format(
             tree.sys_hz, tree.core_hz, tree.ahb_hz, tree.pclk1_hz, tree.pclk2_hz,
             tree.refusal))
     for row in ORACLE["bias"]:
@@ -157,15 +176,49 @@ def python_answers():
     return out
 
 
+# What each filter is built from, so a binary older than its own sources can be
+# refused. Listed by hand rather than globbed: a glob would quietly stop
+# covering a source file that moved, which is the failure this guard exists for.
+P01_DIR = ROOT / "projects" / "P01-toolchain-first-light"
+FILTER_SOURCES = {
+    CLOCK_CPP_FILTER: (P01_DIR / "cpp" / "clocktree.hpp",
+                       P01_DIR / "cpp" / "clocktree_filter.cpp"),
+    CLOCK_RUST_FILTER: (P01_DIR / "rust" / "src" / "lib.rs",
+                        P01_DIR / "rust" / "src" / "main.rs"),
+}
+
+
 def filter_answers(path: Path):
     """A filter's answers, or None when the binary has not been built.
 
     run_filter skips the test when the binary is absent, which is right for a
     test about one language and wrong here: this test has to continue with the
     languages it does have and then assert that it had enough of them.
+
+    A BINARY OLDER THAN ITS SOURCES IS REFUSED, NOT COMPARED, and that guard was
+    added on Tuesday 6 October 2026 after this test ran a Rust filter built
+    before APB2 existed. It reported DISAGREES, which was only survivable
+    because the stale implementation happened to disagree. Had it agreed, this
+    test would have passed while comparing an implementation from before the
+    change, and a pass obtained that way is worth less than no test: it is the
+    same shape as a test file the workflow never ran.
+
+    Absent is a skip and stale is a failure, deliberately. Absent means nobody
+    claimed to have built it; stale means somebody did, and the claim is wrong.
     """
     if not path.exists():
         return None
+    sources = FILTER_SOURCES[path]
+    newest = max((s.stat().st_mtime for s in sources if s.exists()), default=0.0)
+    if newest > path.stat().st_mtime:
+        behind = sorted(s.name for s in sources
+                        if s.exists() and s.stat().st_mtime > path.stat().st_mtime)
+        pytest.fail(
+            "{} is older than {}, so it was built before the current sources "
+            "and its answers would be an implementation nobody is looking at. "
+            "Rebuild it with:\n    {}".format(
+                path.name, " and ".join(behind),
+                FILTER_BUILD_COMMAND.get(path, "the command that builds it")))
     return run_filter(path, REQUESTS)
 
 
@@ -181,7 +234,7 @@ def oracle_answers():
     out = []
     for row in ORACLE["decode"]:
         e = row["expect"]
-        out.append("{} {} {} {} {}".format(
+        out.append("{} {} {} {} {} {}".format(
             e["sys_hz"], e["core_hz"], e["ahb_hz"], e["pclk1_hz"], e["pclk2_hz"],
             e["refusal"]))
     for row in ORACLE["bias"]:
