@@ -408,6 +408,221 @@ static void report_clock_again(const char *when, uint32_t first_hz)
     }
 }
 
+/* THE SHAPE OF THE DRIFT, which three readings cannot give.
+ *
+ * WHAT IS ALREADY MEASURED. Runs 20 and 21 of Tuesday 6 October 2026 established
+ * that this part's clock is not the same frequency at two moments in one run: 14
+ * to 125 parts per million apart over one second and 164 to 383 over three to
+ * four seconds. That settled THAT it moves and cleared the frequency counter of
+ * the residuals being blamed on it.
+ *
+ * WHAT THREE READINGS CANNOT SETTLE, and this is the whole reason for the series
+ * below. A ramp, a single step and random wander all produce two numbers that
+ * grow with the separation, so the measurement that exists cannot tell them
+ * apart, and they do not mean the same thing:
+ *
+ *   a RAMP        something is warming or settling, and the figure depends on
+ *                 how long the board has been powered
+ *   a STEP        something switched, once, and the figure depends on whether
+ *                 the switch has happened yet rather than on elapsed time
+ *   WANDER        a noise process, and no single figure describes it at all,
+ *                 only a bound over a stated interval
+ *
+ * Each would send the next piece of work somewhere different, so guessing is
+ * worse than measuring.
+ *
+ * HOW. Forty-eight gates of 128 crystal ticks, which is 500 ms each, run back to
+ * back for about 24 seconds, every one of them the same measurement that produces
+ * every figure in this report. No new instrument, no new register.
+ *
+ * AND THE STATISTICS ARE CHOSEN BEFORE THE DATA, which matters more than the
+ * series, so the first choice was tested against synthetic series of all three
+ * shapes before this was flashed. IT FAILED, which is why there are three of
+ * them.
+ *
+ * WHAT FAILED. The first version counted how often the step-to-step direction
+ * reverses, reasoning that a ramp reverses rarely and wander reverses often. A
+ * STEP is flat on both sides of its jump, and three parts per million of noise on
+ * a flat region reverses direction constantly, so a step scored 34 reversals out
+ * of 47 and read as wander. The reversal count separates LOCALLY MONOTONIC from
+ * LOCALLY FLAT, which is not the question.
+ *
+ * WHAT REPLACES IT. Two statistics that noise cannot move much, because noise
+ * perturbs any single difference by at most twice its peak:
+ *
+ *   biggest    the largest single step-to-step change
+ *   jumps      how many steps exceed a quarter of the whole span
+ *
+ *   a RAMP     biggest is about span over 47, jumps 0
+ *   a STEP     biggest is about the whole span, jumps exactly 1
+ *   WANDER     biggest is large and jumps is several
+ *
+ * AND A FOURTH SHAPE TURNED UP IN THE TESTING, which is the second thing the
+ * synthetic series caught before any flash. A STAIRCASE, several jumps in the
+ * same direction separated by flats, has jumps of 3 or 4 and so read as wander,
+ * and it is not wander: it is several switches, which means something different
+ * again. One more count separates them, and noise cannot move it either:
+ *
+ *   jumps_up   how many of those large steps go UP
+ *
+ *   a STAIRCASE   every large step shares a sign, so jumps_up is 0 or all
+ *   WANDER        large steps come in both directions, so it is neither
+ *
+ * Driven against fourteen synthetic series, four clean shapes plus ramp, step,
+ * staircase and wander with 3 and with 30 ppm of noise added and a clock that
+ * does not move at all, all fourteen read correctly. The reversal count is still
+ * printed because it costs nothing and says whether the series is locally smooth,
+ * but it decides nothing. The series itself is printed so a reader can disagree
+ * with every one of these.
+ *
+ * WHAT IT COSTS AND WHY ONLY ONCE. 24 seconds of report, which is why this runs
+ * at the 280 MHz clock only: that is where 383 ppm was seen, and the reset clock
+ * showed 164. If the shape is interesting the reset clock can have its own series
+ * afterwards, and nothing here assumes the two behave alike.
+ *
+ * WHAT IT CANNOT SEE. Each gate averages over 500 ms, so a step inside one gate
+ * is smeared across it rather than resolved, and anything faster than about 1 Hz
+ * is invisible to this series. Samples are 500 ms plus a setup and an alignment
+ * wait of up to one tick apart, so the spacing is even to within 4 ms and the
+ * seconds figure below is nominal. */
+#define CLOCKSHAPE_SAMPLES  48u
+#define CLOCKSHAPE_TICKS    128u
+
+/* The series, held rather than streamed, because two of the three statistics
+ * need the whole span before they can be computed and one pass cannot have it.
+ * 48 times four bytes is 192 bytes of .bss against 128 KB of DTCM. */
+static int32_t g_shape[CLOCKSHAPE_SAMPLES];
+
+static void report_clock_shape(const char *when)
+{
+    lseref_measure_t m;
+    uint32_t first = 0u;
+    uint32_t n;
+    uint32_t reversals = 0u;
+    uint32_t jumps = 0u;
+    uint32_t jumps_up = 0u;
+    int32_t biggest = 0;
+    int32_t last_delta = 0;
+    int32_t lo = 0;
+    int32_t hi = 0;
+    int32_t quarter;
+
+    printf("\n  the SHAPE of that movement %s, %lu gates of %lu ticks back to\n"
+           "  back, which is about %lu seconds:\n", when,
+           (unsigned long) CLOCKSHAPE_SAMPLES, (unsigned long) CLOCKSHAPE_TICKS,
+           (unsigned long) (CLOCKSHAPE_SAMPLES * CLOCKSHAPE_TICKS / 256u));
+
+    /* Collect first, judge afterwards. */
+    for (n = 0u; n < CLOCKSHAPE_SAMPLES; n++) {
+        if (lseref_measure_core_hz(&m, CLOCKSHAPE_TICKS) != 0
+            || m.core_hz_measured == 0u) {
+            printf("    sample %lu refused, so the series is abandoned rather\n"
+                   "    than reported short\n", (unsigned long) n);
+            return;
+        }
+        if (n == 0u) {
+            first = m.core_hz_measured;
+        }
+        g_shape[n] = (int32_t) (((int64_t) m.core_hz_measured - (int64_t) first)
+                                * 1000000 / (int64_t) first);
+    }
+
+    printf("    first %lu Hz, then every reading's offset from it in ppm:\n",
+           (unsigned long) first);
+    for (n = 0u; n < CLOCKSHAPE_SAMPLES; n++) {
+        if ((n % 8u) == 0u) {
+            printf("     ");
+        }
+        printf(" %6ld", (long) g_shape[n]);
+        if ((n % 8u) == 7u) {
+            printf("\n");
+        }
+    }
+    if ((CLOCKSHAPE_SAMPLES % 8u) != 0u) {
+        printf("\n");
+    }
+
+    for (n = 0u; n < CLOCKSHAPE_SAMPLES; n++) {
+        if (g_shape[n] < lo) {
+            lo = g_shape[n];
+        }
+        if (g_shape[n] > hi) {
+            hi = g_shape[n];
+        }
+    }
+    quarter = (hi - lo) / 4;
+
+    for (n = 1u; n < CLOCKSHAPE_SAMPLES; n++) {
+        const int32_t delta = g_shape[n] - g_shape[n - 1u];
+        const int32_t size = (delta < 0) ? -delta : delta;
+
+        if (size > biggest) {
+            biggest = size;
+        }
+        if (quarter > 0 && size > quarter) {
+            jumps++;
+            if (delta > 0) {
+                jumps_up++;
+            }
+        }
+
+        /* Zero steps are skipped rather than counted as a reversal, because a
+         * flat pair is not a change of direction. */
+        if (delta != 0) {
+            if (last_delta != 0 && ((delta > 0) != (last_delta > 0))) {
+                reversals++;
+            }
+            last_delta = delta;
+        }
+    }
+
+    printf("    span %ld to %ld ppm, so %ld wide. Biggest single step %ld.\n"
+           "    Steps above a quarter of the span: %lu, of which %lu go up.\n"
+           "    Reversals of direction: %lu of %lu steps.\n",
+           (long) lo, (long) hi, (long) (hi - lo), (long) biggest,
+           (unsigned long) jumps, (unsigned long) jumps_up,
+           (unsigned long) reversals,
+           (unsigned long) (CLOCKSHAPE_SAMPLES - 1u));
+
+    if ((hi - lo) <= 50) {
+        printf("    READS AS: NO MOVEMENT beyond this instrument's own noise over\n"
+               "    this interval, which would contradict the 383 ppm seen in run\n"
+               "    21 and make the separation rather than the clock the thing to\n"
+               "    look at next.\n");
+    } else if (jumps == 0u) {
+        /* jumps == 0 already means no single step carries a quarter of the
+         * span, so comparing biggest with the span again would be redundant and
+         * had a boundary wart: a step exactly equal to a quarter leaves jumps at
+         * 0 while failing biggest * 4 < span, which fell through to WANDER. */
+        printf("    READS AS: A RAMP. The span is spread across every step and no\n"
+               "    single step carries a quarter of it, so something is warming\n"
+               "    or settling and the figure depends on how long the board has\n"
+               "    been powered rather than on the separation between readings.\n");
+    } else if (jumps == 1u) {
+        printf("    READS AS: A STEP. One step carries most of the span and the\n"
+               "    rest is flat, so something switched once. The figure then\n"
+               "    depends on whether the switch has happened yet and not on\n"
+               "    elapsed time at all.\n");
+    } else if (jumps_up == 0u || jumps_up == jumps) {
+        printf("    READS AS: A STAIRCASE. Several large steps, all in the same\n"
+               "    direction, separated by flats. That is several switches and\n"
+               "    not wander, and the two would send the next piece of work\n"
+               "    somewhere different, which is why they are told apart.\n");
+    } else {
+        printf("    READS AS: WANDER. Several large steps in BOTH directions, so\n"
+               "    no single figure describes this and only a bound over a\n"
+               "    stated interval does.\n");
+    }
+
+    printf("    THE READING ABOVE IS KEYED ON the biggest step and the count of\n"
+           "    large steps, NOT on the reversals, because the reversal count was\n"
+           "    tried first and failed: a step is flat on both sides and a few\n"
+           "    ppm of noise on a flat region reverses direction constantly, so a\n"
+           "    step scored 34 of 47 and read as wander. The reversal count is\n"
+           "    printed because it is free and says whether the series is locally\n"
+           "    smooth. It decides nothing here.\n");
+}
+
 /* ONE MEGAHERTZ, and the choice is not arbitrary.
  *
  * It divides both timer clocks exactly. At the reset clock APB2 is 64 MHz, so
@@ -883,6 +1098,7 @@ int main(void)
 
         report_freqcount("at the new clock", src);
         report_clock_again("at the new clock", first);
+        report_clock_shape("at the new clock");
     }
 
     /* And then blink, so the board says something a person across the room can

@@ -575,6 +575,52 @@ not say which side moves, and nothing here will guess. The sixth refusal to
 explain this quantity, and the first one made while holding a direct measurement
 of it rather than an inference.
 
+### What three readings cannot say, and the series that can
+
+**Three readings establish THAT the clock moves and cannot say what shape the
+movement has**, because a ramp, a single step, a staircase and random wander all
+produce two numbers that grow with the separation. They do not mean the same
+thing, and each would send the next piece of work somewhere different:
+
+| shape | what it would mean |
+|---|---|
+| a **ramp** | something is warming or settling, and the figure depends on how long the board has been powered |
+| a **step** | something switched once, and the figure depends on whether the switch has happened yet rather than on elapsed time |
+| a **staircase** | several switches, which is a different thing again from one |
+| **wander** | a noise process, which no single figure describes, only a bound over a stated interval |
+
+**So forty-eight gates of 128 crystal ticks run back to back**, 500 ms each, about
+24 seconds in total, at the 280 MHz clock where the 383 ppm was seen. Every one is
+the same measurement that produces every other figure on this page: no new
+instrument and no new register.
+
+**The statistics were chosen before the data and the first choice failed**, which
+is the part worth recording. Driven against synthetic series of all four shapes,
+clean and with 3 and 30 parts per million of noise added:
+
+| statistic | what happened |
+|---|---|
+| reversals of direction | **failed.** A step is flat on both sides, and a few ppm of noise on a flat region reverses direction constantly, so a step scored 34 reversals of 47 and read as wander. It separates locally monotonic from locally flat, which is not the question |
+| the biggest single step, and how many steps exceed a quarter of the span | **works.** Noise moves any single difference by at most twice its peak, so neither figure is noise-driven. A ramp has no step over a quarter; a step has exactly one; wander and a staircase have several |
+| how many of those large steps go **up** | **needed.** A staircase has several jumps all in one direction and was reading as wander until this was added |
+
+Fourteen synthetic series, four clean shapes plus ramp, step, staircase and wander
+each with 3 and with 30 ppm of noise and a clock that does not move at all, and all
+fourteen read correctly. The reversal count is still printed because it costs
+nothing and says whether the series is locally smooth, but it decides nothing. The
+series itself is printed so a reader can disagree with every one of these.
+
+**What it cannot see**, stated because a limit discovered later reads as a
+surprise: each gate averages over 500 ms, so a step inside one gate is smeared
+across it rather than resolved, and anything faster than about 1 Hz is invisible.
+The samples are 500 ms plus a setup and an alignment wait of up to one tick apart,
+so the spacing is even to within 4 ms and the 24 seconds is nominal.
+
+**It runs at the 280 MHz clock only**, because that is where 383 ppm was seen
+against the reset clock's 164, and 24 seconds of report is the cost. If the shape
+turns out to be interesting the reset clock can have its own series, and nothing
+here assumes the two behave alike.
+
 **No cause is offered for the long gate reading +54 and +33 at the reset clock and
 minus 0.6 at 280 MHz.** There is one difference worth naming without attributing
 anything to it: at the reset clock both instruments descend from the internal
