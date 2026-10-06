@@ -108,7 +108,7 @@ the build and several of them name nothing.
 | `p01-first-light`       | 1       | runs on the board |
 | `p01-pll280`            | 1       | runs on the board. The raise to 280 MHz in eight gated steps, then the clock measured against the 32.768 kHz crystal, then the frequency counter and the signal source. This is the image every measured frequency in the volume comes from. It was missing from this table from Sunday 4 October 2026 until Tuesday 6 October 2026, which is what `python/tests/test_target_table_is_complete.py` now exists to prevent |
 | `p02-ring-<mode>`, four of them | 2 | runs on the board |
-| `p06-sampling-<backend>`, three | 6 | has no independent build check, no CMSIS pack in CI |
+| `p06-sampling-<backend>`, three | 6 | BUILT AND LINKED for the first time Tuesday 6 October 2026, 9344 to 9476 bytes of FLASH each, with `-DCMSIS_DEVICE_DIR=<pack>/Drivers/CMSIS/Device/ST/STM32H7xx/Include` on win11 skyhorizon; nothing flashed. Still has no independent build check and no CMSIS pack in CI, so one toolchain on one machine is all that has compiled them, and until that first build they were missing `c/instr/lseref.c` and could not have linked at all |
 | `p09-codec`             | 9       | runs on the board |
 | `p09-codec-pad0`, `p09-codec-pad16`, `p09-codec-pad32`, `p09-codec-pad48` | 9 | the same image displaced by 0, 16, 32 and 48 bytes, for the placement experiment. The pads are whole multiples of the 16 byte instrument resolution and not of the 32 byte cache line, so the experiment is able to fail |
 

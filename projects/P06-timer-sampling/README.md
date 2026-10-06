@@ -29,9 +29,40 @@ portable to this part in C and is not in Rust without a crate. And the Rust crat
 needs version 1.77 for `round_ties_even`, because Python's `round` and C's
 `nearbyint` round half to even where Rust's `round` does not.
 
-**Started Wednesday 30 September 2026.** Nothing here has been compiled or run
-on hardware. What has been run is the host-side analysis, against synthetic
-input, which is deliberately the first thing rather than the last.
+**Started Wednesday 30 September 2026.** What has been run is the host-side
+analysis, against synthetic input, which is deliberately the first thing rather
+than the last.
+
+**And on Tuesday 6 October 2026 all three back ends compiled and linked for the
+first time**, on win11 skyhorizon with CubeIDE's `arm-none-eabi-gcc` 14.3.1 and
+the CMSIS pack passed as `CMSIS_DEVICE_DIR`. Nothing was flashed. They had never
+been compiled by any machine before that: the three targets are gated behind that
+pack, continuous integration passes none so it skips them, and the one laptop
+with a pack had never been asked for them.
+
+| target | FLASH | total |
+|---|---|---|
+| `p06-sampling-timer` | 9344 B | 21 417 B |
+| `p06-sampling-systick` | 9460 B | 21 533 B |
+| `p06-sampling-dma` | 9476 B | 21 293 B |
+
+The DMA variant places a 256 byte `.dma_buffer` section, which is the placement
+attribute doing its job and is the first evidence that it does.
+
+**The status line above said `c=links` before any of them could link**, which is
+worth stating plainly rather than quietly becoming true. Until commit 73 of the
+same day the three targets were missing `c/instr/lseref.c`, which
+`c/instr/freqcount.c` calls into for the crystal gate, so they would have failed
+with three undefined symbols. The claim was aspirational for as long as it stood.
+
+**No check in this repository could have caught that, and that is the gap worth
+naming.** `python/tools/check_status.py` verifies that a language claiming any
+state but `none` has a source file behind it; it cannot verify that the file
+builds. So of the five states, `written` and below are checkable from the tree,
+while `links` and `board` can only be established by a build and by a board.
+`python/tools/check_link_closure.py` now catches the specific way these three
+were broken, a source list not closed under its own includes, which is not the
+same as checking that they link.
 
 ## What this claims, and what would refute it
 
