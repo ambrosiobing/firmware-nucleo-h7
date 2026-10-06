@@ -28,8 +28,9 @@ of these it is for:
     without either side rounding first.
   - the four refusals, each at its own boundary, where a comparison on the wrong
     side turns a refusal into a confident wrong answer.
-  - pwmmath_timer_hz, which refuses every case but one on purpose, because the
-    rest of the TIMPRE rule is in RM0455 and nobody has read it.
+  - pwmmath_timer_hz, the whole TIMPRE rule, sourced from ST's pack on Tuesday
+    6 October 2026 rather than from RM0455. Divide by 4 is the first divisor
+    where the bit changes the answer, and it changes it by a factor of two.
 
 THE TABLE IS THE ORACLE AND IT IS HAND WRITTEN. Every expected value here was
 computed from the definition, not recorded from a run, and the `why` shows the
@@ -88,7 +89,8 @@ def lib():
     h.pwmmath_error_ppm.restype = ctypes.c_int32
     h.pwmmath_error_ppm.argtypes = [ctypes.c_uint64, ctypes.c_uint32]
     h.pwmmath_timer_hz.restype = ctypes.c_uint32
-    h.pwmmath_timer_hz.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
+    h.pwmmath_timer_hz.argtypes = [ctypes.c_uint32, ctypes.c_uint32,
+                                   ctypes.c_bool]
     return h
 
 
@@ -336,30 +338,99 @@ def test_error_ppm(lib, case):
         case["why"]
 
 
+# THE WHOLE RULE, since the pack was searched on Tuesday 6 October 2026 rather
+# than waiting for RM0455. Sourced from the doc comment on
+# __HAL_RCC_TIMCLKPRESCALER in stm32h7xx_hal_rcc_ex.h, lines 3596 to 3605 of
+# STM32Cube_FW_H7_V1.13.0:
+#
+#   TIMPRE 0   timer clock is HCLK if the APB prescaler divides by 1 or 2,
+#              otherwise 2 x PCLK
+#   TIMPRE 1   HCLK if it divides by 1, 2 or 4, otherwise 4 x PCLK
+#
+# Expected values are written out by hand below with the arithmetic in each
+# `why`, and then every one is recomputed from the MINIMUM form in the second
+# test, which is double entry on a rule rather than on a table.
 TIMER_HZ_CASES = [
-    dict(pclk=140_000_000, div=1, expect=140_000_000,
-         why="divide by one is the only case answered, and it is the one this "
-             "board is in: RCC_CDCFGR2 reads 0 at the 280 MHz setting, confirmed "
-             "on the board five times. Both values of TIMPRE agree here, which "
-             "is why the answer does not depend on the unread half of the rule"),
-    dict(pclk=64_000_000, div=1, expect=64_000_000,
-         why="the same at the reset clock, where APB1 and APB2 are both 64 MHz"),
-    dict(pclk=140_000_000, div=2, expect=0,
-         why="divide by two is where TIMPRE starts to matter, and ST's low layer "
-             "names its settings TWICE and FOUR_TIMES without saying where the "
-             "multiplication is capped. RM0455 has that and is on neither "
-             "laptop, so this refuses rather than inventing it"),
-    dict(pclk=140_000_000, div=4, expect=0,
-         why="and refuses the same way further out, so the refusal is not an "
-             "accident of one divisor"),
+    dict(pclk=140_000_000, div=1, timpre=0, expect=140_000_000,
+         why="divide by one is what this board is in: RCC_CDCFGR2 reads 0 at the "
+             "280 MHz setting, confirmed on the board five times. PCLK equals "
+             "HCLK, so the timer clock equals both and TIMPRE cannot matter"),
+    dict(pclk=140_000_000, div=1, timpre=1, expect=140_000_000,
+         why="the same case with TIMPRE set, which must give the same answer. "
+             "That this board's answer is independent of TIMPRE was the one "
+             "thing claimable before the rule was sourced, and it still holds"),
+    dict(pclk=64_000_000, div=1, timpre=0, expect=64_000_000,
+         why="and at the reset clock, where APB1 and APB2 are both 64 MHz"),
+
+    dict(pclk=70_000_000, div=2, timpre=0, expect=140_000_000,
+         why="divide by two with TIMPRE clear: HCLK is 140 MHz and the rule says "
+             "HCLK for divisors 1 and 2, so 140. Note 2 x PCLK is also 140, "
+             "which is why the two branches agree exactly here"),
+    dict(pclk=70_000_000, div=2, timpre=1, expect=140_000_000,
+         why="and TIMPRE set gives the same at divide by two, since 2 is in both "
+             "lists. The first divisor where the bit changes anything is 4"),
+
+    dict(pclk=35_000_000, div=4, timpre=0, expect=70_000_000,
+         why="divide by four is the FIRST case where TIMPRE matters. Clear: 4 is "
+             "not in {1, 2}, so 2 x PCLK = 70 MHz, which is HCLK over two"),
+    dict(pclk=35_000_000, div=4, timpre=1, expect=140_000_000,
+         why="set: 4 IS in {1, 2, 4}, so HCLK = 140 MHz. One bit, a factor of "
+             "two, and this is the pair that makes the bit worth reading"),
+
+    dict(pclk=17_500_000, div=8, timpre=0, expect=35_000_000,
+         why="divide by eight, clear: 2 x PCLK = 35 MHz, HCLK over four"),
+    dict(pclk=17_500_000, div=8, timpre=1, expect=70_000_000,
+         why="divide by eight, set: 4 x PCLK = 70 MHz, HCLK over two"),
+    dict(pclk=8_750_000, div=16, timpre=0, expect=17_500_000,
+         why="the slowest divisor this part's field expresses, clear"),
+    dict(pclk=8_750_000, div=16, timpre=1, expect=35_000_000,
+         why="and set, where the cap is four times PCLK rather than two"),
+
+    dict(pclk=0, div=1, timpre=0, expect=0,
+         why="no APB clock means no timer clock, and a zero here comes from "
+             "board_pclk2_hz refusing, which is a state pwmsrc must not plan "
+             "against"),
+    dict(pclk=140_000_000, div=3, timpre=0, expect=0,
+         why="three is not a divisor CDPPREx can express. Answering it would "
+             "hide a caller's mistake rather than report it"),
+    dict(pclk=140_000_000, div=0, timpre=0, expect=0,
+         why="and nor is zero, which would divide by nothing"),
 ]
 
 
 @pytest.mark.parametrize("case", TIMER_HZ_CASES,
-                         ids=lambda c: "pclk{}div{}".format(c["pclk"], c["div"]))
+                         ids=lambda c: "pclk{}div{}timpre{}".format(
+                             c["pclk"], c["div"], c["timpre"]))
 def test_timer_hz(lib, case):
-    assert lib.pwmmath_timer_hz(case["pclk"], case["div"]) == case["expect"], \
-        case["why"]
+    got = lib.pwmmath_timer_hz(case["pclk"], case["div"], case["timpre"])
+    assert got == case["expect"], case["why"]
+
+
+@pytest.mark.parametrize("case", TIMER_HZ_CASES,
+                         ids=lambda c: "pclk{}div{}timpre{}".format(
+                             c["pclk"], c["div"], c["timpre"]))
+def test_the_timer_clock_table_survives_the_minimum_form(case):
+    """Double entry, and on a rule rather than on a table.
+
+    pwmmath.c implements ST's conditional literally so that the code matches the
+    citation. HCLK is PCLK times the divisor, so that conditional is exactly
+    min(HCLK, 2 x PCLK) when TIMPRE is clear and min(HCLK, 4 x PCLK) when it is
+    set. This recomputes every expected value that way and reads no C at all.
+
+    The two forms agreeing is also what shows the sentence was read correctly:
+    they meet at divide by 2 for the clear case and at divide by 4 for the set
+    one, so a misreading of where the cap starts would appear as a step at one
+    of those two divisors rather than as a uniform offset.
+    """
+    if case["pclk"] == 0 or case["div"] not in (1, 2, 4, 8, 16):
+        assert case["expect"] == 0, "a refusal case must expect 0"
+        return
+    hclk = case["pclk"] * case["div"]
+    cap = (4 if case["timpre"] else 2) * case["pclk"]
+    assert min(hclk, cap) == case["expect"], (
+        "pclk {} div {} timpre {}: the table says {} and the minimum form "
+        "gives {}".format(case["pclk"], case["div"], case["timpre"],
+                          case["expect"], min(hclk, cap)))
 
 
 def test_every_plan_case_is_under_the_counters_usable_maximum():

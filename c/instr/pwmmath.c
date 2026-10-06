@@ -69,16 +69,35 @@ int32_t pwmmath_error_ppm(uint64_t achieved_mhz, uint32_t want_hz)
 }
 
 
-uint32_t pwmmath_timer_hz(uint32_t pclk_hz, uint32_t apb_prescaler)
+uint32_t pwmmath_timer_hz(uint32_t pclk_hz, uint32_t apb_prescaler,
+                          bool timpre)
 {
-    /* Only the divide-by-one case is answered, and pwmmath.h says why at
-     * length: it is the one case where both values of TIMPRE give the same
-     * number, so the answer does not depend on the half of the rule that is in
-     * RM0455 and has not been read. */
-    if (apb_prescaler != 1u) {
+    uint32_t hclk_hz;
+
+    if (pclk_hz == 0u) {
         return 0u;
     }
-    return pclk_hz;
+    /* The five divisors this part's CDPPREx fields can express. Anything else
+     * is a caller's mistake rather than a configuration, and inventing an
+     * answer for it would hide the mistake. */
+    if (apb_prescaler != 1u && apb_prescaler != 2u && apb_prescaler != 4u
+        && apb_prescaler != 8u && apb_prescaler != 16u) {
+        return 0u;
+    }
+
+    /* HCLK comes back from the two arguments rather than being passed: the APB
+     * clock IS HCLK divided by the prescaler, so multiplying returns it exactly
+     * and the caller is not asked for a third number it would have to keep
+     * consistent with the first two. */
+    hclk_hz = pclk_hz * apb_prescaler;
+
+    /* ST's conditional, literally, so that this matches the citation in
+     * pwmmath.h. The equivalent minimum form is checked against this one in
+     * python/tests/test_pwmmath.py rather than used here. */
+    if (!timpre) {
+        return (apb_prescaler <= 2u) ? hclk_hz : (2u * pclk_hz);
+    }
+    return (apb_prescaler <= 4u) ? hclk_hz : (4u * pclk_hz);
 }
 
 

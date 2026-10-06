@@ -39,6 +39,11 @@
 #ifndef PWMMATH_H
 #define PWMMATH_H
 
+/* stdbool because pwmmath_timer_hz takes the TIMPRE bit as one, added Tuesday
+ * 6 October 2026. check_c_includes.py refused this file the moment the bool went
+ * in, which is the second time that check has earned itself on the day it was
+ * written: the first cost a push and a round trip to the build laptop. */
+#include <stdbool.h>
 #include <stdint.h>
 
 #define PWMMATH_OK                0
@@ -89,20 +94,45 @@ int32_t pwmmath_error_ppm(uint64_t achieved_mhz, uint32_t want_hz);
  * On this part the timer clock is not simply the APB clock. RCC_CFGR carries
  * TIMPRE, and ST's own low layer names its two settings LL_RCC_TIM_PRESCALER_
  * TWICE and LL_RCC_TIM_PRESCALER_FOUR_TIMES, so the timer clock is two or four
- * times the APB clock once the APB prescaler divides by anything. Where exactly
- * that multiplication starts and where it is capped at HCLK is in RM0455, which
- * is not on either laptop.
+ * THE RULE IS NOW SOURCED, Tuesday 6 October 2026, and it was in ST's own pack
+ * the whole time rather than only in RM0455. The authority is the doc comment on
+ * __HAL_RCC_TIMCLKPRESCALER in
+ * Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rcc_ex.h lines 3596 to 3605 of
+ * STM32Cube_FW_H7_V1.13.0, which states both settings in full:
  *
- * SO ONLY ONE CASE IS ANSWERED, and it is the case this board is in. When the
- * APB prescaler divides by one, the APB clock equals HCLK, and the timer clock
- * equals both of them under either value of TIMPRE. That makes the answer
- * independent of the part of the rule that has not been read. p01-pll280 leaves
- * RCC_CDCFGR2 at 0, which is divide by one, confirmed on the board five times.
+ *   TIMPRE 0, the reset default   the timer kernel clock is rcc_hclk1 if the APB
+ *                                 prescaler divides by 1 or 2, else 2 x PCLK
+ *   TIMPRE 1                      rcc_hclk1 if it divides by 1, 2 or 4, else
+ *                                 4 x PCLK
+ *
+ * AND THAT IS A MINIMUM, WHICH IS WORTH SEEING because it is harder to get wrong
+ * than the conditional. HCLK is PCLK times the divisor, so TIMPRE 0 is exactly
+ * min(HCLK, 2 x PCLK) and TIMPRE 1 is min(HCLK, 4 x PCLK). The two branches of
+ * each conditional therefore AGREE at their boundary, divide by 2 for the first
+ * and divide by 4 for the second, and that continuity is the check that the
+ * sentence has been read correctly. A misreading would show as a step there.
+ * This file implements ST's conditional literally, so the code matches the
+ * citation, and python/tests/test_pwmmath.py checks it against the minimum form,
+ * which is double entry on a rule rather than on a table.
+ *
+ * A NAMING TRAP IN THE SOURCE ITSELF, and it is this part's recurring one. That
+ * doc comment says D2PPREx and rcc_pclkx_d2. Those are the STM32H743's domain
+ * names. This part calls the same fields CDPPREx, in RCC_CDCFGR2, which is what
+ * c/clock/clocktree.c decodes. The rule transfers; the register names do not.
+ * It is the same trap as RCC_TypeDef's trailing offset comments being the H743's
+ * from RSR onward, which c/board/stm32h7a3_regs.h documents at length.
+ *
+ * WHAT THIS BOARD IS IN, which is now confirmed rather than assumed. p01-pll280
+ * leaves RCC_CDCFGR2 at 0, so both APB prescalers divide by one, so PCLK equals
+ * HCLK and the timer clock equals both under either value of TIMPRE. The
+ * divide-by-one answer this function used to give as its only case was right,
+ * and it is now right for a reason that is written down.
  *
  * apb_prescaler is the DIVISOR, not the register field: 1, 2, 4, 8 or 16.
- * Returns the timer clock in hertz, or 0 to refuse, which is every case where
- * the divisor is not 1. A refusal here is not a defect, it is this file
- * declining to invent the half of the rule nobody has read. */
-uint32_t pwmmath_timer_hz(uint32_t pclk_hz, uint32_t apb_prescaler);
+ * timpre is the bit as read from RCC_CFGR, false for the reset default.
+ * Returns the timer clock in hertz, or 0 to refuse when the clock or the divisor
+ * is one this rule does not cover. */
+uint32_t pwmmath_timer_hz(uint32_t pclk_hz, uint32_t apb_prescaler,
+                          bool timpre);
 
 #endif /* PWMMATH_H */

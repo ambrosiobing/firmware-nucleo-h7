@@ -53,7 +53,12 @@ int pwmsrc_start(uint32_t want_hz, pwmsrc_t *out)
         return PWMSRC_ERR_PCLK2_UNKNOWN;
     }
 
-    const uint32_t tim_hz = pwmmath_timer_hz(pclk2, apb2_divisor());
+    /* TIMPRE read rather than assumed, since Tuesday 6 October 2026 when the
+     * rule behind it was sourced from ST's pack. Nothing in this repository
+     * writes the bit, so it is whatever reset left, which is clear; reading it
+     * costs one load and means this does not depend on that staying true. */
+    const bool timpre = (RCC_CFGR & RCC_CFGR_TIMPRE_MSK) != 0u;
+    const uint32_t tim_hz = pwmmath_timer_hz(pclk2, apb2_divisor(), timpre);
     if (tim_hz == 0u) {
         /* Either CDPPRE2 holds a ratio this volume has not sourced, or it
          * divides by more than one and the TIMPRE half of the rule is unread.

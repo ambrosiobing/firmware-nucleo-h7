@@ -927,6 +927,28 @@
 #define RCC_CFGR_SW_MSK             (7u << RCC_CFGR_SW_POS)
 #define RCC_SW_PLL1                 3u      /* RCC_CFGR_SW_PLL1 */
 
+/* TIMPRE, the timer kernel clock prescaler selection, bit 15 of RCC_CFGR.
+ * RCC_CFGR_TIMPRE_Pos is 15 and RCC_CFGR_TIMPRE is 0x00008000 in ST's
+ * stm32h7a3xxq.h, read Tuesday 6 October 2026, which is the first time this
+ * volume has needed the bit rather than only the field it modifies.
+ *
+ * WHAT IT DOES is in c/instr/pwmmath.h at length, sourced from ST's own HAL
+ * rather than from RM0455: clear, the timer clock is HCLK for APB divisors 1 and
+ * 2 and 2 x PCLK beyond; set, HCLK for 1, 2 and 4 and 4 x PCLK beyond. Divide by
+ * four is the first divisor where the bit changes the answer.
+ *
+ * AND THE SOURCE OF THAT RULE CARRIES THIS PART'S RECURRING TRAP. ST's doc
+ * comment names the fields D2PPREx and the clocks rcc_pclkx_d2, which are the
+ * STM32H743's domain names. This part calls the same fields CDPPREx, in
+ * RCC_CDCFGR2, which is what c/clock/clocktree.c decodes and what the table of
+ * APB prescaler encodings further up this file describes. The RULE transfers
+ * between the two parts; the register names do not. That is the same trap as
+ * RCC_TypeDef's trailing offset comments being the H743's from RSR onward, and
+ * as UM2407 documenting MB1364 while this board is MB1363 under UM2408: ST's
+ * material for the family reads as material for the part until it does not. */
+#define RCC_CFGR_TIMPRE_POS         15u
+#define RCC_CFGR_TIMPRE_MSK         (1u << RCC_CFGR_TIMPRE_POS)
+
 /* THE VOLTAGE SCALING, AND THE SHARPEST INSTANCE OF THIS VOLUME'S TRAP.
  *
  * VOS is two bits at 15:14 of PWR_SRDCR, with VOSRDY at 13. The encoding below
