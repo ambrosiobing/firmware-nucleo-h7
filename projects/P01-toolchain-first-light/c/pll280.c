@@ -495,9 +495,15 @@ static void report_freqcount(const char *when, uint64_t source_mhz)
     printf("    SUBTRACT THE CLOCK OFFSET PRINTED ABOVE from the ppm just\n"
            "    printed and what is left is this instrument's own residual,\n"
            "    because the source follows the clock while the gate does not.\n"
-           "    Over this one second gate that residual was +54 and +33 ppm at\n"
-           "    the reset clock and -0.6 ppm at 280 MHz in runs 15 and 16, the\n"
-           "    last of which is inside the gate's own 1 ppm resolution.\n");
+           "    Across runs 15 to 19 that residual ran -74 to +104 ppm at the\n"
+           "    reset clock, and -0.6, +6 and +407 at 280 MHz.\n");
+    printf("    THE +407 CANNOT BE THIS INSTRUMENT, which is the useful part.\n"
+           "    Over a 256 tick gate the waiting loop's granularity is 3.4 ppm\n"
+           "    and the edge quantisation 2 ppm, so the budget is 5.4 ppm all\n"
+           "    told. A residual eighty times that is in the quantity or in the\n"
+           "    other instrument, not in this one. The two are measured seconds\n"
+           "    apart and this part's clock has never been measured twice inside\n"
+           "    one run, which is the next thing to do and not a conclusion.\n");
     printf("    AND THE SIZE NAMES THE KIND, if they disagree by more: a\n"
            "    shortfall that is a whole number of 65536s is the wrap\n"
            "    accounting, which was measured on this board on Tuesday 6\n"
@@ -539,8 +545,8 @@ static void report_freqcount(const char *when, uint64_t source_mhz)
            "      FREQUENCY. Subtract the clock offset printed above from the\n"
            "      ppm just printed, divide by a million, add one, multiply by\n"
            "      twelve: that is how many ticks this gate actually ran. It\n"
-           "      must come out at twelve, and over runs 15 and 16 it came out\n"
-           "      12.002, 11.999 and 12.002 where the broken version gave\n"
+           "      must come out at twelve. Across runs 15 to 19 it came out\n"
+           "      between 11.999 and 12.006, where the broken version gave\n"
            "      12.39, 12.46 and 12.50. Always above twelve was the defect;\n"
            "      straddling twelve is this gate's own noise.\n");
     printf("      THIS IS THE WORST FREQUENCY READING IN THE REPORT and the\n"
@@ -608,13 +614,24 @@ static void report_freqcount(const char *when, uint64_t source_mhz)
                             / ((uint64_t) poll.tick_hz * (uint64_t) mean)));
     printf("      EACH BOUNDARY IS DETECTED TO WITHIN ONE PASS, so a gate carries\n"
            "      two passes of uncertainty: %lu parts per billion over 12 ticks\n"
-           "      and %lu over 256. The 12 tick scatter to beat is 140000 ppb.\n",
+           "      and %lu over 256, against a 12 tick scatter of about 140000.\n",
            (unsigned long) (2000000000ull / (12ull * (uint64_t) mean)),
            (unsigned long) (2000000000ull / (256ull * (uint64_t) mean)));
-    printf("      AND THIS RUNS AT BOTH CLOCKS, so the two pass times together\n"
-           "      say whether the loop is core bound or bus bound: core bound\n"
-           "      falls by about the clock ratio of 4.4 from the reset clock to\n"
-           "      280 MHz, bus bound falls by less. Nothing here predicts which.\n");
+    printf("      THE THRESHOLD WAS WRITTEN BEFORE THIS RAN: near 1200 passes\n"
+           "      per tick and the loop's granularity accounts for that\n"
+           "      scatter, near 20000 and it does not. Runs 18 and 19 gave 2298\n"
+           "      at the reset clock and 3925 at 280 MHz, so 72.5 and 42.5 ppm\n"
+           "      over the short gate. With the edge quantisation's 42.7 the two\n"
+           "      known terms reach 115 ppm of about 138 observed: the dominant\n"
+           "      term, and a modest remainder rather than a large one.\n");
+    printf("      AND THE LOOP IS NOT CORE BOUND. The pass time fell by 1.71\n"
+           "      when the core rose by 4.375, where a core bound loop would\n"
+           "      have fallen by 4.375. Fitting a fixed term plus core work to\n"
+           "      those two points gives about 787 ns of clock independent\n"
+           "      latency and 58 core cycles, against the fifty cycles this\n"
+           "      file's own comment estimated. Two points fitted to two\n"
+           "      parameters is exact by construction, so that split is\n"
+           "      untested; the 1.71 against 4.375 needs no fitting.\n");
 }
 
 int main(void)

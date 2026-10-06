@@ -288,13 +288,26 @@ uint32_t freqcount_ceiling_hz(void);
  * while the gate is the crystal. Subtracting one from the other leaves the
  * instrument's own residual:
  *
- *     gate       run 15 reset   run 16 reset   run 16 at 280 MHz
- *     256 ticks  +54 ppm        +33 ppm        -0.6 ppm
- *     12 ticks   +165 ppm       -105 ppm       +140 ppm
+ *                reset clock                        at 280 MHz
+ *     run      15     16     17     18     19       16     17     19
+ *     256 tk  +54    +33    +24   +104    -74     -0.6   +6.1   +407
+ *     12 tk  +165   -105    +74   +101   +171     +140   +3.1   +479
  *
- * THE BEST READING THIS INSTRUMENT HAS TAKEN is the -0.6 ppm, inside its own
- * one-hertz resolution over that gate. Two paths to one quantity, sharing no
- * component but the crystal, agreeing to better than a part in a million.
+ * all in parts per million. THE BEST READING THIS INSTRUMENT HAS TAKEN is the
+ * -0.6 ppm, inside its own one-hertz resolution over that gate, and the +3.1 is
+ * the best the short gate has done against its own 21 ppm.
+ *
+ * AND RUN 19 AT 280 MHz IS THE ONE THAT MATTERS NOW, at +407 and +479. That is
+ * about eighty times this instrument's whole error budget over the one second
+ * gate, so it CANNOT be this instrument. The elimination is arithmetic and not a
+ * judgement: over 256 ticks the loop granularity is 3.4 ppm and the edge
+ * quantisation 2 ppm, which is 5.4 ppm all told against an observed 407.
+ * Whatever moved, the counter did not. The two instruments measure one quantity
+ * seconds apart, and the core readings at 280 MHz across runs 16, 17 and 19
+ * themselves span 710 parts per million, so the quantity moving BETWEEN the two
+ * measurements is where to look next. No cause is offered: the within-run
+ * stability of this part's clock has never been measured here, which is exactly
+ * why it cannot be blamed yet.
  *
  * AND A CORRECTION TO HOW THE SHORT GATE WAS DESCRIBED HERE AND IN p01-pll280.
  * It was called the sensitive one without saying sensitive to what. It is
@@ -306,20 +319,56 @@ uint32_t freqcount_ceiling_hz(void);
  * when it is the better detector and the worse meter.
  *
  * SO THE RESIDUAL IS READ OFF THE LONG GATE AND NOT THE SHORT ONE. The short
- * gate's three figures change sign, +165, -105, +140, which is scatter and not
- * bias. Its own quantisation is one edge at each boundary, about 43 ppm, and the
- * rest is the time taken by one pass of the waiting loop at each boundary, which
- * is NOT MEASURED. That unmeasured figure is the one thing that would turn this
- * scatter from unexplained into bounded, and measuring it is a separate job.
+ * gate's figures change sign, which is scatter and not bias. Its own
+ * quantisation is one edge at each boundary, about 43 ppm, and the rest is the
+ * time taken by one pass of the waiting loop at each boundary.
  *
- * NO CAUSE IS OFFERED for the long gate reading +54 and +33 at the reset clock
- * and -0.6 at 280 MHz. There is one difference worth naming without attributing
- * anything to it: at the reset clock both instruments are derived from the
- * internal oscillator, whose reproducibility between runs on this bench is 579
- * parts per million and whose stability WITHIN a run has never been measured,
- * while at 280 MHz the chain runs from the debugger's 8 MHz in bypass. That is
- * one observation at each clock. This page has already withdrawn four
- * explanations of this part's clock scatter, so it offers no fifth.
+ * THAT PASS TIME IS NOW MEASURED, runs 18 and 19, and the threshold for reading
+ * it was written down before the board ran: near 1200 passes per tick and the
+ * loop's granularity accounts for the scatter, near 20000 and it does not.
+ *
+ *     reset clock   2298 passes per tick, min 2296, max 2300, 1699 ns per pass
+ *     at 280 MHz    3925 passes per tick, min 3924, max 3927,  995 ns per pass
+ *
+ * 2298 IS NEAR THE 1200 END. Two boundaries at one pass each give 72.5 ppm over
+ * the twelve tick gate at the reset clock and 42.5 at 280 MHz. With the edge
+ * quantisation's 42.7 ppm the two known terms total 115 ppm at the reset clock
+ * against an observed scatter of about 138. So the loop's granularity is the
+ * DOMINANT term and the two together account for most of that scatter, leaving a
+ * modest remainder rather than a large one. Neither "explained" nor
+ * "unexplained" is the right word, which is why the figures are given instead of
+ * a verdict.
+ *
+ * THE WITHIN-GATE SPREAD IS TINY, four passes in 2298 and three in 3925, so the
+ * loop runs at a very steady rate. The uncertainty is the GRANULARITY of one
+ * pass and not variation in how long a pass takes. Those are different findings,
+ * and the minimum and maximum are printed so they can be told apart.
+ *
+ * AND THE LOOP IS NOT CORE BOUND, which the two clocks settle for nothing. The
+ * pass time fell by a factor of 1.71 when the core rose by 4.375. Fitting a
+ * fixed term plus core work to the two points gives about 787 ns of clock
+ * independent latency and about 58 core cycles of work per pass. TWO POINTS
+ * FITTED TO TWO PARAMETERS IS EXACT BY CONSTRUCTION and therefore untested; a
+ * third clock would test it and none has run. What the two points establish
+ * without any fitting is the ratio, 1.71 against 4.375, which no purely core
+ * bound loop can give.
+ *
+ * THE OLD ESTIMATE WAS RIGHT ABOUT THE HALF IT MODELLED. The comment at
+ * FREQCOUNT_TICK_POLLS_MAX said "call it fifty core cycles", against 58
+ * measured. It was not wrong about the core work; it was silent about the fixed
+ * latency, which is the larger term at both clocks. An estimate that models one
+ * of two terms is not half right, it is confidently wrong about the total.
+ *
+ * NO CAUSE IS OFFERED for the long gate's spread at either clock. There is one
+ * difference worth naming without attributing anything to it: at the reset clock
+ * both instruments descend from the internal oscillator, whose reproducibility
+ * between runs on this bench is 579 parts per million and whose stability WITHIN
+ * a run has never been measured, while at 280 MHz the chain runs from the
+ * debugger's 8 MHz in bypass. This page has withdrawn five explanations of this
+ * part's clock scatter and offers no sixth. What it does now have is the
+ * elimination above, which is worth more than an explanation: the counter's
+ * error budget cannot produce what run 19 showed, so the next measurement is of
+ * the clock and not of the counter.
  *
  * A return to exactly 1000000000 millihertz would have been the WRONG result to
  * hope for, because the source is not exactly a megahertz. The long gate is kept

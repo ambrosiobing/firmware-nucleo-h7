@@ -504,6 +504,15 @@
  *   run 14   279486828 Hz    (WIRE IN)       64205341 Hz        3208 ppm high
  *   run 15   not printed     (COUNTER FIXED) 64168296 Hz        2630 ppm high
  *   run 16   279411320 Hz    (COUNTER FIXED) 64177416 Hz        2772 ppm high
+ *   run 17   279551130 Hz    (COUNTER FIXED) 64197336 Hz        3083 ppm high
+ *   run 18   not printed     (LOOP MEASURED) 64181938 Hz        2843 ppm high
+ *   run 19   279352464 Hz    (LOOP MEASURED) 64189764 Hz        2965 ppm high
+ *
+ * RUNS 17, 18 AND 19 ALL LANDED INSIDE BOTH EXISTING SPANS, so the internal
+ * bound holds at 579 parts per million across nineteen readings and the core at
+ * 1306 across fourteen. That is three consecutive readings widening neither,
+ * after five widenings in two days. Run 18's core figure did not print because
+ * the capture window held two boots and cut the first one at step 1.
  *
  * RUN 15 IS THE LOWEST INTERNAL READING OF ALL SIXTEEN, 11794 Hz below the
  * previous lowest, which widened the internal spread from 395 to 579 parts per
@@ -566,14 +575,22 @@
  * ceiling since run 5, which took the internal spread from 357 parts per million
  * across twelve readings to 395 across fourteen. Run 15 then read 64168296,
  * 11794 Hz BELOW the lowest of all fourteen, and took it to 579 across sixteen.
- * The core, by contrast, held at 1306 across eleven readings and again across
- * twelve when run 16 landed inside its existing span, which is the first bound
- * on this board to survive a further reading instead of being widened by it.
+ * Runs 16 to 19 all landed inside, so 579 across nineteen is where it stands.
+ * The core held at 1306 across eleven readings and then across twelve, thirteen
+ * and fourteen as runs 16, 17 and 19 each landed inside its existing span.
+ *
+ * SO BOTH BOUNDS HAVE NOW SURVIVED SEVERAL READINGS, which is a different state
+ * from the one this file has described all along and is stated as such rather
+ * than as a settlement. The history is five widenings followed by four holds.
+ * Four holds is not a guarantee: the 357 figure held six times before run 13
+ * removed it, and the paragraph further down that said it had survived every
+ * test is still there as the record of what that kind of confidence is worth.
  *
  * NO CAUSE IS OFFERED FOR THAT EITHER, and there is a difference worth naming
- * without attributing anything to it: runs 12 to 16 are the first readings
+ * without attributing anything to it: runs 12 to 19 are the first readings
  * taken with the jumper fitted and LPTIM1 actually counting about a megahertz,
- * and runs 15 and 16 the first with the counter's two defects fixed,
+ * runs 15 onward the first with the counter's two defects fixed, and runs 18 and
+ * 19 the first with the waiting loop's pass rate measured,
  * which no earlier reading had. That is a change in the conditions, not an
  * explanation, and this comment has already spent three explanations on this
  * quantity.

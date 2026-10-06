@@ -17,8 +17,8 @@ What is measured and what it rests on:
 | User button on PC13 | input with a pull-down, active high |
 | Core, AHB, APB1 clocks | 64 MHz at reset, decoded from RCC at startup rather than hardcoded |
 | The 280 MHz tree | reached Sunday 4 October 2026 by `p01-pll280`: the configuration is at the target, AHB and APB1 at half the core, every one of eight steps reading back what it wrote |
-| The core clock, **measured twelve times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208**, **279 624 968**, **279 541 148**, **279 692 180**, **279 424 340**, **279 522 728**, **279 348 956**, **279 486 828** and **279 411 320** Hz against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306, 1339, 1639, 1099, 2056, 1705, 2325, 1833 and 2102 parts per million below the 280 MHz nominal. Always low, never the same, spanning 1306 parts per million with no trend, so the sign reproduces and the digits do not. That spread was 998 through seven readings, 1037 through eight, and 1306 through ten, each widening withdrawing a claim this page had just made, and it then HELD at 1306 through eleven and twelve, which is the first time a bound on this board has survived two further readings. The cause is the debugger's clock output, which the twelve runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549, 7 989 285, 7 986 890, 7 991 205, 7 983 553, 7 986 364, 7 981 399, 7 985 338 and 7 983 181 Hz. Four further runs measured the reset clock only, because in three a second RESET press truncated the report before its core figure printed and in the fourth the capture window was too short |
-| The reset clock, **measured sixteen times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988**, **64 202 948**, **64 189 988**, **64 192 428**, **64 194 888**, **64 190 072**, **64 199 102**, **64 200 306**, **64 188 825**, **64 203 931**, **64 205 341**, **64 168 296** and **64 177 416** Hz against the same crystal, spanning 579 parts per million where the PLL spans 1306. Two explanations have been offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5, so no third is offered. The spread held at 357 parts per million through five readings, seven, nine, ten and twelve, runs 13 and 14 widened it to 395, and run 15 came in 11 794 Hz below the previous lowest and widened it to 579. That is five widenings and five withdrawals. What stands is a bound and not a cause, and it is the current bound rather than a settled one: this oscillator reproduces to 579 parts per million on this bench and no better |
+| The core clock, **measured fourteen times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208**, **279 624 968**, **279 541 148**, **279 692 180**, **279 424 340**, **279 522 728**, **279 348 956**, **279 486 828**, **279 411 320**, **279 551 130** and **279 352 464** Hz against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306, 1339, 1639, 1099, 2056, 1705, 2325, 1833, 2102, 1603 and 2313 parts per million below the 280 MHz nominal. Always low, never the same, spanning 1306 parts per million with no trend, so the sign reproduces and the digits do not. That spread was 998 through seven readings, 1037 through eight, and 1306 through ten, each widening withdrawing a claim this page had just made, and it has now HELD at 1306 through eleven, twelve, thirteen and fourteen. Four holds after three widenings, which is a different state from the one this page described all along and is not the same as settled. The cause is the debugger's clock output, which the fourteen runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549, 7 989 285, 7 986 890, 7 991 205, 7 983 553, 7 986 364, 7 981 399, 7 985 338, 7 983 181, 7 987 175 and 7 981 499 Hz. Five further runs measured the reset clock only, because in four a second RESET press truncated the report before its core figure printed and in the fifth the capture window was too short |
+| The reset clock, **measured nineteen times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988**, **64 202 948**, **64 189 988**, **64 192 428**, **64 194 888**, **64 190 072**, **64 199 102**, **64 200 306**, **64 188 825**, **64 203 931**, **64 205 341**, **64 168 296**, **64 177 416**, **64 197 336**, **64 181 938** and **64 189 764** Hz against the same crystal, spanning 579 parts per million where the PLL spans 1306. Two explanations have been offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5, so no third is offered. The spread held at 357 parts per million through five readings, seven, nine, ten and twelve, runs 13 and 14 widened it to 395, and run 15 came in 11 794 Hz below the previous lowest and widened it to 579. Runs 16 to 19 then all landed inside. That is five widenings and four consecutive holds. What stands is a bound and not a cause, and it is the current bound rather than a settled one: this oscillator reproduces to 579 parts per million on this bench and no better |
 | Oscillator | 64.17 to 64.18 MHz, six reductions, two instruments, spread 0.031 per cent |
 | Delay loop | 9.00 cycles per iteration at 64 MHz and 8.96 at 280 MHz, the same binary, measured against `DWT_CYCCNT` every boot |
 | A 100 ms request | lands within 20 parts per million, checked by the part itself |
@@ -59,23 +59,24 @@ iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
 which says the loop's cost barely moved and is a fact about the flash and the
 pipeline rather than about the clock.
 
-## The core clock, measured sixteen times, and five claims withdrawn
+## The core clock, measured nineteen times, and five claims withdrawn
 
 **This is the first frequency in this volume that is measured rather than
 derived**, it does not agree with the nominal, and it does not agree with itself.
-Sixteen runs on the same board, each gated by this board's own 32.768 kHz crystal
+Nineteen runs on the same board, each gated by this board's own 32.768 kHz crystal
 over one second. Runs 1 to 3 are Sunday 4 October 2026, minutes to hours apart.
 Run 4 is Monday 5 October 2026 after about eight hours with the board away, so
-cold. Runs 5 to 16 are Tuesday 6 October 2026: run 5 after about fifteen minutes
+cold. Runs 5 to 19 are Tuesday 6 October 2026: run 5 after about fifteen minutes
 at 280 MHz, so warm; runs 6 and 7 after five minutes unpowered, so cold; and runs
 8 to 14 with the thermal state not written down, which is recorded as a blank
 rather than guessed at.
 
-**Runs 12 to 16 are the first with the jumper fitted**, so they are also the
-first taken while LPTIM1 was actually counting about a megahertz, and runs 15 and
-16 are the first with the counter's two defects fixed. Those are changes in the
-conditions and they are named here because they are real, not because anything is
-attributed to them.
+**Runs 12 to 19 are the first with the jumper fitted**, so they are also the
+first taken while LPTIM1 was actually counting about a megahertz; runs 15 onward
+are the first with the counter's two defects fixed; and runs 18 and 19 the first
+with the waiting loop's pass rate measured. Those are changes in the conditions
+and they are named here because they are real, not because anything is attributed
+to them.
 
 **Runs 8 and 9 also come from a different image**, and the record says so: from
 Tuesday 6 October 2026 `p01-pll280` also runs TIM1 channel 3 at one megahertz.
@@ -100,6 +101,9 @@ existing span, but the binary is not the same one that produced runs 1 to 7:
 | run 14 | **279 486 828 Hz** (wire in) | 1833 ppm low | 64 205 341 Hz | 3208 ppm high | 7 985 338 Hz |
 | run 15 | not printed (counter fixed) | | 64 168 296 Hz | 2630 ppm high | |
 | run 16 | **279 411 320 Hz** (counter fixed) | 2102 ppm low | 64 177 416 Hz | 2772 ppm high | 7 983 181 Hz |
+| run 17 | **279 551 130 Hz** | 1603 ppm low | 64 197 336 Hz | 3083 ppm high | 7 987 175 Hz |
+| run 18 | not printed (loop measured) | | 64 181 938 Hz | 2843 ppm high | |
+| run 19 | **279 352 464 Hz** (loop measured) | 2313 ppm low | 64 189 764 Hz | 2965 ppm high | 7 981 499 Hz |
 
 **Runs 6 and 8 are half readings, and the reason belongs in the record.** Neither
 core figure printed, because the black RESET button was pressed a second time
@@ -157,9 +161,17 @@ across ten and 357 across twelve, to the hertz each time. Runs 13 and 14 then re
 64 203 931 and 64 205 341, both above the 64 202 948 that had been the ceiling
 since run 5. Run 15 then read 64 168 296, which is 11 794 Hz below the previous
 lowest of all fourteen, and widened the internal spread to **579 parts per
-million** across sixteen readings. The core, by contrast, **held at 1306** when
-run 16 landed inside its existing span, which is the first bound on this board to
-survive a further reading rather than be widened by it.
+million**. Runs 16 to 19 then all landed inside it, so 579 across nineteen is
+where it stands, and the core **held at 1306** across twelve, thirteen and
+fourteen as runs 16, 17 and 19 each landed inside its existing span.
+
+**Four consecutive holds is a new state for this board and it is not settlement.**
+Every bound named on this page before now was widened by the reading after it. The
+internal 357 also held six times, through five readings, seven, nine, ten and
+twelve, before runs 13 and 14 removed it, and a sentence in
+`c/board/stm32h7a3_regs.h` that said 357 had survived every test put to it is
+still there with its correction beside it, because what that kind of confidence
+is worth is part of the record.
 
 **That is the fifth claim about this quantity withdrawn in two days**, after
 drift, after temperature, after the core bound, and after the internal bound's
@@ -170,7 +182,7 @@ scatters, and the two spreads are the current bound rather than a settled one.
 
 **So no third mechanism is offered.** Two were proposed from the pattern in hand
 and the next observation removed each one. What survives is a bound and not a
-cause: across sixteen readings this part's internal oscillator reproduces only
+cause: across nineteen readings this part's internal oscillator reproduces only
 to **579 parts per million** on this bench, and nothing here may quote it, or any
 figure derived from it, to better than that.
 
@@ -411,10 +423,15 @@ flattering half had been written.
 **So the residual is read off the long gate.** Subtracting the clock offset from
 each reading leaves the instrument's own disagreement:
 
-| gate | run 15, reset clock | run 16, reset clock | run 16, at 280 MHz |
-|---|---|---|---|
-| 256 ticks | +54 ppm | +33 ppm | **minus 0.6 ppm** |
-| 12 ticks | +165 ppm | minus 105 ppm | +140 ppm |
+| gate | | reset clock | | | | | at 280 MHz | |
+|---|---|---|---|---|---|---|---|---|
+| run | 15 | 16 | 17 | 18 | 19 | 16 | 17 | 19 |
+| 256 ticks | +54 | +33 | +24 | +104 | minus 74 | **minus 0.6** | +6 | **+407** |
+| 12 ticks | +165 | minus 105 | +74 | +101 | +171 | +140 | **+3** | +479 |
+
+All in parts per million. The **minus 0.6** and the **+3** are the best the two
+gates have done, each inside its own resolution. The **+407** is the one that
+matters, and it is dealt with below.
 
 The short gate's three figures **change sign**, so they are scatter and not bias.
 Its own quantisation is one edge at each boundary, about 43 ppm, and the rest is the
@@ -422,26 +439,64 @@ time one pass of the waiting loop takes at each boundary, which **was not measur
 That unmeasured figure is the single thing that would turn this scatter from
 unexplained into bounded.
 
-**So the loop now reports what it already counted, and the threshold is written here
-before the number exists.** It increments a poll counter on every pass in order to
+**So the loop reported what it already counted, and the threshold was written down
+before the number existed.** It increments a poll counter on every pass in order to
 bound itself against a tick that never arrives, and that count was being discarded;
 `freqcount_last_poll` makes it readable at no cost to the loop. Two boundaries, each
 detected to within one pass, give a gate-length uncertainty of two over passes per
 tick times ticks. Setting that equal to the observed 140 ppm over twelve ticks gives
-about **1190 passes per tick**, so:
+about **1190 passes per tick**, so the threshold published in advance was:
 
-| what the board reports | what it means |
+| what the board reports | what it would mean |
 |---|---|
 | near 1200 passes per tick | the loop's own granularity accounts for the scatter, and the residual is bounded |
 | near 20 000 | it accounts for about 8 ppm of 140, and something else is in there |
 
-`freqcount.c`'s own comment had estimated fifty core cycles per pass, which at the
-reset clock is about 5000 passes per tick, which sits **between** the two outcomes.
-That estimate has never been checked, and the fact that it does not pick a side is
-the reason this is worth measuring rather than arguing about. The report also prints
-it at both clocks, so the pair says whether the loop is core bound, in which case the
-pass time should fall by about the clock ratio of 4.4, or bus bound, in which case it
-falls by less. Nothing here predicts which.
+**Runs 18 and 19 answered it: 2298 passes per tick at the reset clock and 3925 at
+280 MHz**, with a within-gate spread of four passes in 2298 and three in 3925. That
+is near the 1200 end.
+
+| | passes per tick | one pass | uncertainty over 12 ticks | over 256 |
+|---|---|---|---|---|
+| reset clock | 2298, min 2296, max 2300 | 1699 ns | 72.5 ppm | 3.4 ppm |
+| at 280 MHz | 3925, min 3924, max 3927 | 995 ns | 42.5 ppm | 2.0 ppm |
+
+With the edge quantisation's 42.7 ppm, **the two known terms reach 115 ppm of about
+138 observed** at the reset clock. The loop's granularity is the dominant term and
+the two together account for most of the scatter, leaving a modest remainder rather
+than a large one. Neither "explained" nor "unexplained" is the right word for that,
+which is why the figures are given instead of a verdict.
+
+**The tight within-gate spread matters separately.** Four passes in 2298 means the
+loop runs at a very steady rate, so the uncertainty is the **granularity** of one
+pass and not variation in how long a pass takes. Those are different findings and
+the minimum and maximum were printed so they could be told apart.
+
+**And the loop is not core bound**, which the two clocks settled for nothing. The
+pass time fell by a factor of **1.71** when the core rose by **4.375**. Fitting a
+fixed term plus core work to the two points gives about 787 ns of clock-independent
+latency and about 58 core cycles of work per pass. Two points fitted to two
+parameters is exact by construction and therefore untested: a third clock would test
+it and none has run. What the two points establish with no fitting at all is the
+ratio, 1.71 against 4.375, which no purely core-bound loop can give.
+
+**The old estimate was right about the half it modelled.** `freqcount.c`'s comment
+said "call it fifty core cycles", against 58 measured. It was not wrong about the
+core work; it was silent about the fixed latency, which is the larger term at both
+clocks. An estimate that models one of two terms is not half right, it is
+confidently wrong about the total.
+
+**And the open question has moved, which is the real result.** Run 19 at 280 MHz
+returned a long-gate residual of **+407 ppm**. Over a 256-tick gate this
+instrument's whole error budget is 3.4 ppm of loop granularity plus 2 ppm of edge
+quantisation, which is **5.4 ppm**. A residual eighty times that cannot be the
+counter, and the elimination is arithmetic rather than judgement. The two
+instruments measure one quantity seconds apart, and the core readings at 280 MHz
+across runs 16, 17 and 19 themselves span **710 parts per million**. So the next
+measurement is of the clock and not of the counter: read the core twice inside one
+run and print the difference. No cause is offered until that exists, because the
+within-run stability of this part's clock has never been measured here, which is
+exactly why it cannot be blamed yet.
 
 **No cause is offered for the long gate reading +54 and +33 at the reset clock and
 minus 0.6 at 280 MHz.** There is one difference worth naming without attributing
