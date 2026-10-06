@@ -19,6 +19,8 @@ it is now in the order the script produces them:
 
   freqmath.{dll,so}       the frequency counter's arithmetic, split out of
                           freqcount.c so a host can test the divide
+  pwmmath.{dll,so}        the signal source's arithmetic, split out of the TIM1
+                          driver for the same reason, before that driver existed
   clocktree.{dll,so}      P01's clock tree decode, the same object the board links
   clocktree_filter        and its C++ variant, as a filter the tests drive
   payload.{dll,so}        P09's codec, from the same source the board links
@@ -461,6 +463,15 @@ def main() -> int:
     # firmware links.
     print("The frequency counter's arithmetic, the same file the board links:")
     shared_lib("freqmath", [C_DIR / "instr" / "freqmath.c"],
+               includes=[C_DIR / "instr"])
+
+    # The signal source's arithmetic. Split out BEFORE its driver was written
+    # rather than after, which is the only one of the three splits in this
+    # repository that was not a correction: clocktree.c came out of system.c and
+    # freqmath.c out of freqcount.c once the untestability was noticed, and this
+    # one starts on the right side of the line.
+    print("The signal source's arithmetic, split out before its driver exists:")
+    shared_lib("pwmmath", [C_DIR / "instr" / "pwmmath.c"],
                includes=[C_DIR / "instr"])
 
     print("P01, the clock tree decode, the same file the board links:")

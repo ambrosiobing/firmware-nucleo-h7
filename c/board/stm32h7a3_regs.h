@@ -1094,6 +1094,106 @@
 #define FREQCOUNT_IN_AF         1u
 #define RCC_AHB4ENR_GPIODEN     (1u << RCC_AHB4ENR_GPIODEN_POS)
 
+/* ---------------------------------------------------------------- TIM1
+ * The signal source for the frequency counter's self test. c/instr/freqcount.c
+ * counts edges on PD12 and has never counted anything, because nothing has ever
+ * been connected to that pin. TIM1 channel 3 drives PE13, one wire joins them,
+ * and the count is compared against the 32.768 kHz crystal gate. Both pins reach
+ * the ST Zio header, settled Tuesday 6 October 2026: PE13 is Arduino D3 and PD12
+ * is Arduino D29.
+ *
+ * WHY THAT COMPARISON IS WORTH MORE THAN A SELF TEST. TIM1 is clocked from APB2
+ * and therefore from the PLL, while the gate is the crystal, so the two paths
+ * share no component but the crystal itself. c/instr/lseref.c counts core cycles
+ * inside the part with DWT_CYCCNT; this counts edges arriving on a pin from
+ * outside the counter. Two instruments, one quantity.
+ *
+ * EVERYTHING BELOW WAS READ, NOT DERIVED, which is a change from how LPTIM1
+ * above got its address. ST publishes the CMSIS device header for this exact
+ * part at github.com/STMicroelectronics/cmsis_device_h7, Include/stm32h7a3xxq.h,
+ * read on Tuesday 6 October 2026. It gives CD_APB2PERIPH_BASE as PERIPH_BASE +
+ * 0x00010000 and TIM1_BASE as CD_APB2PERIPH_BASE + 0, so 0x40010000.
+ *
+ * AND IT CONFIRMED THE DERIVATION THIS FILE ALREADY MADE AND NEVER CHECKED. The
+ * same header gives LPTIM1_BASE as CD_APB1PERIPH_BASE + 0x2400 and USART3_BASE
+ * as CD_APB1PERIPH_BASE + 0x4800, which are 0x40002400 and 0x40004800: exactly
+ * the two addresses this file had worked out from one anchor and the board had
+ * accepted. The derivation was right.
+ *
+ * THE REGISTER OFFSETS BELOW COME FROM THE COMMENTS IN TIM_TypeDef, AND THAT IS
+ * SAFE HERE WHERE IT WOULD NOT BE FOR RCC. This header's longest comment is
+ * about those trailing comments being the STM32H743's from RSR onward. So the
+ * struct was walked rather than trusted: adding four bytes per member and each
+ * reserved array, all 26 of TIM_TypeDef's members land exactly where their own
+ * comment says, where 19 of RCC_TypeDef's do not. The staleness is specific to
+ * RCC_TypeDef from RSR onward and is not a property of the file, which is worth
+ * recording so the next person does not distrust every struct in it.
+ *
+ * The same walk re-derived the whole RCC map and agreed with the table this file
+ * already carries, in every entry, including APB2ENR at 0x150 where the comment
+ * in ST's header says 0xF0. That is the offset TIM1's clock enable needs. */
+#define TIM1_BASE               0x40010000u
+
+#define TIM1_CR1                REG32(TIM1_BASE + 0x000u)
+#define TIM1_CR2                REG32(TIM1_BASE + 0x004u)
+#define TIM1_EGR                REG32(TIM1_BASE + 0x014u)
+#define TIM1_CCMR2              REG32(TIM1_BASE + 0x01Cu)
+#define TIM1_CCER               REG32(TIM1_BASE + 0x020u)
+#define TIM1_CNT                REG32(TIM1_BASE + 0x024u)
+#define TIM1_PSC                REG32(TIM1_BASE + 0x028u)
+#define TIM1_ARR                REG32(TIM1_BASE + 0x02Cu)
+#define TIM1_RCR                REG32(TIM1_BASE + 0x030u)
+#define TIM1_CCR3               REG32(TIM1_BASE + 0x03Cu)
+#define TIM1_BDTR               REG32(TIM1_BASE + 0x044u)
+
+/* The bit positions, from the same header, named the same way it names them.
+ *
+ * OC3M sits at bits 6:4 of CCMR2 with a fourth bit at 16, which is why ST's own
+ * mask is 0x1007 shifted by 4 and not a plain three-bit field. Channel 3 uses
+ * the LOW byte of CCMR2 the way channel 1 uses the low byte of CCMR1; channel 4
+ * is in the high byte. PWM mode 1 is 0110, so the fourth bit stays clear and the
+ * value written is 6 at bit 4. */
+#define TIM_CR1_CEN_MSK         (1u << 0)
+#define TIM_CR1_ARPE_MSK        (1u << 7)
+#define TIM_EGR_UG_MSK          (1u << 0)
+#define TIM_CCMR2_OC3PE_MSK     (1u << 3)
+#define TIM_CCMR2_OC3M_POS      4u
+#define TIM_CCMR2_OC3M_MSK      (0x1007u << TIM_CCMR2_OC3M_POS)
+#define TIM_CCMR2_OC3M_PWM1     (6u << TIM_CCMR2_OC3M_POS)
+#define TIM_CCER_CC3E_MSK       (1u << 8)
+#define TIM_CCER_CC3P_MSK       (1u << 9)
+
+/* AND THE ONE THAT SILENCES THE WHOLE THING IF IT IS FORGOTTEN. TIM1 is an
+ * advanced-control timer, so its outputs are gated by the main output enable in
+ * BDTR. With MOE clear every other register can be correct and the pin stays
+ * where the GPIO configuration leaves it. The general-purpose timers have no
+ * such bit, so a working TIM3 example copied onto TIM1 produces nothing and
+ * nothing in the readback says why. Written down here rather than discovered on
+ * the bench. */
+#define TIM_BDTR_MOE_MSK        (1u << 15)
+
+/* TIM1's clock enable. RCC_APB2ENR is at 0x150, from this file's own validated
+ * table and confirmed by the struct walk above; ST's trailing comment says 0xF0
+ * and is the H743's. TIM1EN is bit 0, from RCC_APB2ENR_TIM1EN_Pos. */
+#define RCC_APB2ENR             REG32(RCC_BASE + 0x150u)
+#define RCC_APB2ENR_TIM1EN_POS  0u
+#define RCC_APB2ENR_TIM1EN      (1u << RCC_APB2ENR_TIM1EN_POS)
+
+/* THE OUTPUT PIN, a board fact and sourced like the counting pin above: PE13 as
+ * TIM1_CH3 at alternate function 1, from Projects/NUCLEO-H7A3ZI-Q/Examples/TIM/
+ * TIM_DMA in STM32Cube_FW_H7_V1.13.0, which configures exactly that.
+ *
+ * It collides with nothing this volume uses. PE13 is not LD1 on PB0, not LD2 on
+ * PE1, not LD3 on PB14, not the button on PC13, not the console on PD8 and PD9,
+ * and not the counting input on PD12. Two pins were considered and rejected
+ * before it: LPTIM1_OUT on PD13, because clocking the counter from its own
+ * output is a feedback loop, and TIM3 channel 3 on PB0, because PB0 is LD1 and
+ * p01-pll280 blinks it as part of its own evidence. */
+#define PWMSRC_OUT_PORT         GPIOE
+#define PWMSRC_OUT_PIN          13u
+#define PWMSRC_OUT_AF           1u
+#define RCC_AHB4ENR_GPIOEEN     (1u << RCC_AHB4ENR_GPIOEEN_POS)
+
 #define RTC_BASE_ADDR           0x58004000u
 #define RTC_SSR                 REG32(RTC_BASE_ADDR + 0x008u)
 #define RTC_ICSR                REG32(RTC_BASE_ADDR + 0x00Cu)
