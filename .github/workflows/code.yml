@@ -153,6 +153,27 @@ jobs:
       - name: P12, the size and charge gates refuse what they must
         run: python -m pytest python/tests/test_gates.py -q
 
+      # AND THEN THE WHOLE SUITE, which exists because every named step above
+      # was not enough. On Tuesday 6 October 2026 four test files were found
+      # that this workflow had never run: test_clocktree.py and
+      # test_clocktree_parity.py from Sunday 4 October 2026, test_freqmath.py
+      # and test_project_files_are_documented.py from Monday 5 October 2026.
+      # Each was added with its own commit and its own claim of coverage, and
+      # each time this hand-maintained list was left alone, so the clock tree
+      # decode's eight refusals, P01's four-language parity, the frequency
+      # counter's arithmetic and the guard against deleting a README section
+      # were all untested on every push since.
+      #
+      # The named steps stay, because a failing log that says which deliverable
+      # broke is worth more than one line saying a suite failed. This step is
+      # what makes the list unable to be wrong: a new test file is run here the
+      # moment it exists, whether or not anybody remembers this file.
+      # python/tests/test_ci_runs_every_test.py asserts that this step is still
+      # here, so removing it turns the suite red rather than quietly returning
+      # to the enumeration.
+      - name: And the whole suite, so a new test file cannot be missed
+        run: python -m pytest python/tests -q
+
       - name: What CBOR would have cost P09, measured
         run: cd python && python -m firmkit.cbor
 
