@@ -21,6 +21,8 @@ it is now in the order the script produces them:
                           freqcount.c so a host can test the divide
   pwmmath.{dll,so}        the signal source's arithmetic, split out of the TIM1
                           driver for the same reason, before that driver existed
+  adcmath.{dll,so}        the converter's arithmetic and its four part-identity
+                          decisions, split out of P06's back ends
   clocktree.{dll,so}      P01's clock tree decode, the same object the board links
   clocktree_filter        and its C++ variant, as a filter the tests drive
   payload.{dll,so}        P09's codec, from the same source the board links
@@ -472,6 +474,15 @@ def main() -> int:
     # one starts on the right side of the line.
     print("The signal source's arithmetic, split out before its driver exists:")
     shared_lib("pwmmath", [C_DIR / "instr" / "pwmmath.c"],
+               includes=[C_DIR / "instr"])
+
+    # The converter's arithmetic, split out on Tuesday 6 October 2026 for a
+    # reason the other three did not have: the bring-up turned out to depend on
+    # part identity at FOUR points, every one behind a preprocessor condition in
+    # ST's HAL, so the decisions needed somewhere a table of cases could reach
+    # them before any register was written. P06's README carries all four.
+    print("The converter's arithmetic, split out before its driver exists:")
+    shared_lib("adcmath", [C_DIR / "instr" / "adcmath.c"],
                includes=[C_DIR / "instr"])
 
     print("P01, the clock tree decode, the same file the board links:")
