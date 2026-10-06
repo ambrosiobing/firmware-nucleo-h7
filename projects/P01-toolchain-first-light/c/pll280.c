@@ -54,6 +54,8 @@
 #include "clocktree.h"
 #include "freqcount.h"
 #include "lseref.h"
+#include "pwmmath.h"
+#include "pwmsrc.h"
 #include "stm32h7a3_regs.h"
 
 extern void board_init(void);
@@ -291,6 +293,61 @@ static void report_crystal(const char *when, uint32_t nominal_hz)
     }
 }
 
+/* ONE MEGAHERTZ, and the choice is not arbitrary.
+ *
+ * It divides both timer clocks exactly. At the reset clock APB2 is 64 MHz, so
+ * the divider is 64 and the fields are PSC 0, ARR 63. At the 280 MHz setting
+ * APB2 is 140 MHz, so the divider is 140 and the fields are PSC 0, ARR 139.
+ * DIFFERENT FIELDS, SAME OUTPUT, which is what makes running the source twice
+ * worth more than running it once: if the counter reads one megahertz at both
+ * clocks, the APB2 decode is confirmed as well as the counting path, because a
+ * wrong APB2 figure would produce a different frequency from the same request.
+ *
+ * It is also well under the counter's usable maximum of 16777216 Hz, and it
+ * puts 3906 edges in each 256 Hz crystal tick, comfortably inside the 16-bit
+ * counter between polls. A faster source would be a better test of the ceiling
+ * and a worse test of the arithmetic, because a count near the wrap is a count
+ * whose correctness depends on the wrap handling rather than on the path.
+ *
+ * AND ONE CONSTRAINT THAT IS EASY TO MISS. Every millihertz figure in this file
+ * is printed through a cast to unsigned long, which is 32 bits on this target,
+ * so a frequency above about 4.29 MHz truncates in the REPORT while being
+ * perfectly correct in the arithmetic. One megahertz is 1000000000 millihertz,
+ * inside that with room. This is a limit on what can be printed and not on what
+ * can be measured, which is exactly the kind of difference that would otherwise
+ * be read as a measurement result; freqcount's own line has carried the same
+ * cast since Monday 5 October 2026 and the same limit with it. */
+#define PWMSRC_TARGET_HZ  1000000u
+
+
+/* The signal source, which is the half of the experiment this board can drive.
+ *
+ * Returns what it will produce, in millihertz, or 0 when it refused. The caller
+ * passes that to report_freqcount so the two numbers can be compared in the one
+ * place where both are known. */
+static uint64_t report_pwmsrc(const char *when)
+{
+    pwmsrc_t src;
+    const int rc = pwmsrc_start(PWMSRC_TARGET_HZ, &src);
+
+    printf("\n  the signal source, TIM1 channel 3 on PE13, %s:\n", when);
+    printf("    pwmsrc_start %s\n", pwmsrc_refusal_text(rc));
+    if (rc != PWMSRC_OK) {
+        return 0u;
+    }
+
+    printf("    timer clock      %lu Hz, APB2 with CDPPRE2 at divide by one\n",
+           (unsigned long) src.tim_hz);
+    printf("    asked for        %lu Hz\n", (unsigned long) src.want_hz);
+    printf("    PSC %lu  ARR %lu  CCR3 %lu\n",
+           (unsigned long) src.psc, (unsigned long) src.arr,
+           (unsigned long) src.ccr);
+    printf("    produces         %lu millihertz, %ld ppm from the target\n",
+           (unsigned long) src.achieved_mhz, (long) src.error_ppm);
+    return src.achieved_mhz;
+}
+
+
 /* The frequency counter, asked only whether it comes up.
  *
  * WHAT THIS PROVES AND WHAT IT CANNOT, stated first because the distinction is
@@ -309,13 +366,19 @@ static void report_crystal(const char *when, uint32_t nominal_hz)
  * before the raise and 140 MHz after it, which is a second check on the same
  * decode the rest of this image is about.
  *
- * THE SELF TEST THIS WANTS NEXT, named so it is not forgotten: ST's sibling
- * example LPTIM_PWMExternalClock configures PD13 as LPTIM1_OUT and PD12 as
- * LPTIM1_IN1, which are adjacent pins. A known frequency generated on one pin
- * and a wire to the other would make the counter check itself, and that is the
- * first arrangement in this volume that could show the counting path is right
- * rather than merely configured. */
-static void report_freqcount(const char *when)
+ * SINCE TUESDAY 6 OCTOBER 2026 THERE IS A SOURCE, so the paragraph above is
+ * about the case where the wire is absent rather than about every case. The
+ * source is TIM1 channel 3 on PE13 and the counter reads PD12; one wire from
+ * Arduino D3 to Arduino D29 joins them.
+ *
+ * AN EARLIER VERSION OF THIS COMMENT PROPOSED SOMETHING ELSE AND WAS WRONG. It
+ * named ST's LPTIM_PWMExternalClock example, which puts LPTIM1_OUT on PD13 and
+ * LPTIM1_IN1 on PD12, adjacent pins, and called one wire between them a self
+ * test. It is a feedback loop: that example clocks the counter from IN1 and
+ * generates its output from the compare, so the output is derived from the
+ * input and counting it establishes nothing. TIM1 shares nothing with the
+ * counter, which is why it replaced it. */
+static void report_freqcount(const char *when, uint64_t source_mhz)
 {
     const int rc = freqcount_init();
 
@@ -337,9 +400,42 @@ static void report_freqcount(const char *when)
            (unsigned long) freqcount_resolution_mhz(1000u));
 
     const uint64_t mhz = freqcount_measure_mhz(1000u);
-    printf("    measured %lu millihertz with NOTHING CONNECTED to PD12, which is\n"
-           "    the expected answer and proves only that the path returns\n",
-           (unsigned long) mhz);
+
+    if (source_mhz == 0u) {
+        printf("    measured %lu millihertz with NO SOURCE RUNNING, which is\n"
+               "    the expected answer and proves only that the path returns\n",
+               (unsigned long) mhz);
+        return;
+    }
+
+    if (mhz == 0u) {
+        printf("    measured 0 millihertz while the source produces %lu.\n"
+               "    THAT MEANS NO WIRE between PE13, which is Arduino D3, and\n"
+               "    PD12, which is Arduino D29. The source is running and\n"
+               "    nothing carries it to the counter, so this is the reading\n"
+               "    to expect until the two pins are joined.\n",
+               (unsigned long) source_mhz);
+        return;
+    }
+
+    /* Both ends are alive, so this is the comparison the whole arrangement
+     * exists for. The divide by 1000 turns the source's millihertz back into
+     * hertz for pwmmath_error_ppm, which is exact at this target because one
+     * megahertz is a whole number of millihertz. */
+    const int32_t apart =
+        pwmmath_error_ppm(mhz, (uint32_t) (source_mhz / 1000u));
+
+    printf("    measured %lu millihertz against a source producing %lu,\n"
+           "    which is %ld parts per million apart.\n",
+           (unsigned long) mhz, (unsigned long) source_mhz, (long) apart);
+    printf("    THE COUNTING PATH IS NOW TESTED rather than merely configured:\n"
+           "    these two numbers reach the same quantity through paths that\n"
+           "    share no component but the crystal. If they disagree, the SIZE\n"
+           "    says which kind of error it is: a ratio near a small integer is\n"
+           "    a prescaler or divider misread, a few hundred ppm is the\n"
+           "    crystal, and a figure that moves between runs is the\n"
+           "    debugger's 8 MHz, which is known to move by a part in a\n"
+           "    thousand.\n");
 }
 
 int main(void)
@@ -364,7 +460,10 @@ int main(void)
      * wrong. Done before the clock change so a failure in the sequence below
      * still leaves this result on the console. */
     report_crystal("on the reset clock", HSI_HZ_NOMINAL);
-    report_freqcount("on the reset clock");
+    {
+        const uint64_t src = report_pwmsrc("on the reset clock");
+        report_freqcount("on the reset clock", src);
+    }
 
     /* The one thing worth saying before the attempt: what the sequence intends,
      * in the arithmetic a reader can check, so the console carries the claim and
@@ -457,7 +556,15 @@ int main(void)
     /* And again at the new clock. Same crystal, same gate, so the two readings
      * differ only in what they are measuring. */
     report_crystal("at the new clock", CORE_HZ_TARGET);
-    report_freqcount("at the new clock");
+    {
+        /* Re-planned rather than left running. TIM1 is on APB2, which just
+         * changed from 64 to 140 MHz, so the fields that produced one megahertz
+         * before would now produce 2.1875 MHz. Asking for the same frequency
+         * again from a different timer clock is the point: different PSC and
+         * ARR, the same output, counted against the same crystal. */
+        const uint64_t src = report_pwmsrc("at the new clock");
+        report_freqcount("at the new clock", src);
+    }
 
     /* And then blink, so the board says something a person across the room can
      * read. One second per cycle, from board_delay_ms, which was calibrated

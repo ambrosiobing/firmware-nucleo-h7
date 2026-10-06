@@ -231,8 +231,36 @@ three claims that no amount of host work could settle, and all three held.
 
 **What it did not show, stated plainly.** Both measurements returned 0
 millihertz. That is the correct frequency of an idle line held high by its
-pull-up, and it is also what a refusal returns, so the counting path is still
-unverified. The next step needs a known frequency on PD12.
+pull-up, and it is also what a refusal returns, so the counting path was
+unverified through seven runs.
+
+**Since Tuesday 6 October 2026 the image carries the source as well**, so what
+is missing is a wire and a flash. `c/instr/pwmsrc.c` drives TIM1 channel 3 on
+PE13 at one megahertz, `p01-pll280` starts it before each counter reading, and
+the report now prints both numbers and the distance between them. Three readings
+are possible and the report says which one it got:
+
+| the report says | what it means |
+|---|---|
+| `measured 0 millihertz while the source produces 1000000000` | the source runs and no wire carries it. This is the reading to expect until PE13, Arduino D3, is joined to PD12, Arduino D29 |
+| the two figures a few parts per million apart | the counting path works, and the crystal gate and the PLL agree to that figure through paths sharing no component but the crystal |
+| `pwmsrc_start apb2-prescaler-undecoded` | `CDPPRE2` is not at divide by one, so the timer clock depends on the half of the `TIMPRE` rule that lives in RM0455 and has not been read. A refusal rather than a guess |
+
+**One megahertz is not an arbitrary target.** It divides both timer clocks
+exactly, and with different fields: PSC 0 and ARR 63 at the reset clock's 64 MHz
+APB2, PSC 0 and ARR 139 at the raised clock's 140 MHz. Same output from different
+registers, which is why the source is started twice rather than left running. If
+the counter reads one megahertz at both clocks, the APB2 decode is confirmed as
+well as the counting path, because a wrong APB2 figure would turn the same
+request into a different frequency.
+
+It also sits well under the counter's 16 777 216 Hz usable maximum, puts 3906
+edges in each 256 Hz crystal tick so no count comes near the 16-bit wrap between
+polls, and keeps the millihertz figure inside the 32-bit `unsigned long` these
+reports print through. That last one is a limit on what can be printed rather
+than on what can be measured, and above about 4.29 MHz the two part company,
+which is exactly the sort of difference that would otherwise be read as a
+result.
 
 **And the obvious way to get one is wrong, which this page proposed before it
 was thought through.** ST's sibling example `LPTIM_PWMExternalClock` puts
@@ -243,9 +271,10 @@ output frequency is derived from the input. Wiring one to the other makes a
 feedback loop, and counting a signal generated from the counter under test
 establishes nothing at all.
 
-**What replaces it compares two instruments instead of one with itself.** TIM1
-channel 3 on PE13 at alternate function 1, one wire to PD12, and a PWM frequency
-chosen well under the 16 777 216 Hz usable maximum. A general purpose timer's
+**What replaces it compares two instruments instead of one with itself**, and
+since Tuesday 6 October 2026 it is written and in the image rather than only
+planned. TIM1 channel 3 on PE13 at alternate function 1, one wire to PD12, and a
+PWM frequency chosen well under the 16 777 216 Hz usable maximum. A general purpose timer's
 output is derived from its APB clock and therefore from the PLL, so counting it
 against the crystal gate compares the PLL to the crystal through a path sharing
 nothing with `c/instr/lseref.c`: lseref counts core cycles inside the part with
