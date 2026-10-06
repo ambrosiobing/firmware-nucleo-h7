@@ -83,21 +83,29 @@ def check(r, hsi_nominal, hse_bypass):
     else:
         sys_hz, why = 0, "sws-unknown"
     if why != "ok":
-        return {"sys_hz": 0, "core_hz": 0, "ahb_hz": 0, "pclk1_hz": 0, "refusal": why}
+        return {"sys_hz": 0, "core_hz": 0, "ahb_hz": 0, "pclk1_hz": 0,
+                "pclk2_hz": 0, "refusal": why}
     if sys_hz == 0:
         return {"sys_hz": 0, "core_hz": 0, "ahb_hz": 0, "pclk1_hz": 0,
-                "refusal": "sws-unknown"}
+                "pclk2_hz": 0, "refusal": "sws-unknown"}
 
     cpu = AHB.get((r["cdcfgr1"] >> 8) & 0xF, 0)
     ahb = AHB.get((r["cdcfgr1"] >> 0) & 0xF, 0)
     apb1 = APB.get((r["cdcfgr2"] >> 4) & 0x7, 0)
-    if cpu == 0 or ahb == 0 or apb1 == 0:
+    # CDPPRE2 is bits 10:8 of the same word, three bits, same encoding table as
+    # CDPPRE1. Added Tuesday 6 October 2026 because TIM1 is on APB2.
+    apb2 = APB.get((r["cdcfgr2"] >> 8) & 0x7, 0)
+    if cpu == 0 or ahb == 0 or apb1 == 0 or apb2 == 0:
         return {"sys_hz": 0, "core_hz": 0, "ahb_hz": 0, "pclk1_hz": 0,
-                "refusal": "prescaler-undecoded"}
+                "pclk2_hz": 0, "refusal": "prescaler-undecoded"}
     core = sys_hz // cpu
     bus = core // ahb
+    # Both APB buses hang off the AHB, not off each other, so APB2 divides the
+    # bus frequency and not pclk1. On this board the two are equal and an
+    # implementation that chained them would still agree; the rows below are
+    # what tell the two apart.
     return {"sys_hz": sys_hz, "core_hz": core, "ahb_hz": bus,
-            "pclk1_hz": bus // apb1, "refusal": "ok"}
+            "pclk1_hz": bus // apb1, "pclk2_hz": bus // apb2, "refusal": "ok"}
 
 
 def regs(cr, cfgr, pllckselr, pllcfgr, pll1divr, cdcfgr1, cdcfgr2):
@@ -105,13 +113,13 @@ def regs(cr, cfgr, pllckselr, pllcfgr, pll1divr, cdcfgr1, cdcfgr2):
             "pll1divr": pll1divr, "cdcfgr1": cdcfgr1, "cdcfgr2": cdcfgr2}
 
 
-def expect(sys_hz, core_hz, ahb_hz, pclk1_hz, refusal="ok"):
+def expect(sys_hz, core_hz, ahb_hz, pclk1_hz, pclk2_hz, refusal="ok"):
     return {"sys_hz": sys_hz, "core_hz": core_hz, "ahb_hz": ahb_hz,
-            "pclk1_hz": pclk1_hz, "refusal": refusal}
+            "pclk1_hz": pclk1_hz, "pclk2_hz": pclk2_hz, "refusal": refusal}
 
 
 def refused(why):
-    return expect(0, 0, 0, 0, why)
+    return expect(0, 0, 0, 0, 0, why)
 
 
 # The 280 MHz configuration as clock280.c writes it, used by several rows:
@@ -144,7 +152,7 @@ VECTORS = [
                "is not a frequency this board was ever running.",
         "regs": regs(0x0004C025, 0x00000000, 0x02020200, 0x01FF0000, 0x01010280, 0x00000000, 0x00000000),
         "hsi_nominal": 64000000, "hse_bypass": 8000000,
-        "expect": expect(64000000, 64000000, 64000000, 64000000),
+        "expect": expect(64000000, 64000000, 64000000, 64000000, 64000000),
     },
     {
         "name": "this-board-after-the-eight-step-raise",
@@ -160,7 +168,7 @@ VECTORS = [
                "fail here, where they are not.",
         "regs": regs(0x0307C025, 0x0000001B, 0x02020042, 0x01FF0004, 0x01010317, 0x00000008, 0x00000000),
         "hsi_nominal": 64000000, "hse_bypass": 8000000,
-        "expect": expect(280000000, 280000000, 140000000, 140000000),
+        "expect": expect(280000000, 280000000, 140000000, 140000000, 140000000),
     },
     {
         "name": "the-pll-is-configured-but-sws-still-says-hsi",
@@ -174,7 +182,7 @@ VECTORS = [
                "core and not off sys_ck.",
         "regs": regs(CR_HSI_ONLY, 0x00000000, SEL_280, CFG_P_ON, DIVR_280, 0x00000008, 0x00000000),
         "hsi_nominal": 64000000, "hse_bypass": 8000000,
-        "expect": expect(64000000, 64000000, 32000000, 32000000),
+        "expect": expect(64000000, 64000000, 32000000, 32000000, 32000000),
     },
     {
         "name": "the-280-mhz-tree-at-the-nominal-input",
@@ -184,7 +192,7 @@ VECTORS = [
                "and every bus is 140.",
         "regs": regs(CR_HSE_BYPASS, SWS_PLL1, SEL_280, CFG_P_ON, DIVR_280, 0x00000008, 0x00000000),
         "hsi_nominal": 64000000, "hse_bypass": 8000000,
-        "expect": expect(280000000, 280000000, 140000000, 140000000),
+        "expect": expect(280000000, 280000000, 140000000, 140000000, 140000000),
     },
     {
         "name": "the-280-mhz-tree-at-the-measured-input",
@@ -206,7 +214,7 @@ VECTORS = [
                "three tests of one thing.",
         "regs": regs(CR_HSE_BYPASS, SWS_PLL1, SEL_280, CFG_P_ON, DIVR_280, 0x00000008, 0x00000000),
         "hsi_nominal": 64000000, "hse_bypass": 7990652,
-        "expect": expect(279672820, 279672820, 139836410, 139836410),
+        "expect": expect(279672820, 279672820, 139836410, 139836410, 139836410),
     },
     {
         "name": "divm1-of-three-truncates-before-the-multiply",
@@ -218,7 +226,7 @@ VECTORS = [
                "divides exactly. A second language is exactly where this would drift.",
         "regs": regs(CR_HSE_BYPASS, SWS_PLL1, 0x00000032, CFG_P_ON, DIVR_280, 0x00000000, 0x00000000),
         "hsi_nominal": 64000000, "hse_bypass": 8000000,
-        "expect": expect(373333240, 373333240, 373333240, 373333240),
+        "expect": expect(373333240, 373333240, 373333240, 373333240, 373333240),
     },
     {
         "name": "hsidiv-divides-the-internal-oscillator-by-eight",
@@ -227,7 +235,7 @@ VECTORS = [
                "division. 64 MHz becomes 8 MHz exactly.",
         "regs": regs(0x0000003D, 0x00000000, SEL_280, CFG_P_ON, DIVR_280, 0x00000000, 0x00000000),
         "hsi_nominal": 64000000, "hse_bypass": 8000000,
-        "expect": expect(8000000, 8000000, 8000000, 8000000),
+        "expect": expect(8000000, 8000000, 8000000, 8000000, 8000000),
     },
     {
         "name": "the-external-clock-is-selected-but-not-in-bypass",
@@ -317,6 +325,45 @@ VECTORS = [
         "why": "CDPPRE1 of 6. The same refusal reached through the other prescaler "
                "encoding, which has three bits rather than four and its own table.",
         "regs": regs(CR_HSE_BYPASS, SWS_PLL1, SEL_280, CFG_P_ON, DIVR_280, 0x00000000, 0x00000060),
+        "hsi_nominal": 64000000, "hse_bypass": 8000000,
+        "expect": refused("prescaler-undecoded"),
+    },
+    {
+        "name": "the-apb2-prescaler-halves-where-apb1-does-not",
+        "why": "CDPPRE2 of 4, which is divide by two, with CDPPRE1 left at divide "
+               "by one. THIS IS THE ROW THAT MAKES APB2 A SEPARATE QUANTITY. All "
+               "seventeen rows before it hold CDPPRE2 at divide by one, where "
+               "pclk2 equals ahb_hz and also equals pclk1_hz, so an implementation "
+               "that returned the AHB frequency, or returned pclk1 again, or read "
+               "CDPPRE1 a second time, would agree with every one of them. Here "
+               "the AHB is 140 MHz, APB1 is 140 MHz and APB2 is 70 MHz, and those "
+               "three wrong implementations give 140, 140 and 140.",
+        "regs": regs(CR_HSE_BYPASS, SWS_PLL1, SEL_280, CFG_P_ON, DIVR_280, 0x00000008, 0x00000400),
+        "hsi_nominal": 64000000, "hse_bypass": 8000000,
+        "expect": expect(280000000, 280000000, 140000000, 140000000, 70000000),
+    },
+    {
+        "name": "the-two-apb-prescalers-differ-and-are-not-swapped",
+        "why": "CDPPRE1 of 4 and CDPPRE2 of 5, divide by two and divide by four, in "
+               "the one register word that holds both. The AHB is 140 MHz, so APB1 "
+               "is 70 MHz and APB2 is 35 MHz. The row above catches an "
+               "implementation that does not read CDPPRE2 at all; this one catches "
+               "one that reads it at the wrong offset, because swapping the two "
+               "fields gives 35 and 70 rather than 70 and 35. Both numbers are "
+               "present in both answers, so a comparison that only checked the set "
+               "of frequencies would call this agreement.",
+        "regs": regs(CR_HSE_BYPASS, SWS_PLL1, SEL_280, CFG_P_ON, DIVR_280, 0x00000008, 0x00000540),
+        "hsi_nominal": 64000000, "hse_bypass": 8000000,
+        "expect": expect(280000000, 280000000, 140000000, 70000000, 35000000),
+    },
+    {
+        "name": "the-apb2-prescaler-holds-a-ratio-this-volume-has-not-sourced",
+        "why": "CDPPRE2 of 6. The same refusal as the two prescaler rows above, "
+               "reached through the third prescaler field, which is the one added "
+               "last and therefore the one whose guard is most likely to have been "
+               "left out. Without this row the new comparison in the decode could "
+               "be absent entirely and nothing would notice.",
+        "regs": regs(CR_HSE_BYPASS, SWS_PLL1, SEL_280, CFG_P_ON, DIVR_280, 0x00000000, 0x00000600),
         "hsi_nominal": 64000000, "hse_bypass": 8000000,
         "expect": refused("prescaler-undecoded"),
     },

@@ -57,6 +57,7 @@ class Tree(ctypes.Structure):
                 ("core_hz", ctypes.c_uint32),
                 ("ahb_hz", ctypes.c_uint32),
                 ("pclk1_hz", ctypes.c_uint32),
+                ("pclk2_hz", ctypes.c_uint32),
                 ("refusal", ctypes.c_int)]
 
 
@@ -89,7 +90,7 @@ def decode(lib, row):
     lib.clocktree_decode(ctypes.byref(regs), row["hsi_nominal"],
                          row["hse_bypass"], ctypes.byref(out))
     return {"sys_hz": out.sys_hz, "core_hz": out.core_hz, "ahb_hz": out.ahb_hz,
-            "pclk1_hz": out.pclk1_hz,
+            "pclk1_hz": out.pclk1_hz, "pclk2_hz": out.pclk2_hz,
             "refusal": lib.clocktree_refusal_text(out.refusal).decode("ascii")}
 
 

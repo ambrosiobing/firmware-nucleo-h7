@@ -29,6 +29,7 @@
 static board_status_t g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
 static uint32_t       g_core_hz;        /* 0 until established */
 static uint32_t       g_pclk1_hz;       /* 0 until established */
+static uint32_t       g_pclk2_hz;       /* 0 until established; TIM1 is on it */
 static clocktree_refusal_t g_clock_refusal = CLOCKTREE_OK;
 
 /* These are statics written from SystemInit, which is only safe because
@@ -73,6 +74,7 @@ static void clock_establish(void)
     g_clock_refusal = tree.refusal;
     g_core_hz       = tree.core_hz;
     g_pclk1_hz      = tree.pclk1_hz;
+    g_pclk2_hz      = tree.pclk2_hz;
 
     if (tree.refusal != CLOCKTREE_OK) {
         g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
@@ -139,6 +141,7 @@ void SystemInit(void)
     g_clock_status = BOARD_ERR_CLOCK_UNCONFIRMED;
     g_core_hz = 0u;
     g_pclk1_hz = 0u;
+    g_pclk2_hz = 0u;
 #endif
 }
 
@@ -164,6 +167,11 @@ uint32_t board_core_hz(void)
 uint32_t board_pclk1_hz(void)
 {
     return g_pclk1_hz;
+}
+
+uint32_t board_pclk2_hz(void)
+{
+    return g_pclk2_hz;
 }
 
 /* Why the clock is not established, as a short token, or "ok".

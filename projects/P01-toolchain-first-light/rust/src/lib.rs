@@ -86,6 +86,7 @@ pub struct Tree {
     pub core_hz: u32,
     pub ahb_hz: u32,
     pub pclk1_hz: u32,
+    pub pclk2_hz: u32,
     pub refusal: Refusal,
 }
 
@@ -96,6 +97,7 @@ impl Tree {
             core_hz: 0,
             ahb_hz: 0,
             pclk1_hz: 0,
+            pclk2_hz: 0,
             refusal: why,
         }
     }
@@ -140,6 +142,9 @@ mod field {
     pub const CDCFGR1_CDCPRE_POS: u32 = 8;
     pub const CDCFGR2_CDPPRE1_MSK: u32 = 7 << 4;
     pub const CDCFGR2_CDPPRE1_POS: u32 = 4;
+    // CDPPRE2, bits 10:8 of the same word, written out rather than derived.
+    pub const CDCFGR2_CDPPRE2_MSK: u32 = 7 << 8;
+    pub const CDCFGR2_CDPPRE2_POS: u32 = 8;
 
     pub const AHBPRE_DIV1: u32 = 0x0;
     pub const AHBPRE_DIV2: u32 = 0x8;
@@ -262,8 +267,10 @@ pub const fn decode(r: &Regs, hsi_nominal: u32, hse_bypass: u32) -> Tree {
     let ahb_div = ahb_cpu_divider((r.cdcfgr1 & field::CDCFGR1_HPRE_MSK) >> field::CDCFGR1_HPRE_POS);
     let apb1_div =
         apb_divider((r.cdcfgr2 & field::CDCFGR2_CDPPRE1_MSK) >> field::CDCFGR2_CDPPRE1_POS);
+    let apb2_div =
+        apb_divider((r.cdcfgr2 & field::CDCFGR2_CDPPRE2_MSK) >> field::CDCFGR2_CDPPRE2_POS);
 
-    if cpu_div == 0 || ahb_div == 0 || apb1_div == 0 {
+    if cpu_div == 0 || ahb_div == 0 || apb1_div == 0 || apb2_div == 0 {
         // Reporting the undivided frequency would be wrong by that very ratio,
         // which is the one error nobody would suspect.
         return Tree::refused(Refusal::PrescalerUndecoded);
@@ -278,6 +285,8 @@ pub const fn decode(r: &Regs, hsi_nominal: u32, hse_bypass: u32) -> Tree {
         core_hz,
         ahb_hz,
         pclk1_hz: ahb_hz / apb1_div,
+        // Off the AHB, not off APB1, even though they are equal on this board.
+        pclk2_hz: ahb_hz / apb2_div,
         refusal: Refusal::Ok,
     }
 }
@@ -352,8 +361,8 @@ mod tests {
         let t = decode(&found, 64_000_000, 8_000_000);
         assert_eq!(t.refusal, Refusal::Ok);
         assert_eq!(
-            (t.sys_hz, t.core_hz, t.ahb_hz, t.pclk1_hz),
-            (64_000_000, 64_000_000, 64_000_000, 64_000_000)
+            (t.sys_hz, t.core_hz, t.ahb_hz, t.pclk1_hz, t.pclk2_hz),
+            (64_000_000, 64_000_000, 64_000_000, 64_000_000, 64_000_000)
         );
 
         let raised = Regs {
@@ -368,14 +377,57 @@ mod tests {
         let t = decode(&raised, 64_000_000, 8_000_000);
         assert_eq!(t.refusal, Refusal::Ok);
         assert_eq!(
-            (t.sys_hz, t.core_hz, t.ahb_hz, t.pclk1_hz),
-            (280_000_000, 280_000_000, 140_000_000, 140_000_000)
+            (t.sys_hz, t.core_hz, t.ahb_hz, t.pclk1_hz, t.pclk2_hz),
+            (280_000_000, 280_000_000, 140_000_000, 140_000_000, 140_000_000)
         );
     }
 
     /// Halves away from zero, which is the rule this language gives least help
     /// with, and the asymmetry between the two rows is real: one hertz above
     /// 2 MHz lands on exactly half and one hertz below does not.
+    /// APB2 is a separate quantity, not a second name for APB1 or the AHB.
+    ///
+    /// Every row in clock_vectors.json before Tuesday 6 October 2026 held
+    /// CDPPRE2 at divide by one, where all three frequencies are equal, so an
+    /// implementation that returned ahb_hz or pclk1_hz would have agreed with
+    /// all of them. This sets CDPPRE2 to divide by two and leaves CDPPRE1 at
+    /// divide by one, so the three answers are 140, 140 and 70 MHz.
+    #[test]
+    fn apb2_is_not_apb1_and_not_the_ahb() {
+        let r = Regs {
+            cr: 0x0307_C025,
+            cfgr: 0x0000_001B,
+            pllckselr: 0x0202_0042,
+            pllcfgr: 0x01FF_0004,
+            pll1divr: 0x0101_0317,
+            cdcfgr1: 0x0000_0008,
+            cdcfgr2: 0x0000_0400,
+        };
+        let t = decode(&r, 64_000_000, 8_000_000);
+        assert_eq!(t.refusal, Refusal::Ok);
+        assert_eq!(t.ahb_hz, 140_000_000);
+        assert_eq!(t.pclk1_hz, 140_000_000);
+        assert_eq!(t.pclk2_hz, 70_000_000);
+    }
+
+    /// And an undecodable CDPPRE2 refuses, which is the branch added last and
+    /// therefore the one most likely to have been left out.
+    #[test]
+    fn an_undecodable_apb2_prescaler_refuses() {
+        let r = Regs {
+            cr: 0x0307_C025,
+            cfgr: 0x0000_001B,
+            pllckselr: 0x0202_0042,
+            pllcfgr: 0x01FF_0004,
+            pll1divr: 0x0101_0317,
+            cdcfgr1: 0,
+            cdcfgr2: 0x0000_0600,
+        };
+        let t = decode(&r, 64_000_000, 8_000_000);
+        assert_eq!(t.refusal, Refusal::PrescalerUndecoded);
+        assert_eq!(t.pclk2_hz, 0);
+    }
+
     #[test]
     fn halves_round_away_from_zero_and_the_two_rows_are_not_mirrors() {
         let up = bias(2_000_001, 2_000_000);

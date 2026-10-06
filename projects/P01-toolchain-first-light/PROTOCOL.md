@@ -35,9 +35,19 @@ that would show up as a disagreement about the clock tree.
 The seven register values in the order `clocktree_regs_t` declares them, then the
 two input frequencies in hertz. Nine fields after the verb.
 
-The answer is five fields:
+The answer is six fields:
 
-    <sys_hz> <core_hz> <ahb_hz> <pclk1_hz> <refusal>
+    <sys_hz> <core_hz> <ahb_hz> <pclk1_hz> <pclk2_hz> <refusal>
+
+`pclk2_hz` arrived on Tuesday 6 October 2026, which changed this line from five
+fields to six. TIM1 sits on APB2 and the frequency counter's self test is driven
+by TIM1, so the decode had to report that bus. It cost no new input: CDPPRE1 is
+bits 6:4 of `cdcfgr2` and CDPPRE2 is bits 10:8, so the nine request fields are
+unchanged and only the answer grew.
+
+The change was made in all four implementations and in the oracle in one commit,
+because a protocol with four speakers has no version negotiation and does not
+need one while they are versioned together in one repository.
 
 `refusal` is one of nine tokens, exactly as `clocktree_refusal_text` returns
 them, and when it is anything but `ok` the four frequencies are all `0`:

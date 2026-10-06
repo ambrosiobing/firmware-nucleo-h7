@@ -211,6 +211,8 @@
 #define RCC_CDCFGR1_CDCPRE_MSK  (0xFu << RCC_CDCFGR1_CDCPRE_POS)
 #define RCC_CDCFGR2_CDPPRE1_POS 4u      /* the APB1 prescaler */
 #define RCC_CDCFGR2_CDPPRE1_MSK (7u << RCC_CDCFGR2_CDPPRE1_POS)
+#define RCC_CDCFGR2_CDPPRE2_POS 8u      /* the APB2 prescaler, which TIM1 is on */
+#define RCC_CDCFGR2_CDPPRE2_MSK (7u << RCC_CDCFGR2_CDPPRE2_POS)
 
 /* The divider encodings, and only the ones ST's header names. The AHB and CPU
  * fields are four bits with a sparse encoding, and the header gives DIV1, DIV2

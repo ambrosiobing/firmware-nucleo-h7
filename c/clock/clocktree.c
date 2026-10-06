@@ -134,6 +134,7 @@ void clocktree_decode(const clocktree_regs_t *r,
     out->core_hz  = 0u;
     out->ahb_hz   = 0u;
     out->pclk1_hz = 0u;
+    out->pclk2_hz = 0u;
     out->refusal  = CLOCKTREE_OK;
 
     uint32_t sys;
@@ -169,8 +170,10 @@ void clocktree_decode(const clocktree_regs_t *r,
         ahb_cpu_divider((r->cdcfgr1 & RCC_CDCFGR1_HPRE_MSK) >> RCC_CDCFGR1_HPRE_POS);
     const uint32_t apb1_div =
         apb_divider((r->cdcfgr2 & RCC_CDCFGR2_CDPPRE1_MSK) >> RCC_CDCFGR2_CDPPRE1_POS);
+    const uint32_t apb2_div =
+        apb_divider((r->cdcfgr2 & RCC_CDCFGR2_CDPPRE2_MSK) >> RCC_CDCFGR2_CDPPRE2_POS);
 
-    if (cpu_div == 0u || ahb_div == 0u || apb1_div == 0u) {
+    if (cpu_div == 0u || ahb_div == 0u || apb1_div == 0u || apb2_div == 0u) {
         /* Reporting the undivided frequency here would be wrong by that very
          * ratio, which is the one error a reader would never suspect. */
         out->refusal = CLOCKTREE_PRESCALER_UNDECODED;
@@ -178,11 +181,15 @@ void clocktree_decode(const clocktree_regs_t *r,
     }
 
     /* The order of the chain on this part: sys_ck over CDCPRE is the core, the
-     * core over HPRE is the AHB buses, the AHB over CDPPRE1 is APB1. */
+     * core over HPRE is the AHB buses, the AHB over CDPPRE1 is APB1, and the AHB
+     * over CDPPRE2 is APB2. Both APB buses hang off the AHB and not off each
+     * other, which is why APB2 is not derived from pclk1_hz here even though on
+     * this board the two happen to be equal. */
     out->sys_hz   = sys;
     out->core_hz  = sys / cpu_div;
     out->ahb_hz   = out->core_hz / ahb_div;
     out->pclk1_hz = out->ahb_hz / apb1_div;
+    out->pclk2_hz = out->ahb_hz / apb2_div;
     out->refusal  = CLOCKTREE_OK;
 }
 

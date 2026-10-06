@@ -48,7 +48,7 @@ typedef struct {
     uint32_t pllcfgr;     /* RCC_PLLCFGR:   PLL1FRACEN and DIVP1EN */
     uint32_t pll1divr;    /* RCC_PLL1DIVR:  N1 and P1 */
     uint32_t cdcfgr1;     /* RCC_CDCFGR1:   CDCPRE and HPRE */
-    uint32_t cdcfgr2;     /* RCC_CDCFGR2:   CDPPRE1 */
+    uint32_t cdcfgr2;     /* RCC_CDCFGR2:   CDPPRE1 and CDPPRE2 */
 } clocktree_regs_t;
 
 /* Why the decode gave up. These are the eight paths system.c collapsed into one
@@ -75,6 +75,12 @@ typedef struct {
     uint32_t            core_hz;
     uint32_t            ahb_hz;
     uint32_t            pclk1_hz;
+    /* APB2, added Tuesday 6 October 2026 because TIM1 is on it and the
+     * frequency counter's self test needs TIM1's clock. One register word
+     * already carried both prescalers, so this costs no new input: CDPPRE1 is
+     * bits 6:4 of RCC_CDCFGR2 and CDPPRE2 is bits 10:8, both three bits and
+     * both using the same encoding, from ST's header for this part. */
+    uint32_t            pclk2_hz;
     clocktree_refusal_t refusal;
 } clocktree_t;
 

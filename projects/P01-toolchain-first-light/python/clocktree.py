@@ -72,6 +72,10 @@ CDCFGR1_CDCPRE_MSK = 0xF << 8
 CDCFGR1_CDCPRE_POS = 8
 CDCFGR2_CDPPRE1_MSK = 7 << 4
 CDCFGR2_CDPPRE1_POS = 4
+# CDPPRE2, bits 10:8 of the same word, written out rather than derived from
+# CDPPRE1 so this implementation can be wrong about it independently.
+CDCFGR2_CDPPRE2_MSK = 7 << 8
+CDCFGR2_CDPPRE2_POS = 8
 
 # Three of sixteen encodings are sourced and the rest deliberately are not,
 # because the remaining ratios are not evenly spaced and this volume has never
@@ -115,6 +119,7 @@ class Tree(NamedTuple):
     core_hz: int
     ahb_hz: int
     pclk1_hz: int
+    pclk2_hz: int
     refusal: str
 
 
@@ -191,26 +196,28 @@ def decode(r: Regs, hsi_nominal: int, hse_bypass: int) -> Tree:
     elif sws == SWS_PLL1:
         sys_hz, why = _pll1_p_hz(r, hsi_nominal, hse_bypass)
     else:
-        return Tree(0, 0, 0, 0, SWS_UNKNOWN)
+        return Tree(0, 0, 0, 0, 0, SWS_UNKNOWN)
 
     if why != OK:
-        return Tree(0, 0, 0, 0, why)
+        return Tree(0, 0, 0, 0, 0, why)
     if sys_hz == 0:
-        return Tree(0, 0, 0, 0, SWS_UNKNOWN)
+        return Tree(0, 0, 0, 0, 0, SWS_UNKNOWN)
 
     cpu_div = AHB_CPU_DIVIDER.get((r.cdcfgr1 & CDCFGR1_CDCPRE_MSK) >> CDCFGR1_CDCPRE_POS, 0)
     ahb_div = AHB_CPU_DIVIDER.get((r.cdcfgr1 & CDCFGR1_HPRE_MSK) >> CDCFGR1_HPRE_POS, 0)
     apb1_div = APB_DIVIDER.get((r.cdcfgr2 & CDCFGR2_CDPPRE1_MSK) >> CDCFGR2_CDPPRE1_POS, 0)
-    if cpu_div == 0 or ahb_div == 0 or apb1_div == 0:
+    apb2_div = APB_DIVIDER.get((r.cdcfgr2 & CDCFGR2_CDPPRE2_MSK) >> CDCFGR2_CDPPRE2_POS, 0)
+    if cpu_div == 0 or ahb_div == 0 or apb1_div == 0 or apb2_div == 0:
         # Reporting the undivided frequency would be wrong by that very ratio,
         # which is the one error nobody would suspect.
-        return Tree(0, 0, 0, 0, PRESCALER_UNDECODED)
+        return Tree(0, 0, 0, 0, 0, PRESCALER_UNDECODED)
 
     # sys_ck over CDCPRE is the core, the core over HPRE is the AHB buses, the
     # AHB over CDPPRE1 is APB1.
     core = sys_hz // cpu_div
     ahb = core // ahb_div
-    return Tree(sys_hz, core, ahb, ahb // apb1_div, OK)
+    # APB2 divides the AHB, not APB1, even though they are equal on this board.
+    return Tree(sys_hz, core, ahb, ahb // apb1_div, ahb // apb2_div, OK)
 
 
 def ppm(delta: int, den: int) -> int:

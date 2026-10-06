@@ -140,6 +140,24 @@ uint32_t board_core_hz(void);
  * 0 when not established. */
 uint32_t board_pclk1_hz(void);
 
+/* The APB2 peripheral bus frequency, which is what TIM1 is clocked from.
+ *
+ * Added Tuesday 6 October 2026 for the frequency counter's self test: TIM1
+ * channel 3 drives PE13, the counter reads PD12, and the output frequency is
+ * derived from this. It is NOT pclk1 and must not be substituted for it, even
+ * though both read 140 MHz at the 280 MHz setting on this board: the two buses
+ * hang off the AHB through separate prescalers, CDPPRE1 and CDPPRE2, and they
+ * are equal here only because both fields are at divide by one.
+ *
+ * AND THE TIMER CLOCK IS NOT THIS NUMBER IN GENERAL. RCC_CFGR carries TIMPRE,
+ * and the timer clock is a multiple of the APB clock once that prescaler
+ * divides by anything. pwmmath_timer_hz answers only the divide-by-one case,
+ * where both values of TIMPRE agree, and refuses the rest because the boundary
+ * is in RM0455 and nobody has read it. So this accessor gives the bus
+ * frequency and the timer clock is pwmmath's to decide.
+ * 0 when not established. */
+uint32_t board_pclk2_hz(void);
+
 /* WHY the clock is not established, as a short stable token, or "ok".
  *
  * board_clock_status() has one error value, BOARD_ERR_CLOCK_UNCONFIRMED, and the

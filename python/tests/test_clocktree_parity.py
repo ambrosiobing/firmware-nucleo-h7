@@ -14,7 +14,21 @@ The other fifteen are constructed, which is the only way to reach a refusal on
 demand. There is no comfortable way to ask this part for a PLL with its
 fractional term enabled.
 
-WHAT IS COMPARED, AND IT IS NOT ONLY NUMBERS. Each decode request returns four
+APB2 JOINED THE ANSWER ON TUESDAY 6 OCTOBER 2026, so the decode line carries
+five frequencies rather than four. TIM1 is on APB2 and the frequency counter's
+self test needs TIM1's clock, and the register word the decode already read for
+CDPPRE1 carries CDPPRE2 as well, so the input did not change at all.
+
+Three rows were added with it, and they matter more than the field does. All
+seventeen rows before them held CDPPRE2 at divide by one, where APB2 equals APB1
+and both equal the AHB frequency, so an implementation that returned ahb_hz, or
+returned pclk1_hz a second time, or read CDPPRE1 at the wrong offset, would have
+agreed with every row in the oracle. The new rows separate those cases: one
+halves APB2 while APB1 stays whole, one divides the two by different amounts so
+a swap of the fields is visible, and one holds a ratio no implementation decodes
+so the new refusal has to fire.
+
+WHAT IS COMPARED, AND IT IS NOT ONLY NUMBERS. Each decode request returns five
 frequencies and a refusal TOKEN, and all five are compared across the four
 languages. Two implementations can agree that a configuration is unusable and
 disagree about which guard caught it, and a comparison of frequencies alone would
@@ -118,7 +132,7 @@ def c_answers():
         lib.clocktree_decode(ctypes.byref(regs), row["hsi_nominal"],
                              row["hse_bypass"], ctypes.byref(tree))
         out.append("{} {} {} {} {}".format(
-            tree.sys_hz, tree.core_hz, tree.ahb_hz, tree.pclk1_hz,
+            tree.sys_hz, tree.core_hz, tree.ahb_hz, tree.pclk1_hz, tree.pclk2_hz,
             lib.clocktree_refusal_text(tree.refusal).decode("ascii")))
     for row in ORACLE["bias"]:
         bias = BiasOut()
@@ -134,7 +148,8 @@ def python_answers():
         tree = py_clock.decode(py_clock.Regs(**row["regs"]),
                                row["hsi_nominal"], row["hse_bypass"])
         out.append("{} {} {} {} {}".format(
-            tree.sys_hz, tree.core_hz, tree.ahb_hz, tree.pclk1_hz, tree.refusal))
+            tree.sys_hz, tree.core_hz, tree.ahb_hz, tree.pclk1_hz, tree.pclk2_hz,
+            tree.refusal))
     for row in ORACLE["bias"]:
         bias = py_clock.bias(row["reported_hz"], row["true_hz"])
         out.append("{} {} {} {}".format(
@@ -167,7 +182,8 @@ def oracle_answers():
     for row in ORACLE["decode"]:
         e = row["expect"]
         out.append("{} {} {} {} {}".format(
-            e["sys_hz"], e["core_hz"], e["ahb_hz"], e["pclk1_hz"], e["refusal"]))
+            e["sys_hz"], e["core_hz"], e["ahb_hz"], e["pclk1_hz"], e["pclk2_hz"],
+            e["refusal"]))
     for row in ORACLE["bias"]:
         e = row["expect"]
         out.append("{} {} {} {}".format(
@@ -229,12 +245,14 @@ def test_the_two_board_rows_are_first_and_are_really_the_board(capsys):
     found = rows["this-board-as-found-after-a-reset-press"]
     assert found["expect"]["core_hz"] == 64000000
     assert found["expect"]["pclk1_hz"] == 64000000
+    assert found["expect"]["pclk2_hz"] == 64000000
     assert found["regs"]["cr"] == 0x0004C025
     assert found["regs"]["cfgr"] == 0x00000000
 
     raised = rows["this-board-after-the-eight-step-raise"]
     assert raised["expect"]["core_hz"] == 280000000
     assert raised["expect"]["pclk1_hz"] == 140000000
+    assert raised["expect"]["pclk2_hz"] == 140000000
     assert raised["regs"]["cr"] == 0x0307C025
     assert raised["regs"]["pll1divr"] == 0x01010317
 

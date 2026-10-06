@@ -270,7 +270,7 @@ truncations, which is what lets the board measurement go on applying to it.
 
 | | |
 |---|---|
-| the oracle | [`clock_vectors.json`](clock_vectors.json), 17 decode rows and 8 bias rows, **two of the 17 being this board** |
+| the oracle | [`clock_vectors.json`](clock_vectors.json), 20 decode rows and 8 bias rows, **two of the 17 being this board** |
 | what each row carries | the seven register words, the four frequencies or the named refusal, and a `why` saying what the row is for |
 | how the answers were obtained | both halves written by hand, then checked against an independent recomputation that refuses to write the file if they disagree: [`gen_clock_vectors.py`](../../python/tools/gen_clock_vectors.py), which nothing in the build or the suite calls |
 | what drives it | `python/tests/test_clocktree.py` through the same object file the firmware links |
@@ -527,7 +527,7 @@ This project's own, in this directory:
 
     c/main.c                      first light: LED, banner, button
     c/pll280.c                    the raise to 280 MHz, and the measurement
-    clock_vectors.json            the oracle: 17 decode rows and 8 bias rows,
+    clock_vectors.json            the oracle: 20 decode rows and 8 bias rows,
                                   two of the 17 read off this board
     PROTOCOL.md                   the line protocol the C++ and Rust filters
                                   speak, so one parity test drives both

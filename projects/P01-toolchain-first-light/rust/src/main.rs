@@ -62,11 +62,12 @@ fn answer_decode(fields: &[&str]) -> Option<String> {
     };
     let tree = decode(&regs, v[7], v[8]);
     Some(format!(
-        "{} {} {} {} {}",
+        "{} {} {} {} {} {}",
         tree.sys_hz,
         tree.core_hz,
         tree.ahb_hz,
         tree.pclk1_hz,
+        tree.pclk2_hz,
         tree.refusal.text()
     ))
 }

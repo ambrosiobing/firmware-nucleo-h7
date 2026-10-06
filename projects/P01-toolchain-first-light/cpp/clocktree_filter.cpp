@@ -86,6 +86,7 @@ bool answer_decode(const std::vector<std::string> &f, std::string &out)
 
     out = std::to_string(tree.sys_hz) + " " + std::to_string(tree.core_hz) + " "
         + std::to_string(tree.ahb_hz) + " " + std::to_string(tree.pclk1_hz) + " "
+        + std::to_string(tree.pclk2_hz) + " "
         + std::string(p01::refusal_text(tree.refusal));
     return true;
 }

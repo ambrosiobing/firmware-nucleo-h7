@@ -71,6 +71,7 @@ struct Tree {
     std::uint32_t core_hz{};
     std::uint32_t ahb_hz{};
     std::uint32_t pclk1_hz{};
+    std::uint32_t pclk2_hz{};
     Refusal refusal{Refusal::Ok};
 };
 
@@ -123,6 +124,11 @@ constexpr std::uint32_t CDCFGR1_CDCPRE_MSK = 0xFu << 8;
 constexpr unsigned CDCFGR1_CDCPRE_POS = 8;
 constexpr std::uint32_t CDCFGR2_CDPPRE1_MSK = 7u << 4;
 constexpr unsigned CDCFGR2_CDPPRE1_POS = 4;
+// CDPPRE2, bits 10:8 of the same word. Written out here rather than derived
+// from CDPPRE1 by adding four, because the point of four implementations is
+// that one of them can be wrong about where a field sits.
+constexpr std::uint32_t CDCFGR2_CDPPRE2_MSK = 7u << 8;
+constexpr unsigned CDCFGR2_CDPPRE2_POS = 8;
 
 constexpr std::uint32_t AHBPRE_DIV1 = 0x0;
 constexpr std::uint32_t AHBPRE_DIV2 = 0x8;
@@ -308,8 +314,10 @@ constexpr Tree decode(const Regs &r, std::uint32_t hsi_nominal,
         (r.cdcfgr1 & field::CDCFGR1_HPRE_MSK) >> field::CDCFGR1_HPRE_POS);
     const std::uint32_t apb1_div = detail::apb_divider(
         (r.cdcfgr2 & field::CDCFGR2_CDPPRE1_MSK) >> field::CDCFGR2_CDPPRE1_POS);
+    const std::uint32_t apb2_div = detail::apb_divider(
+        (r.cdcfgr2 & field::CDCFGR2_CDPPRE2_MSK) >> field::CDCFGR2_CDPPRE2_POS);
 
-    if (cpu_div == 0 || ahb_div == 0 || apb1_div == 0) {
+    if (cpu_div == 0 || ahb_div == 0 || apb1_div == 0 || apb2_div == 0) {
         // Reporting the undivided frequency would be wrong by that very ratio,
         // which is the one error nobody would suspect.
         out.refusal = Refusal::PrescalerUndecoded;
@@ -322,6 +330,8 @@ constexpr Tree decode(const Regs &r, std::uint32_t hsi_nominal,
     out.core_hz = sys / cpu_div;
     out.ahb_hz = out.core_hz / ahb_div;
     out.pclk1_hz = out.ahb_hz / apb1_div;
+    // Off the AHB, not off APB1, even though the two are equal on this board.
+    out.pclk2_hz = out.ahb_hz / apb2_div;
     out.refusal = Refusal::Ok;
     return out;
 }
