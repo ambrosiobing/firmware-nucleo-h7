@@ -139,10 +139,39 @@ Four cases whose answers are known by construction. Two of them prove the
 analysis **refuses** bad input, which is the half that matters: an analysis that
 passed everything would have passed the board too.
 
-## What is deliberately not finished
+## What is deliberately not finished, item by item
 
 Every back end returns a negative value from `acq_start` rather than running
 with a guessed peripheral setting, and `main.c` prints which and stops.
+
+**And here is the list, which was counted wrongly once before it was counted
+properly.** A first pass counted `TO BE CONFIRMED` comments and concluded that
+`acq_timer.c` had three items, all of them answerable from ST's pack. Reading
+what the file *does* rather than what it says gives a different answer: it
+configures TIM6 and enables `ADC_IRQn`, and it contains **no converter
+configuration at all**. No clock enable, no regulator, no calibration, no
+channel, no resolution, no trigger write, no conversion start. A comment count
+is not a dependency list.
+
+| what is needed | state as of Tuesday 6 October 2026 |
+|---|---|
+| the APB1 timer clock, so TIM6 divides to exactly 1 kHz | **sourced.** The TIMPRE rule from `stm32h7xx_hal_rcc_ex.h` lines 3596 to 3605, now in `c/instr/pwmmath.h` with the arithmetic and a host test |
+| the marker pin, which is what any witness actually watches | **sourced.** PB4, CN7 pin 19, Arduino D25, from UM2408 Rev 6 Table 18 page 44, which is this board's own table and not the H745's beside it |
+| the ADC external trigger value naming TIM6 TRGO | **sourced.** `EXTSEL` 13, from `stm32h7xx_ll_adc.h` line 993, cross-checked against TIM1 CH1 carrying no `EXTSEL` bits at all, which the field's table requires at position zero |
+| the DMAMUX1 request number for the converter | **sourced.** 9, from `stm32h7xx_hal_dma.h` line 229. This one belongs to `acq_dma_double.c` |
+| **the converter bring-up sequence** | **not sourced, and it gates all three back ends.** Deep power-down exit, the voltage regulator and its start-up wait, calibration, channel preselection, boost and clock mode, enable and the ready flag. ST's `stm32h7xx_hal_adc.c` implements all of it, so it is derivable from the pack the way the clock tree was, but it has not been read |
+| the rising-edge enable beside `EXTSEL` | not sourced; it is the `EXTEN` field and one more line of the same LL header |
+
+**So four of six are in hand and the fifth is the one that matters.** Three
+sourced values cannot be written anywhere useful until the converter exists,
+because `EXTSEL` selects a trigger for a peripheral that is not configured and
+the timer clock drives a TRGO that nothing consumes. The honest order is the
+bring-up first, then the three values, then a measurement.
+
+**What the three images do today** is compile, link, start, print which value is
+unconfirmed, and stop. That is the refusal path working, and it is the correct
+behaviour for a project whose central claim is that a clean square wave at the
+wrong rate is indistinguishable from a right one without an external witness.
 
 That is not an oversight. **This part is documented by RM0455, not the RM0433
 that most material saying "STM32H7" was written against**, and the clock tree,
