@@ -85,7 +85,11 @@ JOB_TOKEN = re.compile(
 )
 
 # The words GitHub uses, mapped to the words this volume uses. A status that is
-# not in here is printed as it was found rather than guessed at.
+# not in here is printed as it was found rather than guessed at, which is how
+# the first live run taught this table two entries it was missing: the list says
+# "currently running" and "queued", not the "is in progress" and "is queued"
+# that were guessed at on Monday 5 October 2026 when every run on the page was
+# already finished. Observed on Tuesday 6 October 2026.
 PLAIN = {
     "completed successfully": "green",
     "succeeded": "green",
@@ -93,10 +97,14 @@ PLAIN = {
     "failure": "RED",
     "was cancelled": "cancelled",
     "cancelled": "cancelled",
+    "currently running": "running",
     "is in progress": "running",
     "in progress": "running",
     "was skipped": "skipped",
+    "skipped": "skipped",
+    "queued": "queued",
     "is queued": "queued",
+    "waiting": "waiting",
     "is waiting": "waiting",
 }
 
@@ -182,15 +190,12 @@ def show_runs(limit: int) -> None:
             "believing either."
         )
 
-    print(
-        "{:<10} {:<6} {:<10} {:<8} {:<21} {}".format(
-            "workflow", "run", "state", "commit", "pushed (UTC)", "duration")
-    )
+    wide_workflow = max([len("workflow")] + [len(row[0]) for row in found])
+    wide_state = max([len("state")] + [len(row[2]) for row in found])
+    head = "{:<" + str(wide_workflow) + "} {:<6} {:<" + str(wide_state) + "} {:<8} {:<21} {}"
+    print(head.format("workflow", "run", "state", "commit", "pushed (UTC)", "duration"))
     for workflow, number, status, sha, when, duration in found:
-        print(
-            "{:<10} #{:<5} {:<10} {:<8} {:<21} {}".format(
-                workflow, number, status, sha, when, duration)
-        )
+        print(head.format(workflow, "#" + number, status, sha, when, duration))
 
 
 def show_jobs(given: str) -> None:

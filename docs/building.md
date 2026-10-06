@@ -160,6 +160,19 @@ and the five job identifiers in those files account for all five rows. The thing
 to do with such a run is to start it again, which every one of the three
 workflows allows through `workflow_dispatch` without a new commit.
 
+**And that is what happened.** The push of Tuesday 6 October 2026 at 02:12 UTC
+started three fresh runs, and all five jobs finished green in 14 to 46 seconds,
+`firmware / cross-build` among them, which had not run since `0105031`. Because
+nothing was reverted, the tree that built green contains everything from
+`faedc31` and `0e2c748`, so the content those two commits added is now checked
+even though their own runs never were.
+
+Be careful what that shows. It shows the condition cleared. It does not show why
+there were no runners, and one recovery is not a mechanism any more than one
+cancellation was. What can be said is bounded and useful: the runs stop at
+`15m 2s` when no runner arrives, nothing in this repository produces that, and
+pushing again is the cheap thing to try first.
+
 **What the reader refuses to do.** It parses markup that belongs to GitHub and
 can change without notice, and a parser that stops matching returns an empty
 list of runs, which reads exactly like a repository with nothing red in it. So
