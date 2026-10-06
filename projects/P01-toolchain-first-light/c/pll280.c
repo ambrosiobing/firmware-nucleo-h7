@@ -205,8 +205,13 @@ static void report_clock(const char *when)
  * 64.095 MHz, which is what a crystal 1171 parts per million fast would produce
  * and which is outside the band six reductions established.
  *
- * Either answer is worth having and neither is assumed here. */
-static void report_crystal(const char *when, uint32_t nominal_hz)
+ * Either answer is worth having and neither is assumed here.
+ *
+ * RETURNS THE MEASURED CORE FREQUENCY, or 0 if it could not be measured, since
+ * Tuesday 6 October 2026. The caller needs it to ask the question at the bottom
+ * of this file: whether this clock is the same frequency later in the same run
+ * as it was here. */
+static uint32_t report_crystal(const char *when, uint32_t nominal_hz)
 {
     lseref_start_t lse;
     lseref_measure_t m;
@@ -230,7 +235,7 @@ static void report_crystal(const char *when, uint32_t nominal_hz)
                (unsigned long) lse.waited_ms);
     } else {
         printf("    DID NOT START within 3000 ms. Nothing else depends on it.\n");
-        return;
+        return 0u;
     }
 
     m_rc = lseref_measure_core_hz(&m, 256u);
@@ -243,7 +248,7 @@ static void report_crystal(const char *when, uint32_t nominal_hz)
                (unsigned long) m.apb4enr, (unsigned long) m.bdcr,
                (unsigned long) m.icsr, (unsigned long) m.prer,
                (unsigned long) m.ck_apre_hz);
-        return;
+        return 0u;
     }
 
     printf("    RTC_PRER %08lX so the sub second tick is %lu Hz, "
@@ -290,6 +295,106 @@ static void report_crystal(const char *when, uint32_t nominal_hz)
                    (long) (bias.delay_ppm < 0 ? -bias.delay_ppm : bias.delay_ppm),
                    bias.delay_ppm < 0 ? "short" : "long");
         }
+    }
+
+    /* AND AGAIN, BACK TO BACK, which is new on Tuesday 6 October 2026 and
+     * answers a question the frequency counter asked rather than one this
+     * section had.
+     *
+     * WHY. Run 19 of that day returned a counter residual of +407 parts per
+     * million at 280 MHz, against an instrument error budget of 5.4 ppm over
+     * that gate. It cannot be the counter. The counter and this measurement read
+     * one quantity seconds apart, so the candidate left standing is that the
+     * quantity itself is not the same at the two moments, and the within-run
+     * stability of this part's clock has never been measured on this bench. This
+     * is that measurement, and it needs no new instrument: it is this one, run
+     * twice.
+     *
+     * WHAT IT IS AND IS NOT. Both readings are core cycles over a crystal gate,
+     * so what is compared is a RATIO and not the core alone. A crystal that
+     * moved between them would show identically. The crystal is a 32.768 kHz
+     * quartz and both other oscillators here have already shown hundreds of
+     * parts per million of scatter, so the core is the likelier mover, but this
+     * measurement does not separate them and does not claim to. */
+    {
+        lseref_measure_t again;
+
+        if (lseref_measure_core_hz(&again, 256u) == 0
+            && again.core_hz_measured != 0u) {
+            const int32_t ppm = (int32_t)
+                (((int64_t) again.core_hz_measured
+                  - (int64_t) m.core_hz_measured) * 1000000
+                 / (int64_t) m.core_hz_measured);
+
+            printf("    AGAIN, immediately: %lu Hz, %ld ppm from the first,\n"
+                   "    over a separation of about one second, which is the\n"
+                   "    gate's own length\n",
+                   (unsigned long) again.core_hz_measured, (long) ppm);
+        } else {
+            printf("    the immediate repeat refused, so no within-run figure\n");
+        }
+    }
+
+    return m.core_hz_measured;
+}
+
+/* THE SAME CLOCK, AFTER THE COUNTER HAS RUN, which is the separation that
+ * matters.
+ *
+ * THE TWO SEPARATIONS ARE DIFFERENT QUESTIONS. The repeat inside report_crystal
+ * is one second apart, which is the shortest this instrument can manage, and it
+ * says whether the clock holds still over the gate's own length. This one comes
+ * after the signal source has been configured and both counter gates have run,
+ * which is three to four seconds, and that is the separation the counter's
+ * residual actually spans. A clock that holds over one second and moves over
+ * four would show as a small figure above and a large one here.
+ *
+ * AND THE THRESHOLD IS WRITTEN HERE, BEFORE ANY BOARD HAS RUN IT, because a
+ * figure that can be read either way afterwards is not a test:
+ *
+ *   near 400 ppm     the clock moves that much inside one run, and run 19's
+ *                    +407 counter residual is accounted for without anything
+ *                    further being wrong
+ *   near 1 ppm       the clock holds inside a run, the +407 came from somewhere
+ *                    else entirely, and that is a new problem rather than a
+ *                    closed one
+ *   10 to 100 ppm    it is part of the story and not all of it, which would
+ *                    leave the counter's larger residuals still open
+ *
+ * The middle outcome is the one that would be least convenient and it is listed
+ * first among the things this cannot settle, rather than left out. */
+static void report_clock_again(const char *when, uint32_t first_hz)
+{
+    lseref_measure_t m;
+
+    if (first_hz == 0u) {
+        return;   /* nothing to compare against; the first reading refused */
+    }
+
+    printf("\n  the same clock again %s, after the counter has run:\n", when);
+
+    if (lseref_measure_core_hz(&m, 256u) != 0 || m.core_hz_measured == 0u) {
+        printf("    refused, so this run carries no long-separation figure\n");
+        return;
+    }
+
+    {
+        const int32_t ppm = (int32_t)
+            (((int64_t) m.core_hz_measured - (int64_t) first_hz) * 1000000
+             / (int64_t) first_hz);
+
+        printf("    %lu Hz against the %lu Hz measured before the source and\n"
+               "    the counter, which is %ld ppm over three to four seconds\n",
+               (unsigned long) m.core_hz_measured, (unsigned long) first_hz,
+               (long) ppm);
+        printf("    WHAT TO READ: near 400 ppm and the counter's +407 ppm\n"
+               "    residual at 280 MHz is this, not the counter. Near 1 ppm\n"
+               "    and the clock holds inside a run, so that residual is\n"
+               "    something else and still open. Between the two and it is\n"
+               "    part of the story only.\n");
+        printf("    AND IT IS A RATIO, not the core alone: both readings are\n"
+               "    core cycles over a crystal gate, so a crystal that moved\n"
+               "    would look identical. This does not separate them.\n");
     }
 }
 
@@ -655,10 +760,13 @@ int main(void)
      * clears the crystal, or it does not and the crystal is the thing that is
      * wrong. Done before the clock change so a failure in the sequence below
      * still leaves this result on the console. */
-    report_crystal("on the reset clock", HSI_HZ_NOMINAL);
     {
+        const uint32_t first = report_crystal("on the reset clock",
+                                              HSI_HZ_NOMINAL);
         const uint64_t src = report_pwmsrc("on the reset clock");
+
         report_freqcount("on the reset clock", src);
+        report_clock_again("on the reset clock", first);
     }
 
     /* The one thing worth saying before the attempt: what the sequence intends,
@@ -751,15 +859,18 @@ int main(void)
 
     /* And again at the new clock. Same crystal, same gate, so the two readings
      * differ only in what they are measuring. */
-    report_crystal("at the new clock", CORE_HZ_TARGET);
     {
+        const uint32_t first = report_crystal("at the new clock",
+                                              CORE_HZ_TARGET);
         /* Re-planned rather than left running. TIM1 is on APB2, which just
          * changed from 64 to 140 MHz, so the fields that produced one megahertz
          * before would now produce 2.1875 MHz. Asking for the same frequency
          * again from a different timer clock is the point: different PSC and
          * ARR, the same output, counted against the same crystal. */
         const uint64_t src = report_pwmsrc("at the new clock");
+
         report_freqcount("at the new clock", src);
+        report_clock_again("at the new clock", first);
     }
 
     /* And then blink, so the board says something a person across the room can

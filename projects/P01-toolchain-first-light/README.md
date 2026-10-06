@@ -493,10 +493,41 @@ quantisation, which is **5.4 ppm**. A residual eighty times that cannot be the
 counter, and the elimination is arithmetic rather than judgement. The two
 instruments measure one quantity seconds apart, and the core readings at 280 MHz
 across runs 16, 17 and 19 themselves span **710 parts per million**. So the next
-measurement is of the clock and not of the counter: read the core twice inside one
-run and print the difference. No cause is offered until that exists, because the
-within-run stability of this part's clock has never been measured here, which is
-exactly why it cannot be blamed yet.
+measurement is of the clock and not of the counter.
+
+**That measurement is now written, and its threshold is published here before any
+board has run it.** It needs no new instrument: it is `lseref_measure_core_hz`, the
+one that already produces every measured frequency on this page, run more than once
+inside a single boot. Two separations are reported, because they are two questions.
+
+| | separation | what it asks |
+|---|---|---|
+| immediately after the first | about one second, the gate's own length | does the clock hold still over one gate |
+| after the source and both counter gates | three to four seconds | does it hold over the span the counter's residual actually covers |
+
+A clock that holds over one second and moves over four would show as a small figure
+for the first and a large one for the second, which is why one measurement would
+not have done.
+
+| what the board reports | what it would mean |
+|---|---|
+| near 400 ppm | the clock moves that much inside one run, and run 19's +407 ppm counter residual is accounted for with nothing further wrong |
+| near 1 ppm | the clock holds inside a run, the +407 came from somewhere else entirely, and that is a **new** problem rather than a closed one |
+| 10 to 100 ppm | part of the story and not all of it, which leaves the counter's larger residuals open |
+
+**The middle outcome is the least convenient and it is listed rather than left
+out.** An experiment whose awkward result has no entry in the table written
+beforehand is one that will be read charitably afterwards.
+
+**And it is a ratio, not the core alone.** Both readings are core cycles over a
+crystal gate, so a crystal that moved between them would look identical. The
+crystal is a 32.768 kHz quartz and the two other oscillators here have already
+shown hundreds of parts per million of scatter, so the core is the likelier mover,
+but this measurement does not separate them and does not claim to.
+
+No cause is offered until the board answers, because the within-run stability of
+this part's clock has never been measured here, which is exactly why it cannot be
+blamed yet.
 
 **No cause is offered for the long gate reading +54 and +33 at the reset clock and
 minus 0.6 at 280 MHz.** There is one difference worth naming without attributing
