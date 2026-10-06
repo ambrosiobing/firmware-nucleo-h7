@@ -17,8 +17,8 @@ What is measured and what it rests on:
 | User button on PC13 | input with a pull-down, active high |
 | Core, AHB, APB1 clocks | 64 MHz at reset, decoded from RCC at startup rather than hardcoded |
 | The 280 MHz tree | reached Sunday 4 October 2026 by `p01-pll280`: the configuration is at the target, AHB and APB1 at half the core, every one of eight steps reading back what it wrote |
-| The core clock, **measured four times** | **279 672 822**, **279 435 368**, **279 714 764** and **279 634 208 Hz** against this board's 32.768 kHz crystal, 1168, 2017, 1019 and 1306 parts per million below the 280 MHz nominal. Always low, never the same, spanning 1000 parts per million with no trend, so the sign reproduces and the digits do not. The cause is the debugger's clock output, which the four runs put at 7 990 652, 7 983 868, 7 991 850 and 7 989 549 Hz |
-| The reset clock, **measured four times** | **64 194 318**, **64 186 657**, **64 180 090** and **64 191 988 Hz** against the same crystal, spanning 222 parts per million where the PLL spans 1000, which is what rules out the crystal and the gate as the things that moved. It does not drift: the fourth reading, after eight hours with the board unpowered, came back within 36 parts per million of the first, which is a temperature effect and makes a prediction |
+| The core clock, **measured five times** | **279 672 822**, **279 435 368**, **279 714 764**, **279 634 208** and **279 624 968 Hz** against this board's 32.768 kHz crystal, 1168, 2017, 1019, 1306 and 1339 parts per million below the 280 MHz nominal. Always low, never the same, spanning 998 parts per million with no trend, so the sign reproduces and the digits do not. The cause is the debugger's clock output, which the five runs put at 7 990 652, 7 983 868, 7 991 850, 7 989 549 and 7 989 285 Hz |
+| The reset clock, **measured five times** | **64 194 318**, **64 186 657**, **64 180 090**, **64 191 988** and **64 202 948 Hz** against the same crystal, spanning 357 parts per million where the PLL spans 998. Two explanations have been offered for that spread in this repository and the next reading refuted each one, drift by run 4 and temperature by run 5, so no third is offered. What stands is a bound: this oscillator reproduces to 357 parts per million on this bench and no better |
 | Oscillator | 64.17 to 64.18 MHz, six reductions, two instruments, spread 0.031 per cent |
 | Delay loop | 9.00 cycles per iteration at 64 MHz and 8.96 at 280 MHz, the same binary, measured against `DWT_CYCCNT` every boot |
 | A 100 ms request | lands within 20 parts per million, checked by the part itself |
@@ -59,55 +59,75 @@ iteration at 64 MHz with three flash wait states and 8.96 at 280 MHz with six,
 which says the loop's cost barely moved and is a fact about the flash and the
 pipeline rather than about the clock.
 
-## The core clock, measured four times: always low, and never the same number
+## The core clock, measured five times, and two explanations refuted
 
 **This is the first frequency in this volume that is measured rather than
 derived**, it does not agree with the nominal, and it does not agree with itself.
-Four runs of the same image on the same board, each gated by this board's own
-32.768 kHz crystal over one second. The first three are Sunday 4 October 2026,
-minutes to hours apart; the fourth is Monday 5 October 2026 after about eight
-hours with the board away, which turns out to matter:
+Five runs of the same image on the same board, each gated by this board's own
+32.768 kHz crystal over one second. Runs 1 to 3 are Sunday 4 October 2026,
+minutes to hours apart. Run 4 is Monday 5 October 2026 after about eight hours
+with the board away, so cold. Run 5 is Tuesday 6 October 2026 after about fifteen
+minutes powered and running at 280 MHz, so warm, and it was taken on purpose to
+test a prediction this section used to make:
 
 | | the core | against 280 MHz | the internal oscillator | against 64 MHz | the implied input |
 |---|---|---|---|---|---|
 | run 1 | **279 672 822 Hz** | 1168 ppm low | 64 194 318 Hz | 3036 ppm high | 7 990 652 Hz |
 | run 2 | **279 435 368 Hz** | 2017 ppm low | 64 186 657 Hz | 2917 ppm high | 7 983 868 Hz |
 | run 3 | **279 714 764 Hz** | 1019 ppm low | 64 180 090 Hz | 2814 ppm high | 7 991 850 Hz |
-| run 4 | **279 634 208 Hz** | 1306 ppm low | 64 191 988 Hz | 3000 ppm high | 7 989 549 Hz |
+| run 4 | **279 634 208 Hz** (cold) | 1306 ppm low | 64 191 988 Hz | 3000 ppm high | 7 989 549 Hz |
+| run 5 | **279 624 968 Hz** (warm) | 1339 ppm low | 64 202 948 Hz | 3171 ppm high | 7 989 285 Hz |
 
 **The core is scatter and not drift**, and the first two runs looked like drift.
-The readings span 1000 parts per million with run 2 lowest, run 3 highest and run
-4 in the middle, so there is no trend to extrapolate and no latest value to
-prefer.
+The readings span 998 parts per million with run 2 lowest, run 3 highest and runs
+4 and 5 in the middle, so there is no trend to extrapolate and no latest value to
+prefer. Five runs have not widened that spread at all, which is the one thing
+about this quantity that has held.
 
-**And the internal oscillator is not drifting either, which corrects what this
-section said after three runs.** It claimed the internal reading fell
-monotonically, 119 then 102 parts per million, and called that a smooth drift
-consistent with a warming part. Run 4 is 185 parts per million **higher** than run
-3, so the monotonic claim is false.
+**And the internal oscillator has now refuted two explanations in a row**, both of
+them written on this page, both of them read off the data that existed at the
+time. This is the useful part of the section, so it is kept rather than tidied
+away.
 
-What replaces it is better evidence rather than worse. Run 4 sits within **36
-parts per million of run 1**, and runs 2 and 3 fall between them. Run 1 was the
-first measurement of that day and run 4 follows eight hours with the board
-unpowered, so both are cold, while the two low readings were taken after it had
-been running at 280 MHz. That is a temperature effect, and unlike a drift it
-**predicts** something: a reading taken after the board has been warm for a while
-should fall again toward 64 180 000. Nobody has tested that prediction and this
-section is where the result belongs when somebody does.
+**The first was drift.** After three runs this page said the internal reading fell
+monotonically, 119 then 102 parts per million, and called it a warming part. Run 4
+came in 185 parts per million **higher** than run 3. Refuted.
+
+**The second was temperature**, and it was written as a prediction precisely so
+that it could be refuted. Runs 1 and 4 were both cold and both high; runs 2 and 3
+were taken warm and were lower; so a reading taken after the board had been warm
+for a while should fall again toward 64 180 000. Run 5 is that reading, taken warm
+on purpose. It is 64 202 948 Hz: **22 948 Hz above the figure the prediction
+named, 10 960 Hz above the cold run 4, and the highest of all five.** Refuted.
+
+**So no third mechanism is offered.** Two were proposed from the pattern in hand
+and the next observation removed each one. What survives is a bound and not a
+cause: across five readings this part's internal oscillator reproduces only to
+**357 parts per million** on this bench, and nothing here may quote it, or any
+figure derived from it, to better than that.
+
+That is worth more than a mechanism would have been. A cause stated from four
+points and believed would have been carried into every later chapter; a bound
+measured from five is what the next measurement actually needs.
 
 **The instrument is still not what is scattering**, which is what makes the
 spread evidence rather than noise. Both oscillators are measured in the same run
 through the same gate. `RTC_PRER` reads `007F00FF`, so `PREDIV_A` is 127 and the
 sub-second tick is 32768/128 = 256 Hz exactly; 256 of those ticks is one second
 exactly, and a single core cycle is 0.0036 parts per million of it. The internal
-readings span 222 parts per million across all four runs, a factor of four and a
-half smaller than the PLL's, and they return to where they started when the board
-cools.
+readings span 357 parts per million across all five runs, a factor of 2.8 smaller
+than the PLL's.
 
-The run-to-run relative movement says the same thing three times over. Between
-each pair of runs the external clock moved against the internal one by **-730,
-then +1102, then -473** parts per million. No drift of the shared reference can
-produce a figure that changes sign twice.
+**That factor was 4.5 before run 5 and this page is not going to quietly keep the
+old number.** The ratio argument is weaker than it was, and if the internal spread
+keeps growing while the core's does not, it stops carrying any weight at all.
+
+**What carries the argument instead** is the run-to-run relative movement, which no
+widening of either spread explains away. Between each pair of runs the external
+clock moved against the internal one by **-730, then +1102, then -473, then
+-204** parts per million. No drift of a shared reference can produce a figure that
+changes sign twice, so the two oscillators move independently and the larger
+movement belongs to the external one.
 
 **So the claim is stronger than after one run, not weaker.** One reading could
 only infer that the 8 MHz is not 8 MHz. Four show it is **unstable at the
@@ -123,19 +143,20 @@ Nothing computes from these figures, so they live in a table beside
 `CORE_HZ_TARGET`, which stays 280000000, as `HSE_HZ_BYPASS` stays 8000000 and
 `HSI_HZ_NOMINAL` stays 64000000. Every run strengthens that reasoning:
 substituting a measured figure would have fitted the code to one sample, and the
-sample has now moved three times.
+sample has now moved four times.
 
-**The crystal was itself cross-checked and holds up in all four runs.** The reset
+**The crystal was itself cross-checked and holds up in all five runs.** The reset
 clock is a different oscillator, and two other instruments had measured it at
 64.17 to 64.18 MHz across six reductions against a host PC. The crystal puts it
-at 64 194 318, 64 186 657, 64 180 090 and 64 191 988, all inside or just above
-that range. A crystal fast enough to explain the PLL readings would have put the
-reset clock near 64 100 000, which is excluded by a factor of three every time.
+at 64 194 318, 64 186 657, 64 180 090, 64 191 988 and 64 202 948, all inside or
+just above that range. A crystal fast enough to explain the PLL readings would
+have put the reset clock near 64 100 000, which is excluded by a factor of three
+every time.
 
 **The consequence, with its sign, because the two clocks are wrong in opposite
 directions.** An earlier version of this section said "0.117 per cent high", which
 is true of the reported frequency at one of the two clocks and ambiguous about
-everything else. The table below is the precise form for run 1; the other three
+everything else. The table below is the precise form for run 1; the other four
 differ in magnitude and not in sign, and the board prints all three quantities
 for whichever run it is having:
 
