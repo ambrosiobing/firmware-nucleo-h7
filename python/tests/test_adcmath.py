@@ -20,13 +20,18 @@ second way in the tests that read no C. Double entry has found three errors in
 this repository's hand tables.
 """
 import ctypes
-from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
-LIBRARY = ROOT / "build-host" / ("adcmath.dll" if __import__("os").name == "nt"
-                                 else "adcmath.so")
+# The shared helper rather than a path of this file's own, which is how the
+# sibling tests do it and which this file got wrong first: it hard-coded
+# "adcmath.so" and the build names it libadcmath.so on anything but Windows, so
+# every ctypes case skipped on the one laptop that can build the library. The
+# double entry still ran and passed, which is exactly why a skip is worse than a
+# failure: 24 passed looked like success.
+from conftest import BUILD, shared_library_name
+
+LIBRARY = BUILD / shared_library_name("adcmath")
 
 
 @pytest.fixture(scope="module")
