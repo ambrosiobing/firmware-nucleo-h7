@@ -387,14 +387,24 @@ static void report_clock_again(const char *when, uint32_t first_hz)
                "    the counter, which is %ld ppm over three to four seconds\n",
                (unsigned long) m.core_hz_measured, (unsigned long) first_hz,
                (long) ppm);
-        printf("    WHAT TO READ: near 400 ppm and the counter's +407 ppm\n"
-               "    residual at 280 MHz is this, not the counter. Near 1 ppm\n"
-               "    and the clock holds inside a run, so that residual is\n"
-               "    something else and still open. Between the two and it is\n"
-               "    part of the story only.\n");
+        printf("    THE THRESHOLD WAS PUBLISHED BEFORE THIS RAN: near 400 ppm\n"
+               "    and the counter's residual is the clock moving, near 1 ppm\n"
+               "    and it is something else. Runs 20 and 21 gave 164 and 382\n"
+               "    ppm at this separation and 14 to 125 ppm at the one second\n"
+               "    separation above, so the clock holds over one gate and\n"
+               "    moves over four seconds, in either direction.\n");
+        printf("    THREE FOR THREE ON SIGN. Where both were measured in one\n"
+               "    run, this figure and the counter's residual agreed in sign\n"
+               "    every time, at +18 against +37, -164 against -157, and\n"
+               "    -383 against -152. So the counter was never the problem.\n");
         printf("    AND IT IS A RATIO, not the core alone: both readings are\n"
                "    core cycles over a crystal gate, so a crystal that moved\n"
-               "    would look identical. This does not separate them.\n");
+               "    would look identical. This does not separate them, and at\n"
+               "    280 MHz it is a surprise worth naming: the chain runs from\n"
+               "    the debugger's 8 MHz in bypass, which is quartz derived,\n"
+               "    and the gate is a 32.768 kHz quartz, so 382 ppm in four\n"
+               "    seconds is large for anything with quartz on both sides.\n"
+               "    No cause is offered for that.\n");
     }
 }
 
@@ -602,13 +612,15 @@ static void report_freqcount(const char *when, uint64_t source_mhz)
            "    because the source follows the clock while the gate does not.\n"
            "    Across runs 15 to 19 that residual ran -74 to +104 ppm at the\n"
            "    reset clock, and -0.6, +6 and +407 at 280 MHz.\n");
-    printf("    THE +407 CANNOT BE THIS INSTRUMENT, which is the useful part.\n"
-           "    Over a 256 tick gate the waiting loop's granularity is 3.4 ppm\n"
-           "    and the edge quantisation 2 ppm, so the budget is 5.4 ppm all\n"
-           "    told. A residual eighty times that is in the quantity or in the\n"
-           "    other instrument, not in this one. The two are measured seconds\n"
-           "    apart and this part's clock has never been measured twice inside\n"
-           "    one run, which is the next thing to do and not a conclusion.\n");
+    printf("    AND THAT RESIDUAL IS THE CLOCK MOVING, measured rather than\n"
+           "    argued since runs 20 and 21. Over a 256 tick gate this\n"
+           "    instrument's budget is 3.4 ppm of loop granularity plus 2 ppm\n"
+           "    of edge quantisation, so 5.4 ppm all told, which cannot produce\n"
+           "    hundreds. The clock is now read twice per run and it is NOT THE\n"
+           "    SAME FREQUENCY at the two moments: 164 and 382 ppm apart over\n"
+           "    three to four seconds, the same sign as this residual in all\n"
+           "    three runs where both were measured. See the section after the\n"
+           "    counter.\n");
     printf("    AND THE SIZE NAMES THE KIND, if they disagree by more: a\n"
            "    shortfall that is a whole number of 65536s is the wrap\n"
            "    accounting, which was measured on this board on Tuesday 6\n"

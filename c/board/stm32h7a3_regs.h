@@ -507,6 +507,16 @@
  *   run 17   279551130 Hz    (COUNTER FIXED) 64197336 Hz        3083 ppm high
  *   run 18   not printed     (LOOP MEASURED) 64181938 Hz        2843 ppm high
  *   run 19   279352464 Hz    (LOOP MEASURED) 64189764 Hz        2965 ppm high
+ *   run 20   not printed     (DRIFT MEASURED) 64191672 Hz       2995 ppm high
+ *   run 21   279359440 Hz    (DRIFT MEASURED) 64194351 Hz       3037 ppm high
+ *
+ * AND FROM RUN 20 THE FIGURES IN THIS TABLE ARE THE FIRST OF SEVERAL PER RUN,
+ * which matters for how the spread below is read. The clock is now measured more
+ * than once per boot and it is NOT THE SAME FREQUENCY AT THE TWO MOMENTS: run 21
+ * read 279359440 Hz before the frequency counter and 279252536 Hz after it, 382
+ * parts per million lower, three to four seconds apart. The column above is
+ * always the first reading of its run, so it is comparable across runs, and that
+ * is now a stated convention rather than an accident of there being only one.
  *
  * RUNS 17, 18 AND 19 ALL LANDED INSIDE BOTH EXISTING SPANS, so the internal
  * bound holds at 579 parts per million across nineteen readings and the core at
@@ -581,10 +591,21 @@
  *
  * SO BOTH BOUNDS HAVE NOW SURVIVED SEVERAL READINGS, which is a different state
  * from the one this file has described all along and is stated as such rather
- * than as a settlement. The history is five widenings followed by four holds.
- * Four holds is not a guarantee: the 357 figure held six times before run 13
+ * than as a settlement. The history is five widenings followed by six holds.
+ * Six holds is not a guarantee: the 357 figure held six times before run 13
  * removed it, and the paragraph further down that said it had survived every
  * test is still there as the record of what that kind of confidence is worth.
+ *
+ * AND WHAT THOSE SPREADS MEASURE IS NOT WHAT THIS FILE HAS BEEN SAYING, which is
+ * a correction of interpretation rather than of arithmetic. Every figure in the
+ * table is one reading taken at one moment of its run, and on Tuesday 6 October
+ * 2026 the clock was measured twice inside a single run for the first time and
+ * found to move by 164 and 382 parts per million over three to four seconds. So
+ * the 579 and the 1306 were never bounds on run-to-run reproducibility alone:
+ * they contain within-run drift as well, because no two readings were taken at
+ * the same point in their runs. Both numbers remain correct AS BOUNDS on what
+ * this bench reproduces. Neither is a figure for the oscillator's stability, and
+ * this file has been calling them that.
  *
  * NO CAUSE IS OFFERED FOR THAT EITHER, and there is a difference worth naming
  * without attributing anything to it: runs 12 to 19 are the first readings

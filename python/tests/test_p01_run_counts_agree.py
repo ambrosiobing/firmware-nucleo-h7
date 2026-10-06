@@ -39,12 +39,26 @@ WORDS = {
     "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
     "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
     "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20,
+    "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
+    "eighty": 80, "ninety": 90,
 }
 
+# The compound forms are SUMMED rather than listed, which is why the tens are in
+# the table above and "twenty-one" is not. This stopped at twenty on Tuesday 6
+# October 2026 and run 21 made the heading unreadable to this test, which is the
+# correct failure and a tedious one to fix once per run. Splitting on the hyphen
+# covers every form to ninety-nine and needs no further edits.
+
 RUN_ROW = re.compile(r"^\|\s*run\s+(\d+)\s*\|([^|]*)\|", re.MULTILINE)
-HEADING = re.compile(r"^## The core clock, measured (\w+) times", re.MULTILINE)
-CORE_ROW = re.compile(r"\|\s*The core clock, \*\*measured (\w+) times\*\*\s*\|([^|]*)\|")
-RESET_ROW = re.compile(r"\|\s*The reset clock, \*\*measured (\w+) times\*\*\s*\|([^|]*)\|")
+# [\w-]+ and not \w+, so that a hyphenated compound is captured whole. With
+# \w+ the heading "measured twenty-one times" matched nothing at all, and the
+# test reported a MISSING heading rather than an unreadable number, which sent
+# the reader looking for the wrong fault.
+HEADING = re.compile(r"^## The core clock, measured ([\w-]+) times", re.MULTILINE)
+CORE_ROW = re.compile(
+    r"\|\s*The core clock, \*\*measured ([\w-]+) times\*\*\s*\|([^|]*)\|")
+RESET_ROW = re.compile(
+    r"\|\s*The reset clock, \*\*measured ([\w-]+) times\*\*\s*\|([^|]*)\|")
 
 # A frequency as that page writes one: digits in groups of three separated by
 # spaces, optionally inside bold markers.
@@ -87,11 +101,19 @@ def text() -> str:
 
 
 def word(n: str, what: str) -> int:
-    assert n in WORDS, (
+    """A spelled-out count, including compounds such as twenty-one."""
+    parts = n.split("-")
+    assert all(p in WORDS for p in parts) and len(parts) <= 2, (
         "{} says {!r}, which this test cannot read as a number. Spell it as a "
-        "word from one to twenty, or teach this test the new form; an "
-        "unreadable count is the one that stops being checked.".format(what, n))
-    return WORDS[n]
+        "word, or as tens-units with a hyphen; an unreadable count is the one "
+        "that stops being checked.".format(what, n))
+    total = sum(WORDS[p] for p in parts)
+    if len(parts) == 2:
+        tens, units = WORDS[parts[0]], WORDS[parts[1]]
+        assert tens >= 20 and tens % 10 == 0 and 1 <= units <= 9, (
+            "{} says {!r}, which is hyphenated but not tens-units. "
+            "'twenty-one' is the shape this reads.".format(what, n))
+    return total
 
 
 def rows(t: str):
