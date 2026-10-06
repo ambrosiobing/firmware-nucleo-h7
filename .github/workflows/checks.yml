@@ -108,6 +108,17 @@ jobs:
       - name: Every printf format matches its argument count
         run: python python/tools/check_printf_args.py
 
+      # The fifth, added Tuesday 6 October 2026 after it found P06's three
+      # targets unable to link: they list c/instr/freqcount.c, which calls into
+      # c/instr/lseref.c, and lseref.c was in neither their sources nor the
+      # board library. Nothing had caught it because those targets are gated
+      # behind CMSIS_DEVICE_DIR, this workflow passes no pack so it skips them,
+      # and the one laptop with a pack had never been asked to build them. A
+      # target skipped everywhere is a target nobody compiles. This follows
+      # includes rather than symbols, so it needs no linker either.
+      - name: Every firmware target links the sources it reaches
+        run: python python/tools/check_link_closure.py
+
       - name: No assembled volume and no PDF is published
         run: |
           set -e

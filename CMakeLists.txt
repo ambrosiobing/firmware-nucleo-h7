@@ -382,6 +382,14 @@ foreach(BACKEND systick timer dma)
                 c/instr/cyccnt.c
                 c/instr/freqcount.c
                 c/instr/freqmath.c
+                # lseref.c, added Tuesday 6 October 2026, because freqcount.c
+                # calls into it for the crystal gate and these three targets
+                # could not link without it. Nothing had caught that: they are
+                # gated behind CMSIS_DEVICE_DIR, CI passes no pack so CI skips
+                # them, and the one laptop with a pack had never been asked to
+                # build them. python/tools/check_link_closure.py now checks this
+                # for every target.
+                c/instr/lseref.c
                 ${ACQ}
         INCLUDES projects/P06-timer-sampling/c c/instr
         VENDOR_INCLUDES ${CMSIS_DEVICE_DIR} ${CMSIS_CORE_DIR}
