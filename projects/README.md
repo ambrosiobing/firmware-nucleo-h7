@@ -287,7 +287,7 @@ names the one it is for.
 
 | Laptop | What it does | What it does not |
 | --- | --- | --- |
-| **win11 aquamarine**, the authoring laptop | the volume, the host suite, the checkers. `python -m pytest python/tests -q` and the three check scripts, all with no board and no compiler | compiles nothing, cross or host. A host gcc exists here, bundled with Qt, and it is not to be used |
+| **win11 aquamarine**, the authoring laptop | the volume, the host suite, the checkers. `python -m pytest python/tests -q` and every `python/tools/check_*.py` that needs no compiler, which is all of them except `check_c_syntax.py` and `check_ring_assert.py`, both of which refuse here by design. The count is deliberately not written: this sentence said three on Tuesday 6 October 2026 when there were five such scripts, and a count in prose is the thing that drifts | compiles nothing, cross or host. A host gcc exists here, bundled with Qt, and it is not to be used |
 | **win11 skyhorizon**, the demo laptop | the cross build and the board. CubeIDE 2.2.0 supplies `arm-none-eabi-gcc` 14.3.1, `cmake` and `ninja`, none of them on PATH until `P01-toolchain-first-light/Use-CubeIDEToolchain.ps1` is dot-sourced. Flashing needs no tool: the probe presents a disk as D: labelled `NOD_H7A3ZIQ` and a `.bin` copied onto it is programmed. The console is COM13 at 115200 | does not author the volume |
 | **wsl on skyhorizon**, `bing@JPTOUPM678` | the C syntax and warning check, gcc 15: `python3 python/tools/check_c_syntax.py`. This is the first test of any C change, before CI | has no board attached |
 

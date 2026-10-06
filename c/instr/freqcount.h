@@ -178,6 +178,12 @@
 #ifndef FREQCOUNT_H
 #define FREQCOUNT_H
 
+/* stdbool because freqcount_poll_t carries a bool, added Tuesday 6 October 2026.
+ * It was missed when that struct went in, and gcc 15 in WSL refused the file
+ * while every host check on the authoring laptop passed, because nothing there
+ * compiles. The ordering matches lseref.h, which is the other header here that
+ * declares a bool in a struct. */
+#include <stdbool.h>
 #include <stdint.h>
 
 /* Configure LPTIM1 to count edges on PD12, and start the crystal the gate needs.

@@ -86,6 +86,17 @@ jobs:
       - name: Every static C function is defined before it is called
         run: python python/tools/check_c_order.py
 
+      # The third of the same family, added Tuesday 6 October 2026 for the same
+      # reason as the two above and after the same kind of round trip. A struct
+      # carrying a bool went into c/instr/freqcount.h, which included stdint.h
+      # and not stdbool.h. Every check on the authoring laptop passed, because
+      # none of them compiles, and gcc 15 in WSL refused the file one push
+      # later. A header has to be self contained: inheriting a type from
+      # whatever included it first works until something includes that header
+      # first. This needs no compiler either.
+      - name: Every C header includes what its own declarations use
+        run: python python/tools/check_c_includes.py
+
       - name: No assembled volume and no PDF is published
         run: |
           set -e
