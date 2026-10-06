@@ -176,11 +176,53 @@ three claims that no amount of host work could settle, and all three held.
 **What it did not show, stated plainly.** Both measurements returned 0
 millihertz. That is the correct frequency of an idle line held high by its
 pull-up, and it is also what a refusal returns, so the counting path is still
-unverified. The next step needs a known frequency on PD12, and ST's sibling
-example `LPTIM_PWMExternalClock` puts `LPTIM1_OUT` on PD13 and `LPTIM1_IN1` on
-PD12, adjacent pins, so one wire between them would let the counter check itself.
-That would be the first arrangement in this volume able to show the counting path
-is right rather than merely configured.
+unverified. The next step needs a known frequency on PD12.
+
+**And the obvious way to get one is wrong, which this page proposed before it
+was thought through.** ST's sibling example `LPTIM_PWMExternalClock` puts
+`LPTIM1_OUT` on PD13 and `LPTIM1_IN1` on PD12, adjacent pins, so one wire
+between them looks like a self test. It is not. That example's name says why:
+the counter is clocked by IN1 and the compare generates the output, so the
+output frequency is derived from the input. Wiring one to the other makes a
+feedback loop, and counting a signal generated from the counter under test
+establishes nothing at all.
+
+**What replaces it compares two instruments instead of one with itself.** TIM1
+channel 3 on PE13 at alternate function 1, one wire to PD12, and a PWM frequency
+chosen well under the 16 777 216 Hz usable maximum. A general purpose timer's
+output is derived from its APB clock and therefore from the PLL, so counting it
+against the crystal gate compares the PLL to the crystal through a path sharing
+nothing with `c/instr/lseref.c`: lseref counts core cycles inside the part with
+`DWT_CYCCNT`, while this counts edges arriving on a pin from outside the counter.
+Two instruments, one quantity, no component in common but the crystal.
+
+Unlike a self test it can also fail informatively. If the two agree, the crystal
+gate and the cycle counter are confirmed against each other and the four core
+clock readings above gain a second witness. If they disagree, the size of the
+disagreement says which kind: a ratio near a small integer points at a
+prescaler or a divider misread, a few hundred parts per million points at the
+crystal, and a disagreement that moves between runs points back at the
+debugger's 8 MHz, which is already known to move by a part in a thousand.
+
+**The connector, which was the last thing blocking it, is settled as of Tuesday
+6 October 2026.** Both pins reach the ST Zio header: PE13 is Arduino D3 and PD12
+is Arduino D29. Neither source is ST, so neither was taken alone. Zephyr's board
+`nucleo_h7a3zi_q` maps PE13 to `ARDUINO_HEADER_R3_D3`; the STM32 Arduino core's
+variant for this exact part puts `PE_13` at `digitalPin` index 3 and `PD_12` at
+index 29, in an array holding only pins the header exposes. The two were written
+independently and agree exactly on the one pin both cover, which is what makes
+the index for the other worth acting on. Zephyr's page for this board also names
+PD8 and PD9 for USART3, PC13 for the button and PB0, PE1 and PB14 for the LEDs,
+every one of which this board has already printed, so the source was checked
+against this bench on facts it could have got wrong.
+
+What is still unread is a convenience and not a blocker: which of the four
+connectors each pin sits on, and its position within it. That is ST's table, in
+**UM2408**. This volume said UM2407 in four places until Tuesday 6 October 2026,
+and that was wrong in the way the volume is about: UM2407 documents MB1364, the
+NUCLEO-H743ZI2, and UM2408 documents MB1363, which is this board. The error is
+recorded rather than quietly removed, because it is the book's own trap
+committed in the book's own source tree.
 
 ## The decode can be wrong in eight ways, and now seven of them can be tested
 

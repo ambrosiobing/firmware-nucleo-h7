@@ -143,19 +143,38 @@
  * crystal, and a disagreement that moves between runs points back at the
  * debugger's 8 MHz, which is already known to move by a part in a thousand.
  *
- * WHAT STILL BLOCKS IT is the connector and nothing else. Both pins have to
- * reach the Zio header for a wire to join them, and the pack carries no Zio map.
- * That is UM2407 for the MB1363, now needed for PE13 as well as PD12. Every
- * register fact for both ends is in hand.
+ * NOTHING BLOCKS IT ANY MORE, settled Tuesday 6 October 2026. What had been
+ * blocking it was the connector: both pins have to reach the Zio header for a
+ * wire to join them, and the ST pack on win11 skyhorizon carries no Zio map.
+ * Both do. PE13 is Arduino D3 and PD12 is Arduino D29.
+ *
+ * THE SOURCES, AND WHY TWO OF THEM. Neither is ST, so neither is taken alone.
+ * Zephyr's board nucleo_h7a3zi_q maps PE13 to ARDUINO_HEADER_R3_D3 in its
+ * arduino_r3_connector.dtsi. The STM32 Arduino core's variant for this exact
+ * part, variants/STM32H7xx/H7A3Z(G-I)TxQ_H7B3ZITxQ, puts PE_13 at digitalPin
+ * index 3 and PD_12 at index 29 of a 101 entry array, and that array holds only
+ * pins the header exposes. The two projects were written independently and they
+ * agree exactly on the one pin both of them cover, which is what makes the
+ * index for the other one worth acting on. Zephyr's page for this board also
+ * names PD8 and PD9 for USART3, PC13 for the button and PB0, PE1 and PB14 for
+ * the LEDs, all four of which this board has already printed, so the source has
+ * been checked against this bench on facts it could have got wrong.
+ *
+ * WHAT IS STILL UNREAD, and it is a convenience rather than a blocker: which
+ * connector of the four each pin sits on, and its position within that
+ * connector. That is ST's own table, and the manual is UM2408.
+ *
+ * UM2408 AND NOT UM2407, which this header said in two places until Tuesday 6
+ * October 2026. UM2407 documents MB1364, the NUCLEO-H743ZI2. UM2408 documents
+ * MB1363, which is this board. Getting that pair the wrong way round is the
+ * exact failure this volume is written about, committed here in its own source
+ * tree, which is worth leaving on the record rather than quietly fixing.
+ *
+ * st.com would not serve either manual to win11 aquamarine on Tuesday 6 October
+ * 2026, by WebFetch or by curl, with or without a browser user agent, so the
+ * table has to be read somewhere else. CubeIDE 2.2.0 on win11 skyhorizon is the
+ * place to look next.
  * --------------------------------------------------------------------------- */
-
-/* ONE THING IS STILL A BOARD FACT NOBODY HAS SOURCED: whether PD12 reaches the
- * Zio header. ST's example drives the pin without saying where it appears on the
- * connector, and the pack carries no Zio map. That needs UM2407 for the MB1363,
- * and until it is read this instrument can be written and cannot be wired. The
- * refusal in freqcount_init is for exactly that and not for anything in the
- * list above.
- */
 #ifndef FREQCOUNT_H
 #define FREQCOUNT_H
 

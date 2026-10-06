@@ -1047,9 +1047,19 @@
 /* THE COUNTING PIN, which is a board fact and comes from ST's example for this
  * board rather than from the Nucleo-144 convention: PD12 as LPTIM1_IN1 at
  * alternate function 1, push-pull with a pull-up, which is what that example's
- * HAL_LPTIM_MspInit configures. What is NOT established is whether PD12 appears
- * on the Zio header, so the instrument can be built and cannot yet be wired.
- * That needs UM2407 for the MB1363, and c/instr/freqcount.h names it. */
+ * HAL_LPTIM_MspInit configures.
+ *
+ * AND IT DOES REACH THE HEADER, established Tuesday 6 October 2026, which was
+ * the last thing blocking this instrument. PD12 is Arduino D29 on the ST Zio
+ * header and PE13, the other end of the self test wire, is Arduino D3. Two
+ * projects that map this exact board agree, and they agree exactly where they
+ * overlap. See c/instr/freqcount.h for the sources and for what is still
+ * unread, which is the connector number and the pin position within it.
+ *
+ * The manual for that position is UM2408 and not UM2407. This comment said
+ * UM2407 until Tuesday 6 October 2026. UM2407 documents MB1364, the
+ * NUCLEO-H743ZI2, which is the sibling board this whole file exists to keep
+ * separate from this one; UM2408 documents MB1363, which is this board. */
 #define FREQCOUNT_IN_PORT       GPIOD
 #define FREQCOUNT_IN_PIN        12u
 #define FREQCOUNT_IN_AF         1u

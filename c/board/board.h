@@ -33,13 +33,33 @@
  * Settled on Monday 5 October 2026:
  *   - everything freqcount.c needs to count an external signal: LPTIM1, its
  *     registers, and PD12 at alternate function 1 as the counting input, from
- *     ST's own pulse counter example for this exact board. What is open there is
- *     no longer a register but a connector: whether PD12 reaches the Zio header,
- *     which needs UM2407
+ *     ST's own pulse counter example for this exact board
+ *
+ * Settled on Tuesday 6 October 2026, and it closes the connector question that
+ * had been the last thing blocking the frequency counter:
+ *   - PD12 and PE13 both reach the ST Zio header. PE13 is Arduino D3 and PD12
+ *     is Arduino D29. Two projects that map this exact board say so, and they
+ *     agree exactly where they overlap: Zephyr's nucleo_h7a3zi_q puts PE13 at
+ *     ARDUINO_HEADER_R3_D3, and the STM32 Arduino core's variant for
+ *     H7A3Z(G-I)TxQ puts PE_13 at digitalPin index 3 and PD_12 at index 29.
+ *     That agreement on the one pin both cover is what makes the other one
+ *     credible. Neither source is ST, so the connector number and the pin
+ *     position within it are still unread; what is settled is the thing that
+ *     was actually open, which is whether a wire between them is possible
+ *   - the manual that carries the position is UM2408, NOT UM2407. This file
+ *     said UM2407 until Tuesday 6 October 2026 and that was wrong, in the
+ *     volume's own characteristic way: UM2407 documents MB1364, which is the
+ *     NUCLEO-H743ZI2, and UM2408 documents MB1363, which is this board. Zephyr
+ *     cites UM2408 for this board as well
  *
  * Open, and therefore refused rather than guessed:
  *   - the virtual COM port pins, believed USART3 on PD8 and PD9 by Nucleo-144
- *     convention but not read from the MB1363 board manual
+ *     convention and not read from the MB1363 board manual. Zephyr's board
+ *     documentation for this exact part names PD8 and PD9 for USART3, along
+ *     with PC13 for the button and PB0, PE1 and PB14 for the three LEDs, all
+ *     four of which agree with what this board has already printed. That is
+ *     corroboration from outside this repository and it is still not ST, so
+ *     this stays in the open list
  *
  * No longer open, and the line that used to say so was wrong twice over. It read
  * "the timer registers freqcount.c needs, which is why no frequency in this
