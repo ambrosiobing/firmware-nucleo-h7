@@ -498,6 +498,10 @@
  *   run 8    not printed     (not noted)     64194888 Hz        3045 ppm high
  *   run 9    279692180 Hz    (not noted)     64190072 Hz        2970 ppm high
  *   run 10   279424340 Hz    (not noted)     64199102 Hz        3111 ppm high
+ *   run 11   279522728 Hz    (not noted)     64200306 Hz        3130 ppm high
+ *   run 12   279348956 Hz    (WIRE IN)       64188825 Hz        2950 ppm high
+ *   run 13   not printed     (WIRE IN)       64203931 Hz        3186 ppm high
+ *   run 14   279486828 Hz    (WIRE IN)       64205341 Hz        3208 ppm high
  *
  * RUNS 6 AND 8 ARE HALF READINGS AND THE REASON IS WORTH RECORDING. Neither
  * core figure printed, because the black RESET button was pressed a second time
@@ -550,6 +554,19 @@
  * 64189988 and 64192428 against a span that already ran from 64180090 to
  * 64202948.
  *
+ * AND THE INTERNAL SPREAD HAS NOW WIDENED TOO, AFTER HOLDING SIX TIMES. Runs 13
+ * and 14 read 64203931 and 64205341, both above the 64202948 that had been the
+ * ceiling since run 5. The internal spread goes from 357 parts per million
+ * across twelve readings to 395 across fourteen. The core held at 1306 across
+ * eleven.
+ *
+ * NO CAUSE IS OFFERED FOR THAT EITHER, and there is a difference worth naming
+ * without attributing anything to it: runs 12, 13 and 14 are the first readings
+ * taken with the jumper fitted and LPTIM1 actually counting about a megahertz,
+ * which no earlier reading had. That is a change in the conditions, not an
+ * explanation, and this comment has already spent three explanations on this
+ * quantity.
+ *
  * THE TWO SPREADS HAVE NOW BEHAVED DIFFERENTLY, AND THE CORE'S WIDENED. That
  * corrects something this comment said earlier on Tuesday 6 October 2026, which
  * was that both bounds had survived four later observations. The internal one
@@ -575,8 +592,8 @@
  * SO NO THIRD MECHANISM IS OFFERED HERE. Two were proposed from the pattern in
  * hand and the next observation removed each one, which is twice now that this
  * quantity has answered a guess with a correction. What survives is a bound and
- * not a cause: across nine readings the internal oscillator on this part
- * reproduces only to 357 parts per million on this bench, and nothing in this
+ * not a cause: across fourteen readings the internal oscillator on this part
+ * reproduces only to 395 parts per million on this bench, and nothing in this
  * repository may quote it, or any figure derived from it, to better than that.
  *
  * AND THERE IS A THIRD PATTERN IN THE DATA, WHICH IS NAMED HERE AND NOT CLAIMED.
