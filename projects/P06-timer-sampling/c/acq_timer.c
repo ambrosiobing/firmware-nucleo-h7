@@ -381,15 +381,61 @@ static int adc_bring_up(uint32_t pclk1_hz, uint32_t divisor)
      *
      * ADEN is read-set, so each pass writes a one into it and the zeroes
      * elsewhere in the mask change nothing. */
-    polls = 0u;
-    while ((ADC1->ISR & ADC_ISR_ADRDY) == 0u && polls < ADC_READY_POLLS_MAX) {
-        ADC1->CR = (ADC1->CR & ~ADC_CR_READ_SET_BITS) | ADC_CR_ADEN;
-        polls++;
+    /* THE SINGLE WRITE IS TRIED FIRST, AND IT IS THE EXPERIMENT.
+     *
+     * On Wednesday 7 October 2026 the re-asserting loop reported four passes,
+     * and that number was read as the erratum biting. It does not show that.
+     * The loop writes ADEN and polls ADRDY on every pass, so four passes fits
+     * two stories equally: the first three writes were ignored and the fourth
+     * took, or the FIRST write took and the flag simply needed four passes to
+     * rise. Nothing in that report separates them.
+     *
+     * So this writes ADEN exactly once and then polls without touching CR
+     * again. The outcome is the answer, and both outcomes are useful:
+     *
+     *   it becomes ready      the re-assertion is NOT required on this part.
+     *                         The loop below stays as insurance and no chapter
+     *                         may claim the erratum applies here
+     *   it reaches the limit  the re-assertion IS required, the erratum bites,
+     *                         and the loop below is what makes the converter
+     *                         usable at all
+     *
+     * Either way the converter ends up enabled, which is why this is one flash
+     * rather than two builds and a comparison. */
+    ADC1->CR = (ADC1->CR & ~ADC_CR_READ_SET_BITS) | ADC_CR_ADEN;
+
+    uint32_t single = 0u;
+    while ((ADC1->ISR & ADC_ISR_ADRDY) == 0u && single < ADC_READY_POLLS_MAX) {
+        single++;
     }
-    const bool ready = (ADC1->ISR & ADC_ISR_ADRDY) != 0u;
-    report("enable until ready", ADC_CR_ADEN, ADC1->ISR, ready);
-    printf("      the enable was re-asserted %lu times, which the erratum "
-           "requires\r\n", (unsigned long) polls);
+    bool ready = (ADC1->ISR & ADC_ISR_ADRDY) != 0u;
+    report("enable, one write", ADC_CR_ADEN, ADC1->ISR, ready);
+    if (ready) {
+        printf("      ready after %lu polls with NO re-assertion, so the "
+               "erratum did not bite here\r\n", (unsigned long) single);
+    } else {
+        printf("      not ready after %lu polls with no re-assertion, so the "
+               "erratum DOES bite here\r\n", (unsigned long) single);
+    }
+
+    /* The workaround, run only if the single write was not enough. From
+     * stm32h7xx_hal_adc.c lines 3713 to 3716, in ST's own words: if ADEN is set
+     * less than four ADC clock cycles after the ADCAL bit, continue setting ADEN
+     * until ADRDY becomes 1. ADEN is read-set, so each pass writes a one into it
+     * and the zeroes elsewhere in the mask change nothing. */
+    if (!ready) {
+        polls = 0u;
+        while ((ADC1->ISR & ADC_ISR_ADRDY) == 0u
+               && polls < ADC_READY_POLLS_MAX) {
+            ADC1->CR = (ADC1->CR & ~ADC_CR_READ_SET_BITS) | ADC_CR_ADEN;
+            polls++;
+        }
+        ready = (ADC1->ISR & ADC_ISR_ADRDY) != 0u;
+        report("enable, re-asserted", ADC_CR_ADEN, ADC1->ISR, ready);
+        printf("      the enable was re-asserted %lu times\r\n",
+               (unsigned long) polls);
+    }
+
     if (!ready) {
         return ACQ_ERR_ADC_NOT_READY;
     }
