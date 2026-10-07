@@ -379,29 +379,60 @@ prints `ISR` and it read `00001001`. Bit 0 is `ADRDY` and is set, which is the
 flag the loop waits on. Bit 12 is also set and this repository has not read what
 it is. It is one grep of the device header away and nothing here depends on it.
 
-### The erratum loop took four passes, and what that does NOT prove
+### The erratum does not bite here, settled by one flash
 
-`the enable was re-asserted 4 times`. ST's workaround at
-`stm32h7xx_hal_adc.c` lines 3713 to 3716 says that if `ADEN` is set less than
-four ADC clock cycles after `ADCAL`, the enable must be re-asserted until
-`ADRDY` becomes 1, and the gap here is a handful of core cycles at 64 MHz
-against an ADC clock of 16 MHz, so the condition was met.
+A number was read as a mechanism, challenged, and then settled by an experiment
+that could have gone either way. This is the sequence rather than the conclusion,
+because the sequence is the transferable part.
 
-**It is tempting to read four passes as the erratum biting, and this run does not
-establish that.** The loop writes `ADEN` and then polls `ADRDY` on every pass, so
-four passes is equally consistent with two different stories: the first three
-writes were ignored and the fourth took, or the first write took and the flag
-needed four passes to rise. Nothing printed separates them.
+**What the first run said.** `the enable was re-asserted 4 times`. ST's workaround
+at `stm32h7xx_hal_adc.c` lines 3713 to 3716 says that if `ADEN` is set less than
+four ADC clock cycles after `ADCAL`, the enable must be re-asserted until `ADRDY`
+becomes 1. Four passes looked like that happening.
 
-So what is recorded is the number and not the mechanism. **The experiment that
-would separate them** is a variant that writes `ADEN` exactly once and then polls
-`ADRDY` with no further writes: if it reaches the poll limit and refuses, the
-re-assertion is necessary on this part; if it becomes ready, the loop is
-insurance rather than a requirement. That is one bounded change and one flash,
-and it is worth doing before the chapter claims the erratum applies here.
+**Why that showed nothing.** The loop writes `ADEN` and then polls `ADRDY` on
+every pass, so four passes is equally consistent with two stories: the first
+three writes were ignored and the fourth took, or the first write took and the
+flag needed four passes to rise. Nothing printed separated them, so the number
+was recorded and the mechanism was declined.
 
-Until then the loop stays, because it is correct under both stories and the
-alternative is correct under only one.
+**The prediction, written before the flash.** The condition is *less than four
+ADC clock cycles* after `ADCAL`, and two `printf` calls sit between the
+calibration step and the enable. About fifty bytes at 115200 baud is some four
+milliseconds, which at this image's 16 MHz ADC kernel clock is roughly sixty four
+thousand ADC cycles. So the window closes many thousands of times over before
+`ADEN` is written, and the condition cannot be met by this code at all. The
+single write should therefore succeed.
+
+**What the board said**, three captures including one from a single clean RESET
+press at 1396 bytes, all identical:
+
+    adc enable, one write      ok       wrote 00000001  read back 00001001
+        ready after 4 polls with NO re-assertion, so the erratum did not bite here
+
+**Four polls, which is the same count the loop reported, and that is what makes
+it conclusive rather than merely consistent.** Had the re-assertions mattered,
+the single write would have taken longer or refused. They contributed nothing,
+and the four passes were always the flag rising.
+
+### What that claim is, and is not
+
+It is **not** that ST is wrong or that the erratum does not apply to this part.
+What is established is narrower and more useful: **this image does not meet the
+condition**, so the workaround is unnecessary here. The rule stands for any
+sequence that does meet it, which means any code putting `ADEN` within four ADC
+clock cycles of `ADCAL`.
+
+**And that is exactly why the loop is kept.** It runs only when the single write
+was not enough, so in this image it costs nothing, and it covers the case a later
+version reintroduces by dropping the console output or by moving the enable next
+to the calibration. `acq_timer.c` says so where the loop sits, so the protection
+is not removed as dead code by somebody who measures only this build.
+
+One honest footnote on the timing. Four polls of a read, compare and increment at
+64 MHz is a few tens of nanoseconds, which is under one period of the 16 MHz ADC
+clock, so the flag was effectively up by the first look. The per-poll cost has
+not been measured here and no figure is claimed from it.
 
 ### The clock mode, which was a decision and is now taken
 

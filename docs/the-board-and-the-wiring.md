@@ -706,24 +706,48 @@ read `00001001`, so besides `ADRDY` at bit 0 something at bit 12 is also set.
 This repository has not read what it is. Nothing depends on it, and it is one
 grep of the device header away.
 
-### The enable needs re-asserting, and what the measurement does not prove
+### The enable erratum does not bite here, and the experiment that settled it
 
 ST's `stm32h7xx_hal_adc.c` lines 3713 to 3716 carry an erratum workaround in its
 own words: if `ADEN` is set less than four ADC clock cycles after the `ADCAL`
 bit, continue setting `ADEN` until `ADRDY` becomes 1. So the obvious
-implementation, one write then a poll, is the wrong one.
+implementation, one write then a poll, looks like the wrong one.
 
-On the board the loop took **four passes**. It is tempting to read that as the
-erratum biting, and **this run does not establish it.** The loop writes `ADEN`
-and polls `ADRDY` on every pass, so four passes fits two stories equally: the
+**The first run reported four passes of the re-asserting loop, and that was read
+as the erratum biting. It showed no such thing.** The loop writes `ADEN` and
+polls `ADRDY` on every pass, so four passes fits two stories equally well: the
 first three writes were ignored and the fourth took, or the first write took and
-the flag needed four passes to rise.
+the flag simply needed four passes to rise. Nothing in that report separated
+them.
 
-The experiment that would separate them is written down in P06's README: a
-variant that writes `ADEN` exactly once and then polls with no further writes. If
-it refuses at the poll limit, the re-assertion is necessary on this part. Until
-that runs, the loop stays, because it is correct under both stories where the
-single write is correct under only one.
+**So the image was changed to try one write first**, with the prediction and its
+reasoning written down before the flash. The condition is *less than four ADC
+clock cycles* after `ADCAL`, and two `printf` calls sit between the calibration
+step and the enable: about fifty bytes at 115200 baud is some four milliseconds,
+which at this image's 16 MHz ADC kernel clock is roughly sixty four thousand ADC
+cycles. The window closes many thousands of times over before `ADEN` is written,
+so the condition cannot be met by this code at all.
+
+**The board agreed, and the number is what makes it conclusive:**
+
+    adc enable, one write      ok       wrote 00000001  read back 00001001
+        ready after 4 polls with NO re-assertion, so the erratum did not bite here
+
+Four polls, which is **the same count the re-asserting loop reported.** Had the
+re-assertions mattered, the single write would have taken longer or refused. They
+contributed nothing, and the four passes were always the flag rising.
+
+**Scope this claim carefully, because it is narrower than "the erratum is
+wrong".** What is established is that this image does not meet the condition, so
+the workaround is unnecessary *here*. ST's rule stands for code that does meet
+it, which is any sequence putting `ADEN` within four ADC clock cycles of
+`ADCAL`.
+
+**And that is exactly why the loop is kept.** It runs only when the single write
+was not enough, so it costs nothing in this image, and it covers the case a later
+version reintroduces by dropping the console output or moving the enable next to
+the calibration. The comment in `acq_timer.c` says so, so the protection is not
+deleted as dead code by somebody who measures only this build.
 
 ## 2.9 What is still open, and treated as a question
 
