@@ -189,6 +189,7 @@ Chapter NN is the written design for project PNN.
 | `python/tests/` | every suite, central, and none of which touches a device |
 | `python/tools/` | the codec generator, the host build, and the checks that prove the checks work, including `check_status.py`. Also `read_ci.py`, which reads what CI did from the `github.com` pages rather than the rate limited API, and which nothing in the build or the suite calls |
 | `CMakeLists.txt`, `cmake/arm-none-eabi.cmake` | the firmware build and the cross toolchain file, both P01's |
+| [`docs/`](docs/the-board-and-the-wiring.md) | two documents for somebody standing at the bench. `building.md` is the build, the flash and the console. `the-board-and-the-wiring.md` is every settled board fact with the authority and date that settled it, what is still open and refused, the decisions that followed, the checklist to run before a wire goes in, and the wiring arrangements that were designed and then changed |
 | `requirements.txt` | `pytest`, and nothing else |
 | `requirements-hardware.txt` | what only matters when something is plugged in; the suite and the runner never install it |
 | `build-host/` | code build output, ignored, deliberately not `build/` so the two cannot delete each other's work |
