@@ -390,6 +390,19 @@ foreach(BACKEND systick timer dma)
                 # build them. python/tools/check_link_closure.py now checks this
                 # for every target.
                 c/instr/lseref.c
+                # adcmath.c and pwmmath.c, added Wednesday 7 October 2026 when
+                # acq_timer.c started calling into them: the converter bring-up
+                # takes its boost setting and preselection bit from the first
+                # and its timer clock from the second, and without these the
+                # three targets have undefined symbols. Found by
+                # check_link_closure.py, but only after two defects in that
+                # check were fixed in the same commit: a set() whose value held
+                # ${...} contributed nothing, so two of these three back ends
+                # had never been followed at all, and a quoted include of a
+                # header in another first-party directory did not resolve, so no
+                # c/instr include from a project file had ever been followed.
+                c/instr/adcmath.c
+                c/instr/pwmmath.c
                 ${ACQ}
         INCLUDES projects/P06-timer-sampling/c c/instr
         VENDOR_INCLUDES ${CMSIS_DEVICE_DIR} ${CMSIS_CORE_DIR}

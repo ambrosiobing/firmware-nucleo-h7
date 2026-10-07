@@ -49,21 +49,97 @@ def board_objects(cmake_text):
     return set(C_PATH.findall(m.group(1)))
 
 
-def source_variables(cmake_text):
-    """Every set(NAME value) whose value names a .c file."""
+def foreach_values(cmake_text):
+    """Every foreach(NAME a b c) and the literal words it iterates over.
+
+    Needed because a set() inside a loop names its file through the loop
+    variable, so the path is not a literal and cannot be resolved without
+    knowing what the loop supplies.
+    """
     out = {}
-    for name, value in re.findall(r"set\((\w+)\s+([^)]*)\)", cmake_text):
-        paths = C_PATH.findall(value)
-        if paths:
-            out.setdefault(name, set()).update(paths)
+    for name, items in re.findall(r"foreach\((\w+)\s+([^)]*)\)", cmake_text):
+        words = [w for w in items.split() if re.fullmatch(r"[\w.\-]+", w)]
+        if words:
+            out.setdefault(name, []).extend(words)
     return out
 
 
-def header_to_source(header, including_file):
-    """The .c beside a first-party header, or None."""
+def source_variables(cmake_text, loops):
+    """Every set(NAME value) whose value names a .c file.
+
+    TWO THINGS THIS GOT WRONG UNTIL Wednesday 7 October 2026, and both were
+    silent, which is the only kind worth a comment this long.
+
+    The value pattern was [^)]*, which TERMINATES AT THE FIRST ")". A value of
+    projects/P06-timer-sampling/c/acq_${BACKEND}.c contains one inside ${...},
+    so the capture stopped at "acq_${BACKEND", no .c path was found in it, and
+    that set() contributed nothing at all. The pattern now allows ${NAME}
+    through so the whole value is captured.
+
+    And a captured ${NAME} still is not a filename. Rather than drop it, the
+    loop values are substituted, so acq_${BACKEND}.c with
+    foreach(BACKEND systick timer dma) yields all three. Anything still
+    unresolved is returned as such and reported by the caller rather than
+    skipped, because a source nobody can name is exactly the one that goes
+    unlinked.
+
+    WHAT THE OLD BEHAVIOUR COST. P06 sets ACQ three times, once per back end,
+    and only the one with no ${} in it parsed. So acq_dma_double.c was the only
+    back end this check ever followed, and the includes of acq_timer.c and
+    acq_systick.c were never read. The check reported P06 closed on the strength
+    of one third of it, and said nothing about the other two for the whole of
+    its existence.
+    """
+    out = {}
+    unresolved = {}
+    pattern = re.compile(r"set\((\w+)\s+((?:[^()]|\$\{\w+\})*)\)")
+    for name, value in pattern.findall(cmake_text):
+        for candidate in _expand(value, loops):
+            paths = C_PATH.findall(candidate)
+            if paths:
+                out.setdefault(name, set()).update(paths)
+            elif "${" in candidate and ".c" in candidate:
+                unresolved.setdefault(name, set()).add(candidate.strip())
+    return out, unresolved
+
+
+def _expand(value, loops):
+    """One value with every ${NAME} replaced by each of its loop words."""
+    names = [v for v in VAR.findall(value) if v in loops]
+    if not names:
+        return [value]
+    out = [value]
+    for name in names:
+        nxt = []
+        for text in out:
+            for word in loops[name]:
+                nxt.append(text.replace("${%s}" % name, word))
+        out = nxt
+    return out
+
+
+def header_to_source(header, including_file, include_dirs=()):
+    """The .c beside a first-party header, or None.
+
+    THE SEARCH PATH IS THE COMPILER'S, which it was not until Wednesday
+    7 October 2026. It used to look only beside the including file and at the
+    repository root, so a quoted include of a header in ANOTHER first-party
+    directory resolved to nothing and was silently not followed.
+
+    That is why include_dirs is threaded in from each target's own INCLUDES
+    list. P06's targets pass "projects/P06-timer-sampling/c c/instr", which is
+    how projects/P06-timer-sampling/c/acq_timer.c reaches c/instr/adcmath.h, and
+    before this it did not: every c/instr include from a project file was
+    invisible. The one case that did work, and the one this check was written
+    for, was c/instr/freqcount.c reaching c/instr/lseref.h, because those two
+    sit in the same directory.
+    """
     if not header.endswith(".h"):
         return None
-    for base in (including_file.parent, ROOT):
+    bases = [including_file.parent]
+    bases.extend(ROOT / d for d in include_dirs)
+    bases.append(ROOT)
+    for base in bases:
         candidate = (base / header).resolve()
         if candidate.exists():
             source = candidate.with_suffix(".c")
@@ -76,7 +152,7 @@ def header_to_source(header, including_file):
     return None
 
 
-def reachable(seeds):
+def reachable(seeds, include_dirs=()):
     """Every first-party .c reached transitively through includes."""
     need, seen, queue = set(), set(), list(seeds)
     while queue:
@@ -89,7 +165,7 @@ def reachable(seeds):
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         for header in INCLUDE.findall(text):
-            source = header_to_source(header, path)
+            source = header_to_source(header, path, include_dirs)
             if source:
                 need.add(source)
                 queue.append(source)
@@ -99,11 +175,26 @@ def reachable(seeds):
 def main():
     cmake = CMAKE.read_text(encoding="utf-8")
     board = board_objects(cmake)
-    variables = source_variables(cmake)
+    loops = foreach_values(cmake)
+    variables, unresolved_sets = source_variables(cmake, loops)
 
     targets = re.findall(
         r"add_firmware\((\S+)\s+SOURCES(.*?)(?:INCLUDES|VENDOR_INCLUDES|DEFINES|\))",
         cmake, re.S)
+
+    # Each target's own INCLUDES list, which is the search path its compiler
+    # gets and therefore the search path this check has to use. Parsed by
+    # splitting on the call rather than with one regex over both lists, because
+    # a target name can hold ${...} and the lists are multi-line.
+    include_dirs = {}
+    for chunk in cmake.split("add_firmware(")[1:]:
+        words = chunk.split()
+        if not words:
+            continue
+        found = re.search(r"INCLUDES(.*?)(?:VENDOR_INCLUDES|DEFINES|\)|$)",
+                          chunk, re.S)
+        include_dirs[words[0]] = (
+            [w for w in found.group(1).split() if "/" in w] if found else [])
     if not targets:
         print("  no add_firmware targets found in CMakeLists.txt, which cannot")
         print("  be right and means this check is reading the wrong thing")
@@ -128,7 +219,8 @@ def main():
         # dropping c/clock/clocktree.c from the board library, which
         # c/board/system.c includes, was not caught, because nothing in any
         # target's own list mentions either file.
-        missing = sorted(reachable(listed | board) - listed - board)
+        dirs = include_dirs.get(name, [])
+        missing = sorted(reachable(listed | board, dirs) - listed - board)
         if missing:
             findings.append((name, missing))
 
@@ -136,6 +228,13 @@ def main():
         print("  UNRESOLVED %s uses ${%s}, which this check cannot expand, so"
               % (name, var))
         print("             its source list was checked without it")
+
+    for name, values in sorted(unresolved_sets.items()):
+        for value in sorted(values):
+            print("  UNRESOLVED set(%s ...) names %s, which still holds a"
+                  % (name, value))
+            print("             ${...} this check cannot expand, so that source"
+                  " was never followed")
 
     for name, missing in findings:
         print("  NOT CLOSED %s" % name)
@@ -148,7 +247,7 @@ def main():
           % (len(targets), len(findings), len(unresolved),
              "" if len(unresolved) == 1 else "s"))
     print()
-    if findings or unresolved:
+    if findings or unresolved or unresolved_sets:
         print("  A target that reaches a first-party .c through its includes")
         print("  must link that .c. This repository keeps one .c beside each")
         print("  .h, so the include is the dependency. A target gated behind")
