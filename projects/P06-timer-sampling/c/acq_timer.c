@@ -47,7 +47,7 @@ extern uint32_t board_pclk1_hz(void);
 #define ACQ_ERR_ADC_BOOST         (-8)   /* adcmath_boost refused */
 #define ACQ_ERR_ADC_CALIBRATION   (-9)   /* ADCAL never cleared */
 #define ACQ_ERR_ADC_NOT_READY     (-10)  /* ADRDY never set */
-#define ACQ_ERR_ADC_CHANNEL       (-11)  /* the channel is unsourced, step 6 */
+#define ACQ_ERR_ADC_CHANNEL       (-11)  /* a step 6 to 8 register did not take */
 
 /* THE CLOCK MODE, WHICH IS A DECISION RATHER THAN A READING, and these two lines
  * are the whole of it so that revisiting it is a two line edit.
@@ -86,6 +86,76 @@ extern uint32_t board_pclk1_hz(void);
  * these are both orders of magnitude of headroom rather than tuned numbers. */
 #define ADC_CAL_POLLS_MAX     1000000u
 #define ADC_READY_POLLS_MAX   1000000u
+
+/* THE CHANNEL AND THE PIN, FROM ST FOR THIS EXACT BOARD, settled Wednesday
+ * 7 October 2026 from the installed pack rather than from the datasheet, which
+ * docs/the-board-and-the-wiring.md still records as unread.
+ *
+ * Projects/NUCLEO-H7A3ZI-Q/Examples/ADC/ADC_DualModeInterleaved of
+ * STM32Cube_FW_H7_V1.13.0 states it twice, which is why this is settled rather
+ * than corroborated:
+ *
+ *   readme.txt:83   "ADC_CHANNEL_13 on pin PC.03 (Arduino connector CN9 pin 5,
+ *                   Morpho connector CN11 pin 37)"
+ *   Inc/main.h:58   ADCx_CHANNELa ADC_CHANNEL_13, _GPIO_PORT GPIOC,
+ *                   _PIN GPIO_PIN_3
+ *
+ * One sentence giving the channel, the port pin and both connector positions is
+ * the same completeness that settled PE13 from Examples/TIM/TIM_DMA, from the
+ * same authority. That example drives channel 13 from BOTH converters, so the
+ * channel reaches ADC1, which is the one this file uses.
+ *
+ * AND PC3 COLLIDES WITH NOTHING. Not LD1 on PB0, LD2 on PE1, LD3 on PB14, the
+ * button on PC13, the console on PD8 and PD9, the counting input on PD12, the
+ * signal source on PE13, the marker on PB4, or SWDIO, SWCLK and SWO on PA13,
+ * PA14 and PB3. */
+#define ADC_CHANNEL_NUMBER      13u    /* PC3, CN9 pin 5 */
+
+/* THE SAMPLING TIME IS A CHOICE AND THE EXAMPLES DISAGREE, so it is recorded as
+ * a choice with its arithmetic rather than copied from whichever file was opened
+ * first. Of the five ADC examples for this board, three use 810.5 cycles, one
+ * uses 2.5 and calls it the minimum, and one uses 8.5.
+ *
+ * 810.5 is taken, for two reasons and with its cost named. It is the majority
+ * choice, and a long sampling window is the tolerant one: a short window demands
+ * a low source impedance, and what will eventually be connected to PC3 is not
+ * decided. The cost is time, and the arithmetic that has to hold for this
+ * project's claim is this: at the 16 MHz kernel clock configured above, 810.5
+ * sampling cycles plus a 16-bit conversion is roughly 51 microseconds, which is
+ * about five per cent of a 1000 microsecond period. So 1 kHz is reachable with
+ * room to spare, and that is the number worth checking rather than the setting.
+ *
+ * WHAT IS CONNECTED TO PC3 TODAY IS NOTHING, which is worth saying plainly. The
+ * converted value is therefore meaningless and this project's subject is the
+ * RATE rather than the value. A real source would want the minimum sampling time
+ * its impedance allows, which is a datasheet question this has not read.
+ *
+ * The field value 7 is ST's: LL_ADC_SAMPLINGTIME_810CYCLES_5 is all three bits
+ * of an SMP field, and for channel 13 that field is SMP13 at bit 9 of SMPR2. */
+#define ADC_SMP_810CYCLES_5      7u
+
+/* THE REMAINING FIELD VALUES, each read rather than inferred, Wednesday
+ * 7 October 2026.
+ *
+ * EXTSEL 13 for TIM6 TRGO, which this repository already carried from a line
+ * number and which is now confirmed by decoding ST's own composition:
+ * LL_ADC_REG_TRIG_EXT_TIM6_TRGO is (EXTSEL_3 | EXTSEL_2 | EXTSEL_0), and
+ * 8 + 4 + 1 is 13.
+ *
+ * EXTEN 1 for the rising edge, from LL_ADC_REG_TRIG_EXT_RISING being EXTEN_0
+ * alone. This was the last value on the project's open list.
+ *
+ * RES 0 for 16 bits, from LL_ADC_RESOLUTION_16B being 0x00000000. All five of
+ * this board's ADC examples use 16 bits, which is also this part's native width,
+ * so there is no choice here to record. It is the reset value, and it is written
+ * explicitly anyway so the intent is in the code rather than in the silicon.
+ *
+ * And a sequence of one conversion, so SQR1's length field is 0 and SQ1 holds
+ * the channel. ST's own comment is that L counts conversions minus one. */
+#define ADC_EXTSEL_TIM6_TRGO    13u
+#define ADC_EXTEN_RISING         1u
+#define ADC_RES_16BIT            0u
+#define ADC_SQR1_ONE_CONVERSION  0u
 
 /* THE SEVEN READ-SET BITS, from stm32h7xx_hal_adc.c line 366 of
  * STM32Cube_FW_H7_V1.13.0, where ST names them ADC_CR_BITS_PROPERTY_RS and
@@ -206,30 +276,40 @@ static void report(const char *step, uint32_t wrote, uint32_t read_back, bool ok
            (unsigned long) wrote, (unsigned long) read_back);
 }
 
-/* The converter bring-up, steps 1 to 5 of the eight in the project README.
- *
- * WHAT THIS DOES AND WHERE IT STOPS, stated here because stopping is the result
- * rather than an apology for one.
+/* The converter bring-up, all eight steps of the project README, complete since
+ * Wednesday 7 October 2026. Every step reports what it wrote and what the
+ * register holds, because that pair is what turns a silent misconfiguration into
+ * a readable one.
  *
  *   1  leave deep power-down          stm32h7xx_ll_adc.h:6823
  *   2  the internal regulator on      :6856
  *   3  wait ten microseconds          :1537, tADCVREG_STUP, no flag to poll
  *   4  the kernel clock and boost     stm32h7xx_hal_adc.c:3939 to :4008
- *   5  calibrate, then enable by re-asserting ADEN until ADRDY   :3713 to :3716
+ *   5  calibrate, then enable         :3713 to :3716, and the erratum there does
+ *                                     not bite in this image: see the single
+ *                                     write below
+ *   6  the preselection bit           :2905, through adcmath_pcsel_bit
+ *   7  the trigger and the resolution CFGR, EXTSEL 13 and EXTEN 1
+ *   8  the sampling time and rank     SMPR2 and SQR1
  *
- * STEP 6 REFUSES, AND IT IS A DIFFERENT KIND OF MISSING FROM BEFORE. Until
- * Wednesday 7 October 2026 this stopped at step 4 because the ADC clock mode was
- * a decision nobody had taken. That decision is taken now, written above as two
- * constants with its cost named, so the refusal has moved to the first thing that
- * is genuinely unread rather than merely undecided: which converter input
- * reaches which pin on this package, and what sampling time it needs. Steps 6,
- * 7 and 8 all wait on that one datasheet answer.
+ * THE LAST THING TO COME OFF THE OPEN LIST WAS THE CHANNEL, and it came off
+ * without the datasheet: ST's own ADC example for this exact board names
+ * ADC_CHANNEL_13 on PC3 twice, in its readme and in its board support defines.
+ * That is the same authority and the same completeness that settled PE13 and
+ * PD12, so the four values this file needed are sourced rather than chosen, with
+ * one exception recorded as a choice above, the sampling time.
  *
  * THE ORDER IS ST'S AND IS NOT REARRANGED FOR CONVENIENCE. Boost precedes
  * calibration, because calibrating at one boost setting and running at another
  * calibrates the analogue path for conditions it will not see. The regulator
  * precedes both, and its ten microsecond wait is a delay rather than a poll
- * because there is no ready flag for it. */
+ * because there is no ready flag for it.
+ *
+ * ONE DEPARTURE FROM THE README'S NUMBERING, and it is deliberate: step 8 is
+ * written before step 7. The channel's sampling time and its place in the
+ * sequence are what a conversion needs; the trigger is what starts one.
+ * Configuring the trigger last means no edge can arrive before the thing it
+ * would start is ready. */
 static int adc_bring_up(uint32_t pclk1_hz, uint32_t divisor)
 {
     /* The peripheral's bus clock first, for the reason freqcount_init gives:
@@ -451,11 +531,96 @@ static int adc_bring_up(uint32_t pclk1_hz, uint32_t divisor)
      * Guessing a channel would configure the converter to sample something, and
      * a plausible reading from the wrong input is the exact failure this project
      * exists to make impossible. */
-    printf("  adc %-22s REFUSED  the channel is unsourced\r\n", "preselection");
-    printf("      which input reaches which pin on this package, and its\r\n");
-    printf("      sampling time, are datasheet questions. EXTSEL is 13 for\r\n");
-    printf("      TIM6 TRGO and in hand; the EXTEN edge value is not.\r\n");
-    return ACQ_ERR_ADC_CHANNEL;
+    /* THE PIN FIRST, because every register below is correct and nothing reaches
+     * the converter without it. PC3 to analog mode, which is MODER 11, and the
+     * port's clock before that for the reason freqcount_init gives: the write
+     * goes nowhere without it and goes nowhere silently. */
+    RCC->AHB4ENR |= RCC_AHB4ENR_GPIOCEN;
+    (void) RCC->AHB4ENR;
+
+    const uint32_t moder_pos = 3u * 2u;        /* PC3, two bits per pin */
+    GPIOC->MODER |= (3u << moder_pos);         /* 11, analog */
+    const bool pin_analog =
+        ((GPIOC->MODER >> moder_pos) & 3u) == 3u;
+    report("PC3 to analog", 3u, GPIOC->MODER, pin_analog);
+    if (!pin_analog) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
+    /* Step 6, the preselection bit, from stm32h7xx_hal_adc.c line 2905.
+     *
+     * The bit is 1 << channel and adcmath_pcsel_bit computes it, refusing above
+     * channel 19. That refusal is not redundant: ST's own expression masks the
+     * channel with 0x1F, so a request for 36 would preselect channel 4 with
+     * nothing in any register to show it. */
+    uint32_t pcsel = 0u;
+    if (!adcmath_pcsel_bit(ADC_CHANNEL_NUMBER, &pcsel)) {
+        report("preselection", ADC_CHANNEL_NUMBER, 0u, false);
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+    ADC1->PCSEL |= pcsel;
+    const bool pcsel_ok = (ADC1->PCSEL & pcsel) != 0u;
+    report("preselection", pcsel, ADC1->PCSEL, pcsel_ok);
+    if (!pcsel_ok) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
+    /* Step 8 before step 7, deliberately: the channel's sampling time and its
+     * place in the sequence are what a conversion needs, and the trigger is what
+     * starts one. Configuring the trigger last means no edge can arrive before
+     * the thing it would start is ready.
+     *
+     * SMP13 sits at bit 9 of SMPR2, which is the register for channels 10 to 19.
+     * SQR1 holds the length in its low bits and the first rank at bit 6. */
+    ADC1->SMPR2 = (ADC1->SMPR2 & ~(7u << ADC_SMPR2_SMP13_Pos))
+                | (ADC_SMP_810CYCLES_5 << ADC_SMPR2_SMP13_Pos);
+    const bool smp_ok =
+        ((ADC1->SMPR2 >> ADC_SMPR2_SMP13_Pos) & 7u) == ADC_SMP_810CYCLES_5;
+    report("sampling time", ADC_SMP_810CYCLES_5, ADC1->SMPR2, smp_ok);
+    if (!smp_ok) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
+    ADC1->SQR1 = (ADC_SQR1_ONE_CONVERSION << ADC_SQR1_L_Pos)
+               | (ADC_CHANNEL_NUMBER << ADC_SQR1_SQ1_Pos);
+    const bool sqr_ok =
+        ((ADC1->SQR1 >> ADC_SQR1_SQ1_Pos) & 0x1Fu) == ADC_CHANNEL_NUMBER
+        && ((ADC1->SQR1 >> ADC_SQR1_L_Pos) & 0xFu) == ADC_SQR1_ONE_CONVERSION;
+    report("sequence of one", ADC_CHANNEL_NUMBER, ADC1->SQR1, sqr_ok);
+    if (!sqr_ok) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
+    /* Step 7, the trigger: resolution, which TRGO starts a conversion, and the
+     * edge. All three live in CFGR.
+     *
+     * THESE BITS ARE WRITE PROTECTED WHILE A CONVERSION IS RUNNING and not
+     * merely while the converter is enabled, and nothing here has started one,
+     * so ADSTART is clear. That condition is the reason this works after the
+     * enable rather than before it, and the read-back below is what would show
+     * it if the reading were wrong: a protected register reports the old value
+     * rather than refusing, which is exactly the failure this file's step
+     * reports exist to make visible. */
+    ADC1->CFGR = (ADC1->CFGR & ~(ADC_CFGR_RES | ADC_CFGR_EXTSEL
+                                 | ADC_CFGR_EXTEN))
+               | (ADC_RES_16BIT << ADC_CFGR_RES_Pos)
+               | (ADC_EXTSEL_TIM6_TRGO << ADC_CFGR_EXTSEL_Pos)
+               | (ADC_EXTEN_RISING << ADC_CFGR_EXTEN_Pos);
+
+    const uint32_t cfgr = ADC1->CFGR;
+    const bool trig_ok =
+        ((cfgr >> ADC_CFGR_EXTSEL_Pos) & 0x1Fu) == ADC_EXTSEL_TIM6_TRGO
+        && ((cfgr >> ADC_CFGR_EXTEN_Pos) & 3u) == ADC_EXTEN_RISING
+        && ((cfgr >> ADC_CFGR_RES_Pos) & 7u) == ADC_RES_16BIT;
+    report("trigger and 16 bits", ADC_EXTSEL_TIM6_TRGO, cfgr, trig_ok);
+    if (!trig_ok) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
+    printf("      channel %u on PC3 at CN9 pin 5, 810.5 cycles, 16 bits,\r\n",
+           (unsigned) ADC_CHANNEL_NUMBER);
+    printf("      started by TIM6 TRGO on the rising edge\r\n");
+    return 0;
 }
 
 int acq_start(void)
@@ -540,18 +705,56 @@ int acq_start(void)
         return adc_rc;
     }
 
-    /* STILL TO BE SOURCED, and these three are what stand between the lines
-     * above and a sample. EXTSEL is 13 for TIM6 TRGO, from stm32h7xx_ll_adc.h
-     * line 993, so that one value IS in hand; what is not is the rising-edge
-     * value for the EXTEN field beside it, which channel this project samples
-     * and its sampling time, and the resolution. The first is one more line of
-     * the same LL header. The other three want the datasheet, which
-     * docs/the-board-and-the-wiring.md records as unread. */
+    /* TWO THINGS THAT WERE MISSING FROM THIS FILE SINCE IT WAS WRITTEN, and that
+     * only became reachable once the bring-up above stopped refusing. Both are
+     * the quiet kind: the configuration would have read back perfectly and no
+     * sample would ever have arrived.
+     *
+     * THE PERIPHERAL'S OWN INTERRUPT ENABLE WAS NEVER SET. NVIC_EnableIRQ below
+     * tells the interrupt controller to accept the line; it does not tell the
+     * converter to raise it. Without EOCIE in ADC1->IER the end of conversion
+     * sets the flag in ISR and nothing else happens, so ADC_IRQHandler never
+     * runs, acq_take never has a block, and main reports zero blocks forever
+     * with every register correct.
+     *
+     * AND ADSTART WAS NEVER SET. With EXTEN configured the converter waits for
+     * the trigger, but it only waits once it has been started: ADSTART is what
+     * arms it. A TIM6 trigger arriving at an unarmed converter does nothing.
+     *
+     * The stale flags are cleared first, because ISR is not reset by
+     * configuration and a left-over EOC would make the first interrupt report a
+     * sample that predates this call. Both flags are cleared by writing one. */
+    ADC1->ISR = ADC_ISR_EOC | ADC_ISR_OVR;
+    ADC1->IER |= ADC_IER_EOCIE;
+    const bool eocie = (ADC1->IER & ADC_IER_EOCIE) != 0u;
+    report("end of conversion irq", ADC_IER_EOCIE, ADC1->IER, eocie);
+    if (!eocie) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
+    /* OVRIE is deliberately NOT enabled, and the distinction is worth one line
+     * because the two overruns are different things. The converter's OVR means a
+     * data register was overwritten before it was read. acq_overruns() counts
+     * something else: blocks the APPLICATION never collected. This build reports
+     * the second and does not read the first, so a run with converter overruns
+     * would look clean. That is a gap, it is named here, and closing it means
+     * handling OVR in the interrupt rather than enabling a line nothing reads. */
 
     NVIC_SetPriority(ADC_IRQn, 5u);
     NVIC_EnableIRQ(ADC_IRQn);
 
+    /* Arm the converter BEFORE the trigger source starts, so the first update
+     * event is not emitted into an unarmed converter and lost. ADSTART is
+     * read-set, so it is written with the same mask discipline as the rest. */
+    ADC1->CR = (ADC1->CR & ~ADC_CR_READ_SET_BITS) | ADC_CR_ADSTART;
+    const bool armed = (ADC1->CR & ADC_CR_ADSTART) != 0u;
+    report("armed for the trigger", ADC_CR_ADSTART, ADC1->CR, armed);
+    if (!armed) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
     TIM6->CR1 |= TIM_CR1_CEN;
+    printf("  tim6 started, so conversions begin on its update event\r\n");
     return 0;
 }
 
