@@ -1461,4 +1461,45 @@
  * assumed, because assuming it is how a gate ends up wrong by a factor while
  * every other number looks right. */
 
+/* ------------------------------------------------- interrupt table positions
+ *
+ * WHY THESE ARE HERE AT ALL, which is a finding rather than a tidy-up. On
+ * Wednesday 7 October 2026 P06's converter bring-up completed: all eight steps
+ * reported ok, every register read back what was written, the converter was
+ * calibrated, enabled, armed and triggered at 1 kHz, and acq_start returned 0.
+ * NO SAMPLE EVER ARRIVED. The console stopped mid-word at the instant TIM6 was
+ * enabled and the board printed nothing further.
+ *
+ * The cause was that c/board/startup.c's vector table ended at SysTick_Handler
+ * and contained NO device interrupt entries. ADC_IRQHandler existed, was
+ * declared weak, compiled and linked, and was never placed in the table, so the
+ * first end-of-conversion fetched a vector from past the end of the array and
+ * branched into whatever the linker had put after .isr_vector. That table's own
+ * comment had predicted exactly this outcome and nobody had cashed it in.
+ *
+ * SO THE LESSON IS THREE THINGS IN A ROW, and only the third is visible from the
+ * console: the peripheral's own interrupt enable in its IER, the interrupt
+ * controller's enable through NVIC, and A VECTOR FOR THE HANDLER TO REACH. Two
+ * of the three read back; the third has nothing to read back from.
+ *
+ * THE POSITIONS COME FROM ST'S OWN IRQn_Type FOR THIS EXACT PART, read Wednesday
+ * 7 October 2026 from stm32h7a3xxq.h in STM32Cube_FW_H7_V1.13.0, which is the
+ * same authority that settled the console pins, the counting input, the signal
+ * source and the converter's channel. RM0455 would say the same and is still
+ * unread; it is not needed for this.
+ *
+ *   ADC_IRQn        18    "ADC1 and ADC2 global Interrupts"
+ *   USART3_IRQn     39    "USART3 global Interrupt"
+ *   TIM6_DAC_IRQn   54    "TIM6 global and DAC1&2 underrun error interrupts"
+ *
+ * The table index is 16 plus the number, because the first sixteen entries are
+ * the architectural ones ending at SysTick. TIM6's is recorded because it was
+ * read in the same pass and is cheap to keep; nothing declares a handler for it,
+ * since P06 reaches the converter through TRGO rather than through an
+ * interrupt. */
+#define IRQ_ADC                 18u
+#define IRQ_USART3              39u
+#define IRQ_TIM6_DAC            54u
+#define IRQ_VECTOR_INDEX(n)     (16u + (n))
+
 #endif /* STM32H7A3_REGS_H */

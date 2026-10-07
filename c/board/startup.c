@@ -95,10 +95,47 @@ void (* const g_vectors[])(void) = {
     0,                           /* reserved */
     PendSV_Handler,
     SysTick_Handler,
-    /* Device interrupts begin here. Positions are TO BE CONFIRMED against
-     * RM0455's interrupt and exception vector table before any of these is
-     * relied upon. Leaving them out entirely would be worse: an interrupt that
-     * fires with no entry runs into whatever the linker put next. */
+
+    /* DEVICE INTERRUPTS, AND THE COMMENT THAT USED TO SIT HERE WAS RIGHT.
+     *
+     * It said positions were to be confirmed and that leaving them out would be
+     * worse, because "an interrupt that fires with no entry runs into whatever
+     * the linker put next". On Wednesday 7 October 2026 that is precisely what
+     * happened, and it is worth recording as the outcome of a prediction rather
+     * than as a bug.
+     *
+     * P06's converter bring-up completed that evening: all eight steps reported
+     * ok, every register read back what was written, the converter was
+     * calibrated, enabled, armed and triggered at 1 kHz, and acq_start returned
+     * 0. NO SAMPLE EVER ARRIVED. The console stopped mid-word at the instant
+     * TIM6 was enabled. ADC_IRQHandler existed and was declared weak below, so
+     * it compiled and linked; it was simply not in this table, so the first
+     * end-of-conversion read a vector from past the end of this array and
+     * branched into .text.
+     *
+     * THREE THINGS HAVE TO BE TRUE FOR A HANDLER TO RUN, and only two of them
+     * read back: the peripheral's own enable in its IER, the interrupt
+     * controller's enable through NVIC, and a vector here. The third has nothing
+     * to read back from, which is why it was the one that went missing.
+     *
+     * POSITIONS ARE NOW SOURCED, from ST's IRQn_Type for this exact part in
+     * stm32h7a3xxq.h, recorded with their citations in stm32h7a3_regs.h. These
+     * are designated by index so that ONLY the positions this repository has
+     * actually read are filled, which keeps the original discipline: an
+     * unconfirmed position still cannot silently misroute, because it is not
+     * written here at all.
+     *
+     * WHAT AN UNFILLED SLOT DOES NOW, stated because it changed. Unlisted
+     * entries are implicitly 0, and a zero vector makes the core branch to an
+     * address with its Thumb bit clear, which faults immediately. That is worse
+     * than Default_Handler and far better than the previous behaviour of reading
+     * past the array: a fault is identifiable at once, where a branch into .text
+     * is not. Filling every slot with Default_Handler needs either a non-ISO
+     * range designator or one line per interrupt, and the proper answer is the
+     * generated table the improvement plan describes, with one test per row.
+     * This change deliberately does the small sourced thing instead. */
+    [IRQ_VECTOR_INDEX(IRQ_ADC)]    = ADC_IRQHandler,
+    [IRQ_VECTOR_INDEX(IRQ_USART3)] = USART3_IRQHandler,
 };
 
 /* A fault that reaches here has no handler, and spinning is the right answer:
