@@ -67,6 +67,63 @@ been used in this repository. Chapters referred to `probe-rs run` until Saturday
 October 2026; that was written from convention, never run here, and has been
 replaced by the copy above.
 
+### The programmer, which reports what it did, and the one option it needs
+
+The copy above is silent by design, and that matters more than it sounds. The
+drive's idle state is `DETAILS.TXT` and `MBED.HTM` alone, so a vanished `.bin`
+with no `FAIL.TXT` is the normal picture after a successful program **and also
+after nothing happened**. That state cannot tell a programmed part from a silent
+one.
+
+STM32CubeIDE bundles `STM32_Programmer_CLI.exe`, which reports every stage. On
+the win11 skyhorizon demo laptop it is at
+
+    C:\ST\STM32CubeIDE_2.2.0\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.win32_2.2.500.202603051304\tools\bin\STM32_Programmer_CLI.exe
+
+**It needs `mode=UR` on this board and the default fails.** Established
+Wednesday 7 October 2026. Without it, with the probe otherwise healthy, it
+reports:
+
+    Error: Unable to read device id from ROM table
+    Error: ST-LINK error (DEV_TARGET_RESET_ERR)
+
+twice, including its own automatic retry at 8 MHz. That reads like a dead target
+and is not one. The default connect mode attaches to a **running** target;
+`mode=UR` holds the reset line low while attaching instead. So the recipe is
+
+    -c port=SWD mode=UR -w build-fw\<target>.bin 0x08000000 -v
+
+**What the failure does and does not tell you**, because the distinction saved a
+power cycle. In that state the probe still reports its serial number, its
+firmware version, the board name and a measured supply voltage, so USB, the
+probe and board power are all known good and the fault is only the debug port
+attach. The voltage is the probe measuring the board's rail; it is **not**
+evidence that the core is executing.
+
+**Add `-rst` only when nothing needs to read the console.** An image that prints
+once and stops is over in well under a second, so a reset at programming time
+sends the whole report before a console can be opened. Leave `-rst` off, then
+open the console, then press the black RESET button.
+
+### What the attach reports, which is four facts from the part itself
+
+Read Wednesday 7 October 2026 and worth having, because each was previously
+known only from a machine-readable source rather than from this silicon:
+
+    Device ID    0x480
+    Revision ID  Rev X
+    Device name  STM32H7A/B
+    NVM size     2 MBytes
+    Device CPU   Cortex-M7
+    BL Version   0x92
+
+The NVM size confirms the 2048 kB in `c/ld/stm32h7a3zi.ld` from the hardware
+rather than from a device tree. The revision is worth one note so it is not
+mistaken for a new question: ST's converter code has a
+`HAL_GetREVID() <= REV_ID_Y` branch, and it sits in the `#else` that this part
+never compiles, so **there is no revision fork for the H7A3** and reading Rev X
+confirms that rather than complicating it.
+
 ## Why each stage is guarded in a hand-over
 
 PowerShell's `;` does not stop on failure. A sequence that configures, builds and

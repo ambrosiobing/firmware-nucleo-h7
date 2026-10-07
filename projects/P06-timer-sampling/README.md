@@ -1,6 +1,6 @@
 # Sampling on a timer at exactly 1 kHz
 
-Status: c=links cpp=host python=host rust=host
+Status: c=board cpp=host python=host rust=host
 
 Chapter 6 of the NUCLEO-H7A3ZI-Q firmware volume. Three ways to sample at
 1 kHz, one application, and an external witness that decides which of them
@@ -257,6 +257,79 @@ without an external witness.
 
 Every place a value is needed carries a `TO BE CONFIRMED` comment naming what to
 read. A board that refuses to run is better than one that runs and lies.
+
+## The first three steps, on the board, Wednesday 7 October 2026
+
+`p06-sampling-timer` was built, flashed and run on the NUCLEO-H7A3ZI-Q on the
+win11 skyhorizon demo laptop. **The first time anything in this project has
+reached the converter.** FLASH went from 9476 to 11468 bytes. Five captures over
+COM13 at 115200, one of them from a single clean RESET press, all byte identical:
+
+    nucleo-h7a3-sampling
+      acquisition   timer
+      nominal rate  1000 Hz
+      instrument    core cycle counter
+      tick rate     64000000 Hz
+      tim6 clock            64000000 Hz  (pclk1 64000000, /1, timpre 0)
+      adc leave deep power-down  ok       wrote 00000000  read back 00000000
+      adc regulator enable       ok       wrote 10000000  read back 10000000
+      adc regulator start-up     ok       wrote 0000000A  read back 10000000
+      adc boost mode             REFUSED  the clock mode is unchosen
+    acq_start failed: -7
+
+**Every line was predicted before the flash**, including the refusal and its
+code, which is the practice this volume adopted on Tuesday 6 October 2026: state
+the threshold first so the answer cannot be interpreted to fit.
+
+### What it settled
+
+| Settled | On what evidence |
+|---|---|
+| The timer clock is **64000000 Hz** on the reset clock, with `CDPPRE1` dividing by one and `TIMPRE` clear | `pwmmath_timer_hz` answering from the decoded bus clock. This block returned `-2` unconditionally until Wednesday 7 October 2026 |
+| `ADVREGEN` is **bit 28**, `0x10000000` | Written and read back identically |
+| **`RCC_AHB1ENR_ADC12EN` is the correct bus clock enable** | The same argument that confirmed `RCC_APB2ENR` at 0x150: a wrong enable means no ADC register write sticks, and two of them stuck |
+| The regulator **holds across the ten microsecond wait** | `CR` still reads `0x10000000` after it |
+| The ten microsecond wait is **measurable on the cycle counter** at 64 MHz | 640 ticks, and the step reports ok rather than refusing for want of a rate |
+
+### The notable non-event
+
+**The ADC regulator accepted a direct write from reset.** It was worth watching
+for the opposite, because the voltage scaling on Sunday 4 October 2026 did the
+reverse: scale 0 is reachable only from scale 1, and the regulator declined a
+direct write **in silence**, with no error and simply no ready flag. The
+analogous trap was looked for here and did not occur. An absence that was
+specifically tested for is worth recording, because the next reader would
+otherwise have to look for it again.
+
+### One defect in the report itself, which the capture exposed
+
+`leave deep power-down` printed `wrote 00000000 read back 00000000`, and that
+is consistent with **two different stories**: `DEEPPWD` set at reset and cleared
+correctly, or `DEEPPWD` already clear and the write changing nothing. The step
+does not print the as-found value first, so **this run cannot claim that deep
+power-down was exited**, only that the bit reads clear afterwards.
+
+That is the same lesson `c/board/clock280.c` already learned, which prints every
+register before touching any of them and had its dump relabelled "as found"
+after a RESET press turned out not to produce reset values. The fix is one extra
+field in `report` and it belongs in the next change to this file rather than in a
+flash cycle of its own.
+
+### What stands between this and a sample
+
+Three things, and the first is a decision rather than a reading.
+
+1. **The ADC clock mode**, synchronous or asynchronous. ST does not choose it
+   either; `ADC_ConfigureBoostMode` branches on it. Synchronous takes `rcc_hclk1`
+   over `CKMODE`, asynchronous takes a dedicated kernel clock. This decides which
+   frequency feeds the boost rule, and `adcmath_boost` and `adcmath_clock_hz` are
+   written and host tested against twenty three cases, waiting on the input.
+2. **The channel and its sampling time**, and the **resolution**. Datasheet
+   questions, and `docs/the-board-and-the-wiring.md` records that datasheet as
+   unread.
+3. **The rising-edge value in `EXTEN`.** `EXTSEL` is 13 for TIM6 TRGO from
+   `stm32h7xx_ll_adc.h` line 993, so that half is in hand; the edge is one more
+   line of the same header.
 
 ## Vendor code
 

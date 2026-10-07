@@ -154,7 +154,7 @@ the flashing route that tells you what it did.
 | Route | How | What it tells you |
 |---|---|---|
 | **Mass storage** | The probe presents a removable disk. Copy a `.bin` onto it | Nothing. It is silent by design |
-| **Programmer CLI** | `-c port=SWD -w <file.bin> 0x08000000 -v -rst` | Program, verify and reset, with a report |
+| **Programmer CLI** | `-c port=SWD mode=UR -w <file.bin> 0x08000000 -v` | Program and verify, with a report. **`mode=UR` is not optional here**, see below |
 | **Console** | The probe's virtual serial port | Whatever your firmware prints |
 
 The drag-and-drop route needs no tool installed at all, which is genuinely
@@ -167,6 +167,51 @@ a programmed part from a silent one.
 So: reach for the programmer CLI the moment a copy to the disk produces no
 console output. Do not stare at the disk contents looking for a clue, because
 there is not one there to find.
+
+### `mode=UR`, and the failure that looks like a dead board
+
+Settled on the bench Wednesday 7 October 2026, and this is the single most
+time-saving line in Part 1. The programmer's **default connect mode attaches to a
+running target**, and on this board that fails:
+
+    Error: Unable to read device id from ROM table
+    Error: ST-LINK error (DEV_TARGET_RESET_ERR)
+
+reported twice, including its own automatic retry at 8 MHz. `mode=UR` holds the
+reset line low while attaching and then it works first time.
+
+**Read that failure carefully before you suspect the board**, because it is
+unusually informative about what is *not* wrong. In that same output the
+programmer still reports the probe's serial number, its firmware version, the
+board name as NUCLEO-H7A3ZI-Q, and a measured **3.28 V**. So USB, the probe and
+board power are all known good, and the only thing failing is the debug port
+attach. One caution on that voltage: it is the probe measuring the board's
+supply rail, and it is **not** evidence that the core is executing.
+
+**Leave `-rst` off whenever something needs to read the console.** An image that
+prints once and stops is over in well under a second, so a reset at programming
+time sends the whole report before a console can be opened. Program, then open
+the console, then press the black RESET button.
+
+### Four facts the attach reports, from this silicon
+
+Each of these was previously known here only from a machine-readable source
+rather than from the part in hand. Read Wednesday 7 October 2026:
+
+    Device ID    0x480
+    Revision ID  Rev X
+    Device name  STM32H7A/B
+    NVM size     2 MBytes
+    Device CPU   Cortex-M7
+    BL Version   0x92
+
+**The NVM size confirms the 2048 kB of flash in section 2.2 from the hardware**,
+which until now rested on two device trees agreeing.
+
+And one note so the revision is not mistaken for a new open question. ST's
+converter code has a `HAL_GetREVID() <= REV_ID_Y` branch, and it sits in the
+`#else` that this part never compiles, so **there is no revision fork for the
+H7A3.** Reading Rev X confirms that rather than complicating it.
 
 On this bench the disk is `D:`, labelled `NOD_H7A3ZIQ`. That label is worth a
 pedantic footnote, because it looks like a typo and is not: **a FAT volume label
