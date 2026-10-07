@@ -14,7 +14,7 @@ code for the same subject.
 [![firmware](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml/badge.svg)](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml)
 
 **What those three check, and what a green badge does not mean.** `book` is the
-prose, the figures and the links. `code` is the host suite, 87 checks on a runner
+prose, the figures and the links. `code` is the host suite, 349 checks on a runner
 with no board. `firmware` cross-compiles for the target. None of the three can see
 the board, so none of them can turn red when a measurement is wrong. Which
 projects have actually run on hardware, which only link, and which are host only
@@ -195,12 +195,24 @@ Chapter NN is the written design for project PNN.
 | `build-host/` | code build output, ignored, deliberately not `build/` so the two cannot delete each other's work |
 
 Eight of the twenty have code: P01, P02, P03, P05, P06, P08, P09 and P12. Those
-eight are every project whose work can be done without the board, and 87 checks
-pass on a laptop with no board, no probe and no Raspberry Pi. The other twelve
-carry a README naming what they are, what they need on the bench, and that they
-have not started. The whole suite runs on a laptop with no
-board, no probe and no Raspberry Pi, which is why it is the half that could be
-finished first.
+eight are every project whose host half can be written without the board, which
+is why they were finished first. Four of them have since run on the hardware:
+P01, P02, P09 and, since Wednesday 7 October 2026, P06's timer back end. The
+other twelve carry a README naming what they are, what they need on the bench,
+and that they have not started.
+
+**The suite is 349 checks, and on the authoring laptop 203 pass and 146 skip.**
+Both numbers belong here rather than only the flattering one. Every skip needs a
+compiler, which win11 aquamarine is forbidden to run, and each one names the
+command and the laptop that would settle it. So a green run there proves the
+Python and the hand-written tables agree and nothing about the C, the C++ or the
+Rust; the compiled half runs in WSL on the win11 skyhorizon demo laptop and in
+CI. A reader who sees only the first number learns less than one who sees both.
+
+These figures read 87 checks and "the whole suite runs on a laptop with no board"
+until Wednesday 7 October 2026. The count was three days stale, and the second
+half was never quite true: the suite has always had a compiled half that the
+authoring laptop skips.
 
 Chapter files use a `c` prefix so that a cross-reference or a copied figure can
 never silently resolve against a sibling volume's files. The book's identity

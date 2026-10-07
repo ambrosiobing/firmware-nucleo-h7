@@ -113,10 +113,11 @@ implementation.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eight of the twenty have code.** 123 checks, of which 107 pass on a laptop with
-no board, no probe and no Raspberry Pi; the other sixteen need a compiler and
-skip there, naming the WSL command. The remaining twelve projects need hardware, and
-nothing in them is written yet rather than written and untested.
+**Eight of the twenty have code.** 349 checks, of which 203 pass on a laptop with
+no board, no probe and no Raspberry Pi; the other 146 need a compiler and skip
+there, each naming the WSL command and the laptop. The remaining twelve projects
+need hardware, and nothing in them is written yet rather than written and
+untested.
 
 **Four states, and the difference between them matters.** Until Friday 2 October
 2026 this page had two, because nothing had ever been cross-compiled and the
@@ -212,10 +213,17 @@ to visit four trees to find it.
 
 ## Three rules this repository obeys
 
-**Nothing here needs hardware.** The whole suite runs on a laptop with no board,
-no probe and no Raspberry Pi, and the CI runner is therefore a fair test of it
-rather than a reduced one. If something needs a device it sits behind a command
-the suite does not call, and its project README says so.
+**Nothing here needs hardware.** No check in this suite talks to a board, a probe
+or a Raspberry Pi, so the CI runner is a fair test of it rather than a reduced
+one. If something needs a device it sits behind a command the suite does not
+call, and its project README says so.
+
+That is narrower than what this paragraph claimed until Wednesday 7 October
+2026, which was that the whole suite runs on a laptop with no board. **It does
+not, and it never did.** 146 of the 349 checks need a compiler, and the authoring
+laptop is forbidden to run one, so they skip there and run in WSL and in CI.
+Needing no hardware and running everywhere are two different claims, and only
+the first one is true.
 
 **A refusal beats a guess.** Where a value is not confirmed against RM0455, the
 code returns an error rather than running with a plausible setting. P06's three
