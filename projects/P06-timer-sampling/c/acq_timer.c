@@ -43,7 +43,49 @@ extern uint32_t board_pclk1_hz(void);
 #define ACQ_ERR_NO_CYCLE_COUNTER  (-4)
 #define ACQ_ERR_ADC_DEEPPWD       (-5)
 #define ACQ_ERR_ADC_VREG          (-6)
-#define ACQ_ERR_ADC_CLOCK_MODE    (-7)
+#define ACQ_ERR_ADC_CLOCK         (-7)   /* adcmath_clock_hz refused */
+#define ACQ_ERR_ADC_BOOST         (-8)   /* adcmath_boost refused */
+#define ACQ_ERR_ADC_CALIBRATION   (-9)   /* ADCAL never cleared */
+#define ACQ_ERR_ADC_NOT_READY     (-10)  /* ADRDY never set */
+#define ACQ_ERR_ADC_CHANNEL       (-11)  /* the channel is unsourced, step 6 */
+
+/* THE CLOCK MODE, WHICH IS A DECISION RATHER THAN A READING, and these two lines
+ * are the whole of it so that revisiting it is a two line edit.
+ *
+ * ST does not choose between synchronous and asynchronous either;
+ * ADC_ConfigureBoostMode branches on it at stm32h7xx_hal_adc.c line 3942, taking
+ * rcc_hclk1 divided by CKMODE in one case and a dedicated kernel clock reached
+ * through RCC_PERIPHCLK_ADC in the other. So this is ours to pick and to justify.
+ *
+ * SYNCHRONOUS, DIVIDING BY FOUR, for three reasons and with its cost named.
+ * It adds no register this volume has not sourced: the asynchronous route needs
+ * a dedicated kernel clock configured and sourced first, which is a second
+ * unread question stacked on this one. Divide by four is the SLOWEST ratio
+ * CKMODE can express, which is the most conservative choice available while this
+ * part's maximum ADC kernel clock is still a datasheet question, and that
+ * datasheet is recorded as unread in docs/the-board-and-the-wiring.md. And the
+ * resulting clock is one adcmath accepts rather than refuses.
+ *
+ * The cost is conversion rate. At the 64 MHz reset clock this gives a 16 MHz
+ * kernel clock where synchronous divide by one would give 64 MHz, so a
+ * conversion takes four times as long as it need. For 1 kHz sampling that is
+ * irrelevant by three decades, and when it stops being irrelevant the fix is to
+ * read the datasheet rather than to raise this number hopefully.
+ *
+ * THE FIELD VALUE IS 3 AND IT WAS READ, not inferred from the bit count. ST's
+ * stm32h7xx_ll_adc.h defines LL_ADC_CLOCK_SYNC_PCLK_DIV4 as
+ * (ADC_CCR_CKMODE_1 | ADC_CCR_CKMODE_0), both bits of a two bit field at bit 16,
+ * and LL_ADC_CLOCK_ASYNC_DIV1 as 0. Read Wednesday 7 October 2026. The
+ * expectation was written down before the header was opened and the header
+ * agreed, which is the only reason it is written as a literal here. */
+#define ADC_CKMODE_SYNC_DIV4      3u    /* the ADC_CCR_CKMODE field value */
+#define ADC_CKMODE_DIVISOR        4u    /* what that value divides HCLK by */
+
+/* Bounded, because nothing in this file waits forever. Calibration on this part
+ * is tens of ADC clock cycles and the ready flag follows within a few more, so
+ * these are both orders of magnitude of headroom rather than tuned numbers. */
+#define ADC_CAL_POLLS_MAX     1000000u
+#define ADC_READY_POLLS_MAX   1000000u
 
 /* THE SEVEN READ-SET BITS, from stm32h7xx_hal_adc.c line 366 of
  * STM32Cube_FW_H7_V1.13.0, where ST names them ADC_CR_BITS_PROPERTY_RS and
@@ -164,29 +206,58 @@ static void report(const char *step, uint32_t wrote, uint32_t read_back, bool ok
            (unsigned long) wrote, (unsigned long) read_back);
 }
 
-/* The converter bring-up, steps 1 to 3 of the eight in the project README.
+/* The converter bring-up, steps 1 to 5 of the eight in the project README.
  *
- * WHAT THIS DOES AND WHERE IT STOPS, stated here because stopping is the result.
- * Steps 1, 2 and 3 need no frequency at all, so they are implementable today and
- * they carry the two traps worth having: the read-set bits, and a start-up time
- * with no ready flag to poll. Step 4 is boost mode, whose input is the ADC
- * kernel clock, and that clock depends on a choice between synchronous and
- * asynchronous mode that this project has not made and justified yet. ST does
- * not make it either: ADC_ConfigureBoostMode branches on it at
- * stm32h7xx_hal_adc.c line 3942, taking rcc_hclk1 divided by CKMODE in one case
- * and a dedicated kernel clock in the other.
+ * WHAT THIS DOES AND WHERE IT STOPS, stated here because stopping is the result
+ * rather than an apology for one.
  *
- * So this refuses at step 4 by name rather than picking a divisor. Calibration
- * and the enable erratum loop sit at step 5, AFTER boost in ST's order, and
- * reordering them to get a result sooner would calibrate the analogue path for a
- * boost setting it is not going to run at. */
-static int adc_bring_up(void)
+ *   1  leave deep power-down          stm32h7xx_ll_adc.h:6823
+ *   2  the internal regulator on      :6856
+ *   3  wait ten microseconds          :1537, tADCVREG_STUP, no flag to poll
+ *   4  the kernel clock and boost     stm32h7xx_hal_adc.c:3939 to :4008
+ *   5  calibrate, then enable by re-asserting ADEN until ADRDY   :3713 to :3716
+ *
+ * STEP 6 REFUSES, AND IT IS A DIFFERENT KIND OF MISSING FROM BEFORE. Until
+ * Wednesday 7 October 2026 this stopped at step 4 because the ADC clock mode was
+ * a decision nobody had taken. That decision is taken now, written above as two
+ * constants with its cost named, so the refusal has moved to the first thing that
+ * is genuinely unread rather than merely undecided: which converter input
+ * reaches which pin on this package, and what sampling time it needs. Steps 6,
+ * 7 and 8 all wait on that one datasheet answer.
+ *
+ * THE ORDER IS ST'S AND IS NOT REARRANGED FOR CONVENIENCE. Boost precedes
+ * calibration, because calibrating at one boost setting and running at another
+ * calibrates the analogue path for conditions it will not see. The regulator
+ * precedes both, and its ten microsecond wait is a delay rather than a poll
+ * because there is no ready flag for it. */
+static int adc_bring_up(uint32_t pclk1_hz, uint32_t divisor)
 {
     /* The peripheral's bus clock first, for the reason freqcount_init gives:
      * every register write below goes nowhere without it, and goes nowhere
      * silently. Read back, because the write is posted. */
     RCC->AHB1ENR |= RCC_AHB1ENR_ADC12EN;
     (void) RCC->AHB1ENR;
+
+    /* AS FOUND, BEFORE ANYTHING BELOW TOUCHES IT, which is the one thing the
+     * first run of this file could not say.
+     *
+     * On Wednesday 7 October 2026 step 1 printed "wrote 00000000 read back
+     * 00000000", and that is equally consistent with DEEPPWD having been set at
+     * reset and cleared correctly and with DEEPPWD having been clear already. So
+     * that run could not claim deep power-down was EXITED, only that the bit
+     * read clear afterwards, and the pages said exactly that rather than the
+     * stronger thing.
+     *
+     * This is the same correction c/board/clock280.c already made: it prints
+     * every register before touching any of them, and its dump was relabelled
+     * "as found" rather than "at reset" once a RESET press turned out not to
+     * produce reset values. A step that reports only its own write can say what
+     * the register holds and never what it changed. */
+    const uint32_t cr_as_found = ADC1->CR;
+    printf("  adc %-22s as found %08lX  DEEPPWD %u  ADVREGEN %u\r\n",
+           "control register", (unsigned long) cr_as_found,
+           (unsigned) ((cr_as_found & ADC_CR_DEEPPWD) != 0u),
+           (unsigned) ((cr_as_found & ADC_CR_ADVREGEN) != 0u));
 
     /* Step 1, from stm32h7xx_ll_adc.h line 6823. Leave deep power-down AND
      * force the seven read-set bits to their reset state in the written value,
@@ -215,12 +286,130 @@ static int adc_bring_up(void)
     }
     report("regulator start-up", ADC_VREG_STARTUP_US, ADC1->CR, true);
 
-    /* Step 4, and this is where it stops. See the note above this function. */
-    printf("  adc %-22s REFUSED  the clock mode is unchosen\r\n", "boost mode");
-    printf("      synchronous takes rcc_hclk1 over CKMODE, asynchronous takes\r\n");
-    printf("      a dedicated kernel clock. adcmath_boost and adcmath_clock_hz\r\n");
-    printf("      are written and host tested; the input is the open question.\r\n");
-    return ACQ_ERR_ADC_CLOCK_MODE;
+    /* Step 4, boost mode, from stm32h7xx_hal_adc.c lines 3939 to 4008.
+     *
+     * HCLK IS RECONSTRUCTED RATHER THAN FETCHED, and the arithmetic is exact by
+     * definition rather than by approximation: PCLK1 is HCLK divided by CDPPRE1,
+     * so HCLK is PCLK1 multiplied by that same divisor. Both terms are already
+     * in hand and verified, so this needs no new board accessor. c/clock's
+     * decode computes the AHB frequency too, and board.h does not publish it;
+     * adding an accessor to shared board support for one caller would be the
+     * larger change.
+     *
+     * EVERY REFUSAL HERE IS adcmath's, which is the point of that file existing.
+     * The arithmetic is checked against twenty three hand written cases on a
+     * laptop that compiles nothing for this part, so a wrong boost threshold or
+     * an inexpressible divisor is caught there rather than by a converter that
+     * samples slightly wrongly. */
+    const uint32_t hclk = pclk1_hz * divisor;
+    uint32_t adc_clk = 0u;
+    if (!adcmath_clock_hz(hclk, ADC_CKMODE_DIVISOR, &adc_clk)) {
+        report("kernel clock", hclk, 0u, false);
+        return ACQ_ERR_ADC_CLOCK;
+    }
+
+    uint32_t boost = 0u;
+    if (!adcmath_boost(adc_clk, &boost)) {
+        /* Above adcmath's own 100 MHz ceiling, which is this repository's and
+         * not ST's: ST would select 3 and ask nothing. A caller arriving here
+         * has an arithmetic error upstream rather than a fast converter. */
+        report("boost from clock", adc_clk, 0u, false);
+        return ACQ_ERR_ADC_BOOST;
+    }
+
+    /* The clock mode goes in the COMMON block and not in ADC1. Same ADC12EN
+     * clock enable, so nothing further is needed to reach it. */
+    ADC12_COMMON->CCR = (ADC12_COMMON->CCR & ~ADC_CCR_CKMODE)
+                      | (ADC_CKMODE_SYNC_DIV4 << ADC_CCR_CKMODE_Pos);
+    const bool ckmode_ok =
+        ((ADC12_COMMON->CCR & ADC_CCR_CKMODE) >> ADC_CCR_CKMODE_Pos)
+        == ADC_CKMODE_SYNC_DIV4;
+    report("clock mode sync /4", ADC_CKMODE_SYNC_DIV4, ADC12_COMMON->CCR,
+           ckmode_ok);
+    if (!ckmode_ok) {
+        return ACQ_ERR_ADC_CLOCK;
+    }
+
+    ADC1->CR = (ADC1->CR & ~(ADC_CR_READ_SET_BITS | ADC_CR_BOOST))
+             | (boost << ADC_CR_BOOST_Pos);
+    const bool boost_ok =
+        ((ADC1->CR & ADC_CR_BOOST) >> ADC_CR_BOOST_Pos) == boost;
+    report("boost mode", boost, ADC1->CR, boost_ok);
+    if (!boost_ok) {
+        return ACQ_ERR_ADC_BOOST;
+    }
+    printf("      kernel clock %lu Hz from HCLK %lu over %u, boost %lu\r\n",
+           (unsigned long) adc_clk, (unsigned long) hclk,
+           (unsigned) ADC_CKMODE_DIVISOR, (unsigned long) boost);
+
+    /* Step 5a, calibration. ADCAL is a read-set bit, so it is SET by writing a
+     * one and the hardware clears it when the calibration finishes.
+     *
+     * OFFSET ONLY, SINGLE ENDED, and both halves of that are choices. ADCALDIF
+     * at bit 30 selects differential calibration and is left clear, because the
+     * channel this project will sample is single ended. ADCALLIN at bit 16 adds
+     * linearity calibration alongside offset, which ST offers as a separate
+     * mode, and it is deliberately NOT done here: offset calibration is what a
+     * first conversion needs, and adding linearity now would mean two things
+     * were new at once if the result disappoints. It is one bit when wanted. */
+    ADC1->CR = (ADC1->CR & ~(ADC_CR_READ_SET_BITS | ADC_CR_ADCALDIF
+                             | ADC_CR_ADCALLIN))
+             | ADC_CR_ADCAL;
+
+    uint32_t polls = 0u;
+    while ((ADC1->CR & ADC_CR_ADCAL) != 0u && polls < ADC_CAL_POLLS_MAX) {
+        polls++;
+    }
+    const bool cal_ok = (ADC1->CR & ADC_CR_ADCAL) == 0u;
+    report("calibration", ADC_CR_ADCAL, ADC1->CR, cal_ok);
+    printf("      calibration took %lu polls\r\n", (unsigned long) polls);
+    if (!cal_ok) {
+        return ACQ_ERR_ADC_CALIBRATION;
+    }
+
+    /* Step 5b, THE ENABLE, AND THE OBVIOUS IMPLEMENTATION IS WRONG.
+     *
+     * From stm32h7xx_hal_adc.c lines 3713 to 3716, which is an erratum
+     * workaround in ST's own words: if ADEN is set less than four ADC clock
+     * cycles after the ADCAL bit, continue setting ADEN until ADRDY becomes 1.
+     *
+     * So one write to ADEN followed by a poll of ADRDY is not enough. The enable
+     * has to be RE-ASSERTED inside the wait, which is what this loop does: every
+     * pass writes ADEN again and then looks at ADRDY. A converter that starts
+     * most of the time is worse than one that refuses, because the times it does
+     * not start look like a wiring fault somewhere else entirely.
+     *
+     * ADEN is read-set, so each pass writes a one into it and the zeroes
+     * elsewhere in the mask change nothing. */
+    polls = 0u;
+    while ((ADC1->ISR & ADC_ISR_ADRDY) == 0u && polls < ADC_READY_POLLS_MAX) {
+        ADC1->CR = (ADC1->CR & ~ADC_CR_READ_SET_BITS) | ADC_CR_ADEN;
+        polls++;
+    }
+    const bool ready = (ADC1->ISR & ADC_ISR_ADRDY) != 0u;
+    report("enable until ready", ADC_CR_ADEN, ADC1->ISR, ready);
+    printf("      the enable was re-asserted %lu times, which the erratum "
+           "requires\r\n", (unsigned long) polls);
+    if (!ready) {
+        return ACQ_ERR_ADC_NOT_READY;
+    }
+
+    /* Step 6, and this is where it stops now.
+     *
+     * The preselection bit is 1 << channel and adcmath_pcsel_bit computes it,
+     * refusing above channel 19. What is missing is WHICH CHANNEL, which is a
+     * datasheet question: which converter input reaches which pin on this
+     * package, and what sampling time that input needs. Steps 7 and 8 need the
+     * same answer, plus the rising edge value for EXTEN.
+     *
+     * Guessing a channel would configure the converter to sample something, and
+     * a plausible reading from the wrong input is the exact failure this project
+     * exists to make impossible. */
+    printf("  adc %-22s REFUSED  the channel is unsourced\r\n", "preselection");
+    printf("      which input reaches which pin on this package, and its\r\n");
+    printf("      sampling time, are datasheet questions. EXTSEL is 13 for\r\n");
+    printf("      TIM6 TRGO and in hand; the EXTEN edge value is not.\r\n");
+    return ACQ_ERR_ADC_CHANNEL;
 }
 
 int acq_start(void)
@@ -300,7 +489,7 @@ int acq_start(void)
      * configured and stopped rather than emitting a trigger output that nothing
      * consumes. That is clock280.c's rule applied here: return without the
      * irreversible step, so the part is left in a state somebody can read. */
-    const int adc_rc = adc_bring_up();
+    const int adc_rc = adc_bring_up(pclk1, apb1_divisor());
     if (adc_rc != 0) {
         return adc_rc;
     }
