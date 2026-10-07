@@ -318,18 +318,90 @@ control register is printed before anything touches it, with `DEEPPWD` and
 `ADVREGEN` broken out, so the next capture can say which of the two stories is
 true. It has not been flashed, so the claim above still stands as written.
 
-## Steps 4 and 5, written and built, not yet run
+## Steps 4 and 5 on the board, Wednesday 7 October 2026
 
-Later on Wednesday 7 October 2026, so **the capture above predates them.** That
-distinction is the point of this section: the code that ran had three steps, the
-code in the repository now has five, and only a build stands behind the two new
-ones.
+Written, built and then **run**, all on the same day, so the capture in the
+section above predates them and this one supersedes it. FLASH 11468 to 12740
+bytes. Three captures, one of them from a single clean RESET press at 1384 bytes,
+all identical where they printed:
 
-| | State |
+    nucleo-h7a3-sampling
+      acquisition   timer
+      nominal rate  1000 Hz
+      instrument    core cycle counter
+      tick rate     64000000 Hz
+      tim6 clock            64000000 Hz  (pclk1 64000000, /1, timpre 0)
+      adc control register       as found 20000000  DEEPPWD 1  ADVREGEN 0
+      adc leave deep power-down  ok       wrote 00000000  read back 00000000
+      adc regulator enable       ok       wrote 10000000  read back 10000000
+      adc regulator start-up     ok       wrote 0000000A  read back 10000000
+      adc clock mode sync /4     ok       wrote 00000003  read back 00030000
+      adc boost mode             ok       wrote 00000001  read back 10000100
+          kernel clock 16000000 Hz from HCLK 64000000 over 4, boost 1
+      adc calibration            ok       wrote 80000000  read back 10000100
+          calibration took 180 polls
+      adc enable until ready     ok       wrote 00000001  read back 00001001
+          the enable was re-asserted 4 times, which the erratum requires
+      adc preselection           REFUSED  the channel is unsourced
+    acq_start failed: -11
+
+**Every line was predicted before the flash**, including the as-found value, the
+boost arithmetic and the refusal code.
+
+### The as-found line settled the question the earlier run could not
+
+`as found 20000000` with `DEEPPWD 1` and `ADVREGEN 0`. So **deep power-down was
+genuinely exited**, rather than merely reading clear afterwards.
+
+That is worth stating as a closed loop rather than a detail. The three step run
+printed `wrote 00000000 read back 00000000` and the pages had to say only that
+the bit read clear, because the step did not print what it found. The as-found
+line was added for exactly this, the prediction that `DEEPPWD` would read 1 at
+reset was written down before the flash, and the board agreed. **One line of
+output turned a claim that could not be made into one that can.**
+
+### Five register facts, each confirmed by a read-back
+
+| Fact | Evidence |
 |---|---|
-| Steps 1 to 3 | Flashed and observed, five identical captures |
-| Steps 4 and 5 | **Compiled and linked only**, `arm-none-eabi-gcc` 14.3.1 on win11 skyhorizon, FLASH 11468 to 12740 bytes |
-| Step 6 | Refuses, and the reason changed |
+| `DEEPPWD` is bit 29 and **set at reset** | As found `20000000` |
+| `ADVREGEN` is bit 28 | Written and read back `10000000` |
+| `CKMODE` field value 3 means divide by four, at bit 16 | Wrote 3, read back `00030000` |
+| `BOOST` is two bits at bit 8 | Boost 1 gives `CR` = `10000100`, the regulator bit still set beside it |
+| `ADCAL` is bit 31 and self clearing | Wrote `80000000`, and after 180 polls `CR` reads `10000100` with no `ADCAL` |
+
+The kernel clock arithmetic also came out exactly as `adcmath` computed it on a
+laptop that compiles nothing for this part: 16 MHz from HCLK 64 MHz over 4, and
+boost 1 from the halved 8 MHz sitting between the 6.25 and 12.5 MHz thresholds.
+
+**One bit is unexplained and is named rather than guessed.** The ready report
+prints `ISR` and it read `00001001`. Bit 0 is `ADRDY` and is set, which is the
+flag the loop waits on. Bit 12 is also set and this repository has not read what
+it is. It is one grep of the device header away and nothing here depends on it.
+
+### The erratum loop took four passes, and what that does NOT prove
+
+`the enable was re-asserted 4 times`. ST's workaround at
+`stm32h7xx_hal_adc.c` lines 3713 to 3716 says that if `ADEN` is set less than
+four ADC clock cycles after `ADCAL`, the enable must be re-asserted until
+`ADRDY` becomes 1, and the gap here is a handful of core cycles at 64 MHz
+against an ADC clock of 16 MHz, so the condition was met.
+
+**It is tempting to read four passes as the erratum biting, and this run does not
+establish that.** The loop writes `ADEN` and then polls `ADRDY` on every pass, so
+four passes is equally consistent with two different stories: the first three
+writes were ignored and the fourth took, or the first write took and the flag
+needed four passes to rise. Nothing printed separates them.
+
+So what is recorded is the number and not the mechanism. **The experiment that
+would separate them** is a variant that writes `ADEN` exactly once and then polls
+`ADRDY` with no further writes: if it reaches the poll limit and refuses, the
+re-assertion is necessary on this part; if it becomes ready, the loop is
+insurance rather than a requirement. That is one bounded change and one flash,
+and it is worth doing before the chapter claims the erratum applies here.
+
+Until then the loop stays, because it is correct under both stories and the
+alternative is correct under only one.
 
 ### The clock mode, which was a decision and is now taken
 

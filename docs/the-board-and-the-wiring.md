@@ -671,7 +671,61 @@ That was a derivation rather than a reading, and on Tuesday 6 October 2026 it wa
 That is how you promote a derived address to a confirmed one without an
 oscilloscope: find a consequence that can only hold if the address is correct.
 
-## 2.8 What is still open, and treated as a question
+## 2.8 The analogue converter, as far as it has been brought up
+
+Confirmed on the board on Wednesday 7 October 2026, each by a read-back rather
+than by reading a manual. P06's timer back end brings the converter through five
+of its eight steps and then refuses.
+
+| Fact | Evidence |
+|---|---|
+| `DEEPPWD` is bit 29 and **set at reset** | The control register reads `20000000` as found, before anything touches it |
+| `ADVREGEN` is bit 28 | Written and read back `10000000` |
+| `ADCAL` is bit 31 and self clearing | Written `80000000`, and after 180 polls the register reads back with it gone |
+| `BOOST` is two bits at bit 8 | A boost setting of 1 leaves the control register at `10000100`, the regulator bit still beside it |
+| `CKMODE` field value 3 is divide by four, at bit 16 in the **common** block | Wrote 3, read back `00030000` |
+| `RCC_AHB1ENR_ADC12EN` is the right bus clock enable | Nothing above would have stuck without it |
+| `ADRDY` is bit 0 of the interrupt and status register | The ready report read `00001001` |
+
+**Two of those deserve a sentence more than a row.**
+
+The regulator **accepted a direct write from reset**, which was worth watching
+for because the voltage scaling in 2.4 does the opposite: scale 0 is reachable
+only from scale 1 and the regulator declines a direct write **in silence**. The
+analogous trap was looked for here and did not occur, and an absence somebody
+tested for is worth recording.
+
+And `DEEPPWD` reading 1 as found is what lets this document say deep power-down
+was **exited** rather than merely clear afterwards. An earlier run printed only
+what it wrote, which was equally consistent with the bit having been clear
+already, and the as-found line was added to separate the two. The prediction that
+it would read 1 was written down before the flash.
+
+**One bit is unexplained and is named rather than guessed.** The status register
+read `00001001`, so besides `ADRDY` at bit 0 something at bit 12 is also set.
+This repository has not read what it is. Nothing depends on it, and it is one
+grep of the device header away.
+
+### The enable needs re-asserting, and what the measurement does not prove
+
+ST's `stm32h7xx_hal_adc.c` lines 3713 to 3716 carry an erratum workaround in its
+own words: if `ADEN` is set less than four ADC clock cycles after the `ADCAL`
+bit, continue setting `ADEN` until `ADRDY` becomes 1. So the obvious
+implementation, one write then a poll, is the wrong one.
+
+On the board the loop took **four passes**. It is tempting to read that as the
+erratum biting, and **this run does not establish it.** The loop writes `ADEN`
+and polls `ADRDY` on every pass, so four passes fits two stories equally: the
+first three writes were ignored and the fourth took, or the first write took and
+the flag needed four passes to rise.
+
+The experiment that would separate them is written down in P06's README: a
+variant that writes `ADEN` exactly once and then polls with no further writes. If
+it refuses at the poll limit, the re-assertion is necessary on this part. Until
+that runs, the loop stays, because it is correct under both stories where the
+single write is correct under only one.
+
+## 2.9 What is still open, and treated as a question
 
 Please do not fill any of these in from a sibling part. Each one is refused in
 code rather than guessed.
@@ -688,8 +742,13 @@ Still open, in rough order of how soon you are likely to want them:
 - The `TIMPRE` boundary in RM0455. The timer clock is a multiple of the APB clock
   once that prescaler divides by anything; this repository answers only the
   divide-by-one case, where both `TIMPRE` values agree, and refuses the rest.
-- The analogue converter's clock mode choice, the channel and its sampling time,
-  the resolution, and the trigger edge field.
+- The analogue converter's **channel and its sampling time**, the **resolution**,
+  and the **trigger edge field**. The clock mode came off this list on Wednesday
+  7 October 2026, not by being read but by being **decided**: it was never a
+  datasheet fact, it is a configuration choice ST also leaves to the caller, and
+  P06 now takes synchronous with `CKMODE` dividing by four with its reasoning and
+  its cost recorded. The four that remain are genuine readings, and the converter
+  bring-up stops at them.
 - Which pin carries TIM2_ETR or TIM5_ETR on this package. No example in ST's pack
   configures either, which is why the 32-bit counter route stayed closed.
 - The maximum reliable baud rate on the virtual COM port. 921600 is asserted
@@ -1403,7 +1462,7 @@ document.
 # Appendix C. The five documents this one depends on
 
 Deliberately five, and not a bibliography. Every document below is one that a
-claim in this file actually rests on, or one that an **open** item in 2.8 is
+claim in this file actually rests on, or one that an **open** item in 2.9 is
 waiting for. If a vendor document is not here, no claim here needs it, and the
 last section of this appendix says where the rest live.
 
@@ -1416,8 +1475,8 @@ with a real cause, not an oversight.
 | Document | What this file uses it for | Status |
 |---|---|---|
 | **UM2408**, STM32H7 Nucleo-144 boards, **MB1363** [link](https://www.st.com/resource/en/user_manual/um2408-stm32h7-nucleo144-boards-mb1363-stmicroelectronics.pdf) | The board itself. **Table 18, page 44** gives PB4 as CN7 pin 19, signal D25, function SPI_B_MISO on SPI3, which settles the marker pin. **Page 37** gives CN7, CN8, CN9 and CN10 as female Zio connectors on the top side, which is how CN7 is known to be a Zio header | **Read** Tuesday 6 October 2026, those two pages |
-| **RM0455**, STM32H7A3, H7B3 and H7B0 reference manual [link](https://www.st.com/resource/en/reference_manual/rm0455-stm32h7a3b3-and-stm32h7b0-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf) | The authority this whole repository defers to. Named in 1.2 as the manual that makes H743 material wrong here. **Three open items in 2.8 are waiting on it**: the `TIMPRE` boundary, the three unread bus prescaler fields, and the converter bring-up sequence | **Largely unread.** Register facts here came from ST's device headers and board examples instead, which is why so much of 2.8 is still open |
-| **STM32H7A3ZI datasheet** [link](https://www.st.com/resource/en/datasheet/stm32h7a3zi.pdf) | The authority for the questions that are datasheet questions rather than manual questions: whether **PB4** carries a JTAG function by default on this package (2.6), the converter's highest channel number, flash write granularity, and the cache line size | **Unread.** The converter arithmetic therefore caps its channel at 19 as a **conservative choice pending this document**, and says so where the constant is |
+| **RM0455**, STM32H7A3, H7B3 and H7B0 reference manual [link](https://www.st.com/resource/en/reference_manual/rm0455-stm32h7a3b3-and-stm32h7b0-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf) | The authority this whole repository defers to. Named in 1.2 as the manual that makes H743 material wrong here. **Two open items in 2.9 are waiting on it**: the `TIMPRE` boundary and the three unread bus prescaler fields. The converter bring-up came off this list on Wednesday 7 October 2026: five of its eight steps now run on the board, sourced from ST pack headers rather than from the manual, and what remains of it is datasheet rather than manual | **Largely unread.** Register facts here came from ST's device headers and board examples instead, which is why so much of 2.9 is still open |
+| **STM32H7A3ZI datasheet** [link](https://www.st.com/resource/en/datasheet/stm32h7a3zi.pdf) | The authority for the questions that are datasheet questions rather than manual questions: whether **PB4** carries a JTAG function by default on this package (2.6), and the four that now block P06 at step 6, which are the converter channel reaching each pin, its sampling time, the resolution and the highest channel number. Also flash write granularity and the cache line size | **Unread.** The converter arithmetic therefore caps its channel at 19 as a **conservative choice pending this document**, and says so where the constant is |
 | **MCC 118 electrical specification** [link](https://mccdaq.github.io/daqhats/_static/esmcc118.pdf) | The witness in 4.4. Its **input range** and whether it offers an **external trigger** are the two things 4.4 names as still open against it | **Unread.** Every range it is likely to offer contains 3.3 V, which is a reason to expect it to be fine and **not** a reason to skip reading it |
 | **Raspberry Pi 4 datasheet** [link](https://datasheets.raspberrypi.com/rpi4/raspberry-pi-4-datasheet.pdf) | The host the MCC 118 sits on, so it is the other end of the ground wire and of the 3.3 V rule in 4.1 | **Unread.** Nothing here depends on it beyond the supply and logic level |
 
@@ -1453,7 +1512,7 @@ everything in Part 3. The citations and dates are here precisely so that a
 disagreement can be located in one step. Please bring it.
 
 *And if you read one of the five unread documents in Appendix C and it closes an
-item in 2.8, that is the single most useful thing anybody can do to this file.
+item in 2.9, that is the single most useful thing anybody can do to this file.
 Three of the five are ST documents that this bench could not download on
 Tuesday 6 October 2026, so a reader with working access to them is better placed
 than its author was.*
