@@ -311,25 +311,85 @@ power-down was exited**, only that the bit reads clear afterwards.
 
 That is the same lesson `c/board/clock280.c` already learned, which prints every
 register before touching any of them and had its dump relabelled "as found"
-after a RESET press turned out not to produce reset values. The fix is one extra
-field in `report` and it belongs in the next change to this file rather than in a
-flash cycle of its own.
+after a RESET press turned out not to produce reset values.
+
+**That fix is in as of Wednesday 7 October 2026**, later the same day: the
+control register is printed before anything touches it, with `DEEPPWD` and
+`ADVREGEN` broken out, so the next capture can say which of the two stories is
+true. It has not been flashed, so the claim above still stands as written.
+
+## Steps 4 and 5, written and built, not yet run
+
+Later on Wednesday 7 October 2026, so **the capture above predates them.** That
+distinction is the point of this section: the code that ran had three steps, the
+code in the repository now has five, and only a build stands behind the two new
+ones.
+
+| | State |
+|---|---|
+| Steps 1 to 3 | Flashed and observed, five identical captures |
+| Steps 4 and 5 | **Compiled and linked only**, `arm-none-eabi-gcc` 14.3.1 on win11 skyhorizon, FLASH 11468 to 12740 bytes |
+| Step 6 | Refuses, and the reason changed |
+
+### The clock mode, which was a decision and is now taken
+
+Step 4 was blocked not by an unread register but by a choice nobody had made, and
+ST does not make it either: `ADC_ConfigureBoostMode` branches on it at line 3942.
+**Synchronous, `CKMODE` dividing by four**, written as two constants in
+`acq_timer.c` so revisiting it is a two line edit.
+
+Three reasons, and the cost named. It adds no register this volume has not
+sourced, where the asynchronous route needs a dedicated kernel clock configured
+and sourced first, which is a second unread question stacked on the first. Divide
+by four is the **slowest** ratio `CKMODE` can express, which is the most
+conservative choice available while this part's maximum ADC kernel clock remains
+a datasheet question. And it yields a clock `adcmath` accepts rather than refuses.
+
+**The cost is conversion rate**: 16 MHz at the reset clock where divide by one
+would give 64, so a conversion takes four times as long as it need. For 1 kHz
+that is irrelevant by three decades, and when it stops being irrelevant the fix
+is to read the datasheet rather than to raise the number hopefully.
+
+The field value was **read rather than inferred from the bit count**, and the
+expectation was written down before the header was opened:
+`LL_ADC_CLOCK_SYNC_PCLK_DIV4` is `(ADC_CCR_CKMODE_1 | ADC_CCR_CKMODE_0)`, both
+bits of a two bit field at bit 16, with asynchronous as 0. The header agreed,
+which is the only reason a literal 3 appears in the file.
+
+### The enable, where the obvious implementation is wrong
+
+From `stm32h7xx_hal_adc.c` lines 3713 to 3716, an erratum workaround in ST's own
+words: if `ADEN` is set less than four ADC clock cycles after the `ADCAL` bit,
+continue setting `ADEN` until `ADRDY` becomes 1.
+
+So one write followed by a poll is **not enough.** The enable has to be
+re-asserted inside the wait, and the loop writes `ADEN` on every pass before
+looking at `ADRDY`, printing how many times it did. A converter that starts most
+of the time is worse than one that refuses, because the times it does not start
+look like a wiring fault somewhere else entirely.
+
+Calibration is **offset only and single ended**, and both are choices rather than
+defaults that happened. `ADCALDIF` at bit 30 selects differential and is left
+clear. `ADCALLIN` at bit 16 adds linearity alongside offset and is deliberately
+not done: offset is what a first conversion needs, and adding linearity now would
+mean two things were new at once if the result disappoints. It is one bit when
+wanted, and the file says so at the bit.
 
 ### What stands between this and a sample
 
-Three things, and the first is a decision rather than a reading.
+One datasheet answer, and one line of a header.
 
-1. **The ADC clock mode**, synchronous or asynchronous. ST does not choose it
-   either; `ADC_ConfigureBoostMode` branches on it. Synchronous takes `rcc_hclk1`
-   over `CKMODE`, asynchronous takes a dedicated kernel clock. This decides which
-   frequency feeds the boost rule, and `adcmath_boost` and `adcmath_clock_hz` are
-   written and host tested against twenty three cases, waiting on the input.
-2. **The channel and its sampling time**, and the **resolution**. Datasheet
-   questions, and `docs/the-board-and-the-wiring.md` records that datasheet as
-   unread.
-3. **The rising-edge value in `EXTEN`.** `EXTSEL` is 13 for TIM6 TRGO from
+1. **The channel, its sampling time, and the resolution.** Which converter input
+   reaches which pin on this package is a datasheet question, and
+   `docs/the-board-and-the-wiring.md` records that datasheet as unread. Steps 6,
+   7 and 8 all wait on it. Guessing a channel would configure the converter to
+   sample something, and a plausible reading from the wrong input is the exact
+   failure this project exists to make impossible.
+2. **The rising-edge value in `EXTEN`.** `EXTSEL` is 13 for TIM6 TRGO from
    `stm32h7xx_ll_adc.h` line 993, so that half is in hand; the edge is one more
    line of the same header.
+
+And then a flash, which waits for the board to be back on the bench.
 
 ## Vendor code
 
