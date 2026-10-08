@@ -119,3 +119,27 @@ dropped edge, and a train at a deliberately wrong rate. The analysis must
 recover the right answer from the first two and refuse the last two. That test
 runs on any machine with Python and needs no hardware, which is why it was
 written and run first.
+
+## Status of each criterion, Wednesday 7 October 2026
+
+**Nothing above has been changed since it was written, and nothing above has yet
+been evaluated.** This section is appended rather than edited, because the value
+of this file is that it was fixed before the first run.
+
+| Criterion | State |
+|---|---|
+| 1. Mean rate within 0.1 percent | **not evaluated** |
+| 2. Interval spread below 10 microseconds | **not evaluated** |
+| 3. No single interval more than 50 microseconds off | **not evaluated** |
+| 4. Zero dropped or doubled edges | **not evaluated** |
+
+The firmware began sampling on the board that day, 24 960 conversions on a
+hardware trigger with no lost blocks, and that bears on **none** of the four. All
+four are about the instants at which conversions happened, and the only instrument
+that can observe an instant here is the witness. **The marker wire from CN7 pin 19
+to the MCC 118 is not connected.**
+
+Why no firmware number can stand in: any timebase on this die that could count the
+sampling interval is derived from the same oscillator that defines it, so the part
+would confirm a wrong rate exactly as readily as a right one. That is the whole
+reason this file specifies an external witness.

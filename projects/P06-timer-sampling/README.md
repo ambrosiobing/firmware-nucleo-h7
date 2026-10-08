@@ -168,6 +168,12 @@ because `EXTSEL` selects a trigger for a peripheral that is not configured and
 the timer clock drives a TRGO that nothing consumes. The honest order is the
 bring-up first, then the three values, then a measurement.
 
+**That table is a snapshot of Tuesday 6 October 2026 and is kept as one.** All
+six rows closed on Wednesday 7 October 2026 and the converter now samples on the
+board; see "It samples, Wednesday 7 October 2026" below for what that does and
+does not establish. The first two steps of the honest order are done and the
+third, the measurement, has not started.
+
 ### The converter bring-up: what reading ST's HAL established, and what it did not
 
 `stm32h7xx_hal_adc.c` from STM32Cube_FW_H7_V1.13.0 was searched on Tuesday 6
@@ -478,21 +484,126 @@ not done: offset is what a first conversion needs, and adding linearity now woul
 mean two things were new at once if the result disappoints. It is one bit when
 wanted, and the file says so at the bit.
 
-### What stands between this and a sample
+## It samples, Wednesday 7 October 2026
 
-One datasheet answer, and one line of a header.
+After the vector table gained its ADC entry the same image was rebuilt, flashed
+and run on the win11 skyhorizon demo laptop. FLASH 14 192 bytes, `.isr_vector`
+224. The eight steps repeated identically, and then this, which this project had
+never produced:
 
-1. **The channel, its sampling time, and the resolution.** Which converter input
-   reaches which pin on this package is a datasheet question, and
-   `docs/the-board-and-the-wiring.md` records that datasheet as unread. Steps 6,
-   7 and 8 all wait on it. Guessing a channel would configure the converter to
-   sample something, and a plausible reading from the wrong input is the exact
-   failure this project exists to make impossible.
-2. **The rising-edge value in `EXTEN`.** `EXTSEL` is 13 for TIM6 TRGO from
-   `stm32h7xx_ll_adc.h` line 993, so that half is in hand; the edge is one more
-   line of the same header.
+    tim6 started, so conversions begin on its update event
+    seq 15  blocks 15  mean 4  overruns 0
+    seq 30  blocks 30  mean 4  overruns 0
+    seq 45  blocks 45  mean 4  overruns 0
+    ...
+    seq 375  blocks 375  mean 4  overruns 0
+    seq 390  blocks 390  mean 3  overruns 0
 
-And then a flash, which waits for the board to be back on the bench.
+Twenty-six report lines over roughly twenty-five seconds of console, 390 blocks
+of 64 conversions, 24 960 conversions in all, and no fault.
+
+**The chain that had never run end to end now does**: TIM6's update event, TRGO,
+the converter starting on a hardware edge with the processor not in the path, end
+of conversion, the interrupt controller, the vector, the handler, the block, and
+`main` draining it. Earlier the same day all eight steps reported ok while none of
+that was true, which is why the distance between a configuration and a result is
+the thing this project keeps relearning.
+
+### Where the double entry pays
+
+`seq` equals `blocks` on every one of the twenty-six lines and `overruns` is 0 on
+every one. Those are **three counters that do not read each other**: `ready_seq`
+increments in the handler, `blocks` increments in `main`, and `overruns`
+increments in the handler when a block becomes ready while the previous one is
+still uncollected. A single lost block moves all three at once, `seq` above
+`blocks` and `overruns` off zero. None of them moved.
+
+That is the strongest thing in the capture, and it is a statement about **not
+losing samples** rather than about when any of them was taken.
+
+### Half of the published prediction could not have failed
+
+Before the flash this README's own words were that `seq N blocks M mean X
+overruns 0` would appear "about once per second with `blocks` rising by roughly
+15 each time". The second half of that was not a prediction about the board at
+all. `main.c:84` reports when `blocks - last_report >= ACQ_RATE_HZ / b.count`,
+and that is 1000 divided by 64, which is 15. **The increment was arithmetic in the
+source and could not have come out otherwise**, whatever the hardware did, and it
+was published as though the hardware would decide it.
+
+This volume's own rule is that an experiment must be able to fail, and the same
+requirement applies to a prediction. Half of this one was exempt. The half that
+could fail, and did not, was that the line appears at all and that `overruns`
+stays at zero.
+
+**And the comment above that line is what misled the prediction**, so it is
+corrected in the same commit. It read that the cadence was computed from the
+nominal rate "so the reporting cadence does not itself depend on the thing being
+measured". The threshold does not; the cadence in time depends on the actual rate
+entirely, because a report is emitted every 960 samples whenever those samples
+arrive. The intent was that no software delay sits in the path, which is true and
+worth keeping, and the sentence said something stronger that is false.
+
+### The rate is still not measured, and the board cannot measure it
+
+What the capture says about rate is only the **wall-clock cadence of the lines**,
+and the clock that cadence was read against was a PowerShell loop printing a
+marker every ten iterations of a 500 millisecond sleep. Between the `[10s]` and
+the `[30s]` marker `seq` went from 60 to 390: 330 blocks, 21 120 conversions, in
+a nominal 20 seconds, which is 1056 Hz.
+
+**That figure is an upper bound rather than an estimate.** Each loop iteration
+costs its sleep plus its own work, so the elapsed time was longer than 20 seconds
+and the true rate is below 1056 Hz. The direction of the bias is known and its
+size is not, which is a fair definition of not an instrument.
+
+So 1056 Hz is **consistent with 1000 Hz and is not evidence for it**, and none of
+`MEASUREMENT.md`'s four criteria is touched by it: not the mean within 0.1
+percent, not the interval spread, not the worst case interval, not dropped or
+doubled edges. All four are about the instants at which conversions happened, and
+nothing in this capture observed an instant.
+
+**The board cannot settle it in principle and not merely in practice.** Any
+timebase on this die that could count the sampling interval is derived from the
+same oscillator that defines it, so firmware timing itself would confirm a wrong
+rate exactly as readily as a right one. That is why the project was built around
+an external witness before any of it was written. The MCC 118 on the Raspberry Pi
+watching the marker on PB4 at CN7 pin 19 is the measurement. The wire is not
+connected, and until it is, the 1 kHz in this project's title is a claim.
+
+### The converted value, which is not the result
+
+`mean` reads 3, 4 or 5 out of 65 535, which is what a floating PC3 reads, and
+that was stated in advance as meaningless. One thing in it earns a sentence: it
+**varies between reports**. A data register that was never written, or a converter
+returning a constant, would give the same number on every line. A small varying
+number is weak positive evidence that the conversions are real conversions. Weak,
+because this cannot tell a floating input from a grounded one, and because this
+project's subject is the rate.
+
+### What this section used to say stood in the way
+
+Both items are gone, and a third that was on no list is what actually stopped it.
+
+| item | how it closed |
+|---|---|
+| the channel, its sampling time and the resolution, all waiting on an unread datasheet | **settled from ST's pack.** Channel 13 on PC3, stated twice in `ADC_DualModeInterleaved`, with `stm32h7a3zi.pdf` still unread |
+| the rising edge value in `EXTEN` | **read.** 1, from `LL_ADC_REG_TRIG_EXT_RISING` being `EXTEN_0` alone |
+| not listed: `EOCIE` in the converter's own `IER` | found by reading the file once it stopped refusing |
+| not listed: `ADSTART` | the same reading |
+| not listed: **a vector for the handler to reach** | found by flashing. Three things must be true for a handler to run and only two of them read back |
+
+### What is next, in the order that makes each claim true
+
+1. **The marker wire**, CN7 pin 19 on the board to the MCC 118 on the Raspberry
+   Pi, and `scan.py` on the Pi. That is the only step that can turn the title
+   into a measurement, and `MEASUREMENT.md` already says what the answer is
+   allowed to be.
+2. **`OVRIE` and the converter's own `OVR`**, which this build does not read, so
+   a run with converter overruns would look as clean as this one did.
+3. **The other two back ends**, `sampling-systick` and `sampling-dma`, which are
+   the comparison the chapter exists for and which have never reached the
+   converter.
 
 ## Vendor code
 

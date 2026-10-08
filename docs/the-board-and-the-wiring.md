@@ -671,11 +671,13 @@ That was a derivation rather than a reading, and on Tuesday 6 October 2026 it wa
 That is how you promote a derived address to a confirmed one without an
 oscilloscope: find a consequence that can only hold if the address is correct.
 
-## 2.8 The analogue converter, as far as it has been brought up
+## 2.8 The analogue converter, brought up and sampling
 
 Confirmed on the board on Wednesday 7 October 2026, each by a read-back rather
-than by reading a manual. P06's timer back end brings the converter through five
-of its eight steps and then refuses.
+than by reading a manual. P06's timer back end took the converter through five of
+its eight steps, then through all eight, and by the end of that evening it was
+sampling at a nominal 1 kHz. **The rate itself is not measured and this section
+says so at length**, because the last subsection is the one worth reading.
 
 | Fact | Evidence |
 |---|---|
@@ -749,6 +751,145 @@ version reintroduces by dropping the console output or moving the enable next to
 the calibration. The comment in `acq_timer.c` says so, so the protection is not
 deleted as dead code by somebody who measures only this build.
 
+### The bring-up completed, and then produced nothing, Wednesday 7 October 2026
+
+Steps 6, 7 and 8 were written the same evening and `acq_start` returned 0 for the
+first time in this project's history. **All eight steps reported ok, every
+register read back what was written, and not one sample arrived.** The console
+stopped mid-word at the instant TIM6 was enabled and the board said nothing for
+twenty seconds.
+
+That is the most instructive thing that has happened to this repository, so it is
+recorded in full rather than as a fixed bug.
+
+**The last open converter fact came off the list without the datasheet.** The
+channel is **13, on PC3, at CN9 pin 5 and Morpho CN11 pin 37**, stated twice in
+ST's own `ADC_DualModeInterleaved` example for the NUCLEO-H7A3ZI-Q, once in its
+`readme.txt` and once in its `main.h`. Stated twice by the same authority, for
+this board, is why it is **settled** rather than corroborated, and
+`stm32h7a3zi.pdf` stays unread. Three more field values were read rather than
+inferred from bit counts: `EXTEN` 1 for the rising edge from
+`LL_ADC_REG_TRIG_EXT_RISING` being `EXTEN_0` alone, `RES` 0 for sixteen bits, and
+`SMP` 7 for 810.5 cycles. The sampling time is the one **choice** in that set,
+because ST's five examples for this board disagree about it, and it is recorded
+as a choice with its arithmetic rather than copied from whichever file opened
+first.
+
+**Then three causes, in the order they were found, and the order matters.**
+
+Two writes had been missing from `acq_timer.c` since the day it was written, and
+both only became reachable once the bring-up stopped refusing. `EOCIE` was never
+set in the converter's own `IER`, so the end of conversion set a flag and nothing
+else happened: `NVIC_EnableIRQ` tells the controller to accept a line, it does
+not tell the peripheral to raise one. And `ADSTART` was never set, so a trigger
+arriving at an unarmed converter did nothing.
+
+**Adding both was necessary and was not sufficient**, and the commit that added
+them said otherwise. The third cause was that **the vector table had no device
+interrupt entries at all.** `g_vectors` in `c/board/startup.c` ended at
+`SysTick_Handler`, sixteen architectural entries. `ADC_IRQHandler` existed, was
+declared weak, compiled and linked, and was simply not in the table, so the first
+end of conversion fetched a vector from past the end of the array and branched
+into whatever the linker had placed after `.isr_vector`.
+
+**Three things have to be true for a handler to run, and only two of them read
+back:** the peripheral's own enable in its `IER`, the controller's enable through
+NVIC, and a vector for the handler to reach. The third has nothing to read back
+from, which is precisely why it was the one that went missing while every step
+report said ok. This is the same shape as 2.4's silent regulator and 1.2's wrong
+manual: the failure that leaves no trace is the one the method has to be built
+around.
+
+**And the comment sitting in that table had predicted it**, which is why this is
+recorded as a prediction coming true rather than as a defect found. It said the
+positions were to be confirmed and that leaving them out would be worse, because
+an interrupt that fires with no entry runs into whatever the linker put next.
+That is exactly what happened. The prediction was written down and never acted
+on, and the cost was one flash.
+
+The positions are now sourced for this exact part, from `IRQn_Type` in
+`stm32h7a3xxq.h` of STM32Cube_FW_H7_V1.13.0: `ADC_IRQn` 18, `USART3_IRQn` 39,
+`TIM6_DAC_IRQn` 54, and the table index is 16 plus the number. They are written as
+designated initialisers so that **only positions this repository has actually read
+are filled**, which keeps the original discipline rather than abandoning it. An
+unconfirmed position still cannot silently misroute, because it is not written at
+all. RM0455 would say the same and remains unread; it is not needed for this.
+
+### It samples, and the rate is still not measured
+
+With the vector installed the same image sampled. FLASH 14 192 bytes,
+`.isr_vector` 64 bytes to 224, and twenty six report lines over roughly twenty
+five seconds:
+
+    tim6 started, so conversions begin on its update event
+    seq 15  blocks 15  mean 4  overruns 0
+    ...
+    seq 390  blocks 390  mean 3  overruns 0
+
+390 blocks of 64 conversions, 24 960 conversions, `overruns` 0 throughout. **The
+whole chain runs:** TIM6's update event, TRGO, a conversion started by hardware
+with the processor out of the timing path, end of conversion, the controller, the
+vector, the handler, the block, and the application draining it.
+
+**Three counters that do not read each other agree**, which is double entry on a
+running system rather than on a hand table. `seq` increments in the handler,
+`blocks` increments in `main`, and `overruns` increments in the handler when a
+block becomes ready while the previous one is uncollected. A single lost block
+moves all three at once. `seq` equals `blocks` on all twenty six lines and
+`overruns` never left zero.
+
+**Now the part that is easy to skip, and the reason this section exists.** None of
+that is a rate measurement, and the project's own claim is about rate.
+
+Half the prediction published before the flash **could not have failed.** It said
+`blocks` would rise by roughly 15 each time, and `main.c` reports when
+`blocks - last_report` reaches `ACQ_RATE_HZ / count`, which is 1000 over 64,
+which is 15. That increment is arithmetic in the source and could not have come
+out otherwise whatever the board did. The comment above that line claimed the
+reporting cadence does not itself depend on the thing being measured, which is
+false for the cadence in time and is corrected in the same commit. The rule that
+an experiment must be able to fail carries over to a prediction, and this one was
+half exempt.
+
+The only rate observation available is the **wall-clock cadence of the lines**,
+read against a PowerShell loop printing a marker every ten iterations of a 500
+millisecond sleep. Between two markers a nominal 20 seconds apart, `seq` went
+from 60 to 390: 330 blocks, 21 120 conversions, which is 1056 Hz. **That is an
+upper bound rather than an estimate**, because each loop iteration costs its sleep
+plus its own work, so the elapsed time was longer than 20 seconds and the true
+rate is below the figure. The direction of the bias is known and its size is not,
+which is a fair description of not an instrument. So 1056 Hz is **consistent with
+1000 Hz and is not evidence for it.**
+
+None of `MEASUREMENT.md`'s four criteria is touched by it, because all four are
+about the **instants** at which conversions happened and nothing in this capture
+observed an instant.
+
+**And the board cannot settle it in principle, not merely in practice.** Any
+timebase on this die that could count the sampling interval is derived from the
+same oscillator that defines it, so firmware timing itself would confirm a wrong
+rate exactly as readily as a right one. That is the property from the
+introduction, met again at the last step, and it is why the external witness was
+designed before any of the firmware. The MCC 118 on the Raspberry Pi watching the
+marker on PB4 at CN7 pin 19, which 2.6 sourced from UM2408 Table 18, is the
+measurement. **The wire is not connected**, and until it is, the 1 kHz in the
+project's title is a claim.
+
+The converted value is not the result either. `mean` reads 3 to 5 of 65 535 on a
+**floating PC3**, said in advance to be meaningless. One thing in it earns a
+sentence: it **varies between reports**, where a register never written or a
+converter returning a constant would read the same every line. That is weak
+positive evidence that these are real conversions, weak because it cannot
+distinguish a floating input from a grounded one.
+
+**One gap is named rather than left for a reader to notice.** `OVRIE` is
+deliberately not enabled, and the converter's own `OVR`, which means a data
+register was overwritten before it was read, is **not read by this build at all.**
+`acq_overruns()` counts something different: blocks the application never
+collected. A run with converter overruns would therefore look exactly as clean as
+this one did. Closing that means handling `OVR` in the handler rather than
+enabling a line nothing reads.
+
 ## 2.9 What is still open, and treated as a question
 
 Please do not fill any of these in from a sibling part. Each one is refused in
@@ -766,13 +907,18 @@ Still open, in rough order of how soon you are likely to want them:
 - The `TIMPRE` boundary in RM0455. The timer clock is a multiple of the APB clock
   once that prescaler divides by anything; this repository answers only the
   divide-by-one case, where both `TIMPRE` values agree, and refuses the rest.
-- The analogue converter's **channel and its sampling time**, the **resolution**,
-  and the **trigger edge field**. The clock mode came off this list on Wednesday
-  7 October 2026, not by being read but by being **decided**: it was never a
+- **Which converter channel reaches which other pin on this package**, and the
+  highest channel number. This is what is left of a row that used to hold five
+  items and is the first entry here to close by two different routes on one day.
+  The clock mode came off it by being **decided** rather than read: it was never a
   datasheet fact, it is a configuration choice ST also leaves to the caller, and
-  P06 now takes synchronous with `CKMODE` dividing by four with its reasoning and
-  its cost recorded. The four that remain are genuine readings, and the converter
-  bring-up stops at them.
+  P06 takes synchronous with `CKMODE` dividing by four with its reasoning and its
+  cost recorded. The channel, its sampling time, the resolution and the trigger
+  edge field then came off it by being **read from ST's own example and LL header
+  for this board**, which is why `stm32h7a3zi.pdf` is still unread and the
+  converter samples anyway. What remains is the general mapping, which only a
+  project needing a different pin will want, and the converter arithmetic still
+  caps its channel at 19 as a conservative choice pending that document.
 - Which pin carries TIM2_ETR or TIM5_ETR on this package. No example in ST's pack
   configures either, which is why the 32-bit counter route stayed closed.
 - The maximum reliable baud rate on the virtual COM port. 921600 is asserted
@@ -803,7 +949,7 @@ Still open, in rough order of how soon you are likely to want them:
   freeze bits, and the documented silent failure where the debug clock must be
   enabled before the freeze register write takes effect.
 
-**Two facts that moved off this list, as encouragement.** Whether the cycle
+**Three facts that moved off this list, as encouragement.** Whether the cycle
 counter increments with no debug probe attached used to be open; the wrapper now
 enables it, checks that it moved, and reports which backend it got, so the
 question is answered per boot rather than assumed. And "the timer registers the
@@ -811,6 +957,15 @@ frequency counter needs" was on this list for days, with a note saying that was
 why no frequency here was measured. Both halves stopped being true, the second
 before the first: the core clock has been measured against the crystal since
 Sunday 4 October 2026.
+
+And the converter bring-up sequence, which sat on this list as the one item
+gating all three of P06's back ends, came off it in a single evening on
+Wednesday 7 October 2026 and the converter now samples. **It was answered from
+ST's pack rather than from the document the list said it needed**, which is the
+most practically useful thing in this whole file: a question filed as a
+datasheet question turned out to be answerable from headers and examples that
+were already on the disk. Before assuming an open item here is blocked, grep
+the pack for it.
 
 ---
 
@@ -1475,6 +1630,9 @@ document.
 | The eight-step clock sequence | `c/board/clock280.c` |
 | The memory regions, with the transfer-engine trap at the region | `c/ld/stm32h7a3zi.ld` |
 | The marker pin, with its UM2408 citation and the near miss | `projects/P06-timer-sampling/c/marker.c` |
+| The eight-step converter bring-up, every value with its source or its reason | `projects/P06-timer-sampling/c/acq_timer.c` |
+| The three interrupt positions, with their citation and what their absence cost | `c/board/stm32h7a3_regs.h` |
+| The vector table, and the comment whose prediction came true | `c/board/startup.c` |
 | The counting input and the counter's ceiling rule | `c/instr/freqcount.h` |
 | The crystal reference and its gate | `c/instr/lseref.h` |
 | Arithmetic with no register access, host tested | `c/clock/clocktree.c`, `c/instr/freqmath.c`, `c/instr/pwmmath.c`, `c/instr/adcmath.c` |
@@ -1499,8 +1657,8 @@ with a real cause, not an oversight.
 | Document | What this file uses it for | Status |
 |---|---|---|
 | **UM2408**, STM32H7 Nucleo-144 boards, **MB1363** [link](https://www.st.com/resource/en/user_manual/um2408-stm32h7-nucleo144-boards-mb1363-stmicroelectronics.pdf) | The board itself. **Table 18, page 44** gives PB4 as CN7 pin 19, signal D25, function SPI_B_MISO on SPI3, which settles the marker pin. **Page 37** gives CN7, CN8, CN9 and CN10 as female Zio connectors on the top side, which is how CN7 is known to be a Zio header | **Read** Tuesday 6 October 2026, those two pages |
-| **RM0455**, STM32H7A3, H7B3 and H7B0 reference manual [link](https://www.st.com/resource/en/reference_manual/rm0455-stm32h7a3b3-and-stm32h7b0-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf) | The authority this whole repository defers to. Named in 1.2 as the manual that makes H743 material wrong here. **Two open items in 2.9 are waiting on it**: the `TIMPRE` boundary and the three unread bus prescaler fields. The converter bring-up came off this list on Wednesday 7 October 2026: five of its eight steps now run on the board, sourced from ST pack headers rather than from the manual, and what remains of it is datasheet rather than manual | **Largely unread.** Register facts here came from ST's device headers and board examples instead, which is why so much of 2.9 is still open |
-| **STM32H7A3ZI datasheet** [link](https://www.st.com/resource/en/datasheet/stm32h7a3zi.pdf) | The authority for the questions that are datasheet questions rather than manual questions: whether **PB4** carries a JTAG function by default on this package (2.6), and the four that now block P06 at step 6, which are the converter channel reaching each pin, its sampling time, the resolution and the highest channel number. Also flash write granularity and the cache line size | **Unread.** The converter arithmetic therefore caps its channel at 19 as a **conservative choice pending this document**, and says so where the constant is |
+| **RM0455**, STM32H7A3, H7B3 and H7B0 reference manual [link](https://www.st.com/resource/en/reference_manual/rm0455-stm32h7a3b3-and-stm32h7b0-value-line-advanced-armbased-32bit-mcus-stmicroelectronics.pdf) | The authority this whole repository defers to. Named in 1.2 as the manual that makes H743 material wrong here. **Two open items in 2.9 are waiting on it**: the `TIMPRE` boundary and the three unread bus prescaler fields. The converter came off this list entirely on Wednesday 7 October 2026: all eight bring-up steps run on the board and it samples, every value sourced from ST pack headers and board examples rather than from the manual. The interrupt positions went the same way, read from `IRQn_Type` for this exact part rather than from this manual's vector table | **Largely unread.** Register facts here came from ST's device headers and board examples instead, which is why so much of 2.9 is still open |
+| **STM32H7A3ZI datasheet** [link](https://www.st.com/resource/en/datasheet/stm32h7a3zi.pdf) | The authority for the questions that are datasheet questions rather than manual questions: whether **PB4** carries a JTAG function by default on this package (2.6), the general mapping of converter channels to pins, the highest channel number, flash write granularity and the cache line size. **It no longer blocks P06.** The four items that did, on Wednesday 7 October 2026, were the channel, its sampling time, the resolution and the trigger edge, and all four were answered from ST's `ADC_DualModeInterleaved` example for this board and its LL header instead | **Still unread, and the converter samples anyway**, which is the useful finding: the pack said what the datasheet would have. The converter arithmetic still caps its channel at 19 as a **conservative choice pending this document**, and says so where the constant is |
 | **MCC 118 electrical specification** [link](https://mccdaq.github.io/daqhats/_static/esmcc118.pdf) | The witness in 4.4. Its **input range** and whether it offers an **external trigger** are the two things 4.4 names as still open against it | **Unread.** Every range it is likely to offer contains 3.3 V, which is a reason to expect it to be fine and **not** a reason to skip reading it |
 | **Raspberry Pi 4 datasheet** [link](https://datasheets.raspberrypi.com/rpi4/raspberry-pi-4-datasheet.pdf) | The host the MCC 118 sits on, so it is the other end of the ground wire and of the 3.3 V rule in 4.1 | **Unread.** Nothing here depends on it beyond the supply and logic level |
 

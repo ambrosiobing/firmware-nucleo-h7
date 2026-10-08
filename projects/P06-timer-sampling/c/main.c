@@ -78,9 +78,20 @@ int main(void)
             sum += b.samples[i];
         }
 
-        /* Report about once a second, computed from the nominal rate rather
-         * than from a delay, so the reporting cadence does not itself depend
-         * on the thing being measured. */
+        /* Report about once a second, with the threshold computed from the
+         * nominal rate rather than from a delay, so no software delay sits in
+         * the path being measured.
+         *
+         * WHAT THIS COMMENT USED TO CLAIM, AND IT WAS WRONG. It said the
+         * reporting cadence "does not itself depend on the thing being
+         * measured". The THRESHOLD does not; the cadence in time depends on the
+         * actual sampling rate entirely, because a line is emitted every
+         * ACQ_RATE_HZ / count blocks, which is every 960 samples, whenever those
+         * samples happen to arrive. On Wednesday 7 October 2026 that sentence
+         * led the project README to publish a prediction that "blocks rises by
+         * roughly 15 each line", which is 1000 / 64 and could not have come out
+         * otherwise whatever the board did. Half a prediction that cannot fail
+         * is worse than none, because it reads as confirmation. */
         if (blocks - last_report >= (ACQ_RATE_HZ / b.count)) {
             last_report = blocks;
             printf("seq %lu  blocks %lu  mean %lu  overruns %lu\r\n",
