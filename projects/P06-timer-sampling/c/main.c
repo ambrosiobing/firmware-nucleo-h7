@@ -59,6 +59,22 @@ int main(void)
         for (;;) { }
     }
 
+    /* WHETHER THE CONVERTER'S OWN OVERRUN FLAG IS WATCHED, SAID ONCE AND BEFORE
+     * THE FIRST REPORT LINE, so the convovr column below cannot be misread.
+     *
+     * This is printed here rather than in banner() because acq_start is what
+     * enables the line, so before that call the answer is not yet true. The
+     * negative case states what a zero would and would not have meant, because
+     * the whole reason this field exists is that the run on Wednesday 7 October
+     * 2026 reported overruns 0 for 390 blocks while nothing watched this flag. */
+    uint32_t probe = 0u;
+    if (acq_conv_overruns(&probe) == 0) {
+        printf("  converter overrun  watched, so convovr below is a real count\r\n");
+    } else {
+        printf("  converter overrun  NOT WATCHED by this back end, so convovr\r\n");
+        printf("                     reads -1 rather than a zero nobody earned\r\n");
+    }
+
     uint32_t blocks = 0u;
     uint32_t last_report = 0u;
 
@@ -94,10 +110,23 @@ int main(void)
          * is worse than none, because it reads as confirmation. */
         if (blocks - last_report >= (ACQ_RATE_HZ / b.count)) {
             last_report = blocks;
-            printf("seq %lu  blocks %lu  mean %lu  overruns %lu\r\n",
+
+            /* Two overrun numbers side by side, because they answer different
+             * questions and either can be zero while the other is not. overruns
+             * is main being too slow to collect a finished block. convovr is the
+             * converter unable to deliver a conversion because the previous
+             * result had not been read out of DR, which is the interrupt being
+             * too slow or not arriving. A long convovr with overruns 0 would mean
+             * the handler is losing samples the application never hears about. */
+            uint32_t covr = 0u;
+            const long covr_shown =
+                (acq_conv_overruns(&covr) == 0) ? (long) covr : -1L;
+
+            printf("seq %lu  blocks %lu  mean %lu  overruns %lu  convovr %ld\r\n",
                    (unsigned long) b.seq, (unsigned long) blocks,
                    (unsigned long) (sum / b.count),
-                   (unsigned long) acq_overruns());
+                   (unsigned long) acq_overruns(),
+                   covr_shown);
         }
     }
 }

@@ -115,4 +115,18 @@ int acq_take(acq_block_t *out)
 
 uint32_t acq_overruns(void) { return overruns; }
 
+/* NOT WATCHED HERE, so -1, and this is the back end where that answer is least
+ * comfortable. A transfer engine reading DR is exactly the arrangement where the
+ * converter's OVR is the primary failure mode rather than a remote one: if the
+ * engine is not keeping up, or its request is misrouted through DMAMUX1, the
+ * symptom is OVR and the application's own block counter would show nothing
+ * wrong. So this is the build that most needs the flag and the one least
+ * entitled to report it, because it does not configure the converter at all yet.
+ * Saying -1 is what keeps that from reading as a clean run later. */
+int acq_conv_overruns(uint32_t *out)
+{
+    (void) out;
+    return -1;
+}
+
 const char *acq_name(void) { return "dma"; }

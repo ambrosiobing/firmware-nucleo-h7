@@ -42,6 +42,24 @@ int acq_take(acq_block_t *out);
  * correct but the record has a gap, and a run with a gap is not evidence. */
 uint32_t acq_overruns(void);
 
+/* The CONVERTER'S OWN overrun, which is a different thing from acq_overruns()
+ * above, and reporting only the first is what let a run with converter overruns
+ * look clean until Thursday 8 October 2026.
+ *
+ * acq_overruns() counts blocks the APPLICATION never collected. This counts
+ * conversions the converter itself could not deliver, because a previous result
+ * had not been read out of its data register yet. Both can be zero while the
+ * other is not, and they have different causes: the first is main being too
+ * slow, the second is the interrupt being too slow or not arriving.
+ *
+ * RETURNS 0 AND WRITES THE COUNT, OR -1 IF THIS BACK END DOES NOT WATCH THE
+ * FLAG AT ALL, and the two answers are deliberately not interchangeable. A
+ * count of 0 means the flag was watched throughout and never set. -1 means
+ * nobody looked. A back end that cannot report it says so rather than printing
+ * a reassuring zero, because a zero that nobody earned is worse than no number:
+ * it reads as evidence. */
+int acq_conv_overruns(uint32_t *out);
+
 /* Which back end was compiled in, for the banner and for the capture metadata.
  * The string matches the --build argument of witness/scan.py exactly, so the
  * firmware and the capture cannot disagree about what was running. */

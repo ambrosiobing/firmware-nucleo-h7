@@ -130,4 +130,19 @@ int acq_take(acq_block_t *out)
 
 uint32_t acq_overruns(void) { return overruns; }
 
+/* NOT WATCHED HERE, so this returns -1 rather than 0, and the difference is the
+ * point of the interface. This back end polls EOC and reads DR inside the tick,
+ * so an overrun needs the tick to be late by a whole sampling period, which is
+ * less likely than in the interrupt-driven build and is NOT impossible: a tick
+ * delayed by a higher-priority handler would do it. Printing 0 would claim the
+ * flag had been watched throughout. It has not been, because this back end has
+ * never been brought up on the board at all, and instrumenting a path that
+ * refuses before it reaches the converter would be guessing at what it will do.
+ * The line to add when it is brought up is the same one acq_timer.c now has. */
+int acq_conv_overruns(uint32_t *out)
+{
+    (void) out;
+    return -1;
+}
+
 const char *acq_name(void) { return "systick"; }

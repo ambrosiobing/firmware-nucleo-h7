@@ -191,10 +191,35 @@ static volatile uint8_t  wbank;
 static volatile uint32_t ready_seq;
 static volatile uint32_t taken_seq;
 static volatile uint32_t overruns;
+static volatile uint32_t conv_overruns;
 
 void ADC_IRQHandler(void)
 {
-    if ((ADC1->ISR & ADC_ISR_EOC) == 0u) {
+    const uint32_t isr = ADC1->ISR;
+
+    /* THE CONVERTER'S OWN OVERRUN IS HANDLED FIRST, AND BEFORE THE EOC TEST
+     * RATHER THAN AFTER IT, for a reason that is the whole point of watching it.
+     *
+     * OVR means a conversion finished while the previous result was still
+     * sitting unread in DR. With OVRMOD clear, which is the value acq_start
+     * reports as found rather than sets, the data register is PRESERVED and the
+     * new result is discarded, and OVR stays set. An overrun therefore does not
+     * merely lose one sample: until OVR is cleared the converter keeps
+     * discarding, so an early return on a clear EOC would leave the flag set and
+     * the stream would stop for good while every register still read back
+     * correctly. That is the same class of silent failure as the missing vector,
+     * and it is the reason this is not simply counted at the end.
+     *
+     * Clearing is a write of one, and the count is what main reports. NO MARKER
+     * PULSE HERE: the marker must carry one edge per CONVERSION and not one per
+     * interrupt, or the witness would measure this handler's entries rather than
+     * the sampling instants, which is the one thing it exists to measure. */
+    if ((isr & ADC_ISR_OVR) != 0u) {
+        conv_overruns++;
+        ADC1->ISR = ADC_ISR_OVR;
+    }
+
+    if ((isr & ADC_ISR_EOC) == 0u) {
         return;
     }
 
@@ -732,13 +757,53 @@ int acq_start(void)
         return ACQ_ERR_ADC_CHANNEL;
     }
 
-    /* OVRIE is deliberately NOT enabled, and the distinction is worth one line
-     * because the two overruns are different things. The converter's OVR means a
-     * data register was overwritten before it was read. acq_overruns() counts
-     * something else: blocks the APPLICATION never collected. This build reports
-     * the second and does not read the first, so a run with converter overruns
-     * would look clean. That is a gap, it is named here, and closing it means
-     * handling OVR in the interrupt rather than enabling a line nothing reads. */
+    /* AND NOW OVRIE, WHICH THIS FILE NAMED AS A GAP FOR A DAY BEFORE CLOSING IT.
+     *
+     * The comment that stood here said OVRIE was deliberately not enabled, that
+     * the converter's OVR and acq_overruns() are different things, that this
+     * build reported the second and not the first, and that a run with converter
+     * overruns would therefore look clean. All of that was true and it was a
+     * description of a hole rather than a reason for one. The sampling run on
+     * Wednesday 7 October 2026 reported overruns 0 for 390 blocks and that number
+     * could not have been anything else, because nothing was watching the flag
+     * that the application's own counter does not cover.
+     *
+     * Enabling the line is only half of it and the handler does the other half:
+     * it counts OVR and clears it, so the count is a real count and the stream
+     * recovers. Enabling an interrupt whose flag nobody clears would hang the
+     * part in the handler, which is why these two changes belong in one commit.
+     *
+     * acq_conv_overruns() now returns 0 with the count for this back end, where
+     * the other two still return -1 and say so.
+     *
+     * BOTH NAMES WERE VERIFIED BEFORE A LINE OF THIS WAS WRITTEN, in
+     * stm32h7a3xxq.h of STM32Cube_FW_H7_V1.13.0, which is the Q-suffix header for
+     * this exact part and not the family one: ADC_IER_OVRIE at line 2675 and
+     * ADC_CFGR_OVRMOD at line 2784. The search carried ADC_IER_EOCIE at 2669 and
+     * ADC_ISR_OVR at 2637 as controls, since both already compile in this file,
+     * AND A DELIBERATELY ABSENT NAME that returned nothing, which is what proves
+     * the check could have failed. Verifying names without a compiler is the
+     * discipline this file adopted after a missing include cost a round trip. */
+    ADC1->IER |= ADC_IER_OVRIE;
+    const bool ovrie = (ADC1->IER & ADC_IER_OVRIE) != 0u;
+    report("overrun irq", ADC_IER_OVRIE, ADC1->IER, ovrie);
+    if (!ovrie) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
+    /* OVRMOD IS REPORTED AS FOUND AND NOT SET, which is the as-found discipline
+     * this volume adopted after the deep power-down step could not say whether a
+     * bit had been cleared or had never been set.
+     *
+     * The bit decides what an overrun DOES to the data: clear means the data
+     * register is preserved and the new conversion is discarded, set means the
+     * new conversion overwrites it. A reader who knows the count but not this bit
+     * cannot say which samples a gap contains. Nothing here chooses between them,
+     * because neither is obviously right for this application and choosing would
+     * be a configuration decision presented as a fact. The value is printed so
+     * the choice can be made later with the number in hand. */
+    printf("  adc overrun mode as found  %lu  (0 keeps the old sample, 1 the new)\r\n",
+           (unsigned long) ((ADC1->CFGR & ADC_CFGR_OVRMOD) != 0u ? 1u : 0u));
 
     NVIC_SetPriority(ADC_IRQn, 5u);
     NVIC_EnableIRQ(ADC_IRQn);
@@ -772,5 +837,14 @@ int acq_take(acq_block_t *out)
 }
 
 uint32_t acq_overruns(void) { return overruns; }
+
+/* This back end watches the flag, so it answers with a count. The count is only
+ * meaningful because the handler clears OVR; a build that enabled OVRIE without
+ * clearing would report one overrun and then never return from the handler. */
+int acq_conv_overruns(uint32_t *out)
+{
+    *out = conv_overruns;
+    return 0;
+}
 
 const char *acq_name(void) { return "timer"; }

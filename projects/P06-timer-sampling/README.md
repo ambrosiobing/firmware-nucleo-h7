@@ -599,11 +599,53 @@ Both items are gone, and a third that was on no list is what actually stopped it
    Pi, and `scan.py` on the Pi. That is the only step that can turn the title
    into a measurement, and `MEASUREMENT.md` already says what the answer is
    allowed to be.
-2. **`OVRIE` and the converter's own `OVR`**, which this build does not read, so
-   a run with converter overruns would look as clean as this one did.
-3. **The other two back ends**, `sampling-systick` and `sampling-dma`, which are
+2. **The other two back ends**, `sampling-systick` and `sampling-dma`, which are
    the comparison the chapter exists for and which have never reached the
-   converter.
+   converter. The chapter currently has one data point out of three.
+3. **`OVRMOD` as a decision rather than a reading.** The bit is now printed as
+   found and nothing chooses it, which is honest and is not finished. Choosing it
+   needs a reason, and the reason will come from what a real source on PC3 turns
+   out to need.
+
+### The converter's own overrun, closed Thursday 8 October 2026
+
+This was item 2 on the list above the day before, and it is worth recording why it
+mattered rather than only that it is done.
+
+**The sampling capture reported `overruns 0` for 390 blocks and that number could
+not have been anything else.** `OVRIE` was not enabled and `OVR` was not read, so
+nothing was watching the one counter the application's own cannot cover. The gap
+was named in three places rather than left for a reader to find, which is the right
+treatment for a hole and is not the same as not having one.
+
+**Two numbers now, because they answer different questions.** `overruns` counts
+blocks the **application** never collected, which is `main` being too slow.
+`convovr` counts conversions the **converter** could not deliver because the
+previous result was still in its data register, which is the interrupt being too
+slow or not arriving. Either can be zero while the other is not, and a rising
+`convovr` with `overruns` at zero would mean the handler is losing samples the
+application never hears about.
+
+**Enabling the interrupt was half of it and the halves ship together.** With
+`OVRMOD` clear the data register is preserved and the new conversion is discarded,
+and `OVR` stays set, so an overrun does not cost one sample: the converter keeps
+discarding until the flag is cleared. The handler counts `OVR` and clears it, which
+makes the count real and lets the stream recover. Enabling a line whose flag nobody
+clears would have held the part in the handler, a worse failure than the one being
+closed, so the two changes are deliberately in one commit.
+
+**The marker does not pulse on an overrun-only entry**, which is a one line
+decision with the whole measurement behind it. The marker must carry one edge per
+**conversion** and not one per interrupt, or the witness would measure this
+handler's entries rather than the sampling instants.
+
+**And the other two back ends return -1 rather than 0.** The interface makes the
+distinction impossible to lose: 0 means the flag was watched throughout and never
+set, -1 means nobody looked. `main.c` says which before the first report line, so
+the column cannot be misread. The `dma` build is where -1 is least comfortable,
+because a transfer engine reading the data register is exactly the arrangement in
+which `OVR` is the primary failure mode rather than a remote one: it is the build
+that most needs the flag and the one least entitled to report it.
 
 ## Vendor code
 

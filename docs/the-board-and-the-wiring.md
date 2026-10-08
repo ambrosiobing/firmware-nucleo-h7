@@ -882,13 +882,48 @@ converter returning a constant would read the same every line. That is weak
 positive evidence that these are real conversions, weak because it cannot
 distinguish a floating input from a grounded one.
 
-**One gap is named rather than left for a reader to notice.** `OVRIE` is
-deliberately not enabled, and the converter's own `OVR`, which means a data
-register was overwritten before it was read, is **not read by this build at all.**
-`acq_overruns()` counts something different: blocks the application never
-collected. A run with converter overruns would therefore look exactly as clean as
-this one did. Closing that means handling `OVR` in the handler rather than
-enabling a line nothing reads.
+### The gap that was named, and closed the next day
+
+**The capture above reported `overruns 0` for 390 blocks and that number could not
+have been anything else.** `OVRIE` was not enabled and the converter's own `OVR`
+was not read at all, so a run with converter overruns would have looked exactly as
+clean as that one did. The gap was named in the file and in this document rather
+than left for a reader to find, which is the right thing to do with a hole and is
+not the same as not having one.
+
+**On Thursday 8 October 2026 it was closed for the timer back end**, and the two
+numbers are now reported side by side because they answer different questions and
+either can be zero while the other is not. `acq_overruns()` counts blocks the
+**application** never collected, which is `main` being too slow. The new
+`convovr` counts conversions the **converter** could not deliver because the
+previous result was still in its data register, which is the interrupt being too
+slow or not arriving. A rising `convovr` with `overruns` at zero would mean the
+handler is losing samples the application never hears about, and nothing in the
+old report could have shown that.
+
+**Enabling the interrupt was only half of it, and the halves had to ship
+together.** With `OVRMOD` clear the data register is preserved and the new
+conversion is discarded, and `OVR` stays set, so an overrun does not lose one
+sample: the converter keeps discarding until the flag is cleared. The handler
+therefore counts `OVR` and clears it, which makes the count a real count and lets
+the stream recover. Enabling a line whose flag nobody clears would have held the
+part in the handler, which is a worse failure than the one being fixed.
+
+**`OVRMOD` is reported as found and not set**, following the as-found discipline
+that 2.8 adopted after the deep power-down step could not say whether a bit had
+been cleared or had never been set. The bit decides what an overrun does to the
+data, so a reader who has the count but not the bit cannot say which samples a gap
+contains. Neither value is obviously right for this application, and choosing one
+would be a configuration decision presented as a fact, so the value is printed and
+the choice is left for somebody who has the number.
+
+**The other two back ends return -1 from the new call rather than 0**, and the
+interface makes that distinction impossible to lose: 0 means the flag was watched
+and never set, -1 means nobody looked. The `dma` build is where that answer is
+least comfortable, because a transfer engine reading the data register is exactly
+the arrangement in which `OVR` is the primary failure mode rather than a remote
+one. It is the build that most needs the flag and the one least entitled to report
+it, since it does not configure the converter at all yet.
 
 ## 2.9 What is still open, and treated as a question
 
