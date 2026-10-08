@@ -949,7 +949,38 @@ marker on PB4 at CN7 pin 19, which 2.6 sourced from UM2408 Table 18, is the
 measurement. **The wire is not connected**, and until it is, the 1 kHz in the
 project's title is a claim.
 
-The converted value is not the result either. `mean` reads 3 to 5 of 65 535 on a
+**The converted value, and a control that settled it on Thursday 8 October 2026.**
+One jumper wire from PC3 to a pin marked GND, with its threshold published before
+the wire went on, and `mean` fell to **1 or 2 counts across thirty reports, a spread
+of one**. Floating it averaged 2861.7 counts, which is 144.10 mV at a 3.3 V
+reference; grounded it averages 1.37 counts, which is 0.07 mV. The offset fell by a
+factor of about 2094 and the spread by 467, and **a regular 0.118 Hz oscillation
+seen while floating vanished completely.**
+
+Three things follow. The offset and the oscillation were both **the floating input**
+and neither implicated the converter. The converter's own zero is about 1.5 counts,
+0.076 mV, so **the offset calibration worked**, which is a result in its own right
+and was not the one being sought. And it reconciles two nights that guesswork had
+not: an earlier reading of 3 to 5 sits near that true zero while a later one of 2649
+to 3116 sits far from it, so the later reading was the anomalous one.
+
+What it does not settle is **what** was coupling in, and nothing will: a grounded pin
+carries no information about what a floating one was picking up. That question is
+also moot here, because a real source has an impedance low enough to make the
+coupling irrelevant, which is why the sampling time was chosen as the tolerant option
+in the first place.
+
+**And the wire went on at CN11 rather than the CN9 pin 5 the instruction named**,
+because the Morpho connector carries signal-name silkscreen and CN9 does not. ST's
+own example gives both, "Arduino connector CN9 pin 5, Morpho connector CN11 pin 37",
+so they are one net. **Wiring at the labelled connector is the better practice** and
+the reason generalises: CN9 means counting pins on an unlabelled header, and an
+off-by-one there lands on a different net silently and reads plausibly, which is the
+failure this document exists to argue about. Where a pin exists on both, wire it at
+the labelled one and name both in the instruction.
+
+Before that control, this section read as follows and is kept because the reasoning
+is what produced the control. `mean` reads 3 to 5 of 65 535 on a
 **floating PC3**, said in advance to be meaningless. One thing in it earns a
 sentence: it **varies between reports**, where a register never written or a
 converter returning a constant would read the same every line. That is weak

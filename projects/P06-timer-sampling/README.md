@@ -729,7 +729,9 @@ cannot observe an interval at all. **The MCC 118 on PB4 at CN7 pin 19 remains th
 only route to three of the four**, and those three are the chapter's actual
 subject.
 
-### The converted value changed by three orders of magnitude, and that is open
+### The converted value changed by three orders of magnitude, and it was the floating pin
+
+**Closed by the grounded control below, Thursday 8 October 2026.** The account that follows is left as it was written, because it is the reasoning that led to the control and one hypothesis it eliminates is eliminated on evidence that is still worth reading.
 
 `mean` read **3 to 5** on Wednesday 7 October 2026 and **3037 to 3397** on
 Thursday 8 October 2026, with nothing deliberately connected to PC3 on either
@@ -928,7 +930,9 @@ Nothing depends on the count, which is exactly why it was easy to write careless
 The bound it is checked against is far above either figure, so neither run came
 close to the refusal path.
 
-### The converted value oscillates regularly, which is new and is not explained
+### The converted value oscillates regularly, and it was pickup on the floating pin
+
+**Closed by the grounded control below, Thursday 8 October 2026**, which removed it entirely. Left as written, because it is what put the control on the critical path.
 
 Sixty six reports, `mean` from **2649 to 3116**, and it is not noise. Local maxima
 fall at reports 5, 13, 23, 32, 40, 49 and 58, so the gaps are **8, 10, 9, 8, 9 and
@@ -962,6 +966,93 @@ recorded because a regular 0.118 Hz oscillation on an input nobody connected is 
 kind of thing that becomes obvious in hindsight and expensive if it is first
 noticed in a measurement that matters.
 
+## The grounded control, and both open observations close at once
+
+Thursday 8 October 2026. One jumper wire, and the threshold for it had been
+published before the wire went on: `mean` within a few counts of 0 and steady.
+
+    seq 15  blocks 15  mean 1  overruns 0  convovr 0
+    seq 30  blocks 30  mean 2  overruns 0  convovr 0
+    ...
+    seq 450  blocks 450  mean 1  overruns 0  convovr 0
+
+**`mean` reads 1 or 2 across thirty reports, a spread of one count. The control
+passes.**
+
+| | floating | grounded |
+|---|---|---|
+| `mean`, average of the reports | 2861.7 counts | **1.37 counts** |
+| the same in millivolts at a 3.3 V reference | 144.10 mV | **0.07 mV** |
+| spread across the capture | 467 counts | **1 count** |
+| the regular oscillation | maxima every 8 to 10 reports | **absent** |
+
+The offset fell by a factor of about **2094** and the spread by a factor of
+**467**. Same image, same pin, same converter configuration, one wire added.
+
+### What this settles
+
+**The offset was the floating input.** Not the converter, not the configuration,
+not the data register.
+
+**And the regular 0.118 Hz oscillation was pickup on that floating input.** It was
+reported one commit earlier as new and unexplained, with the explicit note that
+ambient wander does not produce six consecutive intervals of 8 to 10 reports and
+that something periodic was present. Something periodic was present, it was reaching
+the part through an unconnected pin, and holding that pin at ground removed it
+completely. **There is no longer any range for a period to live in:** the whole
+capture spans one count.
+
+**The converter's own zero is about 1.5 counts, which is 0.076 millivolts.** The 1
+and 2 alternation is integer division of a 64 sample sum whose true value sits
+between them. That is a result in its own right and it was not the one being looked
+for: **it says the offset calibration worked.** A converter with a real offset error
+would read a steady number of counts above zero on a grounded input, and this one
+reads the bottom of its range.
+
+### And it reconciles the two nights, which guesswork had not
+
+Wednesday 7 October 2026 read **3 to 5**. Thursday 8 October 2026 read **2649 to
+3116**. The grounded zero is **1 to 2**.
+
+So the Wednesday 7 October 2026 reading sat **near the converter's true zero** and
+the Thursday 8 October 2026 one sat far from it. The pin was close to ground
+potential on the first night and something coupled into it on the second. The
+earlier account called that "the pin's environment" and could not do better than the
+phrase; the control turns it into a measurement, because it establishes where zero
+actually is and therefore which of the two readings was the anomalous one. **It was
+the Thursday 8 October 2026 one.**
+
+### What it does not settle, stated so nobody looks for an answer that is not here
+
+**What was coupling in.** The control answers "was the floating pin the cause", and
+the answer is yes. It does not identify the source, and nothing here will: a
+grounded pin carries no information about what a floating one was picking up.
+
+That question is also no longer worth asking for this project. PC3 will carry a real
+source when the value matters, and a real source has an impedance low enough that
+this coupling becomes irrelevant. **The sampling time was chosen for exactly that
+uncertainty** and is recorded above as a choice: 810.5 cycles is the tolerant option
+precisely because what would be connected to PC3 was not decided.
+
+### A note on how the wire went on, because the method is better than the instruction
+
+The instruction said PC3 at **CN9 pin 5**. The wire went on at PC3 on **CN11**
+instead, because the Morpho connector carries signal-name silkscreen and CN9 does
+not.
+
+**That is the better of the two and the reason generalises.** ST's own example
+readme, the same authority that settled the channel, gives the pin as "ADC_CHANNEL_13
+on pin PC.03 (Arduino connector CN9 pin 5, Morpho connector CN11 pin 37)", so the
+two are one net. Wiring at CN9 means **counting pins** on an unlabelled header, and
+an off-by-one there lands on a different net silently and reads plausibly, which is
+the failure mode this entire volume is organised around. Wiring at CN11 means reading
+a **label**, and the label is a better authority than a position.
+
+**So the standing instruction changes:** where a pin exists on both connectors, wire
+it at the labelled one and name both in the instruction. The pin number on the
+labelled connector does not even need to be right, because the silkscreen is what is
+being trusted.
+
 ### What is next, in the order that makes each claim true
 
 1. **Decide what the claim is**, now that criterion 1 has failed on this clock at
@@ -969,9 +1060,9 @@ noticed in a measurement that matters.
    default is to restate the claim as nominal with the measured tolerance beside
    it. There is no option on this board that both keeps the number 1000 and
    passes.
-2. **The grounded PC3 control**, one jumper wire, threshold published above. It
-   does not bear on the claim and it now has two open observations to settle
-   rather than one: the offset change, and the regular 0.118 Hz oscillation.
+2. ~~The grounded PC3 control.~~ **Done Thursday 8 October 2026 and it passed**,
+   closing both observations: the offset was the floating input and the 0.118 Hz
+   oscillation was pickup on it.
 3. **The marker wire**, CN7 pin 19 on the board to the MCC 118 on the Raspberry
    Pi, and `scan.py` on the Pi. That is the only route to criteria 2, 3 and 4,
    which are the chapter's actual subject, and `MEASUREMENT.md` already says what
