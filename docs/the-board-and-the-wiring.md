@@ -721,7 +721,7 @@ says so at length**, because the last subsection is the one worth reading.
 |---|---|
 | `DEEPPWD` is bit 29 and **set at reset** | The control register reads `20000000` as found, before anything touches it |
 | `ADVREGEN` is bit 28 | Written and read back `10000000` |
-| `ADCAL` is bit 31 and self clearing | Written `80000000`, and after 180 polls the register reads back with it gone |
+| `ADCAL` is bit 31 and self clearing | Written `80000000`, and the register reads back with it gone. **The poll count varies and was first recorded as though it did not:** 180 on the runs of Wednesday 7 October 2026 and **187** on Thursday 8 October 2026. The bit self clears, which is the fact; how long it takes is an observation |
 | `BOOST` is two bits at bit 8 | A boost setting of 1 leaves the control register at `10000100`, the regulator bit still beside it |
 | `CKMODE` field value 3 is divide by four, at bit 16 in the **common** block | Wrote 3, read back `00030000` |
 | `RCC_AHB1ENR_ADC12EN` is the right bus clock enable | Nothing above would have stuck without it |

@@ -374,7 +374,7 @@ output turned a claim that could not be made into one that can.**
 | `ADVREGEN` is bit 28 | Written and read back `10000000` |
 | `CKMODE` field value 3 means divide by four, at bit 16 | Wrote 3, read back `00030000` |
 | `BOOST` is two bits at bit 8 | Boost 1 gives `CR` = `10000100`, the regulator bit still set beside it |
-| `ADCAL` is bit 31 and self clearing | Wrote `80000000`, and after 180 polls `CR` reads `10000100` with no `ADCAL` |
+| `ADCAL` is bit 31 and self clearing | Wrote `80000000`, and `CR` reads `10000100` with no `ADCAL`. **The count varies: 180 on Wednesday 7 October 2026 and 187 on Thursday 8 October 2026**, so the self clearing is the fact and the duration is an observation |
 
 The kernel clock arithmetic also came out exactly as `adcmath` computed it on a
 laptop that compiles nothing for this part: 16 MHz from HCLK 64 MHz over 4, and
@@ -892,6 +892,76 @@ from a correct one from inside the part, and the part reported `overruns 0`,
 `convovr 0` and a flawless eight step bring-up while running 2818 parts per million
 fast. Nothing on the die noticed. That is the thesis, measured.
 
+## The LDORDY flash, and two things it showed that were not predicted
+
+Built, flashed and captured as consecutive steps on Thursday 8 October 2026, which
+is now the rule rather than a habit: the board is shared with another project, so a
+capture taken without reflashing first is a capture of an unknown image. FLASH
+14 732 to 14 848 bytes.
+
+### The prediction held exactly, and it could have failed two ways
+
+Published before the flash, then observed:
+
+    adc regulator ready flag   set    isr 00001000  (LDORDY, bit 12)
+
+**`set`, and `ISR` reading `00001000` rather than anything else.** Both halves were
+stated in advance. The flag could have read `CLEAR`, which would have meant either
+that ST's documented ten microsecond start-up is not sufficient on this part or
+that the bit does not mean what the header says. And `ISR` could have carried other
+bits; `00001000` is `LDORDY` alone, with `ADRDY` correctly absent because the
+converter is not enabled until two steps later.
+
+So the regulator's own ready flag is confirmed on hardware, reading set at exactly
+the point ST's delay says it should. The delay still runs and the flag is still not
+gated on, for the reason at `ADC_VREG_STARTUP_US`: it has now been observed twice
+rather than once, which is not yet a licence to stake a bring-up on it.
+
+### Calibration took 187 polls, where this page said 180 as though it were a property
+
+It is 180 on the runs of Wednesday 7 October 2026 and 187 on Thursday 8 October
+2026. **The self clearing is the fact; the duration is an observation**, and three
+places in this repository had written the duration as if it were the former. All
+three now say so.
+
+Nothing depends on the count, which is exactly why it was easy to write carelessly.
+The bound it is checked against is far above either figure, so neither run came
+close to the refusal path.
+
+### The converted value oscillates regularly, which is new and is not explained
+
+Sixty six reports, `mean` from **2649 to 3116**, and it is not noise. Local maxima
+fall at reports 5, 13, 23, 32, 40, 49 and 58, so the gaps are **8, 10, 9, 8, 9 and
+9**. One report is 15 blocks of 64 samples, so at the measured 1002.818 Hz the cycle
+is about **8.5 seconds, near 0.118 Hz**.
+
+**The regularity is the finding, and it is what the earlier account did not
+anticipate.** Thursday 8 October 2026's earlier note put the change in `mean` down
+to "the pin's environment", which covers ambient pickup wandering. **Ambient wander
+does not produce six consecutive intervals of 8 to 10 reports.** Something periodic
+is present.
+
+**And the earlier capture cannot be used to extend this backwards.** It was
+19 reports with peak gaps of 3 and 6, which is too short to establish any period, so
+whether the same oscillation was present then is unknown rather than likely. A
+longer capture is the only way to say.
+
+**No mechanism is offered.** Naive alias arithmetic does not single one out, because
+the signal passes through two stages of averaging and decimation before it reaches
+the console: a 64 sample block mean, then one report in every fifteen blocks. A
+frequency guessed from the visible 0.118 Hz could correspond to many inputs.
+
+**The discriminator is the control already specified above**, whose threshold was
+published before any of this: tie PC3 at CN9 pin 5 to a pin marked GND and capture
+again. Pickup on a floating input vanishes when the pin is held at ground. A
+periodic reading that survives grounding is a different and more interesting
+problem, and in either case the answer arrives for the cost of one jumper wire.
+
+**None of this bears on the project's claim**, which is about the rate. It is
+recorded because a regular 0.118 Hz oscillation on an input nobody connected is the
+kind of thing that becomes obvious in hindsight and expensive if it is first
+noticed in a measurement that matters.
+
 ### What is next, in the order that makes each claim true
 
 1. **Decide what the claim is**, now that criterion 1 has failed on this clock at
@@ -900,7 +970,8 @@ fast. Nothing on the die noticed. That is the thesis, measured.
    it. There is no option on this board that both keeps the number 1000 and
    passes.
 2. **The grounded PC3 control**, one jumper wire, threshold published above. It
-   does not bear on the claim and it closes an open observation cheaply.
+   does not bear on the claim and it now has two open observations to settle
+   rather than one: the offset change, and the regular 0.118 Hz oscillation.
 3. **The marker wire**, CN7 pin 19 on the board to the MCC 118 on the Raspberry
    Pi, and `scan.py` on the Pi. That is the only route to criteria 2, 3 and 4,
    which are the chapter's actual subject, and `MEASUREMENT.md` already says what
