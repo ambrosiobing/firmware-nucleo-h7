@@ -743,10 +743,44 @@ what it wrote, which was equally consistent with the bit having been clear
 already, and the as-found line was added to separate the two. The prediction that
 it would read 1 was written down before the flash.
 
-**One bit is unexplained and is named rather than guessed.** The status register
-read `00001001`, so besides `ADRDY` at bit 0 something at bit 12 is also set.
-This repository has not read what it is. Nothing depends on it, and it is one
-grep of the device header away.
+**One bit was unexplained, was named rather than guessed, and was read on
+Thursday 8 October 2026.** The status register read `00001001`, so besides
+`ADRDY` at bit 0 something at bit 12 was set.
+
+**That bit is `LDORDY`, and closing it exposed a wrong claim in this
+repository**, which is why it was worth the one grep it was always said to need.
+
+`ADC_ISR_LDORDY`, bit 12, mask `0x00001000`, described in the device header for
+this exact part as the "ADC LDO output voltage ready bit". So the `00001001`
+read-back was always `ADRDY` at bit 0 plus the **analogue regulator's own ready
+flag**, and this file had been printing that flag for a day without recognising
+it.
+
+**And `acq_timer.c` said twice that this flag does not exist.** Its words were
+"there is no ready flag for this one, so there is nothing to poll", used to
+justify the ten microsecond regulator wait being a blind delay. There is a flag.
+ST references it six times in its own driver headers, `stm32h7xx_hal_adc.h` at
+913 and 1376 and `stm32h7xx_ll_adc.h` at 655, 7546, 7550 and 7552, and uses it
+nowhere in the `.c` files that implement the start-up.
+
+**The error was inferring the absence of a flag from ST's choice not to poll
+one**, which is the same shape as taking a value off a schematic and calling it a
+meaning. Reference code shows one working sequence; the register list shows what
+the part can do. Only the second question was ever the right one to ask, and the
+answer had been sitting in the header the whole time.
+
+**The delay stays and the flag is reported beside it**, not gated on. ST's
+documented start-up time is the sufficient condition and it is met; the flag has
+been observed once. Gating the whole bring-up on a bit learned about today would
+stake it on a single observation. If it reads set on every run for a while,
+promoting it to a bound poll is a two line change and the delay becomes the
+fallback, which is the shape the `ADEN` erratum settled into on Wednesday
+7 October 2026.
+
+**What to watch for in the new line.** `set` is expected, because the documented
+start-up time has just elapsed. **`CLEAR` would be the interesting result**, and
+it would mean either that the delay is not sufficient on this part or that the bit
+does not mean what the header says. Either deserves a flash of its own.
 
 ### The enable erratum does not bite here, and the experiment that settled it
 

@@ -177,10 +177,33 @@ extern uint32_t board_pclk1_hz(void);
 
 /* tADCVREG_STUP, the internal regulator start-up time, from
  * stm32h7xx_ll_adc.h line 1537 where ST names it
- * LL_ADC_DELAY_INTERNAL_REGUL_STAB_US. ST's own comment calls for a DELAY and
- * not a poll: there is no ready flag for this one, so there is nothing to poll.
- * A converter enabled before this has elapsed is the usual reason a first
- * attempt reads zero for ever. */
+ * LL_ADC_DELAY_INTERNAL_REGUL_STAB_US. ST's own comment calls for a DELAY rather
+ * than a poll, and this image keeps the delay.
+ *
+ * AND WHAT THIS COMMENT USED TO SAY WAS WRONG, which is worth more than the
+ * correction. It said "there is no ready flag for this one, so there is nothing
+ * to poll." THERE IS A FLAG. ADC_ISR_LDORDY, bit 12, mask 0x00001000, which the
+ * device header for this exact part describes as the "ADC LDO output voltage
+ * ready bit". ST references it six times in its own driver headers,
+ * stm32h7xx_hal_adc.h at 913 and 1376 and stm32h7xx_ll_adc.h at 655, 7546, 7550
+ * and 7552, and uses it NOWHERE in the .c files that implement the start-up.
+ *
+ * THE ERROR WAS INFERRING THE ABSENCE OF A FLAG FROM ST'S CHOICE NOT TO POLL
+ * ONE, which is the same shape as reading a value off a schematic and calling it
+ * a meaning. Reference code shows one working sequence; the register list shows
+ * what the part can do. Those are different questions and only the second was
+ * ever worth asking here. The flag was in the device header the whole time, and
+ * this file had already PRINTED it without recognising it: the enable step's
+ * read-back of 00001001 is ADRDY at bit 0 and LDORDY at bit 12, and that unknown
+ * bit 12 sat named as an open item in three files for a day.
+ *
+ * THE DELAY STAYS AND THE FLAG IS REPORTED BESIDE IT, deliberately, and the
+ * sequence does not gate on the flag. ST's delay is the documented sufficient
+ * condition and it is met; the flag is new to this repository and has been
+ * observed exactly once. Gating on a bit this file learned about today would
+ * stake the whole bring-up on one observation. If it reads set on every run for
+ * a while, promoting it to a bound poll is a two line change and then the delay
+ * becomes the fallback, which is the shape the ADEN erratum settled into. */
 #define ADC_VREG_STARTUP_US  10u
 
 #define BLOCK 64u
@@ -328,7 +351,10 @@ static void report(const char *step, uint32_t wrote, uint32_t read_back, bool ok
  * calibration, because calibrating at one boost setting and running at another
  * calibrates the analogue path for conditions it will not see. The regulator
  * precedes both, and its ten microsecond wait is a delay rather than a poll
- * because there is no ready flag for it.
+ * because that is what ST's sequence does. NOT because no flag exists: LDORDY at
+ * bit 12 of ISR is exactly that flag, this file wrongly said it did not exist,
+ * and the constant's own comment above now carries the correction and the reason
+ * the delay is kept anyway.
  *
  * ONE DEPARTURE FROM THE README'S NUMBERING, and it is deliberate: step 8 is
  * written before step 7. The channel's sampling time and its place in the
@@ -384,12 +410,32 @@ static int adc_bring_up(uint32_t pclk1_hz, uint32_t divisor)
         return ACQ_ERR_ADC_VREG;
     }
 
-    /* Step 3, from line 1537. Ten microseconds, and there is no flag for it. */
+    /* Step 3, from line 1537. Ten microseconds on the cycle counter. */
     if (!delay_us(ADC_VREG_STARTUP_US)) {
         report("regulator start-up", ADC_VREG_STARTUP_US, 0u, false);
         return ACQ_ERR_NO_CYCLE_COUNTER;
     }
     report("regulator start-up", ADC_VREG_STARTUP_US, ADC1->CR, true);
+
+    /* AND THE FLAG THIS FILE SPENT A DAY SAYING DID NOT EXIST, read straight
+     * after the delay and printed rather than gated on. See the comment at
+     * ADC_VREG_STARTUP_US for why it is an observation and not yet a condition.
+     *
+     * This is a plain printf rather than a report() call on purpose: report()
+     * prints REFUSED for a false result, and a sequence that prints REFUSED and
+     * then carries on would be worse than one that does not mention the flag.
+     * The OVRMOD line later in this file is printed the same way for the same
+     * reason.
+     *
+     * WHAT TO WATCH FOR. Set is expected, because ST's documented start-up time
+     * has just elapsed. CLEAR WOULD BE THE INTERESTING RESULT and it would mean
+     * one of two things: the delay is not actually sufficient on this part, or
+     * this bit does not mean what the header says. Either is worth a flash of its
+     * own, and neither is a reason to stop a sequence whose documented condition
+     * was met. */
+    printf("  adc regulator ready flag   %s  isr %08lX  (LDORDY, bit 12)\r\n",
+           ((ADC1->ISR & ADC_ISR_LDORDY) != 0u) ? "set  " : "CLEAR",
+           (unsigned long) ADC1->ISR);
 
     /* Step 4, boost mode, from stm32h7xx_hal_adc.c lines 3939 to 4008.
      *
