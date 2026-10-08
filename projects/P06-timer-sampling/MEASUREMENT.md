@@ -183,3 +183,109 @@ yield 960.0 Hz and 1056.0 Hz from the same image in a single capture. Stamping t
 lines removes the quantisation rather than shrinking it, and the long window
 reduces what remains of the serial latency and clock drift to well under the
 threshold.
+
+## Criterion 1 has an answer, and it is a failure, Thursday 8 October 2026
+
+**Appended, not edited.** The four criteria above are untouched. This records what
+the second witness returned, what had to be fixed in it first, and what the answer
+means.
+
+### The validity check the method above should have carried, and did not
+
+The section before this one fixed a threshold for the answer without fixing any
+check that the instrument was working. **Three runs were taken and all three were
+invalid**, and the method as published would have accepted any of them:
+
+| run | lines | blocks span the lines require | span observed | rate it reported |
+|---|---|---|---|---|
+| 1 | 743 | 11 145 | 9465 | 946.782 Hz |
+| 2 | 706 | 10 590 | 90 | 9.011 Hz |
+| 3 | 772 | 11 580 | 13 005 | 1301.394 Hz |
+
+A report line is emitted every 15 blocks, so the line count and the block span are
+two routes to the same number and they must agree. **In all three runs they did
+not**, and that disagreement was visible in the data before any rate was computed.
+The published method did not look.
+
+**One mechanism explains all three.** Each run's first row sat exactly 15 blocks
+past the previous run's last row: 9780 then 9795, 9885 then 9900. That is a line
+the serial driver buffered while the port was closed, delivered on reopening and
+stamped with a fresh arrival time. Its `blocks` value is old and its timestamp is
+new, so any span starting there is wrong, and wrong in whichever direction the
+backlog happens to fall. Runs 1 and 2 also carried a restart, because the
+instruction at the time was to press RESET after starting the reader.
+
+**The check that is now part of the method, and is required before any number is
+reported.**
+
+1. Count every step between consecutive rows that is not exactly 15 blocks.
+2. Count banner lines, which prove a restart.
+3. Measure only the longest run of consecutive rows with no bad step, and report
+   nothing at all if that run is shorter than 600 seconds.
+4. Do not press RESET. A rate measurement wants an uninterrupted stretch.
+
+### The run that passed its own check
+
+    rows 813  banners seen 0  steps not equal to 15: 1
+    longest clean segment rows 82 to 812, blocks 24450 to 35400, 698.831 s
+    mean rate 1,002.818 Hz   deviation 0.2818 percent   FAIL
+
+**The segment is internally exact.** 730 steps at 15 blocks each requires a span of
+10 950, and the observed span is 10 950, a difference of zero. 700 800 conversions
+over 698.831 seconds. No banner, so no restart. The single bad step is where the
+82 line backlog meets the live stream, and the clean-segment rule discarded the
+backlog, which is the job it was added for.
+
+### Criterion 1: FAIL
+
+**1002.818 Hz, which is +2818 parts per million against a threshold of plus or
+minus 1000.** Failed by a factor of 2.8. The threshold was published before the
+run and is not being revisited now that the answer is in.
+
+### The cause is the oscillator, and a second instrument already said so
+
+TIM6 runs from the APB1 timer clock, which the firmware's own banner reports as
+64 000 000 Hz with the prescaler at one and `TIMPRE` clear, so the divisors were
+computed for exactly 64 MHz.
+
+`docs/the-board-and-the-wiring.md`, in the section "The internal oscillator,
+nominal 64 MHz", records that oscillator as **always above nominal, 2630 to 3257
+parts per million high**, measured by the on-board gated counter against the
+real-time clock crystal's sub-second register. That is a different instrument from
+this one and neither of them is the oscillator under test.
+
+If the divisors assume exactly 64 MHz and the oscillator is 2630 to 3257 ppm fast,
+the rate must land between **1002.630 and 1003.257 Hz**. It measured 1002.818 Hz.
+**Inside the band.**
+
+The sign was predicted as well, by the opposite-sign table in the same document: at
+the reset clock a requested delay comes out 3027 ppm **short**, so a requested 1000
+microsecond period is short and the rate is high. It is high.
+
+A host clock cannot account for this. An unsynchronised PC crystal is tens of parts
+per million and a synchronised one far less, where this is 2818.
+
+### What that means for the claim, stated as options rather than as a fix
+
+**"Exactly 1000.0 Hz" is not reachable on the internal oscillator**, by about a
+factor of 2.8 over this file's own criterion, and no amount of firmware care
+changes it. Three options, not equivalent:
+
+1. **Run the clock tree from the crystal-referenced source**, which is the 8 MHz
+   bypass this volume already trusts as the frequency counter's reference. The
+   hardware is on the board and another part of this volume already depends on it.
+2. **Restate the claim as nominal**, with the oscillator's measured tolerance
+   quoted beside it.
+3. **Keep the claim and publish it as failed on this clock**, which is honest and
+   leaves the chapter without the result it was built for.
+
+Option 1 is the recommendation, because it is the only one that can produce a pass
+rather than an explanation.
+
+### Criteria 2, 3 and 4 are untouched and this changes nothing about them
+
+The interval spread, the worst case interval and dropped or doubled edges are all
+about the instants of individual conversions. This instrument sees block
+completions, 64 samples apart, and cannot observe an interval. **The MCC 118 on PB4
+at CN7 pin 19 remains the only route to three of the four**, and those three are
+what the chapter is actually about.

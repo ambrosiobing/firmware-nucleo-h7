@@ -728,10 +728,112 @@ is not the cause and something more interesting is happening.
 recorded because an unexplained three orders of magnitude is worth a line whether
 or not it matters, and because the eliminated hypothesis cost nothing to eliminate.
 
+## Criterion 1 has an answer and it is a failure, Thursday 8 October 2026
+
+**1002.818 Hz, which is +2818 parts per million against a threshold of plus or
+minus 1000.** Criterion 1 fails by a factor of 2.8. The threshold was published
+before the run and is not being revisited now that the answer is in.
+
+This is the first measured statement about the rate in this project's history, and
+it is worth more as a failure than it would have been as a pass, for the reason in
+the last subsection.
+
+### Three runs were invalid first, and the method as published would have taken them
+
+The method above fixed a threshold for the answer and no check that the instrument
+was working. That omission was the real defect and it is the same shape as the
+vacuous half of the prediction recorded earlier on this page.
+
+| run | lines | span the lines require | span observed | rate it reported |
+|---|---|---|---|---|
+| 1 | 743 | 11 145 | 9465 | 946.782 Hz |
+| 2 | 706 | 10 590 | 90 | 9.011 Hz |
+| 3 | 772 | 11 580 | 13 005 | 1301.394 Hz |
+
+A report line is emitted every 15 blocks, so **the line count and the block span
+are two routes to one number and must agree.** In all three they did not, by
+factors from 1.18 to 118, and that was visible in the data before any rate was
+computed.
+
+**One mechanism explains all three.** Each run's first row sat exactly 15 blocks
+past the previous run's last row, 9780 then 9795 and 9885 then 9900. That is a line
+the serial driver buffered while the port was closed, delivered on reopening and
+stamped with a **fresh arrival time against a stale block count**. Any span
+starting there is wrong, in whichever direction the backlog happens to fall. Runs 1
+and 2 carried a restart as well, because the instruction at the time was to press
+RESET after starting the reader, which put a discontinuity a few seconds into every
+capture.
+
+### The run that passed its own check
+
+    rows 813  banners seen 0  steps not equal to 15: 1
+    longest clean segment rows 82 to 812, blocks 24450 to 35400, 698.831 s
+    mean rate 1,002.818 Hz   deviation 0.2818 percent   FAIL
+
+**The segment is internally exact**, and that is what makes the number believable
+rather than merely the latest. 730 steps at 15 blocks each requires a span of
+10 950 and the observed span is 10 950, a difference of zero. 700 800 conversions
+in one unbroken stretch. `banners seen 0`, so no restart. The single bad step is
+where the 82 line backlog meets the live stream, and the clean-segment rule threw
+the backlog away, which is the job it was added for.
+
+### The cause is the oscillator, and a second instrument had already said so
+
+TIM6 runs from the APB1 timer clock, which the firmware's own banner reports as
+64 000 000 Hz with the prescaler at one and `TIMPRE` clear, so the divisors were
+computed for exactly 64 MHz and the sampling rate carries that oscillator's error
+directly.
+
+`docs/the-board-and-the-wiring.md`, in the section "The internal oscillator,
+nominal 64 MHz", records it as **always above nominal, 2630 to 3257 parts per
+million high**, measured by the on-board gated counter against the real-time clock
+crystal's sub-second register.
+
+| instrument | timebase it trusts | result |
+|---|---|---|
+| the on-board gated counter | the real-time clock crystal | oscillator 2630 to 3257 ppm high |
+| this console script | the host PC's clock | sampling rate +2818 ppm high |
+
+**Neither instrument is the oscillator under test, and they agree.** The band
+requires a rate between 1002.630 and 1003.257 Hz and the measurement is 1002.818
+Hz. The sign was predicted too, by that document's opposite-sign table: at the
+reset clock a requested delay comes out 3027 ppm short, so a requested 1000
+microsecond period is short and the rate is high. It is high.
+
+A host clock cannot account for 2818 ppm. An unsynchronised PC crystal is tens of
+parts per million and a synchronised one far less.
+
+### So the claim in this project's title is not reachable on this clock
+
+**Not by a little.** The internal oscillator misses criterion 1 by about a factor
+of 2.8 on its own, before any question of jitter, and no amount of firmware care
+changes that. Three options, and they are not equivalent:
+
+1. **Run the clock tree from the crystal-referenced source**, the 8 MHz bypass this
+   volume already trusts as `freqcount.c`'s reference. The hardware is on the board
+   and another part of this volume already depends on it. **This is the
+   recommendation**, because it is the only option that can produce a pass rather
+   than an explanation.
+2. **Restate the claim as nominal**, with the oscillator's measured tolerance
+   quoted beside it.
+3. **Keep the claim and publish it as failed on this clock.** Honest, and it leaves
+   the chapter without the result it was built for.
+
+### Why a failure here is worth more than a pass would have been
+
+A pass would have been one number agreeing with one expectation. **This failure
+arrived with its cause already measured by an independent instrument, its sign
+already predicted in writing, and its magnitude inside a band recorded days
+earlier.** The chapter's thesis is that a plausible wrong rate is indistinguishable
+from a correct one from inside the part, and the part reported `overruns 0`,
+`convovr 0` and a flawless eight step bring-up while running 2818 parts per million
+fast. Nothing on the die noticed. That is the thesis, measured.
+
 ### What is next, in the order that makes each claim true
 
-1. **The 600 second stamped console run**, whose method and threshold are
-   published above. It costs no hardware and can settle criterion 1 of four.
+1. **Decide what the claim is**, now that criterion 1 has failed on this clock at
+   +2818 ppm. The three options are above and the recommendation is the
+   crystal-referenced route, because it is the only one that can produce a pass.
 2. **The grounded PC3 control**, one jumper wire, threshold published above. It
    does not bear on the claim and it closes an open observation cheaply.
 3. **The marker wire**, CN7 pin 19 on the board to the MCC 118 on the Raspberry

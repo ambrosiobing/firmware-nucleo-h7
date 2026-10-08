@@ -499,6 +499,36 @@ survived every test put to it, and this document would have told you so.
 fourth claim about this board's clocks to be stated and then withdrawn by the
 next observation, after drift, after temperature, and after the core's own bound.
 
+**And on Thursday 8 October 2026 a completely different instrument landed inside
+that band**, which is the first independent corroboration any clock figure here
+has had.
+
+P06's converter samples on a TIM6 trigger whose divisors were computed for exactly
+64 MHz, so the sampling rate carries this oscillator's error directly. Counting
+blocks of 64 conversions against the **host PC's clock** over 698.831 seconds, with
+700 800 conversions in one unbroken stretch, gave **1002.818 Hz, which is +2818
+parts per million.**
+
+| instrument | timebase it trusts | what it measured | result |
+|---|---|---|---|
+| the on-board gated counter | the real-time clock crystal | this oscillator, nominal 64 MHz | 2630 to 3257 ppm high |
+| a host console script | the PC's clock | P06's sampling rate, nominal 1000 Hz | +2818 ppm high |
+
+**Neither instrument is the oscillator under test, and they agree.** If the
+divisors assume exactly 64 MHz, the band above requires a rate between 1002.630
+and 1003.257 Hz, and 1002.818 Hz sits in it. The sign was predicted by the
+opposite-sign table further down: a requested delay comes out short at the reset
+clock, so a requested 1000 microsecond period is short and the rate is high.
+
+**Two things are worth taking from that, and the second is the uncomfortable one.**
+A figure measured one way and confirmed another way is on much firmer ground than
+anything else in this section, so the 2630 to 3257 ppm band has earned more trust
+than it had. And **the error is now known to propagate into a deliverable**: P06
+claims exactly 1000.0 Hz within 0.1 per cent, and this oscillator misses that by a
+factor of about 2.8 on its own. That is not a firmware defect and it cannot be
+fixed in firmware. It is the reason the crystal-referenced route stopped being an
+optional refinement.
+
 Please read the pattern rather than the number. Four times in a row, a spread
 measured over the readings in hand was quoted as though it were a property of the
 part, and four times the next reading widened it. The explanation arrived only
