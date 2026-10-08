@@ -526,8 +526,16 @@ anything else in this section, so the 2630 to 3257 ppm band has earned more trus
 than it had. And **the error is now known to propagate into a deliverable**: P06
 claims exactly 1000.0 Hz within 0.1 per cent, and this oscillator misses that by a
 factor of about 2.8 on its own. That is not a firmware defect and it cannot be
-fixed in firmware. It is the reason the crystal-referenced route stopped being an
-optional refinement.
+fixed in firmware.
+
+**And the obvious escape does not work, which the record above already said.** The
+first response was to propose running that clock tree from the 8 MHz bypass instead,
+on the grounds that it is crystal-referenced. **It is not.** This document's own
+`HSE_HZ_BYPASS` evidence puts that source 1019 to 2016 parts per million low with a
+scatter of 998, against the internal oscillator's 627, so it is the worse of the two
+on stability as well as on offset. The only source on this board with crystal
+accuracy is the 32.768 kHz crystal every figure here is measured against, and 32768
+does not divide to 1000. It divides to exactly 1024.
 
 Please read the pattern rather than the number. Four times in a row, a spread
 measured over the readings in hand was quoted as though it were a property of the

@@ -269,18 +269,46 @@ per million and a synchronised one far less, where this is 2818.
 
 **"Exactly 1000.0 Hz" is not reachable on the internal oscillator**, by about a
 factor of 2.8 over this file's own criterion, and no amount of firmware care
-changes it. Three options, not equivalent:
+changes it. Four options, not equivalent, and the first of them is withdrawn:
 
-1. **Run the clock tree from the crystal-referenced source**, which is the 8 MHz
-   bypass this volume already trusts as the frequency counter's reference. The
-   hardware is on the board and another part of this volume already depends on it.
+1. ~~Run the clock tree from the 8 MHz bypass.~~ **Withdrawn the same day it was
+   proposed**, and the evidence against it was already in this repository when it
+   was written. `c/board/stm32h7a3_regs.h`, in the `HSE_HZ_BYPASS` comment, records
+   five readings of that source derived from core measurements against the
+   32.768 kHz crystal: about 7990652, 7983868, 7991850, 7989549 and 7989285 Hz,
+   which is **1019 to 2016 parts per million LOW and a scatter of 998**. The
+   internal oscillator's scatter is 627. **The external source is worse**, by about
+   a factor of 1.6, so this would fail criterion 1 on stability as well as on
+   offset. That comment already draws the conclusion: a crystal-derived 8 MHz does
+   not scatter by a part in a thousand on a bench at room temperature, while an RC
+   oscillator does and so does a clock synthesised from one. Calling it
+   "crystal-referenced" was the error, and it was mine.
 2. **Restate the claim as nominal**, with the oscillator's measured tolerance
-   quoted beside it.
+   quoted beside it. **This is now the realistic default.**
 3. **Keep the claim and publish it as failed on this clock**, which is honest and
    leaves the chapter without the result it was built for.
+4. **Change the target to 1024 Hz and drive it from the 32.768 kHz crystal**, which
+   is the only route on this board that could pass a 0.1 per cent criterion. The
+   crystal is the one component here with crystal accuracy and it is what every
+   clock figure in this volume has been measured against. The arithmetic decides it:
+   1000 Hz needs a divisor of 32.768 and **1024 Hz needs exactly 32**. Two real
+   costs. TIM6 sits on APB1 and cannot be clocked from that crystal, so the
+   mechanism would have to change to a low-power timer, and **whether such a timer
+   can drive the converter's external trigger is an RM0455 question and RM0455 is
+   unread.** So this is a research item and not a plan.
 
-Option 1 is the recommendation, because it is the only one that can produce a pass
-rather than an explanation.
+**The stronger statement that follows, and it is the repository's own evidence
+rather than a preference:** "exactly 1000.0 Hz within 0.1 per cent" is not reachable
+from **any** source on this board. The internal oscillator is 2630 to 3257 ppm high,
+the external one is 1019 to 2016 ppm low with a worse scatter, and the only accurate
+source does not divide to 1000.
+
+**One thing cuts the other way and is worth saying.** This file records the
+MCC 118's own clock accuracy as an open question against its user guide, and the
+32.768 kHz crystal is of untraceable accuracy. A network-synchronised host clock is
+good to tens of parts per million over ten minutes, which makes the console run very
+likely **the most accurate frequency measurement this volume has made**, and better
+than the witness meant to supersede it. The 1002.818 Hz figure is not the weak link.
 
 ### Criteria 2, 3 and 4 are untouched and this changes nothing about them
 
