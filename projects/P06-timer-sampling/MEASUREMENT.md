@@ -317,3 +317,25 @@ about the instants of individual conversions. This instrument sees block
 completions, 64 samples apart, and cannot observe an interval. **The MCC 118 on PB4
 at CN7 pin 19 remains the only route to three of the four**, and those three are
 what the chapter is actually about.
+
+### The board is shared, so attribution is part of the method
+
+Added Thursday 8 October 2026, after the measurement above was taken. Two projects
+use this one NUCLEO-H7A3ZI-Q, so the image running at any moment is whatever the
+last session flashed. **A capture taken without reflashing first is a capture of an
+unknown image.** From here on, reflash and capture are consecutive steps with
+nothing between them.
+
+**The accepted run above was checked against this rather than assumed**, because it
+was taken some time after its flash. Three things attribute it to the right image.
+Only `projects/P06-timer-sampling/c/main.c` prints a `seq ... blocks ...` line
+anywhere in this repository, and only its current version prints the `convovr`
+field, which appears on every line of that run. `banners seen 0` rules out a reset
+during the window, and a reflash resets the part. And the block counter ran
+continuously through the window, with the one discontinuity accounted for as the
+serial backlog. **The measurement stands.**
+
+**The validity check specified above already covers this case, unchanged.** It was
+written to detect a restart, and a reflash by another session is a restart. That is
+worth noting because it is the second time that check has caught something it was
+not designed for, the first being the stale buffered line.

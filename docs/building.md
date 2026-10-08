@@ -174,6 +174,24 @@ read it as a plan.
 
 ## Reading the console
 
+**THE BOARD IS SHARED, SO REFLASH IMMEDIATELY BEFORE EVERY CAPTURE.** Two projects
+use this one NUCLEO-H7A3ZI-Q, so the image on it at any moment is whatever the last
+session copied to the probe's disk, and that may not be yours. A capture taken
+without reflashing first is a capture of an unknown image, and every number read out
+of it inherits that doubt.
+
+**Reflash and capture as consecutive steps with nothing between them**, and do not
+reason from "I flashed this earlier". Earlier is not a guarantee when somebody else
+has the same disk.
+
+**Two things make a capture attributable after the fact**, and both are worth
+building into a report rather than hoping for. The first is a line format no other
+project prints, which is why P06's report line carries field names rather than bare
+numbers. The second is a monotonic counter: a reflash resets the part, so the banner
+reappears and the counter restarts, and a reader that counts banners and checks every
+counter step detects the swap without being told. P06's `MEASUREMENT.md` requires
+both, and the validity check it specifies for restarts covers this case unchanged.
+
 115200 baud, 8N1, no flow control, on COM13 on the win11 skyhorizon demo laptop.
 
     $p = New-Object System.IO.Ports.SerialPort COM13,115200,None,8,one; $p.Open(); $end = (Get-Date).AddSeconds(20); while ((Get-Date) -lt $end) { if ($p.BytesToRead -gt 0) { Write-Host -NoNewline $p.ReadExisting() }; Start-Sleep -Milliseconds 100 }; $p.Close()
