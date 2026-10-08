@@ -978,7 +978,9 @@ noticed in a measurement that matters.
    the answers are allowed to be.
 4. **The other two back ends**, `sampling-systick` and `sampling-dma`, which are
    the comparison the chapter exists for and which have never reached the
-   converter. The chapter currently has one data point out of three.
+   converter. The chapter currently has one data point out of three. **Factor the
+   bring-up first rather than copying it**, for the reasons and with the scope in
+   the section below.
 5. **`OVRMOD` as a decision rather than a reading.** It now reads 0 as found, and
    nothing chooses it. Choosing it needs a reason, and the reason will come from
    what a real source on PC3 turns out to need.
@@ -1022,6 +1024,44 @@ the column cannot be misread. The `dma` build is where -1 is least comfortable,
 because a transfer engine reading the data register is exactly the arrangement in
 which `OVR` is the primary failure mode rather than a remote one: it is the build
 that most needs the flag and the one least entitled to report it.
+
+## Factoring the converter bring-up, scoped Thursday 8 October 2026 and not yet done
+
+The other two back ends cannot reach the converter without this sequence, and there
+are two ways to give it to them. **Copying it is the wrong one**, and this
+repository has already paid for that lesson elsewhere: three copies of a 333 line
+sourced register sequence drift, and the drift does not show up in `git status`.
+
+**The scope, measured rather than estimated.**
+
+| what | where | note |
+|---|---|---|
+| `adc_bring_up` | `acq_timer.c` lines 364 to 696, 333 lines | all of it converter-generic except the trigger step |
+| `report`, `delay_us`, `apb1_divisor` | lines 274 to 363, about 90 lines | all three back ends need the same route to HCLK and the same step reporting |
+| the timer-specific remainder | about 20 lines | `EXTSEL` 13 and `EXTEN` 1, plus the line naming TIM6 TRGO |
+| the build | `CMakeLists.txt` `SOURCES` | **one entry covers all three targets**, because the `foreach(BACKEND systick timer dma)` loop shares the list |
+
+So the move is about 423 lines into a new `adc_bringup.c` and `adc_bringup.h`,
+parameterised on the trigger: `EXTSEL` and `EXTEN` plus the name to print.
+`sampling-systick` passes a software trigger, since its tick starts each conversion
+in software; `sampling-dma` passes the same TIM6 TRGO the timer build does.
+
+**The verification criterion, published before the work rather than after.** A pure
+move changes no register write and no format string, so **the timer build's console
+output must be byte-identical before and after, line for line.** Anything else means
+the move was not pure, and the difference names the defect. The step reports make
+this checkable by eye rather than by hope, which is what they were for.
+
+**Do it in two commits and not one.** First the move with the timer build only, so
+the byte-identical criterion is clean and the other two back ends are untouched.
+Then `sampling-systick` calling into it, which is a new claim and deserves its own
+capture. A single commit doing both would leave a failure ambiguous between the move
+and the new back end.
+
+**And it wants the board free.** The criterion needs a build and a flash, and the
+board is shared with another project, so a session that cannot flash cannot finish
+this safely. Scoping it is the part that did not need the board, and that part is
+done.
 
 ## Vendor code
 
