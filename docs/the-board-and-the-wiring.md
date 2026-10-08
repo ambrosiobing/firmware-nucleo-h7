@@ -688,6 +688,8 @@ says so at length**, because the last subsection is the one worth reading.
 | `CKMODE` field value 3 is divide by four, at bit 16 in the **common** block | Wrote 3, read back `00030000` |
 | `RCC_AHB1ENR_ADC12EN` is the right bus clock enable | Nothing above would have stuck without it |
 | `ADRDY` is bit 0 of the interrupt and status register | The ready report read `00001001` |
+| `EOCIE` is bit 2 and `OVRIE` is bit 4 of the interrupt enable register | Wrote `00000010` for `OVRIE` alone and read back `00000014`, which is both, with `EOCIE` already set from the step before. Thursday 8 October 2026 |
+| `OVRMOD` reads **0 as found**, so an overrun PRESERVES the data register and discards the new conversion | Printed as found rather than written, Thursday 8 October 2026. This is the bit that decides which samples a gap contains, and nothing here chooses it |
 
 **Two of those deserve a sentence more than a row.**
 

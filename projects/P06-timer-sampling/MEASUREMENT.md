@@ -143,3 +143,43 @@ Why no firmware number can stand in: any timebase on this die that could count t
 sampling interval is derived from the same oscillator that defines it, so the part
 would confirm a wrong rate exactly as readily as a right one. That is the whole
 reason this file specifies an external witness.
+
+## A second witness for criterion 1 only, Thursday 8 October 2026
+
+**Appended, not edited.** Nothing above has changed since it was written before the
+first run, and the four criteria stand exactly as they were.
+
+This section exists because the status table above was written on the assumption
+that the MCC 118 is the only instrument here, and that is not quite true. **The
+host PC's clock is an independent timebase**, so counting blocks over a long
+wall-clock interval measures the mean sample rate without asking the part to time
+itself. The firmware already prints a running block count, so no firmware change is
+needed.
+
+**What it can settle: criterion 1, and nothing else.** The console sees block
+completions, 64 samples apart. It cannot observe the interval between two
+conversions, so criteria 2, 3 and 4 are untouched by it. Those three are the
+chapter's actual subject and they still require the witness on PB4.
+
+**Method, fixed before the first such run.** Read COM13 at 115200 on the win11
+skyhorizon demo laptop, stamping each received report line with `Get-Date`. Take
+the first and last stamped lines; divide the difference in `blocks` by the
+difference in time; multiply by 64 samples per block. Run at least 600 seconds
+after a single RESET press.
+
+**Threshold, fixed before the first such run.** 999.0 to 1001.0 Hz passes.
+Anything outside fails. That is criterion 1's 0.1 percent and not a looser figure
+chosen to fit a coarse instrument.
+
+**What refutes the instrument rather than the firmware.** Two consecutive 600
+second runs disagreeing by more than 0.05 percent. In that case the number is
+withdrawn rather than averaged, because an instrument that cannot repeat itself
+cannot support a claim at one tenth of its own scatter.
+
+**Why the window has to be that long.** A report line is emitted every 15 blocks,
+which is 0.96 seconds at nominal. Over a short window the count is quantised to
+whole lines, and that quantisation was large enough on Thursday 8 October 2026 to
+yield 960.0 Hz and 1056.0 Hz from the same image in a single capture. Stamping the
+lines removes the quantisation rather than shrinking it, and the long window
+reduces what remains of the serial latency and clock drift to well under the
+threshold.

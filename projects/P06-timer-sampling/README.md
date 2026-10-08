@@ -593,19 +593,157 @@ Both items are gone, and a third that was on no list is what actually stopped it
 | not listed: `ADSTART` | the same reading |
 | not listed: **a vector for the handler to reach** | found by flashing. Three things must be true for a handler to run and only two of them read back |
 
+## The overrun flag on the board, and a correction, Thursday 8 October 2026
+
+`p06-sampling-timer` was rebuilt, flashed and run with `OVRIE` enabled. FLASH
+14 192 to 14 732 bytes. All three back ends were built, not only this one, because
+`acq.h` gained a function and `main.c` calls it, so a back end missing it would
+have failed to link. **The two shared builds grew by exactly 476 bytes each**,
+`systick` 9460 to 9936 and `dma` 9476 to 9952, which is the kind of agreement that
+would not hold if back-end-specific code had reached a shared file.
+
+The capture ran across a reset, so it holds two runs of the same image.
+
+### Two register facts, both read back
+
+| Fact | Evidence |
+|---|---|
+| `OVRIE` is bit 4 of `IER`, and `EOCIE` is bit 2 | Wrote `00000010` for `OVRIE` alone, read back `00000014`, which is both |
+| `OVRMOD` reads **0 as found** | Printed rather than written. An overrun therefore **preserves** the data register and discards the new conversion |
+
+`OVRMOD` is the bit that decides which samples a gap contains, so the count is not
+interpretable without it. It is printed and not chosen, because neither value is
+obviously right here and choosing one would be a configuration decision presented
+as a fact.
+
+### The zero is now one somebody earned
+
+`convovr 0` on every line of both runs: **3135 blocks, 200 640 conversions**, with
+`overruns` also 0 throughout. That is the longest this project has run, by a factor
+of eight over Wednesday 7 October 2026's 390 blocks, and unlike that night's
+`overruns 0` this pair of zeros could have come out otherwise.
+
+The arithmetic says they should be zero, which is why a non-zero reading would have
+been the interesting outcome: at 1 kHz a conversion takes roughly 51 microseconds
+inside a 1000 microsecond period, so the handler has about twenty times the slack
+it needs.
+
+### A correction to what this README said last night about the rate
+
+**It said 1056 Hz was an upper bound and the true rate was below it**, reasoning
+that each loop iteration costs its sleep plus its own work so the elapsed time was
+longer than the nominal 20 seconds. That is a one-directional error and it is not
+the dominant one. This capture refutes the claim with the same image in a single
+run:
+
+| window | blocks | implied rate | report lines |
+|---|---|---|---|
+| pre-reset, `[5s]` to `[15s]` | 165 | 1056.0 Hz | 11 |
+| post-reset, `[20s]` to `[30s]` | 150 | 960.0 Hz | 10 |
+
+A true 1000.0 Hz emits one report line every **0.9600 s**, so **10.4167 lines per
+10 s window**. Every such window must therefore show 10 or 11 lines, which is 150
+or 165 blocks, which is 960.0 or 1056.0 Hz **and nothing in between**. Both
+observed values are exactly those two outcomes.
+
+So the error is **two-directional quantisation** rather than one-directional
+overhead, and "upper bound" was the wrong shape of claim. What the two readings do
+establish is weaker and cleaner than what was claimed: they are consistent with
+1000 Hz, they bracket it, and the method's resolution at this window length is
+about ten percent.
+
+### And the correction opens a route this README had written off
+
+The previous section said the board cannot measure its own rate, which is true and
+remains true: every timebase on the die descends from the oscillator that defines
+the interval. **It then treated the console path as no instrument at all, and that
+was too strong.** The PC clock is an *independent* timebase. The console path is a
+coarse external witness, and its resolution improves with the window:
+
+| window | report lines | granularity |
+|---|---|---|
+| 10 s | 10.4 | ±9.6 percent |
+| 60 s | 62.5 | ±1.6 percent |
+| 600 s | 625 | ±0.16 percent |
+| 960 s | 1000 | ±0.10 percent |
+
+Stamping each line's arrival removes the quantisation rather than shrinking it,
+because the window edges become observed events instead of guesses, and the serial
+latency is roughly constant so it cancels in a difference.
+
+### The method and the threshold for that attempt, published before it is run
+
+Stated here before the capture exists, so the answer cannot be read to fit.
+
+**Method.** Read COM13 at 115200 on win11 skyhorizon, stamping each received
+report line with `Get-Date`. Take the first and last stamped lines, divide the
+difference in `blocks` by the difference in time, multiply by 64 samples per block.
+Run for at least 600 seconds after a single RESET press.
+
+**Threshold.** Criterion 1 of `MEASUREMENT.md` is the mean rate within 0.1 percent
+of 1000.0 Hz, so **999.0 to 1001.0 Hz passes and anything outside it fails.**
+
+**What would refute the method rather than the firmware.** If two consecutive
+600 second runs disagree by more than 0.05 percent, the instrument is not stable
+enough to make the claim and the number is withdrawn rather than averaged.
+
+**What this can and cannot settle, stated flatly.** It can settle criterion 1 and
+nothing else. Criteria 2, 3 and 4 are the interval spread, the worst case interval
+and dropped or doubled edges, and all three are about the instants of individual
+conversions. The console sees only block completions, 64 samples apart, so it
+cannot observe an interval at all. **The MCC 118 on PB4 at CN7 pin 19 remains the
+only route to three of the four**, and those three are the chapter's actual
+subject.
+
+### The converted value changed by three orders of magnitude, and that is open
+
+`mean` read **3 to 5** on Wednesday 7 October 2026 and **3037 to 3397** on
+Thursday 8 October 2026, with nothing deliberately connected to PC3 on either
+night. That is 0.2 mV against about 162 mV at a 3.3 V reference, and the spread
+within the second run is 360 counts, about 11 percent of its own mid value.
+
+**One hypothesis is already eliminated by data in hand, which is the only reason it
+is worth writing down.** A frozen data register would explain the first reading: if
+`OVR` had been set with `OVRMOD` clear, `DR` would hold a stale value, and
+the Wednesday 7 October 2026 reading's suspiciously steady 3 to 5 across 26
+reports looks like exactly that.
+It cannot be right. `blocks` incremented at the nominal rate all night, which
+requires `EOC` once per conversion, which requires `DR` to have been written each
+time. So both readings were live readings of a floating pin and the converter is
+not implicated.
+
+**What changed is therefore the pin's environment, and this repository does not know
+what.** A hand nearby, a different surface, a different USB port and anything
+resting against the Arduino headers would all do it. One observation is not a
+mechanism and two observations with an unrecorded difference between them are not
+either.
+
+**The control, with its threshold published first.** Tie PC3 at CN9 pin 5 to any
+pin marked GND on the Arduino headers, where the silkscreen is authority enough for
+ground, and capture again. **`mean` should read within a few counts of 0 and stay
+there.** If it still reads near 3200 with a wire to ground then the floating input
+is not the cause and something more interesting is happening.
+
+**None of this bears on the project's claim**, which is about the rate. It is
+recorded because an unexplained three orders of magnitude is worth a line whether
+or not it matters, and because the eliminated hypothesis cost nothing to eliminate.
+
 ### What is next, in the order that makes each claim true
 
-1. **The marker wire**, CN7 pin 19 on the board to the MCC 118 on the Raspberry
-   Pi, and `scan.py` on the Pi. That is the only step that can turn the title
-   into a measurement, and `MEASUREMENT.md` already says what the answer is
-   allowed to be.
-2. **The other two back ends**, `sampling-systick` and `sampling-dma`, which are
+1. **The 600 second stamped console run**, whose method and threshold are
+   published above. It costs no hardware and can settle criterion 1 of four.
+2. **The grounded PC3 control**, one jumper wire, threshold published above. It
+   does not bear on the claim and it closes an open observation cheaply.
+3. **The marker wire**, CN7 pin 19 on the board to the MCC 118 on the Raspberry
+   Pi, and `scan.py` on the Pi. That is the only route to criteria 2, 3 and 4,
+   which are the chapter's actual subject, and `MEASUREMENT.md` already says what
+   the answers are allowed to be.
+4. **The other two back ends**, `sampling-systick` and `sampling-dma`, which are
    the comparison the chapter exists for and which have never reached the
    converter. The chapter currently has one data point out of three.
-3. **`OVRMOD` as a decision rather than a reading.** The bit is now printed as
-   found and nothing chooses it, which is honest and is not finished. Choosing it
-   needs a reason, and the reason will come from what a real source on PC3 turns
-   out to need.
+5. **`OVRMOD` as a decision rather than a reading.** It now reads 0 as found, and
+   nothing chooses it. Choosing it needs a reason, and the reason will come from
+   what a real source on PC3 turns out to need.
 
 ### The converter's own overrun, closed Thursday 8 October 2026
 
