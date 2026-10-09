@@ -103,6 +103,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--note", default="", help="anything unusual about this run")
     a = ap.parse_args(argv)
 
+    # A capture is evidence, so an existing output is refused rather than
+    # replaced. On Friday 9 October 2026 a second 60 second run reused --out and
+    # overwrote the first, which held the only interval more than 50 us off
+    # nominal seen that day; it survives only in a pasted report. Refusing here
+    # costs a new name and saves the thing the whole chain exists to produce.
+    out = Path(a.out)
+    taken = [q for q in (out.with_suffix(".csv"), out.with_suffix(".json")) if q.exists()]
+    if taken:
+        sys.exit("refusing to overwrite {}: a capture is evidence, choose a new --out"
+                 .format(", ".join(str(q) for q in taken)))
+
     samples, info = capture(a.seconds, a.rate, a.channel)
 
     meta = {
@@ -114,7 +125,6 @@ def main(argv: list[str] | None = None) -> int:
         **info,
     }
 
-    out = Path(a.out)
     out.with_suffix(".csv").write_text("".join(f"{v:.6f}\n" for v in samples))
     out.with_suffix(".json").write_text(json.dumps(meta, indent=2) + "\n")
 

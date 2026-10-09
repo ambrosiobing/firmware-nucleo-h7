@@ -1513,6 +1513,66 @@ what it watched was wrong. **The prediction for the next shakedown is written in
 `MEASUREMENT.md` before it runs**: about 2005 edges in two seconds at about 1002.8
 per second, criterion 1 failing again by about 2818 ppm, zero missing edges.
 
+### The first valid capture, Friday 9 October 2026: three of four criteria pass
+
+Two seconds on the toggling image, 2003 edges, analysed on the Raspberry Pi:
+
+| criterion | reading | verdict |
+|---|---|---|
+| 1, mean rate within 0.1 percent | 1002.6204 ± 0.0002 Hz, +2620 ppm | **FAIL** |
+| 2, interval spread below 10 µs | 3.39 µs, below half the sample period, so the instrument's floor | **pass** |
+| 3, no interval more than 50 µs off | 9.72 µs worst | **pass** |
+| 4, no dropped or doubled edges | 0 of 2003 | **pass** |
+
+**Criteria 2, 3 and 4 have their first readings ever, and the timer build passes
+all three.** Its own prediction, written before any capture, was that it would do
+well on spread because the sampling instant is made in hardware; the spread it shows
+is the witness's own floor, which is the best result this instrument can report.
+Criterion 1 fails on the oscillator, as it did by the host clock on Thursday
+8 October 2026.
+
+**One prediction missed by an order of magnitude, and the miss is the next
+measurement.** The rate was predicted at about 1002.8 Hz within "a few tens of
+ppm" of the host-clock figure of Thursday 8 October 2026. It read 1002.62,
+198 ppm away. Either the two
+instruments disagree, or the RC oscillator moved between the days; the 60 second run
+with the stamped console alongside is the measurement that tells them apart, and
+`MEASUREMENT.md` records both outcomes and what each would mean before it runs.
+
+The toggle cost 24 bytes in each image that calls it, 15 220 B for the timer image
+now, and `rate.py`'s report line no longer says "rising" of a count that is both
+polarities.
+
+### The 60 second runs, the host clock beside them, and a sentence withdrawn, Friday 9 October 2026
+
+**Two 60 second captures on the timer image.** The valid one: 60 165 edges,
+1002.8038 ± 0.0001 Hz, spread 3.52 µs at the instrument's floor, worst interval
+9.81 µs, zero missing; criteria 2, 3 and 4 pass, criterion 1 fails. The one before
+it read 1002.906 Hz with one 660 µs interval and one missing edge, and **it no
+longer exists**: the second run reused `--out run-003` and `scan.py` overwrote it
+without a word. That excursion survives in a pasted report and is marked not
+reproducible; `scan.py` now refuses an existing output, with a test.
+
+**The host clock ran alongside for 637 s**, valid by the stamped method: one
+banner, 667 reports, every step 15, 1002.924 Hz. Before comparing, the method's
+resolution was measured from its own stamp intervals, 28.3 ms standard deviation
+over 666 of them: **44 ppm over ten minutes, 470 ppm over one.** That is thirty
+times coarser than I had assumed, it makes the per-minute figures noise, and it
+withdraws the sentence of Thursday 8 October 2026 that the console run was the
+most accurate frequency measurement in the volume: the HAT resolves 0.1 ppm in two
+seconds. The host's merit is a traceable clock.
+
+**120 ppm between host and HAT is 2.7 standard deviations of the host: neither
+agreement nor a demonstrated offset.** The HAT's own three readings today spread
+285 ppm at 0.1 ppm each, which is real and belongs to the oscillator or to the
+HAT's clock; two HAT captures in one powered window, minute one and minute nine
+after a reset, is the measurement that says which, and needs no host. **Criterion
+1 fails by every route**, 2600 to 2900 ppm above the claim.
+
+**The console is shared as the board is.** Two attempts were refused on COM13 by
+another reader, the other volume's; `MEASUREMENT.md` now covers the port as well
+as the flash.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
@@ -1526,12 +1586,13 @@ per second, criterion 1 failing again by about 2818 ppm, zero missing edges.
 3. ~~The grounded PC3 control.~~ **Done Thursday 8 October 2026 and it passed**,
    closing both observations: the offset was the floating input and the 0.118 Hz
    oscillation was pickup on it.
-4. ~~The marker wire~~ **is in and the witness is live since Friday 9 October
-   2026.** Its first capture refuted the marker's pulse rather than the firmware's
-   timing, the marker now toggles, and **the first valid capture is pending the
-   reflash of the toggling image**, two seconds first and then the 60 s run
-   `MEASUREMENT.md` specifies. That is the only route to criteria 2, 3 and 4,
-   which are the chapter's actual subject.
+4. ~~The marker wire~~ **is in, the witness is live, and the first valid capture
+   is taken, Friday 9 October 2026**: the timer build passes criteria 2, 3 and 4
+   and fails 1 on the oscillator, on two seconds and on sixty. The host clock
+   alongside resolved 44 ppm and could not settle the instruments against the
+   oscillator; two HAT runs in one powered window can, later. Next in this item:
+   the same pair for the tick build, which is the comparison the chapter exists
+   for.
 5. **`sampling-dma`**, the last back end with no converter. `sampling-systick`
    reached it on Friday 9 October 2026; the transfer-engine build still needs its
    engine, stream and request number, all of which are RM0455 table lookups. **Factor the

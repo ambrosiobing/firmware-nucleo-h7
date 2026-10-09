@@ -201,7 +201,7 @@ def report(r: dict) -> str:
         return f"FAIL: {r['error']}"
     us = 1e6
     lines = [
-        f"duration            {r['duration_s']:.3f} s, {r['edges']} rising edges",
+        f"duration            {r['duration_s']:.3f} s, {r['edges']} edges, both polarities",
         f"witness resolution  {r['resolution_s'] * us:.1f} us per sample",
         f"rate, fitted        {r['fit_rate_hz']:.4f} +/- {r['fit_rate_se_hz']:.4f} Hz",
         f"rate, counted       {r['count_rate_hz']:.4f} Hz",

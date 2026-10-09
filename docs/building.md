@@ -49,11 +49,11 @@ laptop.** win11 aquamarine, which has not been allowed to compile since Saturday
 `frame.dll`, `node_sm.dll`, `ring0.dll` to `ring3.dll`, `cpp_filter.exe` and the
 property-test executables. Every pass and skip count quoted from that laptop in the
 week between was taken with those binaries loaded. They are out of the tree now, and
-without them the suite there reads 152 passing, 146 skipping and **63 failing**,
+without them the suite there reads 155 passing, 146 skipping and **63 failing**,
 fifty-four failures and nine errors at setup: sixty-three tests written in the days that laptop compiled assume the artefact exists
 rather than skipping without it, the way the parity tests do. Teaching them to skip,
 with the build command named, is the open item; until then the honest figure for
-win11 aquamarine is 152 of 361, and a green run there was never evidence about the
+win11 aquamarine is 155 of 364, and a green run there was never evidence about the
 C, C++ or Rust.
 
 `build` is not used by anything. Nineteen chapters named it until Saturday 3
@@ -212,15 +212,21 @@ checked rather than trusted.** `c/board/startup.c`, `c/board/system.c`,
 `c/board/retarget.c` and `c/ld/stm32h7a3zi.ld` are linked into every image here, and
 until now there was no recorded figure to compare against after touching one.
 
-| target | FLASH |
-|---|---|
-| `p01-first-light` | 11 772 B |
-| `p01-pll280` | 36 772 B |
-| `p02-ring-none` | 9980 B |
-| `p09-codec` | 10 608 B |
-| `p06-sampling-timer` | 15 196 B |
-| `p06-sampling-systick` | 10 232 B |
-| `p06-sampling-dma` | 10 248 B |
+| target | FLASH, the morning baseline | FLASH, the same day after `marker_toggle` |
+|---|---|---|
+| `p01-first-light` | 11 772 B | not rebuilt |
+| `p01-pll280` | 36 772 B | not rebuilt |
+| `p02-ring-none` | 9980 B | not rebuilt |
+| `p09-codec` | 10 608 B | not rebuilt |
+| `p06-sampling-timer` | 15 196 B | **15 220 B**, +24 |
+| `p06-sampling-systick` | 10 232 B | **14 420 B**, +4188: +4164 when it reached the converter later that morning, then +24 |
+| `p06-sampling-dma` | 10 248 B | not rebuilt; it calls `marker_init` and nothing else in `marker.c`, so a rebuild is expected to move it by 0 and that expectation is written here to be checked |
+
+The second column was added the same day, Friday 9 October 2026, after `marker.c`
+gained a toggle in place of a pulse: the two images that call it grew by the same
+24 bytes, which is the static level, its exclusive-or and the select between the
+two `BSRR` words. The four images that do not link `marker.c` were not rebuilt and
+say so rather than carrying a figure nobody measured.
 
 **Why this table exists rather than a sentence.** The linker script gained a
 `PROVIDE` that day, and the claim made for it was that the four non-P06 images would

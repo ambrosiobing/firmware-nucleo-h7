@@ -494,3 +494,179 @@ rate far below 1000 means the pin is not swinging at the witness, which is the
 wire on PB4 at CN7 pin 19, the ground wire, or an image that still pulses, in that
 order; about 2005 edges per second means something still makes two edges per
 conversion; exactly 1000.0 means one of the two clocks is wrong.
+
+## The first valid capture: three criteria pass, one fails, Friday 9 October 2026
+
+The toggling timer image, `image 15220 B`, flashed with the console opened as the
+copy returned and the banner caught; two seconds on the MCC 118 at 100 kS/s,
+199 770 samples, `run-002`; analysed with `rate.py` on the Raspberry Pi:
+
+    duration            1.998 s, 2003 edges
+    rate, fitted        1002.6204 +/- 0.0002 Hz
+    rate, counted       1002.6142 Hz
+    interval mean       997.39 us
+    interval spread     3.39 us standard deviation
+    worst interval      990.28 us, 9.72 us from nominal
+    missing edges       0
+    FAIL  rate_within_tolerance
+    pass  jitter_within_limit
+    pass  worst_interval_within_limit
+    pass  no_missing_edges
+    pass  routes_agree
+    note: measured spread is below half the witness sample period, so it is
+          limited by the instrument and not by the board
+
+### Status of each criterion, Friday 9 October 2026, after the first valid capture
+
+| Criterion | State |
+|---|---|
+| 1. Mean rate within 0.1 percent | **FAIL**, +2620 ppm by the witness today; +2818 ppm by the host clock on Thursday 8 October 2026 |
+| 2. Interval spread below 10 microseconds | **pass**, 3.39 µs, and that figure is the instrument's floor rather than the board's: it sits below half the 10 µs sample period, exactly the case this file said criterion 2 would survive and criterion 3 would not resolve |
+| 3. No single interval more than 50 microseconds off | **pass**, 9.72 µs, from 2003 intervals |
+| 4. Zero dropped or doubled edges | **pass**, 2003 edges, none missing |
+
+Two seconds is a shakedown and the specification says 60 seconds, three runs per
+build. The 60 second runs follow in the next section; the two second figures are
+recorded because they are the first readings criteria 2, 3 and 4 have ever had.
+
+### The predictions, scored
+
+Written in the previous section before the run. **Held:** about 2005 edges in two
+seconds, 2003 arrived; criterion 1 failing; zero missing edges; the timer build
+doing well on spread, which the README predicted because its sampling instant is
+made in hardware and the marker edge carries only the handler's latency.
+
+**Missed, and the miss is the finding:** the rate was predicted at about 1002.8 Hz,
+"within the few tens of ppm two independent clocks can disagree by". It read
+1002.62 Hz, which is **198 ppm** below the host-clock figure of 1002.818 from
+Thursday 8 October 2026,
+an order of magnitude more than the prediction allowed. Two readings are open and
+the two second run cannot separate them:
+
+- **the instruments disagree**: the HAT's own clock against a network-disciplined
+  host clock, and the HAT's clock accuracy is still unread in its user guide;
+- **the oscillator moved**: the HSI is an RC oscillator and 200 ppm between
+  Thursday 8 October 2026 and Friday 9 October 2026 is well inside what one does
+  with temperature.
+
+What separates them is a window in which both instruments watch the same image at
+the same time, which the 60 second run provides: the stamped console runs for 640
+seconds and the HAT captures 60 of them. Agreement within about 20 ppm means the
+HSI moved between the days; a second 200 ppm gap means the instruments, and the
+HAT's clock specification becomes the next thing to read.
+
+### What the toggle cost, and one label
+
+`marker_toggle` is 24 bytes of flash more than the pulse in both images that call
+it, 15 196 to 15 220 for the timer and 14 396 to 14 420 for the tick build, and the
+size table in `docs/building.md` carries both as a second dated column. `rate.py`
+printed "2003 rising edges" while counting both polarities; the label now says
+"edges, both polarities", since a report line that misnames what it counted is
+the kind of line this file exists to prevent.
+
+## The 60 second run, twice, with the host clock alongside, Friday 9 October 2026
+
+### Two 60 second captures, and the first was overwritten
+
+The first 60 second run on the toggling timer image, taken between the reflash at
+15:02 and the one at 15:17, read **60 168 edges, 1002.9058 ± 0.0001 Hz, spread
+3.93 µs, worst interval 659.94 µs (340.06 µs off), one missing edge**, failing
+criteria 1, 3 and 4. The second, taken from 15:17:33 to 15:18:33 after the reflash
+at 15:17:17, read **60 165 edges, 1002.8038 ± 0.0001 Hz, spread 3.52 µs, worst
+9.81 µs, zero missing**, failing criterion 1 alone.
+
+**The first run's file no longer exists.** The second was started with the same
+`--out run-003` and `scan.py` replaced the CSV and JSON without a word, so the one
+interval more than 50 µs off nominal seen that day survives only in the pasted
+report above, and the edge listing meant to show its neighbours ran on the second
+file and found nothing to list. A 660 µs interval has `k` of 0.66, which the
+missing-edge rule counts once as a doubled edge; a 1337 µs partner would have
+rounded to 1 and gone uncounted, so the report is consistent with one marker edge
+about 340 µs late and equally with one extra edge, and the data that would have
+said which is gone. It is recorded as seen and marked not reproducible.
+`scan.py` now refuses an existing output by name, with a test that drives it to
+that refusal on a laptop with no HAT.
+
+### The host clock over the same window, and what its own jitter is worth
+
+The stamped console ran from the 15:17:17 reflash for 640 s: **700 lines, one
+banner, 667 reports from `seq 15` to `seq 10005`, every step exactly 15**, so the
+run is valid by the check this file specifies. First report 15:17:19.982 at 15
+blocks, last 15:27:57.478 at 10 005 blocks: **1002.924 Hz** over 637.5 s. The
+second HAT run sits inside that window, 15:17:33 to 15:18:33.
+
+**Before comparing the two, the host method's resolution was measured rather than
+assumed, and the assumption was wrong by a factor of thirty.** The firmware emits a
+report every 15 blocks at a rate that moves by parts per million, so the scatter of
+the stamp intervals is the stamp jitter: 666 intervals, mean 957.2 ms, **standard
+deviation 28.3 ms**, 891 to 1017. A rate over 637 s therefore carries about
+**44 ppm** of stamp noise, a rate over 60 s about **470 ppm**. The per-minute
+console rates, 1001.7 to 1004.6 Hz, are that noise and say nothing about the
+oscillator; a prediction made on the assumption that they resolved 35 ppm could
+not have been decided by them either way, and was not.
+
+**That withdraws a sentence written on Thursday 8 October 2026.** The 698 s console
+run was called "very likely the most accurate frequency measurement this volume has
+made, and better than the witness meant to supersede it". The witness resolves a
+rate to 0.0001 Hz, 0.1 ppm, in two seconds; the host method resolves 44 ppm in ten
+minutes. The host's merit is a traceable clock, not precision, and the 1002.818 Hz of Thursday 8 October 2026 carries the same ±44 ppm as today's 1002.924, which makes their 106 ppm
+difference consistent with noise.
+
+### What the comparison does and does not settle
+
+Host 1002.924 ± 44 ppm over ten minutes; HAT 1002.804 ± 0.1 ppm over the first
+minute of those ten. **120 ppm apart, 2.7 standard deviations of the host method:
+not agreement, and not a demonstrated offset.** Two readings remain, and the host
+cannot separate them because the thing that would separate them, the oscillator's
+movement inside the ten minutes after a reset, is below 470 ppm per minute:
+
+- the instruments differ by about 100 ppm, with the HAT's clock accuracy still
+  unread in its user guide;
+- the oscillator moved within the window, as an RC oscillator does while a die
+  warms after a reset, and the HAT's first minute is not the host's ten.
+
+**The HAT's own three readings today, 1002.620, 1002.906 and 1002.804, spread
+285 ppm with 0.1 ppm statistical uncertainty each, and that spread is real.** It
+belongs to the oscillator or to the HAT's clock, and the measurement that
+separates those needs no host at all: two 60 second HAT captures in one powered
+window, one in the first minute after a reset and one eight minutes later. If the
+HAT reports the oscillator moving, the spread is the oscillator; if it reports the
+same figure to a few ppm, the spread is between powered windows or in the HAT.
+That is the next measurement on criterion 1, and it is cheap.
+
+**None of it moves the verdict.** Every instrument on every run puts the rate
+between 1002.6 and 1002.9 Hz, 2600 to 2900 ppm above the claim, against a
+tolerance of 1000. Criterion 1 fails by every route.
+
+### Status of each criterion after the 60 second run
+
+| Criterion | State |
+|---|---|
+| 1. Mean rate within 0.1 percent | **FAIL** on every run and every instrument, +2620 to +2924 ppm |
+| 2. Interval spread below 10 microseconds | **pass**, 3.52 µs over 60 165 intervals, the instrument's floor |
+| 3. No single interval more than 50 microseconds off | **pass** on the valid 60 s run, 9.81 µs; the overwritten run reported one 340 µs excursion, recorded and not reproducible |
+| 4. Zero dropped or doubled edges | **pass** on the valid 60 s run; one counted on the overwritten run, same note |
+
+### The predictions, scored
+
+"Within a few ppm of today's 1002.62 Hz" for the 60 s HAT run: **missed**, it read
+1002.804 and 1002.906, and the miss is the 285 ppm spread above. "Within about
+20 ppm of each other" for host against HAT: **missed**, 120 ppm, and the number
+was quoted before the host method's resolution had been measured. "The
+HAT-window minute near 1002.80 and later minutes climbing" for the per-minute
+console figures: **undecidable**, the per-minute resolution is 470 ppm. The lesson
+is the one this volume already carries for the cycle counter: characterise the
+instrument before predicting with it, and never state a resolution that has not
+been measured.
+
+### The console is shared too
+
+The first two attempts at the stamped console were refused with `Access to the
+port 'COM13' is denied`: another reader held the port, which on a laptop serving
+two volumes is the other volume's console. The copy had already gone through both
+times, so the board was reflashed twice for nothing. A denied port is the harmless
+form of that collision; the harmful form is two readers draining one port and each
+seeing half the lines, which "every step exactly 15" is there to catch. The
+attribution section above covered the flash and not the port, and now it covers
+both: one reader on COM13 at a time, and the stamped file's step histogram is the
+proof there was.
