@@ -561,3 +561,32 @@ int adc_bring_up(uint32_t pclk1_hz, uint32_t divisor,
     printf("      started by %s\r\n", trigger_desc);
     return 0;
 }
+
+/* THE APB1 DIVISOR, MOVED HERE Friday 9 October 2026 AND IN THE WRONG HOUSE.
+ *
+ * It reads an RCC prescaler. It is not an ADC fact and the name carries no adc_
+ * prefix for that reason. It lives here because all three of P06's back ends need
+ * HCLK to derive the converter's kernel clock, and a third private copy was the
+ * alternative. See adc_bringup.h for the duplication this does NOT remove.
+ *
+ * The body below is unchanged from acq_timer.c except for losing its static, so
+ * that the comparison between it and its sibling stays honest. */
+/* The APB1 prescaler as a divisor, from the three encodings this volume has
+ * sourced. Anything else returns 0, which pwmmath_timer_hz then refuses, and
+ * that refusal is correct rather than unfortunate: reporting an undivided
+ * frequency here would be wrong by exactly the ratio nobody would suspect.
+ *
+ * This is c/instr/pwmsrc.c's apb2_divisor with CDPPRE1 in place of CDPPRE2,
+ * read from the sibling before writing this rather than derived again. The
+ * field values are 0 for divide by one, 4 for two and 5 for four. */
+uint32_t apb1_divisor(void)
+{
+    const uint32_t field =
+        (RCC->CDCFGR2 & RCC_CDCFGR2_CDPPRE1) >> RCC_CDCFGR2_CDPPRE1_Pos;
+    switch (field) {
+    case 0x0u: return 1u;
+    case 0x4u: return 2u;
+    case 0x5u: return 4u;
+    default:   return 0u;
+    }
+}

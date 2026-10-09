@@ -15,6 +15,7 @@
  */
 #include "acq.h"
 #include "acq_errors.h"
+#include "adc_bringup.h"
 #include "marker.h"
 #include "board.h"
 
@@ -32,17 +33,26 @@ static volatile uint32_t overruns;
 /* Blocking single conversion. Its cost is part of what this build is measured
  * on, so it is not hidden.
  *
- * TO BE CONFIRMED against RM0455 and the datasheet, and NONE of it is settled
- * here: which converter and which channel reach an accessible pin on this
- * board, the kernel clock source and its prescaler, the boot and calibration
- * sequence this part wants, and the resolution bits. On this family the
- * converter needs an explicit exit from its own power-down state before any
- * other register write is accepted, and skipping that is the usual reason a
- * first attempt reads zero for ever.
+ * THE TO BE CONFIRMED BLOCK THAT STOOD HERE IS SETTLED, Friday 9 October 2026. It
+ * listed the converter and channel, the kernel clock and its prescaler, the boot
+ * and calibration sequence and the resolution bits, and said none of it was known.
+ * All of it is, and this file no longer has to know any of it: acq_start calls the
+ * shared adc_bring_up(), which is the same eight steps the timer back end has run
+ * on the board since Wednesday 7 October 2026.
+ *
+ * AND THE START USED TO BE A READ-MODIFY-WRITE, WHICH IS WRONG ON THIS REGISTER.
+ * It was ADC1->CR |= ADC_CR_ADSTART. CR holds seven READ-SET bits where writing a
+ * one re-asserts and writing a zero does nothing, so a |= writes a one back into
+ * every one of them that happened to be set. With only ADEN set that is harmless,
+ * which is why it would have appeared to work; with ADDIS or ADSTP set it would
+ * re-assert a disable or a stop under a function whose name says start. The mask
+ * discipline adc_bringup.h documents is used instead, which is the same line the
+ * timer back end uses to arm. Found by reading this file rather than by running
+ * it, and it had never run.
  */
 static uint16_t adc_convert_blocking(void)
 {
-    ADC1->CR |= ADC_CR_ADSTART;
+    ADC1->CR = (ADC1->CR & ~ADC_CR_READ_SET_BITS) | ADC_CR_ADSTART;
     while ((ADC1->ISR & ADC_ISR_EOC) == 0u) {
         /* Busy wait, on purpose. This is the build where the processor is in
          * the path of the timing, and that is the thing being measured. */
@@ -87,10 +97,41 @@ int acq_start(void)
     taken_seq = 0u;
     overruns = 0u;
 
-    /* TO BE CONFIRMED: the converter bring-up sequence for this part, as
-     * above. Deliberately absent rather than guessed, because a plausible
-     * looking sequence copied from the H743 is exactly the failure this whole
-     * volume warns about. */
+    /* THE CONVERTER, THROUGH THE SHARED BRING-UP, Friday 9 October 2026. What
+     * stood here said the sequence was deliberately absent rather than guessed,
+     * because a plausible sequence copied from the H743 is exactly the failure
+     * this volume warns about. That was the right call and it is now unnecessary:
+     * the sequence is not guessed, it is the one the timer back end has run on the
+     * board since Wednesday 7 October 2026, and this file calls it rather than
+     * copying it.
+     *
+     * THE TRIGGER IS THE ONLY THING THIS BUILD CONTRIBUTES, and it is the SOFTWARE
+     * one. With EXTEN clear no external edge is selected and a conversion starts
+     * when ADSTART is written, which is what the tick handler does. That is the
+     * whole mechanism of build 1 and the reason it is expected to lose on jitter:
+     * the instant is produced by software.
+     *
+     * EXTSEL is passed as zero and means nothing when EXTEN is clear. It is passed
+     * explicitly rather than left out so that the step report prints a value a
+     * reader can check against the register. */
+    const uint32_t pclk1 = board_pclk1_hz();
+    if (pclk1 == 0u) {
+        /* The clock tree was not decoded, so the converter's kernel clock cannot
+         * be derived and the bring-up would be guessing at it. */
+        return ACQ_ERR_PCLK1_UNKNOWN;
+    }
+    const int adc_rc = adc_bring_up(pclk1, apb1_divisor(),
+                                    0u, ADC_EXTEN_SOFTWARE,
+                                    "software, one conversion per tick");
+    if (adc_rc != 0) {
+        return adc_rc;
+    }
+
+    /* NO EOCIE, NO NVIC AND NO PRE-ARM, WHICH IS THE DIFFERENCE FROM BUILD 2 AND
+     * IS DELIBERATE. This build polls the end-of-conversion flag inside the tick
+     * and reads the data register there, so it wants no interrupt. And ADSTART is
+     * written once per conversion by the handler rather than once at start-up, so
+     * arming here would start a conversion nobody is waiting for. */
 
     /* The tick, and the one line here that depends on chapter 1's clock tree
      * being right. The rate comes from board_core_hz() rather than from the
@@ -143,10 +184,16 @@ uint32_t acq_overruns(void) { return overruns; }
  * so an overrun needs the tick to be late by a whole sampling period, which is
  * less likely than in the interrupt-driven build and is NOT impossible: a tick
  * delayed by a higher-priority handler would do it. Printing 0 would claim the
- * flag had been watched throughout. It has not been, because this back end has
- * never been brought up on the board at all, and instrumenting a path that
- * refuses before it reaches the converter would be guessing at what it will do.
- * The line to add when it is brought up is the same one acq_timer.c now has. */
+ * flag had been watched throughout, and it is not.
+ *
+ * THE REASON GIVEN HERE UNTIL Friday 9 October 2026 WAS THAT THIS BACK END HAD
+ * NEVER BEEN BROUGHT UP, AND THAT IS NO LONGER TRUE. acq_start now runs the shared
+ * bring-up, so watching OVR is four lines away: test it in the tick beside the EOC
+ * poll, count it, clear it by writing one. It is deliberately NOT done in the same
+ * commit that first brings this converter up, because that commit's claim is that
+ * the eight steps run here, and a second new claim in the same flash would make a
+ * failure ambiguous between them. That is the same reason the move and this were
+ * kept apart. */
 int acq_conv_overruns(uint32_t *out)
 {
     (void) out;

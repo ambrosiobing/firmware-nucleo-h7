@@ -49,14 +49,15 @@ extern uint32_t board_pclk1_hz(void);
  * The CONVERTER BRING-UP moved to adc_bringup.c the same day, all eight steps
  * with the constants they are sourced from and the microsecond delay under them.
  * It is shared because the other two back ends need the same converter and only
- * the TRIGGER differs, which is now a parameter. adc_report() went with it and is
- * adc_report(), because the steps this file performs after the bring-up returns
- * must print in the same shape as the eight before them.
+ * the TRIGGER differs, which is now a parameter. report() went with it and is
+ * called adc_report(), because the steps this file performs after the bring-up
+ * returns must print in the same shape as the eight before them. And
+ * apb1_divisor() followed it on Friday 9 October 2026, because the tick back end
+ * needs the same HCLK and a third private copy was the alternative.
  *
  * WHAT STAYS IS WHAT IS ACTUALLY SPECIFIC TO THIS MECHANISM: the ring buffer,
- * the end-of-conversion handler, the APB1 divisor that feeds the timer clock,
- * TIM6 itself, and the order in which the converter is armed before the timer
- * starts.
+ * the end-of-conversion handler, TIM6 itself, and the order in which the
+ * converter is armed before the timer starts.
  */
 
 #define BLOCK 64u
@@ -114,26 +115,6 @@ void ADC_IRQHandler(void)
         i = 0u;
     }
     widx = i;
-}
-
-/* The APB1 prescaler as a divisor, from the three encodings this volume has
- * sourced. Anything else returns 0, which pwmmath_timer_hz then refuses, and
- * that refusal is correct rather than unfortunate: reporting an undivided
- * frequency here would be wrong by exactly the ratio nobody would suspect.
- *
- * This is c/instr/pwmsrc.c's apb2_divisor with CDPPRE1 in place of CDPPRE2,
- * read from the sibling before writing this rather than derived again. The
- * field values are 0 for divide by one, 4 for two and 5 for four. */
-static uint32_t apb1_divisor(void)
-{
-    const uint32_t field =
-        (RCC->CDCFGR2 & RCC_CDCFGR2_CDPPRE1) >> RCC_CDCFGR2_CDPPRE1_Pos;
-    switch (field) {
-    case 0x0u: return 1u;
-    case 0x4u: return 2u;
-    case 0x5u: return 4u;
-    default:   return 0u;
-    }
 }
 
 int acq_start(void)

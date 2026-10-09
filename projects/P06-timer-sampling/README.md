@@ -1308,6 +1308,75 @@ Nothing depends on the number. Its bound is 1 000 000 polls, so no run has come
 within four orders of magnitude of the refusal path. It is recorded because it was
 first written as a property of the part and is not one.
 
+## The tick back end reaches the converter, Friday 9 October 2026
+
+The factoring's second half. `sampling-systick` calls the shared bring-up instead
+of carrying a `TO BE CONFIRMED` block, and this is a **new claim** rather than a
+move, so it gets its own prediction and its own capture.
+
+### What it contributes, and it is one thing
+
+**The software trigger.** With `EXTEN` clear no external edge is selected and a
+conversion starts when `ADSTART` is written, which is what the tick handler does.
+That is the whole mechanism of build 1 and the reason it is expected to lose on
+jitter: the sampling instant is produced by software, so it carries exception entry
+and whatever higher-priority work is in progress.
+
+`EXTSEL` is passed as zero and means nothing while `EXTEN` is clear. It is passed
+explicitly rather than left out, so the step report prints a value a reader can
+check against the register.
+
+### Two defects found by reading this file, which had never run
+
+**The `TO BE CONFIRMED` block was right when written and is now unnecessary.** It
+listed the converter, the channel, the kernel clock and its prescaler, the boot and
+calibration sequence and the resolution bits, and said none was known. All of it is
+known, and this file no longer has to know any of it.
+
+**And the conversion start was a read-modify-write on a read-set register.** It was
+`ADC1->CR |= ADC_CR_ADSTART`. `CR` holds seven read-set bits where writing a one
+re-asserts and writing a zero does nothing, so a `|=` writes a one back into every
+one of them that happens to be set. **With only `ADEN` set that is harmless, which
+is exactly why it would have appeared to work**; with `ADDIS` or `ADSTP` set it
+would re-assert a disable or a stop inside a function whose name says start. It now
+uses the mask discipline `adc_bringup.h` documents, which is the same line the timer
+back end uses to arm.
+
+That is the second time this week a defect has been found by reading a file before
+copying into it rather than by running it.
+
+### The prediction, published before the build
+
+Everything in the step block must match the timer build **except the trigger step**,
+because the converter is the same converter and only the trigger differs:
+
+    adc trigger and 16 bits    ok       wrote 00000000  read back 80000000
+        started by software, one conversion per tick
+
+The timer build reads `800005A0` there. `EXTSEL` 13 sits at bit 5 and `EXTEN` 1 at
+bit 10, which is `0x1A0 | 0x400`, the `5A0`. **Clearing both must leave
+`80000000`**, and that is the arithmetic this prediction rests on rather than a
+hope.
+
+Three other differences are expected and are not the trigger. The banner says
+`acquisition systick` and carries its own image size. There is no `tim6 clock` line,
+because only the timer back end prints one. And `convovr` reads **-1**, because this
+build does not watch the converter's overrun flag.
+
+**What would refute it.** A refusal at the trigger step, which would mean the
+parameterisation rejects a zero `EXTSEL`. A read-back other than `80000000`, which
+would mean the field positions are not what the timer capture implies. Or a refusal
+anywhere earlier, which would mean the shared bring-up depends on something the
+timer back end supplied and this one does not.
+
+### What is deliberately not in this commit
+
+**`OVRIE` for this back end.** Watching the overrun flag here is four lines, and the
+old reason for not doing it, that this back end had never been brought up, is no
+longer true. It is left out because this commit's claim is that the eight steps run
+here, and a second new claim in the same flash would make a failure ambiguous
+between them. That is the same reason the move and this were kept apart.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
@@ -1325,9 +1394,9 @@ first written as a property of the part and is not one.
    Pi, and `scan.py` on the Pi. That is the only route to criteria 2, 3 and 4,
    which are the chapter's actual subject, and `MEASUREMENT.md` already says what
    the answers are allowed to be.
-5. **The other two back ends**, `sampling-systick` and `sampling-dma`, which are
-   the comparison the chapter exists for and which have never reached the
-   converter. The chapter currently has one data point out of three. **Factor the
+5. **`sampling-dma`**, the last back end with no converter. `sampling-systick`
+   reached it on Friday 9 October 2026; the transfer-engine build still needs its
+   engine, stream and request number, all of which are RM0455 table lookups. **Factor the
    bring-up first rather than copying it**, for the reasons and with the scope in
    the section below.
 6. **`OVRMOD` as a decision rather than a reading.** It now reads 0 as found, and

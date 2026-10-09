@@ -73,4 +73,27 @@ int adc_bring_up(uint32_t pclk1_hz, uint32_t divisor,
  * happen. The rename changes no output. */
 void adc_report(const char *step, uint32_t wrote, uint32_t read_back, bool ok);
 
+/* The APB1 prescaler as a divisor, for the pclk1_hz and divisor pair above.
+ *
+ * THIS IS IN THE WRONG HOUSE AND THE DUPLICATION IT LEAVES IS NAMED RATHER THAN
+ * HIDDEN. It reads an RCC prescaler and is not an ADC concept, so it carries no
+ * adc_ prefix. c/instr/pwmsrc.c holds a static apb2_divisor() that is the same
+ * function over the neighbouring field, and the two CANNOT be merged as they
+ * stand: that one is written against this repository's own register header, with
+ * RCC_CDCFGR2, _POS and the named encodings RCC_APBPRE_DIV1, DIV2 and DIV4, where
+ * this one is written against ST's vendor device header, with RCC->CDCFGR2, _Pos
+ * and the BARE LITERALS 0x0, 0x4 and 0x5. There are two register-naming worlds in
+ * this repository and a shared helper has to pick one.
+ *
+ * The literals are a defect in their own right and are left because fixing them
+ * requires the same decision: the names exist, at c/board/stm32h7a3_regs.h lines
+ * 227 to 229, in a header P06's targets do not compile.
+ *
+ * So this is option A of three, taken Friday 9 October 2026: one copy for P06's
+ * three back ends rather than a third private one, with no other project touched.
+ * Option C, one shared reader for both prescalers in c/instr, is the right answer
+ * and is a volume-wide decision about which register header is canonical, because
+ * pwmsrc.c is linked into P01 and P02. It is deferred, not forgotten. */
+uint32_t apb1_divisor(void);
+
 #endif /* ADC_BRINGUP_H */
