@@ -1217,6 +1217,46 @@ no-op, the block stops reaching `${ACQ}` and the test fails. **The suite is now 
 checks, 204 passing and 146 skipping**, and the count guard written on Wednesday
 7 October 2026 caught the drift from 349 without being asked.
 
+### The flash, and the criterion is met
+
+    step block: 23 lines, 21 configuration and 2 measured
+    configuration lines that differ: 0 of 21
+
+**Every `wrote` and `read back` pair and every step name identical.** The one
+differing line is the enable poll count, which the criterion permits, and it moved
+5 back to 4, so that count now reads 4, 4, 4, 5, 4 across five runs.
+
+**Two things the board verified that the static check could only argue for.** The
+trigger step wrote `0000000D` with `extsel` as a **runtime parameter** rather than a
+folded constant, and read back `800005A0` unchanged. And `started by TIM6 TRGO on
+the rising edge` is now a `%s` whose argument comes from the call site, and it came
+out character for character the same.
+
+### The move is not free, and the size table says where it is paid
+
+| target | FLASH before | after | delta | `.text` | `.rodata` |
+|---|---|---|---|---|---|
+| `p06-sampling-timer` | 14 920 B | 14 972 B | **+52** | +44 | +8 |
+| `p06-sampling-systick` | 10 008 B | 10 008 B | **0** | 0 | 0 |
+| `p06-sampling-dma` | 10 024 B | 10 024 B | **0** | 0 | 0 |
+
+**The two unused builds cost exactly nothing**, which is what made adding the shared
+file to all three targets safe. They compile `adc_bringup.c` and never call it, so
+`--gc-sections` drops it whole. Had either grown, the linker would not be collecting
+it and every future back end would carry dead code it does not use.
+
+**And the timer grew 52 bytes, which is the price of sharing rather than a mistake.**
+Three causes, all of them consequences of the move itself: the trigger values are
+runtime parameters now, so `extsel << POS` is a shift the compiler can no longer
+fold; `adc_bring_up` and `adc_report` are no longer static, so neither can be
+inlined or specialised inside one translation unit; and the call gains three
+arguments.
+
+**That is worth stating rather than glossing.** Sharing a sequence between three
+back ends is not costless, and 52 bytes out of 14 972 against three copies of 420
+lines is an easy trade, but the trade is real and a reader deciding whether to do
+the same thing elsewhere needs the number.
+
 ### What is left of the factoring
 
 The second commit, `sampling-systick` calling into the shared bring-up with a
