@@ -59,6 +59,96 @@ GATES_RUST_FILTER = ROOT / "target" / "release" / executable_name("p12-filter")
 CLOCK_CPP_FILTER = BUILD / executable_name("clocktree_filter")
 CLOCK_RUST_FILTER = ROOT / "target" / "release" / executable_name("p01-filter")
 
+
+# ----------------------------------------------------------------------------
+# Host artefacts must be newer than the sources they were built from.
+#
+# Every filter and shared library under build-host, and every Rust filter under
+# target/release, is built by a separate command the tests never run, and a test
+# uses whichever file it finds. On Friday 9 October 2026 in WSL on win11
+# skyhorizon, a `git pull` brought in a changed rate.c, rate.hpp and lib.rs, the
+# suite loaded the binaries compiled from the old ones, and reported "Python says
+# edges=99 and C says 49" as a disagreement between four languages. It was a
+# disagreement between one source and three stale binaries, and nothing said so.
+#
+# So the session refuses to start while any artefact is older than the newest
+# source of its kind. Over-approximate on purpose: any C or C++ source newer than
+# any build-host artefact marks the whole set stale, because build_host.py rebuilds
+# everything in seconds and the alternative is a per-artefact source list that
+# drifts. On win11 aquamarine there is no build-host, so this never fires; in CI
+# the build runs immediately before the tests, so it never fires there either.
+
+C_SOURCE_SUFFIXES = {".c", ".h", ".cpp", ".hpp"}
+RUST_SOURCE_SUFFIXES = {".rs", ".toml", ".lock"}
+
+
+def _newest(paths, suffixes):
+    """The newest (mtime, path) among files with one of `suffixes` under `paths`."""
+    best = (0.0, None)
+    for top in paths:
+        if not top.exists():
+            continue
+        for f in top.rglob("*"):
+            if f.suffix in suffixes and f.is_file():
+                m = f.stat().st_mtime
+                if m > best[0]:
+                    best = (m, f)
+    return best
+
+
+def stale_artefacts(root: Path = ROOT, build: Path | None = None,
+                    rust_filters=None):
+    """Artefacts older than the newest source of their kind.
+
+    Returns a list of (artefact, newest_source, build_command). Pure in the sense
+    that every path is a parameter, so the test can point it at a temporary tree.
+    """
+    build = BUILD if build is None else build
+    out = []
+
+    c_roots = [root / "c"] + sorted((root / "projects").glob("*/c")) \
+        + sorted((root / "projects").glob("*/cpp"))
+    c_time, c_src = _newest(c_roots, C_SOURCE_SUFFIXES)
+    builder = root / "python" / "tools" / "build_host.py"
+    if builder.is_file() and builder.stat().st_mtime > c_time:
+        c_time, c_src = builder.stat().st_mtime, builder
+    if build.is_dir() and c_src is not None:
+        for art in sorted(build.iterdir()):
+            if art.is_file() and art.suffix in {".so", ".dll", ".exe", ".o", ""}:
+                if art.stat().st_mtime < c_time:
+                    out.append((art, c_src, "python python/tools/build_host.py"))
+
+    rust_roots = [root / "rust"] + sorted((root / "projects").glob("*/rust")) \
+        + [root]
+    r_time, r_src = _newest([p for p in rust_roots if p != root], RUST_SOURCE_SUFFIXES)
+    for name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml"):
+        f = root / name
+        if f.is_file() and f.stat().st_mtime > r_time:
+            r_time, r_src = f.stat().st_mtime, f
+    if rust_filters is None:
+        rust_filters = [v for k, v in globals().items()
+                        if k.endswith("_RUST_FILTER") and isinstance(v, Path)]
+    if r_src is not None:
+        for art in rust_filters:
+            if art.is_file() and art.stat().st_mtime < r_time:
+                out.append((art, r_src, "cargo build --release --workspace"))
+    return out
+
+
+def pytest_sessionstart(session):
+    stale = stale_artefacts()
+    if not stale:
+        return
+    lines = ["host artefacts are older than their sources, so the suite would",
+             "test binaries built from code that is no longer there:"]
+    for art, src, cmd in stale:
+        lines.append("    {}  is older than  {}".format(
+            art.relative_to(ROOT), src.relative_to(ROOT)))
+    cmds = sorted({cmd for _a, _s, cmd in stale})
+    lines.append("rebuild first, in WSL on bing@JPTOUPM678:")
+    lines += ["    " + c for c in cmds]
+    pytest.exit("\n".join(lines), returncode=3)
+
 #   P08  a sample and then event names per line in; the final state, every row
 #        index taken, the counters and the stub's frame out
 #   P03  A with five counters, F or R per line in; the nine attributed fields,

@@ -24,6 +24,38 @@ used. Authoring happens there, compiling does not.
 Both are in `.gitignore`, so each machine has its own and neither is ever pushed.
 A missing one is normal on a fresh clone and is not a fault.
 
+**A `build-host` older than its sources is a fault, and since Friday 9 October 2026
+the test session refuses to start on one.** `python/tests/conftest.py` compares
+every artefact under `build-host` with the newest C or C++ source and
+`build_host.py` itself, and every Rust filter under `target/release` with the
+newest Rust source, and stops with the artefact, the source and the build command
+named. Over-approximate on purpose: any source newer than any artefact marks the
+set stale, because `build_host.py` rebuilds everything in seconds and a per-artefact
+source list would drift. In CI the build runs immediately before the tests and the
+guard never fires. In WSL on win11 skyhorizon it fires after every `git pull` that
+touched a source, until the two commands below are run, which is the case that
+produced it: the suite there compared a freshly pulled `rate.py` against a
+`librate.so`, a `rate_filter` and a `p06-filter` built from the previous source, and
+reported "Python says edges=99 and C says 49" as a disagreement between four
+languages.
+
+    python3 python/tools/build_host.py
+    cargo build --release --workspace
+
+**And on its first run the guard found a week-old instance on the authoring
+laptop.** win11 aquamarine, which has not been allowed to compile since Saturday
+3 October 2026, still held a `build-host` of 27 files stamped Thursday 2 October
+2026 08:35, built by the Qt-bundled gcc the day before the rule: `payload.dll`,
+`frame.dll`, `node_sm.dll`, `ring0.dll` to `ring3.dll`, `cpp_filter.exe` and the
+property-test executables. Every pass and skip count quoted from that laptop in the
+week between was taken with those binaries loaded. They are out of the tree now, and
+without them the suite there reads 150 passing, 146 skipping and **63 failing**,
+fifty-four failures and nine errors at setup: sixty-three tests written in the days that laptop compiled assume the artefact exists
+rather than skipping without it, the way the parity tests do. Teaching them to skip,
+with the build command named, is the open item; until then the honest figure for
+win11 aquamarine is 150 of 359, and a green run there was never evidence about the
+C, C++ or Rust.
+
 `build` is not used by anything. Nineteen chapters named it until Saturday 3
 October 2026, which is how a hand-over command came to fail with
 

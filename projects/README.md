@@ -113,8 +113,11 @@ implementation.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eight of the twenty have code.** 355 checks, of which 209 pass on a laptop with
-no board, no probe and no Raspberry Pi; the other 146 need a compiler and skip
+**Eight of the twenty have code.** 359 checks, of which 150 pass on a laptop with
+no board, no probe, no Raspberry Pi and no compiler; the other 209 need a compiler,
+146 of them skipping without one and 63 failing outright until they are taught to
+skip, the state since stale artefacts left that laptop on Friday 9 October 2026,
+with the account in `docs/building.md`. The 146 skip
 there, each naming the WSL command and the laptop. The remaining twelve projects
 need hardware, and nothing in them is written yet rather than written and
 untested.
