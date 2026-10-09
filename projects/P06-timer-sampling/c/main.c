@@ -19,6 +19,11 @@
  * Chapter 6 adds nothing to any of them. */
 extern void board_init(void);
 
+/* From the linker script, for the image stamp below. _sflash is the flash origin
+ * and is PROVIDEd there so no address literal appears here; the other three are
+ * the ones startup.c already uses to copy initialised data. */
+extern uint32_t _sflash, _sidata, _sdata, _edata;
+
 static void banner(void)
 {
     /* Everything the witness metadata needs to match a capture to a build.
@@ -40,6 +45,40 @@ static void banner(void)
     } else {
         printf("  tick rate     %u Hz\r\n", (unsigned) hz);
     }
+
+    /* TWO STAMPS, BECAUSE THE BOARD IS SHARED AND THEY FAIL DIFFERENTLY.
+     *
+     * Two projects use this one NUCLEO-H7A3ZI-Q, so the image running at any
+     * moment is whatever the last session flashed. Until now a capture was
+     * attributed by its line format being unique to this project, which works
+     * and is indirect, and which cannot tell THIS build of P06 from an older
+     * one. A stale flash then reads as a reproduction.
+     *
+     * THE FLASH FIGURE IS THE USEFUL ONE. It is reconstructed from the linker's
+     * own symbols the same way the build's memory report computes it: the load
+     * address of .data less the flash origin, plus .data's length. So it equals
+     * the "FLASH:" line the build printed, which makes it CHECKABLE rather than
+     * merely informative, and it MOVES WHENEVER ANY CODE MOVES, which is exactly
+     * the property a stamp needs.
+     *
+     * THE COMPILE TIME IS THE WEAKER ONE AND IS LABELLED FOR WHAT IT IS.
+     * __DATE__ and __TIME__ are fixed when THIS FILE is compiled, not when the
+     * image is linked, so a change confined to another translation unit does not
+     * move them. Calling the line "built" would therefore be a small lie. It is
+     * still worth printing: together with the flash figure, a stamp that has not
+     * moved beside a size that has tells you which file changed.
+     *
+     * The abbreviated month in __DATE__ is the compiler's string reproduced
+     * verbatim. A console capture is machine output, like a register read-back,
+     * and is not subject to this volume's prose date rule. Do not "correct" it
+     * in a quoted capture. */
+    const uint32_t flash_bytes =
+        ((uint32_t) &_sidata - (uint32_t) &_sflash)
+        + ((uint32_t) &_edata - (uint32_t) &_sdata);
+    printf("  image         %lu B of flash, the figure the build reports\r\n",
+           (unsigned long) flash_bytes);
+    printf("  main.c built  %s %s, which moves only when THIS file recompiles\r\n",
+           __DATE__, __TIME__);
 }
 
 int main(void)

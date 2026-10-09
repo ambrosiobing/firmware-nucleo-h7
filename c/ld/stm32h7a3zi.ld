@@ -55,6 +55,17 @@ MEMORY
   SRAMLP (rwx) : ORIGIN = 0x38000000, LENGTH = 32K
 }
 
+/* The flash origin as a symbol, so that firmware wanting to report its own
+   image size does not carry 0x08000000 as a literal.
+   Added Friday 9 October 2026 for P06's banner, which prints the flash bytes
+   this image occupies so that a capture can be checked against the figure the
+   build printed. That number moves whenever any code moves, which is what makes
+   it a usable stamp on a board two projects share: a stale flash stops reading
+   as a reproduction.
+   PROVIDE rather than a plain assignment, so a project defining its own _sflash
+   in a script of its own is not fought with here. */
+PROVIDE(_sflash = ORIGIN(FLASH));
+
 /* The stack goes at the top of DTCM and grows down. Tightly coupled memory is
    the right place for it: zero wait states, and nothing else needs to reach it.
    One kilobyte of heap is reserved only so that a library call which assumes
