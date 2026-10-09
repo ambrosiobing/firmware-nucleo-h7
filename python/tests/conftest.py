@@ -71,12 +71,22 @@ CLOCK_RUST_FILTER = ROOT / "target" / "release" / executable_name("p01-filter")
 # edges=99 and C says 49" as a disagreement between four languages. It was a
 # disagreement between one source and three stale binaries, and nothing said so.
 #
-# So the session refuses to start while any artefact is older than the newest
-# source of its kind. Over-approximate on purpose: any C or C++ source newer than
-# any build-host artefact marks the whole set stale, because build_host.py rebuilds
-# everything in seconds and the alternative is a per-artefact source list that
-# drifts. On win11 aquamarine there is no build-host, so this never fires; in CI
-# the build runs immediately before the tests, so it never fires there either.
+# So the session refuses to start while an artefact is older than a source it is
+# built from. The two halves scope differently, and the reason is the builder.
+# build_host.py is not incremental: it recompiles everything every run, so after
+# it runs every build-host artefact is newer than every C source, and comparing
+# each against the newest C source anywhere is correct and needs no per-artefact
+# source list. cargo IS incremental: `cargo build --release --workspace` relinks
+# only the crates whose own inputs changed. So a Rust filter must be compared
+# against its OWN crate's sources, not the newest Rust source anywhere. The first
+# version of this guard compared every filter against the global newest and, on
+# Friday 9 October 2026, a freshly pulled P06 lib.rs was newer than six filters
+# that do not depend on it; the guard flagged them and the fix it printed,
+# cargo build, could not clear them because cargo correctly saw nothing to do. A
+# guard whose remedy does not work is one that gets switched off, so the Rust
+# half is scoped per crate below. On win11 aquamarine there is no build-host and
+# no target/release, so this never fires; in CI the build runs immediately before
+# the tests, so it never fires there either.
 
 C_SOURCE_SUFFIXES = {".c", ".h", ".cpp", ".hpp"}
 RUST_SOURCE_SUFFIXES = {".rs", ".toml", ".lock"}
@@ -118,21 +128,38 @@ def stale_artefacts(root: Path = ROOT, build: Path | None = None,
                 if art.stat().st_mtime < c_time:
                     out.append((art, c_src, "python python/tools/build_host.py"))
 
-    rust_roots = [root / "rust"] + sorted((root / "projects").glob("*/rust")) \
-        + [root]
-    r_time, r_src = _newest([p for p in rust_roots if p != root], RUST_SOURCE_SUFFIXES)
+    if rust_filters is None:
+        rust_filters = [v for k, v in globals().items()
+                        if k.endswith("_RUST_FILTER") and isinstance(v, Path)]
+    for art in rust_filters:
+        if not art.is_file():
+            continue
+        r_time, r_src = _rust_sources_for(art, root)
+        if r_src is not None and art.stat().st_mtime < r_time:
+            out.append((art, r_src, "cargo build --release --workspace"))
+    return out
+
+
+def _rust_sources_for(filter_path: Path, root: Path):
+    """The newest (mtime, source) a single Rust filter is built from.
+
+    A filter named `pNN-filter` is built from its own project crate under
+    projects/PNN-*/rust, from any shared workspace crate under rust/, and from
+    the root manifests that pin the whole workspace. It is NOT built from
+    another project's crate, which is the false positive this scoping removes.
+    """
+    token = filter_path.stem.split("-")[0].lower()   # p06-filter -> p06
+    roots = [root / "rust"]
+    for d in sorted((root / "projects").glob("*")):
+        name = d.name.lower()
+        if name == token or name.startswith(token + "-"):
+            roots.append(d / "rust")
+    r_time, r_src = _newest(roots, RUST_SOURCE_SUFFIXES)
     for name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml"):
         f = root / name
         if f.is_file() and f.stat().st_mtime > r_time:
             r_time, r_src = f.stat().st_mtime, f
-    if rust_filters is None:
-        rust_filters = [v for k, v in globals().items()
-                        if k.endswith("_RUST_FILTER") and isinstance(v, Path)]
-    if r_src is not None:
-        for art in rust_filters:
-            if art.is_file() and art.stat().st_mtime < r_time:
-                out.append((art, r_src, "cargo build --release --workspace"))
-    return out
+    return r_time, r_src
 
 
 def pytest_sessionstart(session):

@@ -113,7 +113,7 @@ implementation.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eight of the twenty have code.** 359 checks, of which 150 pass on a laptop with
+**Eight of the twenty have code.** 360 checks, of which 151 pass on a laptop with
 no board, no probe, no Raspberry Pi and no compiler; the other 209 need a compiler,
 146 of them skipping without one and 63 failing outright until they are taught to
 skip, the state since stale artefacts left that laptop on Friday 9 October 2026,

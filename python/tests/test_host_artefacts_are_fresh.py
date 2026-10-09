@@ -88,3 +88,31 @@ def test_a_rust_filter_older_than_a_rust_source_is_stale(tree):
     stale = conftest.stale_artefacts(root=d, build=build, rust_filters=[filt])
     assert [(a.name, s.name, c) for a, s, c in stale] == [
         ("p06-filter", "lib.rs", "cargo build --release --workspace")]
+
+
+def test_a_filter_is_not_stale_because_another_project_changed(tree):
+    """The false positive the per-crate scoping removes.
+
+    cargo is incremental: `cargo build --release --workspace` relinks only the
+    crates whose inputs changed. On Friday 9 October 2026 a pull updated P06's
+    lib.rs, cargo rebuilt only p06-filter, and the first guard compared every
+    filter against the newest Rust source anywhere, so p01-filter and five others
+    were flagged against a source they are not built from, and the printed fix
+    could not clear them. p01-filter must be judged against P01's own crate.
+    """
+    d, src, art, build = tree
+    for proj, rs_mtime in (("P01", 1_000_000.0), ("P06", 1_000_100.0)):
+        rs_dir = d / "projects" / proj / "rust" / "src"
+        rs_dir.mkdir(parents=True)
+        rs = rs_dir / "lib.rs"
+        rs.write_text("pub fn f() {}\n", encoding="utf-8")
+        _set_time(rs, rs_mtime)
+    target = d / "target" / "release"
+    target.mkdir(parents=True)
+    p01 = target / "p01-filter"
+    p01.write_bytes(b"ELF")
+    _set_time(p01, 1_000_050.0)        # newer than P01's source, older than P06's
+    _set_time(src, 900_000.0)
+    _set_time(art, 1_000_000.0)
+    assert conftest.stale_artefacts(root=d, build=build, rust_filters=[p01]) == []
+

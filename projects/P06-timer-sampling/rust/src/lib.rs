@@ -428,15 +428,19 @@ pub fn analyse(samples: &[f64], fs: f64, nominal_hz: f64, out: &mut Analysis) ->
 mod tests {
     use super::*;
 
-    /// A square wave at `hz`, sampled at `fs`, for `seconds`. Written here and
-    /// in the parity test's Python the same way, so a disagreement is about the
-    /// witness and not about the stimulus.
+    /// A waveform carrying `hz` marker EDGES per second, sampled at `fs`, for
+    /// `seconds`. The marker toggles once per sample, so a clean kilohertz of
+    /// sampling instants is a 500 Hz square wave: `hz` edges, rising and falling
+    /// alike, in each second. Built at `hz / 2` for that reason, the same
+    /// convention the Python tests use since Friday 9 October 2026; before then
+    /// this was a square wave at `hz` and the analyser counted rising edges only,
+    /// and the two changed together.
     fn square(hz: f64, fs: f64, seconds: f64) -> Vec<f64> {
         let n = (fs * seconds) as usize;
         (0..n)
             .map(|i| {
                 let t = i as f64 / fs;
-                let phase = (t * hz).fract();
+                let phase = (t * hz * 0.5).fract();
                 if phase < 0.5 {
                     0.0
                 } else {
