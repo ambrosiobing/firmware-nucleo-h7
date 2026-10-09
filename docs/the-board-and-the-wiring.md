@@ -1436,7 +1436,7 @@ the guide.
 
 ## 4.5 The pre-flight list, before power on
 
-Please run down this list. It is eleven items and it takes under a minute.
+Please run down this list. It is twelve items and it takes under a minute.
 
 1. **The silkscreen says MB1363.** Not MB1364. Ten seconds, highest value.
 2. **The device macro is `STM32H7A3xxQ`**, with the Q.
@@ -1470,6 +1470,13 @@ Please run down this list. It is eleven items and it takes under a minute.
     two converter codes wide. If the witness ever reports a swing under a volt
     again, the first suspects are the wire on CN7 pin 19 and the ground wire, in
     that order, and an image that still pulses third.
+12. **The stamped console runs beside every capture, and the other session is
+    quiet for its length.** The board and its SWD port are shared. On Friday
+    9 October 2026 a 60 second capture carried one 1.47 second gap whose shape
+    was a debugger session, a halt, a reset and a reboot, and nothing was
+    stamping to say so. A second banner in the stamped file is a reset, a pause
+    in `seq` with no banner is the handler, an unbroken `seq` with a silent pin
+    is the marker; without the file the three cannot be told apart.
 
 ## 4.6 A note on the supply write, because it is the one you cannot retry
 

@@ -1573,6 +1573,33 @@ after a reset, is the measurement that says which, and needs no host. **Criterio
 another reader, the other volume's; `MEASUREMENT.md` now covers the port as well
 as the flash.
 
+### The tick build through the same witness: the same numbers, Friday 9 October 2026
+
+| criterion | timer, valid 60 s | systick, valid 60 s |
+|---|---|---|
+| 1, mean rate | **FAIL**, 1002.804 Hz | **FAIL**, 1002.818 Hz |
+| 2, spread | **pass**, 3.52 µs, the instrument's floor | **pass**, 3.51 µs, the instrument's floor |
+| 3, worst interval | **pass**, 9.81 µs | **pass**, 9.79 µs |
+| 4, missing edges | **pass**, 0 of 60 165 | **pass**, 0 of 60 164 |
+
+**At 10 µs resolution this witness cannot tell a hardware trigger from a software
+one on this board.** That was one of the two outcomes written before the run, and it
+is the chapter's comparison for now: a null result with its reason, which is a
+finer instrument. The standing prediction that the tick build loses on spread and
+worst case is not decided, because the quantity it is about sits below the floor.
+
+**The first 60 s run on this build had one 1.47 s gap, and it was the probe.** The
+edge before it came 454 µs early, the pin was driven high at 3.24 V for 1.47 s, then
+low with no edges for 117 ms, then a rise and regular toggling: a brief halt, the
+core held while the SWD port was in use, a reset, and the image booting through its
+banner and bring-up. A stalled handler could do the hold and nothing else. The
+image that booted toggles PB4, and the other volume's applications do not drive it,
+so it was a P06 image; who held the port at 15:55:56 local is the open line. The
+repeat with the host stamping alongside was clean, console and pin together.
+
+**The rule that earned:** the stamped console runs beside every capture, and the
+other session is asked to be quiet for its length; pre-flight item 12.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
@@ -1590,9 +1617,11 @@ as the flash.
    is taken, Friday 9 October 2026**: the timer build passes criteria 2, 3 and 4
    and fails 1 on the oscillator, on two seconds and on sixty. The host clock
    alongside resolved 44 ppm and could not settle the instruments against the
-   oscillator; two HAT runs in one powered window can, later. Next in this item:
-   the same pair for the tick build, which is the comparison the chapter exists
-   for.
+   oscillator; two HAT runs in one powered window can, later. The tick build then
+   gave the same four numbers, so the comparison the chapter exists for is a null
+   result at this witness's 10 µs floor, with the reason stated. What remains in
+   this item is a finer instrument for criterion 2, and three runs per build where
+   one exists.
 5. **`sampling-dma`**, the last back end with no converter. `sampling-systick`
    reached it on Friday 9 October 2026; the transfer-engine build still needs its
    engine, stream and request number, all of which are RM0455 table lookups. **Factor the

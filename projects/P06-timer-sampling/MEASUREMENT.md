@@ -670,3 +670,102 @@ seeing half the lines, which "every step exactly 15" is there to catch. The
 attribution section above covered the flash and not the port, and now it covers
 both: one reader on COM13 at a time, and the stamped file's step histogram is the
 proof there was.
+
+## The tick build through the same witness, and the comparison the chapter exists for, Friday 9 October 2026
+
+The systick image, `image 14420 B`, flashed with the console opened as the copy
+returned, banner caught, `started by software, one conversion per tick`, `convovr
+-1`, `seq` from 15.
+
+### Two seconds: indistinguishable from the timer build at this witness
+
+    2003 edges   1002.7771 +/- 0.0004 Hz   spread 3.51 us   worst 9.73 us off
+    missing 0    criteria 2, 3, 4 pass, 1 fails
+
+The timer build's own two seconds read 3.39 µs and 9.72 µs. Both figures sit at the
+witness's floor, below half its 10 µs sample period, which was the second of the two
+outcomes written before the run: **at this resolution the witness cannot tell a
+hardware trigger from a software one on this board.** That is the chapter's
+comparison on criterion 2, and it is a null result with a stated reason, which is a
+result.
+
+### Sixty seconds, first attempt: one 1.47 s gap, and it was the probe, not the tick
+
+    58565 edges   fitted 973.62 Hz   spread 6093 us   worst 1470925 us
+    missing 1471  criteria 1, 2, 3, 4 fail
+
+One interval of 1.470 925 s among 58 564 is the whole of that spread: a single
+outlier of that size contributes 1.47 s / √58 564 = 6.08 ms, which is the figure
+reported. So this is one event and not jitter, and its shape is in the file:
+
+    interval 14120:  454.4 us   from 14.0821 s      the edge before the hold came early
+    interval 14121:  1470925 us from 14.0826 s      the pin DRIVEN high, 3.24 V steady
+    interval 14122:  117381 us  from 15.5535 s      then low, no edges, 117 ms
+    50 edges in the 50 ms before; 0 in the 50 ms after; then 998.9, 999.9, 1000.0 us
+
+Each feature excludes something. A SysTick toggle cannot arrive 454 µs after its
+predecessor unless the one before it was late by about 546 µs, so something held
+the handler off briefly just before. A pin in reset floats and cannot hold 3.24 V for
+1.47 s on a HAT input, so the core was running or halted with the GPIO driving
+high. A stalled `EOC` wait, the one unbounded loop in this image, would hold the
+level but could not make the earlier edge early, and once it ended the next pending
+tick would toggle within a millisecond, not after 117 ms of silence. And 117 ms of
+low followed by a rise is what a reset gives: `marker_init` drives the pin low,
+twelve banner lines go out at 115200, the bring-up runs, and the first tick's toggle
+is a rise because the static starts at zero.
+
+**Together they are the signature of a debugger session on the SWD port**: a brief
+halt as the probe connects, the core held halted for 1.47 s with the GPIO keeping
+its last level, a reset, and the image booting. The image that booted toggles PB4 at
+a kilohertz, and the other volume's two Nucleo applications drive no PB4 and no
+marker, so it was a P06 image: either this one, after a connect, read and reset
+without reprogramming, or a second copy of the same file. **Who held the port at
+15:55:56 local is the one open line**; nothing in this session did. The console was
+not stamping during that run, which is a gap in the method rather than in the
+firmware and is closed below.
+
+### Sixty seconds, second attempt, with the host stamping and nothing else on the board
+
+    60164 edges   1002.8183 +/- 0.0001 Hz   spread 3.51 us   worst 9.79 us off
+    missing 0     criteria 2, 3, 4 pass, 1 fails
+    console: 134 reports, one banner, every step 15, no gap over 130 s
+    captured 16:09:36 to 16:10:36 local by the Raspberry Pi's stamp, inside the
+    console window of 16:08:56 to 16:11:06
+
+The clean run, attributed to its console window by timestamp rather than by the
+order the commands were typed. The timer build's valid 60 s read 3.52 µs and 9.81 µs; the two
+builds are the same number at this witness over a minute as over two seconds.
+
+### Status of each criterion, both builds, Friday 9 October 2026
+
+| Criterion | timer | systick |
+|---|---|---|
+| 1. Mean rate within 0.1 percent | **FAIL**, 1002.804 Hz | **FAIL**, 1002.818 Hz |
+| 2. Interval spread below 10 microseconds | **pass**, 3.52 µs, instrument floor | **pass**, 3.51 µs, instrument floor |
+| 3. No single interval more than 50 microseconds off | **pass**, 9.81 µs | **pass**, 9.79 µs |
+| 4. Zero dropped or doubled edges | **pass**, 0 of 60 165 | **pass**, 0 of 60 164 |
+
+Three runs per build is what the procedure specifies and one valid 60 s run per
+build is what exists; the table says one.
+
+### The rule the day earned
+
+A capture on a shared board is valid only if nothing else touched the board for its
+whole length, and the only witness to that is the stamped console running alongside
+it: a second banner is a reset, a pause in `seq` with no banner is the handler, and
+an unbroken `seq` with a silent pin is the marker alone. From here on the stamped
+console runs beside every capture, long or short, and the other session on win11
+skyhorizon is asked to be quiet for the length of it. It is item 12 of the pre-flight
+list.
+
+### The predictions, scored
+
+"Criterion 1 fails at about the same rate": **held**, 1002.78 and 1002.82 against the
+timer's 1002.62 to 1002.91. "At a 10 µs floor the two builds may be
+indistinguishable on criterion 2": **held**, and it is the chapter's result for now.
+"Where a software instant shows itself, if at all, is criterion 3 or 4 over sixty
+seconds, as a late edge and a short interval after it": the first 60 s run showed
+exactly a late edge, a hold and a short interval, and **it was the probe**, which the
+prediction did not list; the clean run shows nothing. The README's standing
+prediction that the tick build loses on spread and worst case is **not decided**:
+this witness cannot see the quantity it is about.
