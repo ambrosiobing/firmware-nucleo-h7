@@ -1436,7 +1436,7 @@ the guide.
 
 ## 4.5 The pre-flight list, before power on
 
-Please run down this list. It is nine items and it takes under a minute.
+Please run down this list. It is eleven items and it takes under a minute.
 
 1. **The silkscreen says MB1363.** Not MB1364. Ten seconds, highest value.
 2. **The device macro is `STM32H7A3xxQ`**, with the Q.
@@ -1455,6 +1455,20 @@ Please run down this list. It is nine items and it takes under a minute.
    press inside that window loses the second half.
 9. **Record `git describe` beside whatever you capture.** A capture with no build
    identity is not evidence, and you will not reconstruct it later.
+10. **On the Raspberry Pi, `ls /dev/spidev0.0` before trusting `hat_list`.**
+    `hat_list` returns the EEPROM record `install.sh` wrote and never touches the
+    bus. On Friday 9 October 2026 the HAT was listed and did not answer, because
+    `/boot/firmware/config.txt` carried two CAN controller overlays from the other
+    volume, `mcp251xfd` on `spi0-1` and `mcp2515` on `spi0-0`, which hold both
+    SPI0 chip selects whether or not a chip is there. They are commented out, the
+    file as found is `config.txt.before-mcc118-20261009`, and that volume needs
+    them back before its CAN work runs.
+11. **The marker toggles, one edge per sample, alternating.** A pulse of two
+    consecutive stores is high for tens of nanoseconds and a 10 microsecond
+    sampler never sees it; the first capture reported 50.67 Hz, which is mains
+    on an input that carries no signal. If the witness ever reports about 50 Hz
+    again, the first suspects are the wire on CN7 pin 19 and the ground wire, in
+    that order, and the firmware third.
 
 ## 4.6 A note on the supply write, because it is the one you cannot retry
 

@@ -136,19 +136,28 @@ def c_lib():
 
 # ------------------------------------------------------- the stimulus
 
-def render(rises, half_period, fs, n, low=0.0, high=3.3):
-    """A square wave from a list of rising-edge times.
+def render(edges, fs, n, low=0.0, high=3.3):
+    """A waveform that changes level at each edge time, starting low.
 
-    Built from the edges rather than from a phase function, because that is what
-    lets a capture carry a dropped edge or a doubled one exactly where the test
-    intends rather than wherever rounding puts it.
+    The marker toggles once per sample, so consecutive edges alternate polarity;
+    a clean kilohertz of sampling instants is a 500 Hz square wave. Built from
+    the edges rather than from a phase function, because that is what lets a
+    capture carry a dropped edge or a doubled one exactly where the test intends
+    rather than wherever rounding puts it. Until Friday 9 October 2026 this
+    rendered a pulse per edge; see marker.c for why that matched nothing the
+    witness saw.
     """
     out = [low] * n
-    for r in rises:
-        first = max(0, math.ceil(r * fs))
-        last = min(n, math.ceil((r + half_period) * fs))
-        for i in range(first, last):
-            out[i] = high
+    level = low
+    start = 0
+    for e in sorted(edges):
+        a = min(max(0, math.ceil(e * fs)), n)
+        for i in range(start, a):
+            out[i] = level
+        level = high if level == low else low
+        start = a
+    for i in range(start, n):
+        out[i] = level
     return out
 
 
@@ -162,47 +171,47 @@ def captures():
     out = []
 
     out.append(("a clean kilohertz square wave",
-                render(ideal, period / 2, FS, n)))
+                render(ideal, FS, n)))
 
     # The case the project exists for. Every implementation must fail this on
     # the rate and pass it on the jitter: it is clean, and it is wrong.
     wrong_period = 1.0 / 1100.0
     wrong = [k * wrong_period for k in range(int(seconds * 1100))]
     out.append(("a clean wave at 1100 Hz, which must fail on the rate alone",
-                render(wrong, wrong_period / 2, FS, n)))
+                render(wrong, FS, n)))
 
     # Jitter well inside criterion 2, from a deterministic sequence rather than
     # a random one so a failure can be reproduced by reading the test.
     jittered = [k * period + 2e-6 * math.sin(k * 1.7) for k in range(len(ideal))]
     out.append(("jitter of two microseconds, inside the ten the criterion allows",
-                render(jittered, period / 2, FS, n)))
+                render(jittered, FS, n)))
 
     # Jitter outside criterion 2, which must fail on jitter and still pass the
     # rate, because the mean period is unchanged.
     coarse = [k * period + 30e-6 * math.sin(k * 1.7) for k in range(len(ideal))]
     out.append(("jitter of thirty microseconds, outside the criterion",
-                render(coarse, period / 2, FS, n)))
+                render(coarse, FS, n)))
 
     # One edge missing, which shows as an interval near twice nominal.
     dropped = [t for k, t in enumerate(ideal) if k != 40]
     out.append(("one dropped edge, an interval near twice nominal",
-                render(dropped, period / 2, FS, n)))
+                render(dropped, FS, n)))
 
     # One extra edge, which shows as two intervals near a half.
     doubled = sorted(ideal + [40 * period + period / 2])
     out.append(("one doubled edge, two intervals near a half",
-                render(doubled, period / 4, FS, n)))
+                render(doubled, FS, n)))
 
     # An offset and an attenuation, so the thresholds taken from the observed
     # swing are exercised rather than assumed rail voltages.
     out.append(("offset and attenuated, so the thresholds come from the swing",
-                render(ideal, period / 2, FS, n, low=1.0, high=1.5)))
+                render(ideal, FS, n, low=1.0, high=1.5)))
 
     # Refusals. A flat recording has no edges to find; a fragment has too few.
     out.append(("a flat recording, refused rather than called perfect",
                 [1.65] * n))
     out.append(("a fragment, too few edges to measure",
-                render(ideal[:2], period / 2, FS, 200)))
+                render(ideal[:2], FS, 200)))
 
     return out
 

@@ -1446,6 +1446,68 @@ stays untested until the MCC 118 watches PB4.
 What is established is narrower: the mechanism runs, the shared sequence is genuinely
 shared, and the build expected to be the baseline now exists to be compared against.
 
+### The witness is live, and the first capture refuted the marker, Friday 9 October 2026
+
+**The chain ran end to end for the first time, and the first thing it measured was
+a defect in this project's own marker.** The full record is at the end of
+`MEASUREMENT.md`; this is the short form and what it changes in the code.
+
+**Bringing the witness up found a fault that was not in the wiring.** `hat_list`
+reported the MCC 118 and that proved less than it reads as proving: it returns the
+EEPROM record `install.sh` wrote and does not touch the bus. The first real open
+failed with `Board not responding`, as `bing` and as root alike, because
+`/boot/firmware/config.txt` lines 61 and 62 gave both SPI0 chip selects to CAN
+controller overlays from the other volume this Raspberry Pi serves, `mcp251xfd` on
+`spi0-1` and `mcp2515` on `spi0-0`. Each replaces the `spidev` node on its chip
+select, so `/dev/spidev*` did not exist with `dtparam=spi=on` three lines above,
+and `dmesg` showed both CAN drivers failing to find chips that are not there. Both
+lines are commented out with the original kept as
+`config.txt.before-mcc118-20261009`, and **the other volume needs them back.** After
+a reboot the HAT answers: serial `DBA2019`, firmware 1.03.
+
+**The capture was attributable by the flash figure this time.** Copying the image
+and opening the console as one step caught the banner, `image 15196 B`, `TIM6 TRGO
+on the rising edge`, `seq` restarting at 15. An earlier attempt the same day opened
+the port some seconds later and saw reports from `seq 240` on, attributable by
+format and by `convovr 0` but not by the figure. Copy and open as one step from
+here.
+
+**The two second shakedown: 102 rising edges, 50.67 Hz fitted, 51.03 Hz counted,
+13 ms spread, 1884 missing edges, FAIL on four of five.** 50.67 Hz is the mains
+frequency. It is what an analysis whose thresholds adapt to the observed swing
+reports when the input carries no signal and millivolts of hum.
+
+**The cause: `marker_pulse()` was two consecutive stores, a set and a clear, so the
+pin was high for tens of nanoseconds, and the witness samples every 10
+microseconds.** The arithmetic needs no instrument. And the record had said so all
+along without the code following it: `marker.c` line 3 says "Toggled once per
+sample", `MEASUREMENT.md` says "toggles one pin once per sample", and the handler
+comment says "one edge per CONVERSION". A pulse is two edges per conversion and a
+toggle is one. The code was the outlier against three statements of intent, and it
+had never been watched by anything that could tell.
+
+**The fix.** `marker_toggle()`, one store alternating set and reset with the level
+kept in a static so the port is never read; all four analysers count both
+polarities with the Schmitt pair as hysteresis, `marker_edges` in Python, C++ and
+Rust and `rate_marker_edges` in C; both synthesisers render a toggle. The nominal
+stays 1000 edges per second, now carried as a 500 Hz square wave, and **no
+criterion changes.** The Python suite is unchanged in count, 204 passing and 146
+skipping, and the mutation was run: the old rising-only detector on the new
+synthesiser reads **500.000 Hz and FAIL**, the new one 1000.000 Hz and pass. The
+three compiled analysers are edited blind and are checked only in WSL on win11
+skyhorizon; their pre-existing cap of 4096 edges is unchanged and the Raspberry Pi
+analysis is `rate.py`, which has none.
+
+**Also fixed while there:** `scan.py` printed an analysis command with `rate.py`
+in the wrong directory; it now prints both paths in full.
+
+**What the shakedown established despite its verdict:** the HAT scans at 100 kS/s
+without overrun, both scripts run on the Raspberry Pi from the clone, and the
+verdict machinery refuses on garbage rather than passing it. The witness is live;
+what it watched was wrong. **The prediction for the next shakedown is written in
+`MEASUREMENT.md` before it runs**: about 2005 edges in two seconds at about 1002.8
+per second, criterion 1 failing again by about 2818 ppm, zero missing edges.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
@@ -1459,10 +1521,12 @@ shared, and the build expected to be the baseline now exists to be compared agai
 3. ~~The grounded PC3 control.~~ **Done Thursday 8 October 2026 and it passed**,
    closing both observations: the offset was the floating input and the 0.118 Hz
    oscillation was pickup on it.
-4. **The marker wire**, CN7 pin 19 on the board to the MCC 118 on the Raspberry
-   Pi, and `scan.py` on the Pi. That is the only route to criteria 2, 3 and 4,
-   which are the chapter's actual subject, and `MEASUREMENT.md` already says what
-   the answers are allowed to be.
+4. ~~The marker wire~~ **is in and the witness is live since Friday 9 October
+   2026.** Its first capture refuted the marker's pulse rather than the firmware's
+   timing, the marker now toggles, and **the first valid capture is pending the
+   reflash of the toggling image**, two seconds first and then the 60 s run
+   `MEASUREMENT.md` specifies. That is the only route to criteria 2, 3 and 4,
+   which are the chapter's actual subject.
 5. **`sampling-dma`**, the last back end with no converter. `sampling-systick`
    reached it on Friday 9 October 2026; the transfer-engine build still needs its
    engine, stream and request number, all of which are RM0455 table lookups. **Factor the

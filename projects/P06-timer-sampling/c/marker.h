@@ -1,5 +1,5 @@
-/* marker.h: the pin the witness watches. See marker.c for which pin and why
- * that choice is still marked as unconfirmed. */
+/* marker.h: the pin the witness watches. See marker.c for which pin, the
+ * citation that settled it, and why it toggles rather than pulses. */
 #ifndef MARKER_H
 #define MARKER_H
 
@@ -7,9 +7,10 @@ void marker_init(void);
 void marker_high(void);
 void marker_low(void);
 
-/* A high then immediately low. Used by the builds where the sample instant is
- * a point rather than an interval. The witness sees the rising edge; the fall
- * is only there to arm the next one. */
-void marker_pulse(void);
+/* One edge per call, alternating high and low. Every sampling instant puts
+ * exactly one edge on the pin, and the witness counts both polarities. A
+ * pulse of two consecutive stores stood here until Friday 9 October 2026 and
+ * was invisible to a 10 microsecond sampler; see marker.c. */
+void marker_toggle(void);
 
 #endif /* MARKER_H */

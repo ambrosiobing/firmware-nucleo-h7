@@ -124,7 +124,8 @@ def main(argv: list[str] | None = None) -> int:
         print("OVERRUN reported by the HAT. This capture has a gap in it and "
               "must not be analysed. Lower the rate or shorten the run.")
         return 1
-    print(f"analyse it with:  python3 rate.py {out.with_suffix('.csv').name} "
+    rate_py = Path(__file__).resolve().parents[3] / "python" / "firmkit" / "rate.py"
+    print(f"analyse it with:  python3 {rate_py} {out.with_suffix('.csv').resolve()} "
           f"--fs {info['actual_rate_hz']:.6f}")
     return 0
 

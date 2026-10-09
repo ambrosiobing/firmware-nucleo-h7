@@ -93,13 +93,15 @@ typedef struct {
     bool limited_by_instrument;
 } rate_result_t;
 
-/* Rising edge times in seconds, by linear interpolation across the midpoint of
- * a Schmitt-style pair of thresholds taken from the observed swing rather than
- * assumed to be 0 and 3.3 volts. Interpolation is what gets an edge time below
- * one sample period, which criterion 2 depends on.
+/* Edge times in seconds, rising and falling alike, by linear interpolation
+ * across the midpoint of a Schmitt-style pair of thresholds taken from the
+ * observed swing rather than assumed to be 0 and 3.3 volts. The marker toggles
+ * once per sample, so every crossing in either direction is a sampling
+ * instant. Interpolation is what gets an edge time below one sample period,
+ * which criterion 2 depends on.
  *
  * Returns the number of edges written, or a negative rate_status_t. */
-int rate_rising_edges(const double *samples, size_t count, double fs,
+int rate_marker_edges(const double *samples, size_t count, double fs,
                       double *edges_out, size_t edges_cap);
 
 /* Least squares gradient, intercept and the standard error of the gradient.

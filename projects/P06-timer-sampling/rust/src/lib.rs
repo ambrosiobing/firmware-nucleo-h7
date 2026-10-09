@@ -147,12 +147,14 @@ impl Default for Analysis {
     }
 }
 
-/// Rising edge times in seconds, by linear interpolation across the midpoint of
-/// a Schmitt-style pair of thresholds taken from the observed swing rather than
-/// assumed to be rail voltages, so a recording through an attenuator or with an
-/// offset still works. Interpolation is what gets an edge time below one sample
-/// period, which criterion 2 depends on.
-pub fn rising_edges(samples: &[f64], fs: f64) -> Result<Vec<f64>, Refused> {
+/// Edge times in seconds, rising and falling alike, by linear interpolation
+/// across the midpoint of a Schmitt-style pair of thresholds taken from the
+/// observed swing rather than assumed to be rail voltages, so a recording
+/// through an attenuator or with an offset still works. The marker toggles once
+/// per sample, so every crossing in either direction is a sampling instant.
+/// Interpolation is what gets an edge time below one sample period, which
+/// criterion 2 depends on.
+pub fn marker_edges(samples: &[f64], fs: f64) -> Result<Vec<f64>, Refused> {
     if fs <= 0.0 {
         return Err(Refused::Args);
     }
@@ -181,26 +183,32 @@ pub fn rising_edges(samples: &[f64], fs: f64) -> Result<Vec<f64>, Refused> {
     let high = lo_obs + 0.7 * swing;
     let mid = 0.5 * (low + high);
 
+    // Both polarities, with the Schmitt pair as hysteresis: a rise counts only
+    // from an established low, a fall only from an established high. The
+    // starting level is the first sample against the midpoint and nothing is
+    // counted until the first crossing. Rising edges alone until Friday
+    // 9 October 2026; see marker.c for why that matched nothing the witness saw.
     let mut edges: Vec<f64> = Vec::new();
-    let mut armed = samples[0] < low; // must go low before a rise counts
+    let mut is_high = samples[0] >= mid;
 
     for i in 1..samples.len() {
         let prev = samples[i - 1];
         let cur = samples[i];
-        if armed && cur >= high {
-            let frac = if cur != prev {
-                ((mid - prev) / (cur - prev)).clamp(0.0, 1.0)
-            } else {
-                0.0
-            };
-            if edges.len() >= MAX_EDGES {
-                return Err(Refused::TooManyEdges);
-            }
-            edges.push(((i - 1) as f64 + frac) / fs);
-            armed = false;
-        } else if cur < low {
-            armed = true;
+        let rise = !is_high && cur >= high;
+        let fall = is_high && cur < low;
+        if !rise && !fall {
+            continue;
         }
+        let frac = if cur != prev {
+            ((mid - prev) / (cur - prev)).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        if edges.len() >= MAX_EDGES {
+            return Err(Refused::TooManyEdges);
+        }
+        edges.push(((i - 1) as f64 + frac) / fs);
+        is_high = rise;
     }
     Ok(edges)
 }
@@ -281,7 +289,7 @@ pub fn analyse(samples: &[f64], fs: f64, nominal_hz: f64, out: &mut Analysis) ->
         ..Default::default()
     };
 
-    let edges = match rising_edges(samples, fs) {
+    let edges = match marker_edges(samples, fs) {
         Ok(e) => e,
         Err(why) => return Some(why),
     };

@@ -4,8 +4,9 @@
     python rate.py capture.npy --fs 100000
     python rate.py capture.csv --fs 100000 --json
 
-Reads a single-channel recording of a square wave produced by the firmware's
-marker pin, finds the rising edges, and reports the rate two independent ways
+Reads a single-channel recording of the firmware's marker pin, which toggles
+once per sample, finds every edge, rising and falling alike, and reports the
+rate of edges two independent ways
 that must agree: a count, and a straight-line fit of edge index against edge
 time. The fit is the reported rate and the count is the check on it.
 
@@ -50,15 +51,21 @@ def load(path: Path) -> list[float]:
     return out
 
 
-def rising_edges(samples: list[float], fs: float,
+def marker_edges(samples: list[float], fs: float,
                  low: float | None = None,
                  high: float | None = None) -> list[float]:
-    """Edge times in seconds, by linear interpolation across the threshold.
+    """Edge times in seconds, rising and falling alike, by linear interpolation
+    across the midpoint of the thresholds.
 
-    A Schmitt-style pair of thresholds, set from the observed swing rather than
-    assumed to be 0 and 3.3 volts, so a recording through an attenuator or with
-    an offset still works. Interpolation is what gets the edge time below one
-    sample period, which criterion 2 depends on.
+    The marker toggles once per sample, so every crossing in either direction
+    is a sampling instant. A Schmitt-style pair of thresholds, set from the
+    observed swing rather than assumed to be 0 and 3.3 volts, so a recording
+    through an attenuator or with an offset still works; the pair is also the
+    hysteresis, a rise counting only from an established low and a fall only
+    from an established high. Interpolation is what gets the edge time below
+    one sample period, which criterion 2 depends on. Rising edges alone until
+    Friday 9 October 2026; see marker.c for why that matched nothing the
+    witness saw.
     """
     if len(samples) < 16:
         return []
@@ -69,22 +76,23 @@ def rising_edges(samples: list[float], fs: float,
     low = lo_obs + 0.3 * swing if low is None else low
     high = lo_obs + 0.7 * swing if high is None else high
 
+    mid = 0.5 * (low + high)
     edges: list[float] = []
-    armed = samples[0] < low          # must go low before a rise counts
+    is_high = samples[0] >= mid
     for i in range(1, len(samples)):
         prev, cur = samples[i - 1], samples[i]
-        if armed and cur >= high:
-            # interpolate the crossing of the midpoint between the thresholds
-            mid = 0.5 * (low + high)
-            if cur != prev:
-                frac = (mid - prev) / (cur - prev)
-                frac = min(max(frac, 0.0), 1.0)
-            else:
-                frac = 0.0
-            edges.append((i - 1 + frac) / fs)
-            armed = False
-        elif cur < low:
-            armed = True
+        rise = (not is_high) and cur >= high
+        fall = is_high and cur < low
+        if not rise and not fall:
+            continue
+        # interpolate the crossing of the midpoint between the thresholds
+        if cur != prev:
+            frac = (mid - prev) / (cur - prev)
+            frac = min(max(frac, 0.0), 1.0)
+        else:
+            frac = 0.0
+        edges.append((i - 1 + frac) / fs)
+        is_high = rise
     return edges
 
 
@@ -117,7 +125,7 @@ def fit_line(x: list[float], y: list[float]) -> tuple[float, float, float]:
 def analyse(samples: list[float], fs: float,
             nominal_hz: float = PASS["nominal_hz"]) -> dict:
     """Everything docs/measurement.md asks for, and the verdict on each."""
-    edges = rising_edges(samples, fs)
+    edges = marker_edges(samples, fs)
     r: dict = {
         "sample_rate_hz": fs,
         "duration_s": len(samples) / fs if fs else 0.0,

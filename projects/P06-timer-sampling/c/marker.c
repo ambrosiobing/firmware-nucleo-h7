@@ -6,6 +6,17 @@
  * atomic and needs no read, so it cannot be a race against anything else
  * touching the same port.
  *
+ * ONE EDGE PER SAMPLE, ALTERNATING, AND NOT A PULSE. Until Friday 9 October
+ * 2026 this file offered marker_pulse(), a set and a clear in two consecutive
+ * stores, which holds the pin high for a few core cycles at 64 MHz: tens of
+ * nanoseconds. The first capture through the MCC 118, which samples every
+ * 10 microseconds, saw none of it and reported 102 edges in two seconds at
+ * 50.67 Hz, which is mains hum on a pin held at 0 V, counted by thresholds
+ * that adapt to whatever swing they are given. A toggle leaves the level
+ * where the sample put it until the next sample, so the witness sees one
+ * edge per sample, which is what MEASUREMENT.md and the handler comment in
+ * acq_timer.c had described all along. The analysers count both polarities.
+ *
  * WHICH PIN, AND IT IS SETTLED SINCE TUESDAY 6 OCTOBER 2026. The pin must be
  * free while no shield is fitted and must reach the Zio header so a wire can get
  * to it. PB4 satisfies both, from UM2408 Rev 6, which is MB1363's manual:
@@ -75,8 +86,15 @@ void marker_init(void)
 void marker_high(void) { MARKER_GPIO->BSRR = (1u << MARKER_BIT); }
 void marker_low(void)  { MARKER_GPIO->BSRR = (1u << (MARKER_BIT + 16u)); }
 
-void marker_pulse(void)
+/* One edge per call, alternating. The level is kept here and not read back
+ * from ODR, so this is still a single store with no read of the port; the
+ * only caller is the one handler, and nothing else touches PB4. marker_init
+ * drives the pin low, and this static starts at zero, so the first call is
+ * the first rising edge. */
+void marker_toggle(void)
 {
-    MARKER_GPIO->BSRR = (1u << MARKER_BIT);
-    MARKER_GPIO->BSRR = (1u << (MARKER_BIT + 16u));
+    static uint32_t is_high;
+    is_high ^= 1u;
+    MARKER_GPIO->BSRR = is_high ? (1u << MARKER_BIT)
+                               : (1u << (MARKER_BIT + 16u));
 }

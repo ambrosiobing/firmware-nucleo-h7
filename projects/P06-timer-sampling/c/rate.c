@@ -28,7 +28,7 @@
    did. The two files now read the same. */
 #include <stddef.h>
 
-int rate_rising_edges(const double *samples, size_t count, double fs,
+int rate_marker_edges(const double *samples, size_t count, double fs,
                       double *edges_out, size_t edges_cap)
 {
     if (samples == NULL || edges_out == NULL || fs <= 0.0) {
@@ -57,29 +57,37 @@ int rate_rising_edges(const double *samples, size_t count, double fs,
     const double high = lo_obs + 0.7 * swing;
     const double mid  = 0.5 * (low + high);
 
+    /* The marker toggles, so a crossing in EITHER direction is a sampling
+     * instant and both are kept. The hysteresis is the Schmitt pair: a rise
+     * counts only from an established low, a fall only from an established
+     * high. The starting level is the first sample against the midpoint, and
+     * nothing is counted until the first crossing. Until Friday 9 October 2026
+     * this kept rising edges alone, to match a marker pulse the witness could
+     * not see; see marker.c. */
     size_t written = 0;
-    bool armed = samples[0] < low;      /* must go low before a rise counts */
+    bool is_high = samples[0] >= mid;
 
     for (size_t i = 1; i < count; i++) {
         const double prev = samples[i - 1];
         const double cur  = samples[i];
-        if (armed && cur >= high) {
-            double frac;
-            if (cur != prev) {
-                frac = (mid - prev) / (cur - prev);
-                if (frac < 0.0) frac = 0.0;
-                if (frac > 1.0) frac = 1.0;
-            } else {
-                frac = 0.0;
-            }
-            if (written >= edges_cap) {
-                return RATE_ERR_TOO_MANY_EDGES;
-            }
-            edges_out[written++] = ((double) (i - 1) + frac) / fs;
-            armed = false;
-        } else if (cur < low) {
-            armed = true;
+        const bool rise = !is_high && cur >= high;
+        const bool fall = is_high && cur < low;
+        if (!rise && !fall) {
+            continue;
         }
+        double frac;
+        if (cur != prev) {
+            frac = (mid - prev) / (cur - prev);
+            if (frac < 0.0) frac = 0.0;
+            if (frac > 1.0) frac = 1.0;
+        } else {
+            frac = 0.0;
+        }
+        if (written >= edges_cap) {
+            return RATE_ERR_TOO_MANY_EDGES;
+        }
+        edges_out[written++] = ((double) (i - 1) + frac) / fs;
+        is_high = rise;
     }
     return (int) written;
 }
@@ -152,7 +160,7 @@ int rate_analyse(const double *samples, size_t count, double fs,
     out->nominal_hz = nominal_hz;
     out->resolution_s = (fs > 0.0) ? 1.0 / fs : nan("");
 
-    const int found = rate_rising_edges(samples, count, fs, edges, RATE_MAX_EDGES);
+    const int found = rate_marker_edges(samples, count, fs, edges, RATE_MAX_EDGES);
     if (found < 0) {
         return found;
     }

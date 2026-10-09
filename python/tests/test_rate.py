@@ -35,19 +35,28 @@ FS = 100_000.0          # the witness rate, 100 kS/s on one channel
 HIGH, LOW = 3.3, 0.0    # volts, as the marker pin actually swings
 
 
-def square(edge_times: list[float], duration_s: float, fs: float,
-           duty: float = 0.5, period_s: float = 1e-3,
+def toggle(edge_times: list[float], duration_s: float, fs: float,
            noise_v: float = 0.0, seed: int = 1) -> list[float]:
-    """Sample a square wave whose rising edges are exactly edge_times."""
+    """Sample a waveform that changes level at exactly edge_times, starting low.
+
+    The marker toggles once per sample, so consecutive edges alternate polarity
+    and the witness sees a square wave at half the sampling rate that carries
+    every sampling instant. Until Friday 9 October 2026 this rendered a pulse
+    per edge, which described a marker the witness could not see; see marker.c.
+    """
     rnd = random.Random(seed)
     n = int(duration_s * fs)
     out = [LOW] * n
-    high_for = duty * period_s
-    for t0 in edge_times:
-        a = int(round(t0 * fs))
-        b = int(round((t0 + high_for) * fs))
-        for i in range(max(a, 0), min(b, n)):
-            out[i] = HIGH
+    level = LOW
+    start = 0
+    for t0 in sorted(edge_times):
+        a = min(max(int(round(t0 * fs)), 0), n)
+        for i in range(start, a):
+            out[i] = level
+        level = HIGH if level == LOW else LOW
+        start = a
+    for i in range(start, n):
+        out[i] = level
     if noise_v:
         out = [v + rnd.gauss(0.0, noise_v) for v in out]
     return out
@@ -56,7 +65,7 @@ def square(edge_times: list[float], duration_s: float, fs: float,
 def case_clean(duration=2.0, rate=1000.0):
     p = 1.0 / rate
     edges = [0.002 + k * p for k in range(int((duration - 0.004) / p))]
-    return square(edges, duration, FS, period_s=p, noise_v=0.005, seed=11)
+    return toggle(edges, duration, FS, noise_v=0.005, seed=11)
 
 
 def case_jittered(duration=2.0, rate=1000.0, sd_s=4e-6):
@@ -67,21 +76,21 @@ def case_jittered(duration=2.0, rate=1000.0, sd_s=4e-6):
     for _ in range(int((duration - 0.004) / p)):
         edges.append(t + rnd.gauss(0.0, sd_s))
         t += p
-    return square(edges, duration, FS, period_s=p, noise_v=0.005, seed=23)
+    return toggle(edges, duration, FS, noise_v=0.005, seed=23)
 
 
 def case_dropped(duration=2.0, rate=1000.0, drop_at=500):
     p = 1.0 / rate
     edges = [0.002 + k * p for k in range(int((duration - 0.004) / p))]
     del edges[drop_at]
-    return square(edges, duration, FS, period_s=p, noise_v=0.005, seed=33)
+    return toggle(edges, duration, FS, noise_v=0.005, seed=33)
 
 
 def case_wrong(duration=2.0, rate=1002.0):
     """0.2 percent fast, twice the tolerance. Must be refused."""
     p = 1.0 / rate
     edges = [0.002 + k * p for k in range(int((duration - 0.004) / p))]
-    return square(edges, duration, FS, period_s=p, noise_v=0.005, seed=44)
+    return toggle(edges, duration, FS, noise_v=0.005, seed=44)
 
 
 # ---------------------------------------------------------------- the claims

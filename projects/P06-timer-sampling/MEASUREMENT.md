@@ -49,9 +49,13 @@ than a surprise to be explained away.**
 
 The witness is an **MCC 118 data acquisition HAT on a Raspberry Pi 4**: eight
 single-ended analogue inputs, 12-bit, 100 kS/s aggregate. Sampling one channel,
-the full aggregate rate is available, so a 1 kHz square wave is sampled about
-100 times per period. That is ample for an edge time to about one sample period,
-which is 10 microseconds.
+the full aggregate rate is available. The marker toggles once per sample, so at
+1 kHz it is a 500 Hz square wave carrying 1000 edges per second, with about 100
+samples between one edge and the next. That is ample for an edge time to about
+one sample period, which is 10 microseconds. It is also why the marker must
+toggle rather than pulse: a pulse of two consecutive stores is high for tens of
+nanoseconds, and a 10 microsecond sampler never sees it, which is what the first
+capture found on Friday 9 October 2026, recorded at the end of this file.
 
 **This is the limit that decides criterion 3.** An edge time resolved to 10
 microseconds cannot support a claim about a 50 microsecond outlier with much
@@ -97,8 +101,9 @@ converter's own timing, which is a different measurement and is not claimed here
 Two independent routes, and they must agree. If they disagree the analysis is
 wrong, not the firmware.
 
-- **Counting.** Number of rising edges divided by the time between the first and
-  last. Robust, and insensitive to any single edge being mistimed.
+- **Counting.** Number of edges, rising and falling alike, divided by the time
+  between the first and last. Robust, and insensitive to any single edge being
+  mistimed.
 - **Fitting.** A straight line fitted to edge index against edge time. Its
   gradient is the period. This uses every edge and yields an uncertainty.
 
@@ -339,3 +344,126 @@ serial backlog. **The measurement stands.**
 written to detect a restart, and a reflash by another session is a restart. That is
 worth noting because it is the second time that check has caught something it was
 not designed for, the first being the stale buffered line.
+
+## The witness is live, and the first capture refuted the marker, Friday 9 October 2026
+
+**The chain ran end to end for the first time, and the first thing it measured was
+a defect in the firmware's marker.** That is what a shakedown is for, and it is
+recorded in the order it happened.
+
+### Bringing the witness up, and one fault that was not in the wiring
+
+The `daqhats` shared library was built from MCC's repository on the Raspberry Pi 4,
+version 1.5.0.1 with libgpiod 2, and the Python wrapper came from piwheels at
+1.4.1.0, which is what MCC's own README installs. `hat_list` then reported the HAT
+at address 0, and that proved less than it reads as proving: `hat_list` returns the
+EEPROM record `install.sh` wrote under `/etc/daqhats` and does not touch the bus.
+The first real open, `mcc118(0)`, failed with `Board not responding`, as `bing` and
+as root alike.
+
+**The cause was two lines in `/boot/firmware/config.txt`, 61 and 62, giving both
+SPI0 chip selects to CAN controller overlays** from the other volume this Raspberry
+Pi serves: `mcp251xfd` on `spi0-1` and `mcp2515` on `spi0-0`. Each overlay replaces
+the `spidev` node on its chip select, so `/dev/spidev*` did not exist even with
+`dtparam=spi=on` on line 59, and `dmesg` showed both CAN drivers failing to find
+their chips at boot. A failed probe does not hand the chip select back. Both lines
+are commented out, the file as found is kept beside it as
+`config.txt.before-mcc118-20261009`, and **the other volume needs those two lines
+back before its CAN work runs again.** After a reboot `/dev/spidev0.0` and
+`/dev/spidev0.1` exist and the HAT answers: serial `DBA2019`, firmware 1.03,
+bootloader 1.01.
+
+### The capture was attributable, by the stronger route this time
+
+The timer image was copied to the probe's disk and the console opened the moment
+the copy returned, before the part had finished programming, so the banner could
+not be missed: `image 15196 B`, `TIM6 TRGO on the rising edge`, calibration 181
+polls, enable 4 polls, `seq` restarting at 15. An earlier attempt the same day
+opened the port some seconds after the copy and saw only reports from `seq 240`
+on, attributable by the line format and `convovr 0` but not by the flash figure.
+Copy and open as one step is the method from here.
+
+### The shakedown, two seconds at 100 kS/s
+
+    199784 samples at 100000.0 Hz
+    duration            1.998 s, 102 rising edges
+    rate, fitted        50.6662 +/- 0.2772 Hz
+    rate, counted       51.0284 Hz
+    interval spread     13165.96 us standard deviation
+    worst interval      65809.27 us
+    missing edges       1884
+    FAIL on criteria 1 to 4, the two routes agree, VERDICT: FAIL
+
+**50.67 Hz is the mains frequency.** It is what an analysis whose thresholds adapt
+to the observed swing reports when the input carries no signal and a few
+millivolts of hum, and it is not a 1 kHz marker seen badly.
+
+### The cause: the marker was a pulse the witness cannot see
+
+`marker_pulse()` was two consecutive stores to `BSRR`, a set and a clear, so the
+pin was high for a few core cycles at 64 MHz: **tens of nanoseconds.** The witness
+samples every **10 microseconds.** The arithmetic needs no instrument: a sampler
+with a 10 microsecond period sees essentially none of a 50 nanosecond pulse, and
+the input otherwise sits at a driven 0 V. The thresholds then came from millivolts
+of hum, and the hum was counted.
+
+And the record had said so all along without the code following it: `marker.c`
+line 3 says "Toggled once per sample", this file says "toggles one pin once per
+sample", and the handler comment in `acq_timer.c` says "one edge per CONVERSION".
+A pulse is two edges per conversion and a toggle is one. **The code was the
+outlier against three statements of intent.** The chapters that plan a Nordic PPK2
+digital input, which samples at the same 100 kS/s, carry the same pulse and the
+same arithmetic applies to them.
+
+### The fix, and what it does not change
+
+- `marker_toggle()` replaces `marker_pulse()`: one store, alternating set and
+  reset, the level kept in a static so the port is never read. `marker_init`
+  leaves the pin low and the static starts at zero, so the first call is the first
+  rising edge.
+- All four analysers count **both polarities**, with the Schmitt pair as the
+  hysteresis: a rise counts only from an established low, a fall only from an
+  established high. The function is `marker_edges` in Python, C++ and Rust and
+  `rate_marker_edges` in C. The interpolation across the midpoint is unchanged, so
+  the four still have to agree to one part in 1e12.
+- Both synthesisers render a toggle rather than a pulse per edge. The Python suite
+  is unchanged in count, 204 passing and 146 skipping on win11 aquamarine, and the
+  mutation was run: the old rising-only detector on the new synthesiser reads
+  **500.000 Hz and FAIL**, the new one 1000.000 Hz and pass.
+- **Nothing in the four criteria changes.** The nominal is 1000 edges per second
+  as before; the pin now carries them as a 500 Hz square wave.
+- The C, C++ and Rust analysers are edited and not yet compiled; they are checked
+  only in WSL on win11 skyhorizon. The pre-existing cap of 4096 edges in those
+  three, about four seconds at 1 kHz, is unchanged; the analysis on the Raspberry
+  Pi is `rate.py`, which has no cap.
+
+### What the shakedown established despite its verdict
+
+The HAT scans one channel at 100 kS/s for two seconds without overrun, `scan.py`
+and `rate.py` run on the Raspberry Pi from the clone, the two files land, and the
+verdict machinery refuses on garbage rather than passing it. The witness is live;
+what it watched was wrong.
+
+### Status of each criterion, Friday 9 October 2026
+
+| Criterion | State |
+|---|---|
+| 1. Mean rate within 0.1 percent | **FAIL**, +2818 ppm, by the host clock on Thursday 8 October 2026 |
+| 2. Interval spread below 10 microseconds | **not evaluated**; the first capture is invalid for the reason above |
+| 3. No single interval more than 50 microseconds off | **not evaluated**, same |
+| 4. Zero dropped or doubled edges | **not evaluated**, same |
+
+### Prediction for the next shakedown, written before it runs
+
+With the toggling image flashed and the console confirming it, two seconds should
+give about **2005 edges at about 1002.8 edges per second**, the host clock's figure
+of Thursday 8 October 2026 within the few tens of ppm two independent clocks can
+disagree by, so criterion 1 fails again by about 2818 ppm, and criterion 4 reads
+zero missing edges. No prediction is made for criteria 2 and 3 beyond the README's,
+that the timer build should do well on spread because its sampling instant is made
+in hardware and its edge carries only the handler's latency.
+
+What would refute the chain rather than the firmware: about 50 Hz again means the
+wire is not on PB4 at CN7 pin 19 or the ground wire is not in; about 2005 edges per
+second means something still makes two edges per conversion; exactly 1000.0 means
+one of the two clocks is wrong.

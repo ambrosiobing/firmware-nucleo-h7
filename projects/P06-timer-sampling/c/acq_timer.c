@@ -88,7 +88,7 @@ void ADC_IRQHandler(void)
      * and it is the reason this is not simply counted at the end.
      *
      * Clearing is a write of one, and the count is what main reports. NO MARKER
-     * PULSE HERE: the marker must carry one edge per CONVERSION and not one per
+     * TOGGLE HERE: the marker must carry one edge per CONVERSION and not one per
      * interrupt, or the witness would measure this handler's entries rather than
      * the sampling instants, which is the one thing it exists to measure. */
     if ((isr & ADC_ISR_OVR) != 0u) {
@@ -100,7 +100,7 @@ void ADC_IRQHandler(void)
         return;
     }
 
-    marker_pulse();                    /* see the weakness noted above */
+    marker_toggle();                   /* see the weakness noted above */
     uint16_t v = (uint16_t) ADC1->DR;  /* reading DR clears the flag */
 
     uint32_t i = widx;

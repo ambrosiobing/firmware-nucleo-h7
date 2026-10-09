@@ -65,7 +65,7 @@ void SysTick_Handler(void)
     /* The marker first, before anything that could vary in duration. Whatever
      * follows it, the edge has already happened, so the edge time carries only
      * the delay ahead of it and not the work behind it. */
-    marker_pulse();
+    marker_toggle();
 
     uint16_t v = adc_convert_blocking();
 

@@ -98,13 +98,15 @@ struct Result {
     bool limited_by_instrument = false;
 };
 
-// Rising edge times in seconds, by linear interpolation across the midpoint of
-// a Schmitt-style pair of thresholds taken from the observed swing rather than
-// assumed to be rail voltages. Interpolation is what gets an edge time below one
-// sample period, which criterion 2 depends on.
+// Edge times in seconds, rising and falling alike, by linear interpolation
+// across the midpoint of a Schmitt-style pair of thresholds taken from the
+// observed swing rather than assumed to be rail voltages. The marker toggles
+// once per sample, so every crossing in either direction is a sampling instant.
+// Interpolation is what gets an edge time below one sample period, which
+// criterion 2 depends on.
 //
 // Returns the number of edges written, or the status that refused.
-inline std::optional<std::size_t> rising_edges(const double* samples, std::size_t count,
+inline std::optional<std::size_t> marker_edges(const double* samples, std::size_t count,
                                                double fs, double* edges_out,
                                                std::size_t edges_cap, Status& why)
 {
@@ -135,28 +137,34 @@ inline std::optional<std::size_t> rising_edges(const double* samples, std::size_
     const double high = lo_obs + 0.7 * swing;
     const double mid = 0.5 * (low + high);
 
+    // Both polarities, with the Schmitt pair as hysteresis: a rise counts only
+    // from an established low, a fall only from an established high. The
+    // starting level is the first sample against the midpoint and nothing is
+    // counted until the first crossing. Rising edges alone until Friday
+    // 9 October 2026; see marker.c for why that matched nothing the witness saw.
     std::size_t written = 0;
-    bool armed = samples[0] < low;   // must go low before a rise counts
+    bool is_high = samples[0] >= mid;
 
     for (std::size_t i = 1; i < count; ++i) {
         const double prev = samples[i - 1];
         const double cur = samples[i];
-        if (armed && cur >= high) {
-            double frac = 0.0;
-            if (cur != prev) {
-                frac = (mid - prev) / (cur - prev);
-                if (frac < 0.0) { frac = 0.0; }
-                if (frac > 1.0) { frac = 1.0; }
-            }
-            if (written >= edges_cap) {
-                why = Status::TooManyEdges;
-                return std::nullopt;
-            }
-            edges_out[written++] = (static_cast<double>(i - 1) + frac) / fs;
-            armed = false;
-        } else if (cur < low) {
-            armed = true;
+        const bool rise = !is_high && cur >= high;
+        const bool fall = is_high && cur < low;
+        if (!rise && !fall) {
+            continue;
         }
+        double frac = 0.0;
+        if (cur != prev) {
+            frac = (mid - prev) / (cur - prev);
+            if (frac < 0.0) { frac = 0.0; }
+            if (frac > 1.0) { frac = 1.0; }
+        }
+        if (written >= edges_cap) {
+            why = Status::TooManyEdges;
+            return std::nullopt;
+        }
+        edges_out[written++] = (static_cast<double>(i - 1) + frac) / fs;
+        is_high = rise;
     }
     return written;
 }
@@ -227,7 +235,7 @@ inline Status analyse(const double* samples, std::size_t count, double fs,
 
     Status why = Status::Ok;
     const std::optional<std::size_t> found =
-        rising_edges(samples, count, fs, edges.data(), edges.size(), why);
+        marker_edges(samples, count, fs, edges.data(), edges.size(), why);
     if (!found) {
         return why;
     }
