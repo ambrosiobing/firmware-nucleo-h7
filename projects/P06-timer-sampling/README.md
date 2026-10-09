@@ -118,6 +118,7 @@ witness is a data acquisition HAT rather than either.
 ## Layout
 
     acq.h              one interface, three implementations
+    acq_errors.h       one refusal numbering, shared, and why -1 is reserved
     acq_systick.c      build 1
     acq_timer.c        build 2
     acq_dma_double.c   build 3, and the two traps it sits on
@@ -1131,6 +1132,13 @@ sourced register sequence drift, and the drift does not show up in `git status`.
 | `report`, `delay_us`, `apb1_divisor` | lines 274 to 363, about 90 lines | all three back ends need the same route to HCLK and the same step reporting |
 | the timer-specific remainder | about 20 lines | `EXTSEL` 13 and `EXTEN` 1, plus the line naming TIM6 TRGO |
 | the build | `CMakeLists.txt` `SOURCES` | **one entry covers all three targets**, because the `foreach(BACKEND systick timer dma)` loop shares the list |
+
+**One prerequisite is done, and it was not on this list.** Reading `acq_systick.c`
+before copying the bring-up into it found that the interface's refusal codes were
+never shared: they lived inside `acq_timer.c`, the other two back ends improvised,
+and **-3 meant the APB1 prescaler in one and an unconfigured transfer engine in
+another.** They now live in `acq_errors.h` with a code per cause. Nothing can be
+shared between back ends until the thing they all return is shared.
 
 So the move is about 423 lines into a new `adc_bringup.c` and `adc_bringup.h`,
 parameterised on the trigger: `EXTSEL` and `EXTEN` plus the name to print.

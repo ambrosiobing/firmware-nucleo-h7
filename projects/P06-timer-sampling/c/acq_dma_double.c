@@ -22,6 +22,7 @@
  * section, and the region is invalidated before the application reads it.
  */
 #include "acq.h"
+#include "acq_errors.h"
 #include "marker.h"
 
 #include "stm32h7xx.h"
@@ -88,7 +89,12 @@ int acq_start(void)
      * better known member of this family is exactly the failure the front
      * matter of the volume warns about. */
 
-    return -3;   /* not configured yet; refusing to run is correct */
+    /* Refusing to run is correct, and the CODE changed on Friday 9 October 2026
+     * while the behaviour did not. This returned -3, which is
+     * ACQ_ERR_APB1_PRESCALER in the timer back end behind the same interface, so
+     * main.c printed a number whose documented meaning was a clock prescaler that
+     * had never been the problem. See acq_errors.h. */
+    return ACQ_ERR_DMA_UNCONFIGURED;
 }
 
 int acq_take(acq_block_t *out)

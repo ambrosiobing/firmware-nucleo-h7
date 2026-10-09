@@ -54,8 +54,17 @@ int main(void)
          * guessed peripheral setting. Say which and stop: a board that runs
          * and lies is worse than one that refuses. */
         printf("acq_start failed: %d\r\n", rc);
-        printf("a value is unconfirmed against RM0455. See the TO BE CONFIRMED\r\n");
-        printf("comments in the selected back end before running again.\r\n");
+        /* WHAT THIS USED TO SAY WAS TRUE WHEN IT WAS WRITTEN AND IS NOT NOW. It
+         * told the reader that "a value is unconfirmed against RM0455" and to go
+         * find the TO BE CONFIRMED comments. That was right while every refusal
+         * was an unconfirmed value, and the timer back end's refusals are now
+         * mostly flag timeouts: ADCAL never cleared, ADRDY never set, a register
+         * that did not take. A reader sent looking for a TO BE CONFIRMED comment
+         * would find none and conclude the message was stale rather than that the
+         * converter had refused. Corrected Friday 9 October 2026. */
+        printf("the code is named in acq_errors.h, which also says which back\r\n");
+        printf("end owns it. Read the step reports above first: the step that\r\n");
+        printf("refused printed what it wrote and what the register held.\r\n");
         for (;;) { }
     }
 

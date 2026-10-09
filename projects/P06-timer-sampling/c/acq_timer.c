@@ -20,6 +20,7 @@
  * can separate the two.
  */
 #include "acq.h"
+#include "acq_errors.h"
 #include "marker.h"
 
 #include "adcmath.h"
@@ -35,19 +36,11 @@
  * target's include path and the board support lives in neither. */
 extern uint32_t board_pclk1_hz(void);
 
-/* Why acq_start refused, as distinct values rather than one. The clock280.c
- * lesson applies here exactly: "the converter did not come up" is not a finding
- * anybody can act on, and "the regulator wrote 10000000 and read back 0" is. */
-#define ACQ_ERR_PCLK1_UNKNOWN     (-2)
-#define ACQ_ERR_APB1_PRESCALER    (-3)
-#define ACQ_ERR_NO_CYCLE_COUNTER  (-4)
-#define ACQ_ERR_ADC_DEEPPWD       (-5)
-#define ACQ_ERR_ADC_VREG          (-6)
-#define ACQ_ERR_ADC_CLOCK         (-7)   /* adcmath_clock_hz refused */
-#define ACQ_ERR_ADC_BOOST         (-8)   /* adcmath_boost refused */
-#define ACQ_ERR_ADC_CALIBRATION   (-9)   /* ADCAL never cleared */
-#define ACQ_ERR_ADC_NOT_READY     (-10)  /* ADRDY never set */
-#define ACQ_ERR_ADC_CHANNEL       (-11)  /* a step 6 to 8 register did not take */
+/* Why acq_start refused, as distinct values rather than one. THESE MOVED to
+ * acq_errors.h on Friday 9 October 2026, and the reason is in that header: they
+ * lived here, so the other two back ends behind the same interface improvised
+ * their own, and the numbering collided. -3 was this file's APB1 prescaler and
+ * the dma back end's "transfer engine not configured" at the same time. */
 
 /* THE CLOCK MODE, WHICH IS A DECISION RATHER THAN A READING, and these two lines
  * are the whole of it so that revisiting it is a two line edit.

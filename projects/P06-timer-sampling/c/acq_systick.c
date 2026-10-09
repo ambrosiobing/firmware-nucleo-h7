@@ -14,6 +14,7 @@
  * about that last one.
  */
 #include "acq.h"
+#include "acq_errors.h"
 #include "marker.h"
 #include "board.h"
 
@@ -103,13 +104,20 @@ int acq_start(void)
      * reaches SysTick_Config, which rejects it, and the function would then
      * return -1 for what reads like a hardware fault. The sampling rate is the
      * whole subject of P06, so a refusal here has to say that the rate was
-     * never established. */
+     * never established.
+     *
+     * AND THIS COMMENT SAW THE PROBLEM AND THEN COMMITTED IT. It worried that -1
+     * reads like a hardware fault, and the function below then returned -1 for
+     * BOTH causes, so the rate being unknown and the reload being rejected were
+     * indistinguishable from the console. Closed Friday 9 October 2026: the two
+     * now have their own codes in acq_errors.h, which also records why -1 was
+     * never acq_start's to use. */
     uint32_t core_hz = board_core_hz();
     if (core_hz == 0u) {
-        return -1;
+        return ACQ_ERR_CORE_HZ_UNKNOWN;
     }
     if (SysTick_Config(core_hz / ACQ_RATE_HZ) != 0u) {
-        return -1;
+        return ACQ_ERR_SYSTICK_RELOAD;
     }
     return 0;
 }
