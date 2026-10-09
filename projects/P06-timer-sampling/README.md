@@ -1473,9 +1473,14 @@ format and by `convovr 0` but not by the figure. Copy and open as one step from
 here.
 
 **The two second shakedown: 102 rising edges, 50.67 Hz fitted, 51.03 Hz counted,
-13 ms spread, 1884 missing edges, FAIL on four of five.** 50.67 Hz is the mains
-frequency. It is what an analysis whose thresholds adapt to the observed swing
-reports when the input carries no signal and millivolts of hum.
+13 ms spread, 1884 missing edges, FAIL on four of five.** The first reading of
+that number was mains, and the amplitude column, requested before anything was
+committed, refuted it: the floor is two converter codes wide at a driven 0 V,
+nothing reaches 1 V, and 346 samples between 0.1 V and 0.49 V are the sampler
+catching fragments of a nanosecond pulse. The 102 edges are the catches that
+cleared a threshold set from that half-volt swing, randomly placed on the 10
+microsecond grid, which is also why the spread is 13 ms on a 19.6 ms mean. 50.67
+against 50 was a coincidence.
 
 **The cause: `marker_pulse()` was two consecutive stores, a set and a clear, so the
 pin was high for tens of nanoseconds, and the witness samples every 10

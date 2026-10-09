@@ -35,8 +35,12 @@ not arise.
 WHAT IT CANNOT CHECK, so nobody reads a pass here as a build. It does not
 generate code, so nothing about size, alignment, register allocation or the ARM
 backend is exercised. It uses the host's own stdint and stddef rather than
-newlib's. And it skips any file including the vendor device header,
-stm32h7xx.h. A pass here means the file is valid C; only the cross build says it
+newlib's. And it skips any file that includes the vendor device header,
+stm32h7xx.h, directly or through a local header it includes: adc_bringup.c
+reaches it through adc_bringup.h, and until Friday 9 October 2026 this looked
+only at the .c file, so that file was compiled against a header that is absent
+by design and reported as failing. A pass here means the file is valid C; only
+the cross build says it
 is correct firmware.
 """
 
@@ -64,6 +68,48 @@ INCLUDE_DIRS = ["c/board", "c/clock", "c/payload", "c/ring", "c/instr",
 
 # A file including this needs the vendor pack, which is deliberately absent here.
 VENDOR_HEADER = re.compile(r'^\s*#\s*include\s*[<"]stm32h7xx\.h[>"]', re.M)
+
+# A quoted include, which the compiler resolves beside the including file first
+# and then along the include path; the angle-bracket form is left to the system.
+LOCAL_INCLUDE = re.compile(r'^\s*#\s*include\s*"([^"]+)"', re.M)
+
+
+def vendor_header_via(path, text, include_dirs=None):
+    """How `path` reaches stm32h7xx.h, or None if it does not.
+
+    Returns "" when the file includes it directly, otherwise the path of the
+    first local header through which it is reached, relative to the repository,
+    so the skip line can say which. Quoted includes are followed the way the
+    compiler follows them, beside the including file and then along
+    INCLUDE_DIRS, each header read once, so a header that includes itself or
+    two that include each other terminate. Looking at the .c file alone was
+    the fourth blind spot found in this repository's checkers in one week.
+    """
+    if include_dirs is None:
+        include_dirs = [os.path.join(REPO, d) for d in INCLUDE_DIRS]
+    if VENDOR_HEADER.search(text):
+        return ""
+    seen = set()
+    stack = [(os.path.dirname(path), name) for name in LOCAL_INCLUDE.findall(text)]
+    while stack:
+        here, name = stack.pop(0)
+        for d in [here] + list(include_dirs):
+            cand = os.path.normpath(os.path.join(d, name))
+            if os.path.isfile(cand):
+                break
+        else:
+            continue
+        if cand in seen:
+            continue
+        seen.add(cand)
+        try:
+            htext = open(cand, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if VENDOR_HEADER.search(htext):
+            return os.path.relpath(cand, REPO).replace("\\", "/")
+        stack.extend((os.path.dirname(cand), n) for n in LOCAL_INCLUDE.findall(htext))
+    return None
 
 # Files that define newlib's syscall hooks cannot be checked by a host compiler,
 # and this is a limitation of the method rather than a defect in the code. On ARM
@@ -155,8 +201,10 @@ def main():
             skipped += 1
             continue
 
-        if VENDOR_HEADER.search(text):
-            print("  skip    %s  (needs stm32h7xx.h, absent by design)" % rel)
+        via = vendor_header_via(path, text)
+        if via is not None:
+            how = "" if via == "" else " through %s" % via
+            print("  skip    %s  (needs stm32h7xx.h%s, absent by design)" % (rel, how))
             skipped += 1
             continue
 

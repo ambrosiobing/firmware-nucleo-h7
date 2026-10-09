@@ -187,7 +187,8 @@ pub fn marker_edges(samples: &[f64], fs: f64) -> Result<Vec<f64>, Refused> {
     // from an established low, a fall only from an established high. The
     // starting level is the first sample against the midpoint and nothing is
     // counted until the first crossing. Rising edges alone until Friday
-    // 9 October 2026; see marker.c for why that matched nothing the witness saw.
+    // 9 October 2026; see marker.c for why that matched a pulse the witness saw
+    // only in fragments.
     let mut edges: Vec<f64> = Vec::new();
     let mut is_high = samples[0] >= mid;
 

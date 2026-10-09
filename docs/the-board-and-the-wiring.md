@@ -1465,10 +1465,11 @@ Please run down this list. It is eleven items and it takes under a minute.
     them back before its CAN work runs.
 11. **The marker toggles, one edge per sample, alternating.** A pulse of two
     consecutive stores is high for tens of nanoseconds and a 10 microsecond
-    sampler never sees it; the first capture reported 50.67 Hz, which is mains
-    on an input that carries no signal. If the witness ever reports about 50 Hz
+    sampler sees it only in fragments; the first capture reported 50.67 Hz, the
+    rate at which it caught enough of the pulse to clear a threshold, on a floor
+    two converter codes wide. If the witness ever reports a swing under a volt
     again, the first suspects are the wire on CN7 pin 19 and the ground wire, in
-    that order, and the firmware third.
+    that order, and an image that still pulses third.
 
 ## 4.6 A note on the supply write, because it is the one you cannot retry
 

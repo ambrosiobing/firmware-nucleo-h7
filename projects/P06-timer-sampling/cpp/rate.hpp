@@ -141,7 +141,8 @@ inline std::optional<std::size_t> marker_edges(const double* samples, std::size_
     // from an established low, a fall only from an established high. The
     // starting level is the first sample against the midpoint and nothing is
     // counted until the first crossing. Rising edges alone until Friday
-    // 9 October 2026; see marker.c for why that matched nothing the witness saw.
+    // 9 October 2026; see marker.c for why that matched a pulse the witness saw
+    // only in fragments.
     std::size_t written = 0;
     bool is_high = samples[0] >= mid;
 

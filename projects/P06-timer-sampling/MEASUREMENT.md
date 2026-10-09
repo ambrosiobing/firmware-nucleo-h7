@@ -54,8 +54,9 @@ the full aggregate rate is available. The marker toggles once per sample, so at
 samples between one edge and the next. That is ample for an edge time to about
 one sample period, which is 10 microseconds. It is also why the marker must
 toggle rather than pulse: a pulse of two consecutive stores is high for tens of
-nanoseconds, and a 10 microsecond sampler never sees it, which is what the first
-capture found on Friday 9 October 2026, recorded at the end of this file.
+nanoseconds, and a 10 microsecond sampler sees it only in fragments, which is
+what the first capture found on Friday 9 October 2026, recorded at the end of this
+file.
 
 **This is the limit that decides criterion 3.** An edge time resolved to 10
 microseconds cannot support a claim about a 50 microsecond outlier with much
@@ -394,9 +395,9 @@ Copy and open as one step is the method from here.
     missing edges       1884
     FAIL on criteria 1 to 4, the two routes agree, VERDICT: FAIL
 
-**50.67 Hz is the mains frequency.** It is what an analysis whose thresholds adapt
-to the observed swing reports when the input carries no signal and a few
-millivolts of hum, and it is not a 1 kHz marker seen badly.
+**50.67 Hz is not a 1 kHz marker seen badly, and it is not mains either**, which
+was the first reading and was tested before it was kept; the statistic below says
+what it is.
 
 ### The cause: the marker was a pulse the witness cannot see
 
@@ -404,8 +405,33 @@ millivolts of hum, and it is not a 1 kHz marker seen badly.
 pin was high for a few core cycles at 64 MHz: **tens of nanoseconds.** The witness
 samples every **10 microseconds.** The arithmetic needs no instrument: a sampler
 with a 10 microsecond period sees essentially none of a 50 nanosecond pulse, and
-the input otherwise sits at a driven 0 V. The thresholds then came from millivolts
-of hum, and the hum was counted.
+the input otherwise sits at a driven 0 V.
+
+### The statistic that tested the cause, run before anything was committed
+
+Prediction written first: median within 20 mV of zero, standard deviation of a few
+millivolts, fewer than 0.1 percent of samples above 1 V. The 199 784 voltages:
+
+    min -0.014205  p1 -0.014205  median -0.009094  p99 -0.009094  max 0.491787
+    mean -0.00903  sd 0.013121
+    above 1.0 V: 0    above 0.1 V: 346
+
+**The pin is at a driven 0 V**: the first and ninety-ninth percentiles are two
+adjacent converter codes, 5.1 mV apart, and nothing reaches 1 V. **And the first
+reading of the 50.67 Hz, mains hum, was wrong**: hum of a few millivolts cannot
+cross a threshold at 0.34 V, and 346 samples sit between 0.1 V and 0.49 V on a
+floor that is otherwise two codes wide. Those are the sampler catching part of the
+pulse. With thresholds set at 30 and 70 percent of the observed swing, 0.14 V and
+0.34 V, the 102 "edges" are the catches that cleared 0.34 V, randomly placed on
+the 10 microsecond grid, which is why the interval spread is 13 ms on a 19.6 ms
+mean: the statistics of random catches, not of a clock. 50.67 Hz against 50 Hz
+mains was a coincidence, and the amplitude column is what exposed it.
+
+One inference from the same numbers, offered with its basis: 346 catches in about
+2005 pulses is one in six, where a 50 ns pulse on a 10 microsecond grid would give
+one in two hundred, and the catches peak at 15 percent of 3.3 V. Both fit the HAT's
+input low-pass stretching the pulse to roughly two microseconds while flattening
+it; the user guide's input bandwidth, still unread, would say whether that holds.
 
 And the record had said so all along without the code following it: `marker.c`
 line 3 says "Toggled once per sample", this file says "toggles one pin once per
@@ -463,7 +489,8 @@ zero missing edges. No prediction is made for criteria 2 and 3 beyond the README
 that the timer build should do well on spread because its sampling instant is made
 in hardware and its edge carries only the handler's latency.
 
-What would refute the chain rather than the firmware: about 50 Hz again means the
-wire is not on PB4 at CN7 pin 19 or the ground wire is not in; about 2005 edges per
-second means something still makes two edges per conversion; exactly 1000.0 means
-one of the two clocks is wrong.
+What would refute the chain rather than the firmware: a swing under a volt with a
+rate far below 1000 means the pin is not swinging at the witness, which is the
+wire on PB4 at CN7 pin 19, the ground wire, or an image that still pulses, in that
+order; about 2005 edges per second means something still makes two edges per
+conversion; exactly 1000.0 means one of the two clocks is wrong.

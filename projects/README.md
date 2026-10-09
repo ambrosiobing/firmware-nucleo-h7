@@ -113,7 +113,7 @@ implementation.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eight of the twenty have code.** 350 checks, of which 204 pass on a laptop with
+**Eight of the twenty have code.** 355 checks, of which 209 pass on a laptop with
 no board, no probe and no Raspberry Pi; the other 146 need a compiler and skip
 there, each naming the WSL command and the laptop. The remaining twelve projects
 need hardware, and nothing in them is written yet rather than written and

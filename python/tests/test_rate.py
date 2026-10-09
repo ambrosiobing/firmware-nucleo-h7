@@ -42,7 +42,8 @@ def toggle(edge_times: list[float], duration_s: float, fs: float,
     The marker toggles once per sample, so consecutive edges alternate polarity
     and the witness sees a square wave at half the sampling rate that carries
     every sampling instant. Until Friday 9 October 2026 this rendered a pulse
-    per edge, which described a marker the witness could not see; see marker.c.
+    per edge, which described a marker the witness saw only in fragments; see
+    marker.c.
     """
     rnd = random.Random(seed)
     n = int(duration_s * fs)

@@ -144,8 +144,8 @@ def render(edges, fs, n, low=0.0, high=3.3):
     the edges rather than from a phase function, because that is what lets a
     capture carry a dropped edge or a doubled one exactly where the test intends
     rather than wherever rounding puts it. Until Friday 9 October 2026 this
-    rendered a pulse per edge; see marker.c for why that matched nothing the
-    witness saw.
+    rendered a pulse per edge; see marker.c for why that matched a pulse the
+    witness saw only in fragments.
     """
     out = [low] * n
     level = low

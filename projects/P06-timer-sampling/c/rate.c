@@ -62,8 +62,8 @@ int rate_marker_edges(const double *samples, size_t count, double fs,
      * counts only from an established low, a fall only from an established
      * high. The starting level is the first sample against the midpoint, and
      * nothing is counted until the first crossing. Until Friday 9 October 2026
-     * this kept rising edges alone, to match a marker pulse the witness could
-     * not see; see marker.c. */
+     * this kept rising edges alone, to match a marker pulse the witness saw
+     * only in fragments; see marker.c. */
     size_t written = 0;
     bool is_high = samples[0] >= mid;
 

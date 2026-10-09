@@ -64,8 +64,8 @@ def marker_edges(samples: list[float], fs: float,
     hysteresis, a rise counting only from an established low and a fall only
     from an established high. Interpolation is what gets the edge time below
     one sample period, which criterion 2 depends on. Rising edges alone until
-    Friday 9 October 2026; see marker.c for why that matched nothing the
-    witness saw.
+    Friday 9 October 2026; see marker.c for why that matched a pulse the
+    witness saw only in fragments.
     """
     if len(samples) < 16:
         return []

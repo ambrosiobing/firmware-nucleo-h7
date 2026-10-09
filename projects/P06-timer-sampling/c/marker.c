@@ -10,9 +10,10 @@
  * 2026 this file offered marker_pulse(), a set and a clear in two consecutive
  * stores, which holds the pin high for a few core cycles at 64 MHz: tens of
  * nanoseconds. The first capture through the MCC 118, which samples every
- * 10 microseconds, saw none of it and reported 102 edges in two seconds at
- * 50.67 Hz, which is mains hum on a pin held at 0 V, counted by thresholds
- * that adapt to whatever swing they are given. A toggle leaves the level
+ * 10 microseconds, caught fragments of it in 346 samples out of 199 784, none
+ * above 0.49 V, and reported 102 edges in two seconds at 50.67 Hz: the rate at
+ * which a catch cleared thresholds that had adapted to that half-volt swing,
+ * on a floor otherwise two converter codes wide. A toggle leaves the level
  * where the sample put it until the next sample, so the witness sees one
  * edge per sample, which is what MEASUREMENT.md and the handler comment in
  * acq_timer.c had described all along. The analysers count both polarities.
