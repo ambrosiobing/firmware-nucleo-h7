@@ -809,9 +809,27 @@ so the condition cannot be met by this code at all.
     adc enable, one write      ok       wrote 00000001  read back 00001001
         ready after 4 polls with NO re-assertion, so the erratum did not bite here
 
-Four polls, which is **the same count the re-asserting loop reported.** Had the
-re-assertions mattered, the single write would have taken longer or refused. They
-contributed nothing, and the four passes were always the flag rising.
+**AND THE "SAME COUNT" HALF OF THAT ARGUMENT IS WITHDRAWN, Friday 9 October 2026,
+while the conclusion stands on better footing than it had.** A fourth run of the
+same image reported `ready after 5 polls`, so the count varies: 4, 4, 4 and then 5.
+
+Two things were wrong with leaning on the equality. The count is not stable, so 4
+matching 4 was a coincidence inside a quantity that moves. And **the two numbers
+were never the same unit of work**: a pass of the re-asserting loop writes `ADEN`
+and then tests `ADRDY`, where a poll of the single-write path only tests it. Four
+passes and four polls describe different amounts of work and should not have been
+compared as though they described the same.
+
+**What the observation actually establishes is stronger and does not need the
+equality.** If re-assertion were necessary, the single write would never have
+become ready at all: `ADRDY` would stay clear and the step would exhaust
+`ADC_READY_POLLS_MAX`, which is 1 000 000. It became ready in four polls, then
+four again, then four, then five. **Ready at all, in a handful of polls against a
+bound of a million, is the finding.** The arithmetic leg is untouched by any of
+this: two `printf` calls sit between `ADCAL` and `ADEN`, about four milliseconds
+at 115200 baud, which is some sixty four thousand cycles of the 16 MHz ADC clock
+against a condition of four, so the window is missed by about four orders of
+magnitude.
 
 **Scope this claim carefully, because it is narrower than "the erratum is
 wrong".** What is established is that this image does not meet the condition, so

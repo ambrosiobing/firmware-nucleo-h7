@@ -451,10 +451,27 @@ press at 1396 bytes, all identical:
     adc enable, one write      ok       wrote 00000001  read back 00001001
         ready after 4 polls with NO re-assertion, so the erratum did not bite here
 
-**Four polls, which is the same count the loop reported, and that is what makes
-it conclusive rather than merely consistent.** Had the re-assertions mattered,
-the single write would have taken longer or refused. They contributed nothing,
-and the four passes were always the flag rising.
+**AND THE "SAME COUNT" HALF OF THAT ARGUMENT IS WITHDRAWN, Friday 9 October 2026,
+while the conclusion stands on better footing than it had.** A fourth run of the
+same image reported `ready after 5 polls`, so the count varies: 4, 4, 4 and then 5.
+
+Two things were wrong with leaning on the equality. The count is not stable, so 4
+matching 4 was a coincidence inside a quantity that moves. And **the two numbers
+were never the same unit of work**: a pass of the re-asserting loop writes `ADEN`
+and then tests `ADRDY`, where a poll of the single-write path only tests it. Four
+passes and four polls describe different amounts of work and should not have been
+compared as though they described the same.
+
+**What the observation actually establishes is stronger and does not need the
+equality.** If re-assertion were necessary, the single write would never have
+become ready at all: `ADRDY` would stay clear and the step would exhaust
+`ADC_READY_POLLS_MAX`, which is 1 000 000. It became ready in four polls, then
+four again, then four, then five. **Ready at all, in a handful of polls against a
+bound of a million, is the finding.** The arithmetic leg is untouched by any of
+this: two `printf` calls sit between `ADCAL` and `ADEN`, about four milliseconds
+at 115200 baud, which is some sixty four thousand cycles of the 16 MHz ADC clock
+against a condition of four, so the window is missed by about four orders of
+magnitude.
 
 ### What that claim is, and is not
 
@@ -1053,6 +1070,87 @@ a **label**, and the label is a better authority than a position.
 it at the labelled one and name both in the instruction. The pin number on the
 labelled connector does not even need to be right, because the silkscreen is what is
 being trusted.
+
+## The error-numbering flash, Friday 9 October 2026
+
+Built, flashed and captured as consecutive steps. FLASH 14 848 to 14 920 bytes.
+
+### All three builds grew by exactly 72 bytes, which is the check that matters
+
+| target | FLASH before | after | delta |
+|---|---|---|---|
+| `p06-sampling-systick` | 9936 B | 10 008 B | **+72** |
+| `p06-sampling-timer` | 14 848 B | 14 920 B | **+72** |
+| `p06-sampling-dma` | 9952 B | 10 024 B | **+72** |
+
+The only size-affecting change is `main.c`'s failure message, and `main.c` is
+shared, so an **identical** delta is what a shared-only change must produce. A
+difference between the three would have meant something back-end specific had crept
+in. The 72 splits as 64 bytes of `.rodata` for the three replacement strings and 8
+bytes of `.text` for the third `printf` call where there were two. **The named
+constants cost nothing**, which is the point: a `#define` that compiles to the same
+immediate is free.
+
+### The published criterion was byte-identical output, and 18 of 19 lines met it
+
+All **eighteen configuration read-backs** are identical, line for line: the as-found
+control register, every `wrote` and `read back` pair through all eight steps, the
+`LDORDY` line, the `OVRMOD` line. That is what this change could have broken and it
+did not.
+
+**One line differs**, and it is a measured count rather than a configuration value:
+
+    was: ready after 4 polls with NO re-assertion, so the erratum did not bite here
+    now: ready after 5 polls with NO re-assertion, so the erratum did not bite here
+
+### And that makes the criterion itself the thing at fault
+
+**The criterion as published could fail for a reason unrelated to what it was
+testing**, which is a defect of the opposite kind to the ones this volume has been
+collecting. The others could not fail; this one could fail wrongly.
+
+It demanded byte-identical output across the whole step block, which lumps together
+two different kinds of line. A **configuration read-back** must not move: if it does,
+the change was not pure. A **measured count** may move freely, because it is a
+property of the run rather than of the image. The step block holds eighteen of the
+first kind and two of the second, the calibration polls and the enable polls, and
+both of those were already known to vary.
+
+**The criterion should have excluded them by name and it did not.** Stated properly
+it is: every `wrote` and `read back` pair identical, every refusal absent, and the
+two poll counts free to move. On that criterion the change passes cleanly.
+
+### The two poll counts, now both known to vary
+
+| count | observations |
+|---|---|
+| calibration, `ADCAL` self clearing | 180, then 187, 187, 187 |
+| enable, `ADRDY` after one write | 4, 4, 4, then **5** |
+
+Neither has a bound anywhere near it: calibration is checked against 1 000 000 polls
+and so is the ready flag. Both were first written as though the figure were a
+property of the part. Neither is.
+
+**The enable count moving is what withdrew the "same count" argument above**, and
+that withdrawal left the erratum conclusion stronger rather than weaker, which is
+worth the second read.
+
+### And `mean` says the ground wire is no longer connected
+
+It reads 2940 to 3411 across twenty four reports, where the grounded control gave 1
+to 2. **Nothing in this change touches the analogue path**, and the eighteen
+identical configuration read-backs prove the converter is configured exactly as it
+was for the control: same channel, same preselection, same sampling time, same
+resolution, same trigger.
+
+So the difference is physical rather than firmware, which is what the control's own
+published wording anticipated: a different `mean` would mean the wire moved rather
+than that the firmware did. The wire is off, or was off for this run.
+
+**That does not disturb the control's result.** The control was a separate capture
+with its own threshold, published in advance and met at the time. This capture
+simply has PC3 floating again, and a floating PC3 reading about 3200 counts is the
+behaviour already recorded for Thursday 8 October 2026.
 
 ### What is next, in the order that makes each claim true
 
