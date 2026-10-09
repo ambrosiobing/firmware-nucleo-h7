@@ -1377,6 +1377,75 @@ longer true. It is left out because this commit's claim is that the eight steps 
 here, and a second new claim in the same flash would make a failure ambiguous
 between them. That is the same reason the move and this were kept apart.
 
+### The tick back end on the board, and the prediction held in every part
+
+**The first back end other than the timer to run on the NUCLEO-H7A3ZI-Q.**
+
+    adc trigger and 16 bits    ok       wrote 00000000  read back 80000000
+        channel 13 on PC3 at CN9 pin 5, 810.5 cycles, 16 bits,
+        started by software, one conversion per tick
+    converter overrun  NOT WATCHED by this back end, so convovr
+                       reads -1 rather than a zero nobody earned
+    seq 15  blocks 15  mean 3497  overruns 0  convovr -1
+
+`wrote 00000000` and `read back 80000000`, both predicted from arithmetic before the
+build. The software-trigger words, the `-1`, and the absent `tim6 clock` line were
+predicted too, and all four came out.
+
+**Twenty of twenty-one configuration lines are identical to the timer capture**, the
+one difference being the trigger step. So the same converter sequence runs in a
+second back end with only the trigger changed, which is what the factoring was for,
+established on hardware rather than by reading a diff.
+
+**And it samples.** `seq` and `blocks` rise together by fifteen, `overruns` is 0.
+
+### The size deltas cashed in an earlier reading that could have contradicted them
+
+| target | before | after | delta |
+|---|---|---|---|
+| `p06-sampling-systick` | 10 232 B | 14 396 B | **+4164** |
+| `p06-sampling-timer` | 15 196 B | 15 196 B | **0** |
+| `p06-sampling-dma` | 10 248 B | 10 248 B | **0** |
+
+Two commits earlier the shared file cost `systick` and `dma` exactly nothing, and
+the reading offered was that `--gc-sections` drops it because neither **calls** it,
+with the note that growth in either would mean the linker was not collecting it.
+**`systick` now calls it and grows by the size of the thing, and `dma` is still
+exactly 0.** One shared file, three targets, costing nothing where unused and 4164
+bytes where used.
+
+**The timer image is unchanged to the byte** although `apb1_divisor` moved between
+translation units in the same commit. Moving a function across a translation-unit
+boundary cost zero here, which is worth having on record before anybody argues that
+option C would be expensive.
+
+### And the stamp's documented weakness showed itself, which was not planned
+
+| image | `image` | `main.c built` |
+|---|---|---|
+| timer | 15 196 B | Oct 9 2026 09:31:08 |
+| systick | 14 396 B | Oct 9 2026 09:31:08 |
+
+**Two different images carrying the same compile stamp**, because `main.c` did not
+change between them so `__DATE__` and `__TIME__` did not move. That is precisely
+what the comment at that `printf` says will happen, written the day before.
+
+The flash figure tells the two apart and the timestamp cannot. **That is why both
+lines exist and why the weaker one is labelled for what it cannot detect**, and it is
+now demonstrated on the board rather than asserted in a comment. A stamp whose
+limits are written down is worth more than one that is trusted.
+
+### What this does and does not do for the chapter
+
+**Two of three mechanisms now reach the converter.** That is not two of three data
+points for the comparison, because the comparison is about jitter and nothing here
+has measured an interval. `sampling-systick`'s prediction, that it loses on spread
+and worst case because its sampling instant is produced by software, is untested and
+stays untested until the MCC 118 watches PB4.
+
+What is established is narrower: the mechanism runs, the shared sequence is genuinely
+shared, and the build expected to be the baseline now exists to be compared against.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
