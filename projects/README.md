@@ -113,7 +113,7 @@ implementation.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eight of the twenty have code.** 349 checks, of which 203 pass on a laptop with
+**Eight of the twenty have code.** 350 checks, of which 204 pass on a laptop with
 no board, no probe and no Raspberry Pi; the other 146 need a compiler and skip
 there, each naming the WSL command and the laptop. The remaining twelve projects
 need hardware, and nothing in them is written yet rather than written and
@@ -220,7 +220,7 @@ call, and its project README says so.
 
 That is narrower than what this paragraph claimed until Wednesday 7 October
 2026, which was that the whole suite runs on a laptop with no board. **It does
-not, and it never did.** 146 of the 349 checks need a compiler, and the authoring
+not, and it never did.** 146 of the 350 checks need a compiler, and the authoring
 laptop is forbidden to run one, so they skip there and run in WSL and in CI.
 Needing no hardware and running everywhere are two different claims, and only
 the first one is true.

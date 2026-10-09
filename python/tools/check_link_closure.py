@@ -172,8 +172,31 @@ def reachable(seeds, include_dirs=()):
     return need
 
 
+def strip_cmake_comments(text):
+    """Remove # comments, because a ')' inside one truncates every parse below.
+
+    THE THIRD BLIND SPOT IN THIS CHECK, found Friday 9 October 2026, and the most
+    embarrassing of the three. Every pattern here that spans a multi-line list
+    ends at the first INCLUDES, VENDOR_INCLUDES, DEFINES or ')'. A CMake comment
+    can contain any of those, and P06's SOURCES list carries a long comment
+    holding the words "a set()". The parse stopped at that parenthesis, so
+    c/instr/adcmath.c, c/instr/pwmmath.c and ${ACQ} itself were all invisible,
+    which means THIS CHECK HAD NOT FOLLOWED ANY OF P06'S THREE BACK ENDS SINCE
+    Wednesday 7 October 2026.
+
+    The comment that broke it is the one describing the first two defects this
+    check was fixed for. A note about two blind spots created a third.
+
+    It surfaced only because a new source file was added ABOVE the truncation
+    point, so its includes were followed while the .c files satisfying them sat
+    below it and read as missing. Had the file been added below, nothing would
+    have been reported at all.
+    """
+    return re.sub(r"#[^\n]*", "", text)
+
+
 def main():
-    cmake = CMAKE.read_text(encoding="utf-8")
+    cmake = strip_cmake_comments(CMAKE.read_text(encoding="utf-8"))
     board = board_objects(cmake)
     loops = foreach_values(cmake)
     variables, unresolved_sets = source_variables(cmake, loops)

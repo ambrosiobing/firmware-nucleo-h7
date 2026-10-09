@@ -119,6 +119,8 @@ witness is a data acquisition HAT rather than either.
 
     acq.h              one interface, three implementations
     acq_errors.h       one refusal numbering, shared, and why -1 is reserved
+    adc_bringup.h      the converter's eight steps, and the trigger as a parameter
+    adc_bringup.c      those steps, shared by all three back ends
     acq_systick.c      build 1
     acq_timer.c        build 2
     acq_dma_double.c   build 3, and the two traps it sits on
@@ -1152,26 +1154,103 @@ with its own threshold, published in advance and met at the time. This capture
 simply has PC3 floating again, and a floating PC3 reading about 3200 counts is the
 behaviour already recorded for Thursday 8 October 2026.
 
+## The move, done Friday 9 October 2026, and the blind spot it uncovered
+
+`acq_timer.c` went from **889 lines to 346**. `adc_bringup.c` is 563 and
+`adc_bringup.h` is 76. One `SOURCES` entry serves all three targets, as scoped.
+
+**What stays in `acq_timer.c` is what is specific to this mechanism**: the ring
+buffer, the end-of-conversion handler, the APB1 divisor that feeds the timer clock,
+TIM6, and the order in which the converter is armed before the timer starts.
+
+**Two things changed in the moved code and no third.** The trigger became three
+parameters, `extsel`, `exten` and a `trigger_desc` printed in words. And `report()`
+became `adc_report()` and non-static, because the steps `acq_start` performs after
+the bring-up returns must print in the same shape as the eight before them; a bare
+`report()` in the global namespace of a project this size is a collision waiting to
+happen.
+
+### The criterion was checked statically before the board was touched
+
+**33 console-affecting strings before the move, 33 after**, compared by extracting
+every `printf` format and every step name from the old single file and from the new
+pair. Exactly one differs:
+
+    lost:    started by TIM6 TRGO on the rising edge
+    gained:  started by %s
+
+That is the trigger description becoming an argument, and the call site passes the
+same words, so the line is identical on the console. **Everything else, every step
+name and every format, survived unchanged.** The flash can still refute this; what
+it can no longer do is refute it for a reason that was findable on a laptop.
+
+### And the move uncovered a third blind spot in `check_link_closure.py`
+
+This is the part worth reading, because the check had been reporting success over
+work it was not doing.
+
+**Every pattern in that check which spans a multi-line list ends at the first
+`INCLUDES`, `VENDOR_INCLUDES`, `DEFINES` or `)`.** A CMake comment can contain any
+of them. P06's `SOURCES` list carries a comment holding the words **"a set()"**, so
+the parse stopped at that parenthesis, and the three entries below it were invisible:
+
+    c/instr/adcmath.c      never seen
+    c/instr/pwmmath.c      never seen
+    ${ACQ}                 never seen, so NO back end was ever followed for P06
+
+**So from Wednesday 7 October 2026 the check had not followed any of P06's three
+back ends**, while reporting five targets closed and nothing wrong.
+
+**The comment that broke it is the one describing the first two blind spots.** A
+note about two defects created a third, in the same block, by containing a
+parenthesis.
+
+**And it only surfaced because the new file was added above the truncation point.**
+Its includes were followed, the `.c` files satisfying them sat below the cut and
+read as missing, so the check reported `NOT CLOSED` on a target that was in fact
+fine. Had `adc_bringup.c` been listed below that comment, nothing would have been
+reported and the move would have looked clean.
+
+The fix strips CMake comments before any parsing. `test_link_closure_resolves.py`
+gains a fourth case pinning it, and the mutation was run: with the stripping made a
+no-op, the block stops reaching `${ACQ}` and the test fails. **The suite is now 350
+checks, 204 passing and 146 skipping**, and the count guard written on Wednesday
+7 October 2026 caught the drift from 349 without being asked.
+
+### What is left of the factoring
+
+The second commit, `sampling-systick` calling into the shared bring-up with a
+software trigger, which is a **new claim** and needs its own capture. The scope
+note above said to keep the two apart so that a failure cannot be ambiguous between
+the move and the new back end, and that still holds.
+
 ### What is next, in the order that makes each claim true
 
-1. **Decide what the claim is**, now that criterion 1 has failed on this clock at
+1. **A build stamp in the banner**, `__DATE__` and `__TIME__`, which is the right
+   answer to the shared-board problem and better than what is relied on now.
+   Attribution currently rests on the report line's format being unique to one
+   file, which works and is indirect. A stamp says outright which build is
+   talking, and a stale flash stops reading as a reproduction. It is one `printf`
+   and it changes the banner, so it cannot share a commit with a byte-identical
+   criterion.
+2. **Decide what the claim is**, now that criterion 1 has failed on this clock at
    +2818 ppm. Four options are above, the first is withdrawn, and the realistic
    default is to restate the claim as nominal with the measured tolerance beside
    it. There is no option on this board that both keeps the number 1000 and
    passes.
-2. ~~The grounded PC3 control.~~ **Done Thursday 8 October 2026 and it passed**,
+3. ~~The grounded PC3 control.~~ **Done Thursday 8 October 2026 and it passed**,
    closing both observations: the offset was the floating input and the 0.118 Hz
    oscillation was pickup on it.
-3. **The marker wire**, CN7 pin 19 on the board to the MCC 118 on the Raspberry
+4. **The marker wire**, CN7 pin 19 on the board to the MCC 118 on the Raspberry
    Pi, and `scan.py` on the Pi. That is the only route to criteria 2, 3 and 4,
    which are the chapter's actual subject, and `MEASUREMENT.md` already says what
    the answers are allowed to be.
-4. **The other two back ends**, `sampling-systick` and `sampling-dma`, which are
+5. **The other two back ends**, `sampling-systick` and `sampling-dma`, which are
    the comparison the chapter exists for and which have never reached the
    converter. The chapter currently has one data point out of three. **Factor the
    bring-up first rather than copying it**, for the reasons and with the scope in
    the section below.
-5. **`OVRMOD` as a decision rather than a reading.** It now reads 0 as found, and
+6. **`OVRMOD` as a decision rather than a reading.** It now reads 0 as found, and
    nothing chooses it. Choosing it needs a reason, and the reason will come from
    what a real source on PC3 turns out to need.
 
@@ -1215,7 +1294,11 @@ because a transfer engine reading the data register is exactly the arrangement i
 which `OVR` is the primary failure mode rather than a remote one: it is the build
 that most needs the flag and the one least entitled to report it.
 
-## Factoring the converter bring-up, scoped Thursday 8 October 2026 and not yet done
+## Factoring the converter bring-up, scoped Thursday 8 October 2026 and done Friday 9 October 2026
+
+**The scope below is kept as it was written**, because the measurements in it were
+the point and because the verification criterion it fixed is what the move was then
+held to. The outcome is in the section after it.
 
 The other two back ends cannot reach the converter without this sequence, and there
 are two ways to give it to them. **Copying it is the wrong one**, and this

@@ -379,6 +379,13 @@ foreach(BACKEND systick timer dma)
     add_firmware(p06-sampling-${BACKEND}
         SOURCES projects/P06-timer-sampling/c/main.c
                 projects/P06-timer-sampling/c/marker.c
+                # adc_bringup.c, added Friday 9 October 2026. The converter's
+                # eight steps left acq_timer.c so that all three back ends can
+                # reach the same converter: only the trigger differs between
+                # them, and three copies of a sourced register sequence drift
+                # without anything noticing. One entry here serves all three
+                # targets because this foreach shares its SOURCES list.
+                projects/P06-timer-sampling/c/adc_bringup.c
                 c/instr/cyccnt.c
                 c/instr/freqcount.c
                 c/instr/freqmath.c
