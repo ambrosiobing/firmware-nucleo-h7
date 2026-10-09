@@ -172,6 +172,34 @@ the build and several of them name nothing.
 Everything else in the volume is not built. Where such a chapter shows a command,
 read it as a plan.
 
+## The flash size of every target, as a baseline
+
+Recorded Friday 9 October 2026 from one build on win11 skyhorizon with CubeIDE's
+`arm-none-eabi-gcc` 14.3.1, **so that the next change to a shared file can be
+checked rather than trusted.** `c/board/startup.c`, `c/board/system.c`,
+`c/board/retarget.c` and `c/ld/stm32h7a3zi.ld` are linked into every image here, and
+until now there was no recorded figure to compare against after touching one.
+
+| target | FLASH |
+|---|---|
+| `p01-first-light` | 11 772 B |
+| `p01-pll280` | 36 772 B |
+| `p02-ring-none` | 9980 B |
+| `p09-codec` | 10 608 B |
+| `p06-sampling-timer` | 15 196 B |
+| `p06-sampling-systick` | 10 232 B |
+| `p06-sampling-dma` | 10 248 B |
+
+**Why this table exists rather than a sentence.** The linker script gained a
+`PROVIDE` that day, and the claim made for it was that the four non-P06 images would
+be unaffected because a `PROVIDE` defines a symbol only where it is referenced. That
+claim could not be tested, because no figure had ever been written down. It is
+testable from the next such change onward, which is the whole value of the table.
+
+It is not a budget and nothing fails on it. The proper version is the size gate the
+improvement plan describes, with a figure per target in a file CI reads; this is the
+one-table version that costs nothing and removes the excuse.
+
 ## Reading the console
 
 **THE BOARD IS SHARED, SO REFLASH IMMEDIATELY BEFORE EVERY CAPTURE.** Two projects

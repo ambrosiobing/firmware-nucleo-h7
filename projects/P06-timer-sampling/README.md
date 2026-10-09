@@ -1264,15 +1264,55 @@ software trigger, which is a **new claim** and needs its own capture. The scope
 note above said to keep the two apart so that a failure cannot be ambiguous between
 the move and the new back end, and that still holds.
 
+### The stamp on the board, and the criterion it was held to
+
+    image         15196 B of flash, the figure the build reports
+    main.c built  Oct  9 2026 09:31:08, which moves only when THIS file recompiles
+
+**The published prediction was `15196` and the build reported `FLASH: 15196 B`.**
+Two numbers reached by different routes that had to agree: one from the linker's
+memory report, one reconstructed on the part from `_sidata`, `_sflash`, `_sdata` and
+`_edata`. A wrong symbol, a sign error or a FLASH region the reconstruction did not
+account for would each have shown as a mismatch. None did.
+
+**And the compile stamp was checked rather than trusted, which is the point of
+having it.** It reads 09:31:08 where the commit it came from was authored at
+08:30:31, an hour earlier. That hour is real: it is the gap my own wrong target
+names opened, since the first build attempt was refused by ninja. **The two laptops'
+clocks were compared before that was concluded**, aquamarine reading 09:35:04 four
+minutes after the compile, so the offset is the gap and not a clock difference. A
+stamp is only as good as knowing whose clock it is.
+
+**The step block is unchanged for the third capture running**: 21 of 21
+configuration lines identical. The banner is deliberately two lines longer.
+
+### The calibration poll count, and a claim of mine narrowed
+
+| day | readings |
+|---|---|
+| Wednesday 7 October 2026 | 180 |
+| Thursday 8 October 2026 | 187, 187, 187 |
+| Friday 9 October 2026 | 181 |
+
+Set {180, 181, 187}, range 7 over five runs.
+
+**Two commits ago this was written as varying between days while holding within a
+day. That was too strong and is narrowed here.** The within-day evidence is the
+three identical readings of Thursday 8 October 2026 and nothing else; Wednesday
+7 October 2026 and Friday 9 October 2026 have one reading each, and a single reading
+cannot demonstrate constancy. So the honest
+statement is that the count varies over that set, and that on the one day it was
+sampled three times the three agreed.
+
+Nothing depends on the number. Its bound is 1 000 000 polls, so no run has come
+within four orders of magnitude of the refusal path. It is recorded because it was
+first written as a property of the part and is not one.
+
 ### What is next, in the order that makes each claim true
 
-1. **A build stamp in the banner**, `__DATE__` and `__TIME__`, which is the right
-   answer to the shared-board problem and better than what is relied on now.
-   Attribution currently rests on the report line's format being unique to one
-   file, which works and is indirect. A stamp says outright which build is
-   talking, and a stale flash stops reading as a reproduction. It is one `printf`
-   and it changes the banner, so it cannot share a commit with a byte-identical
-   criterion.
+1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
+   against a criterion that could fail**, in the section above. The flash figure is
+   the useful half and the compile time is labelled for what it cannot detect.
 2. **Decide what the claim is**, now that criterion 1 has failed on this clock at
    +2818 ppm. Four options are above, the first is withdrawn, and the realistic
    default is to restate the claim as nominal with the measured tolerance beside
