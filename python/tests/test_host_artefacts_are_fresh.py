@@ -116,3 +116,32 @@ def test_a_filter_is_not_stale_because_another_project_changed(tree):
     _set_time(art, 1_000_000.0)
     assert conftest.stale_artefacts(root=d, build=build, rust_filters=[p01]) == []
 
+
+def test_a_root_manifest_newer_than_a_filter_is_not_staleness(tree):
+    """The second false positive, and the rule it established.
+
+    Every condition this guard reports must be one its printed remedy clears. On
+    Friday 9 October 2026 five filters were reported older than the root
+    Cargo.toml; cargo considers that manifest non-invalidating for them, so
+    `cargo build --release --workspace` left them untouched and the session stayed
+    blocked with no way forward. Cargo decides what a manifest or lock change
+    invalidates and rebuilds exactly that, so the guard compares .rs only.
+    """
+    d, src, art, build = tree
+    rs_dir = d / "projects" / "P05" / "rust" / "src"
+    rs_dir.mkdir(parents=True)
+    rs = rs_dir / "lib.rs"
+    rs.write_text("pub fn f() {}\n", encoding="utf-8")
+    _set_time(rs, 1_000_000.0)
+    target = d / "target" / "release"
+    target.mkdir(parents=True)
+    filt = target / "p05-filter"
+    filt.write_bytes(b"ELF")
+    _set_time(filt, 1_000_050.0)       # newer than its own source
+    for name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml"):
+        f = d / name
+        f.write_text("[workspace]\n", encoding="utf-8")
+        _set_time(f, 1_000_900.0)      # newer than the filter, and not its business
+    _set_time(src, 900_000.0)
+    _set_time(art, 1_000_000.0)
+    assert conftest.stale_artefacts(root=d, build=build, rust_filters=[filt]) == []

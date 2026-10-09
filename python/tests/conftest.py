@@ -84,12 +84,29 @@ CLOCK_RUST_FILTER = ROOT / "target" / "release" / executable_name("p01-filter")
 # that do not depend on it; the guard flagged them and the fix it printed,
 # cargo build, could not clear them because cargo correctly saw nothing to do. A
 # guard whose remedy does not work is one that gets switched off, so the Rust
-# half is scoped per crate below. On win11 aquamarine there is no build-host and
-# no target/release, so this never fires; in CI the build runs immediately before
-# the tests, so it never fires there either.
+# half is scoped per crate below.
+#
+# THE RULE THAT FOLLOWS FROM THAT, AND IT TOOK TWO GOES TO WRITE IT DOWN: every
+# condition this guard reports must be one its printed remedy clears. The scoping
+# fix alone did not satisfy it. The root Cargo.toml, Cargo.lock and
+# rust-toolchain.toml were still compared against every filter, and on Friday
+# 9 October 2026 five filters were reported older than a root Cargo.toml that
+# cargo considers non-invalidating for them, so cargo build left them exactly as
+# they were and the session stayed blocked. Cargo is the authority on what a
+# manifest or lock change invalidates, and it rebuilds precisely that; a manifest
+# newer than a binary cargo calls fresh is not staleness. So the Rust half
+# compares .rs files only, which is the thing a person edits and forgets to
+# rebuild, and every .rs change does make cargo relink what depends on it.
+#
+# On win11 aquamarine there is no build-host and no target/release, so this never
+# fires; in CI the build runs immediately before the tests, so it never fires
+# there either.
 
 C_SOURCE_SUFFIXES = {".c", ".h", ".cpp", ".hpp"}
-RUST_SOURCE_SUFFIXES = {".rs", ".toml", ".lock"}
+# .rs alone, deliberately: see the manifest paragraph above. A Cargo.toml or
+# Cargo.lock change is cargo's to act on, and it does; comparing one against a
+# binary produces a complaint that cargo build cannot clear.
+RUST_SOURCE_SUFFIXES = {".rs"}
 
 
 def _newest(paths, suffixes):
@@ -143,10 +160,11 @@ def stale_artefacts(root: Path = ROOT, build: Path | None = None,
 def _rust_sources_for(filter_path: Path, root: Path):
     """The newest (mtime, source) a single Rust filter is built from.
 
-    A filter named `pNN-filter` is built from its own project crate under
-    projects/PNN-*/rust, from any shared workspace crate under rust/, and from
-    the root manifests that pin the whole workspace. It is NOT built from
-    another project's crate, which is the false positive this scoping removes.
+    A filter named `pNN-filter` is judged against the Rust sources of its own
+    project crate under projects/PNN-*/rust and of any shared workspace crate
+    under rust/. Not another project's crate, and not the root manifests: both
+    were false positives that cargo build could not clear, for the two reasons
+    in the paragraph above this function's module comment.
     """
     token = filter_path.stem.split("-")[0].lower()   # p06-filter -> p06
     roots = [root / "rust"]
@@ -154,12 +172,7 @@ def _rust_sources_for(filter_path: Path, root: Path):
         name = d.name.lower()
         if name == token or name.startswith(token + "-"):
             roots.append(d / "rust")
-    r_time, r_src = _newest(roots, RUST_SOURCE_SUFFIXES)
-    for name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml"):
-        f = root / name
-        if f.is_file() and f.stat().st_mtime > r_time:
-            r_time, r_src = f.stat().st_mtime, f
-    return r_time, r_src
+    return _newest(roots, RUST_SOURCE_SUFFIXES)
 
 
 def pytest_sessionstart(session):

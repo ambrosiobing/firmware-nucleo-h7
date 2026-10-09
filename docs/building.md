@@ -49,11 +49,11 @@ laptop.** win11 aquamarine, which has not been allowed to compile since Saturday
 `frame.dll`, `node_sm.dll`, `ring0.dll` to `ring3.dll`, `cpp_filter.exe` and the
 property-test executables. Every pass and skip count quoted from that laptop in the
 week between was taken with those binaries loaded. They are out of the tree now, and
-without them the suite there reads 151 passing, 146 skipping and **63 failing**,
+without them the suite there reads 152 passing, 146 skipping and **63 failing**,
 fifty-four failures and nine errors at setup: sixty-three tests written in the days that laptop compiled assume the artefact exists
 rather than skipping without it, the way the parity tests do. Teaching them to skip,
 with the build command named, is the open item; until then the honest figure for
-win11 aquamarine is 151 of 360, and a green run there was never evidence about the
+win11 aquamarine is 152 of 361, and a green run there was never evidence about the
 C, C++ or Rust.
 
 `build` is not used by anything. Nineteen chapters named it until Saturday 3
