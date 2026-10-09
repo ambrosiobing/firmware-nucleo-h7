@@ -24,38 +24,22 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: House rules over every chapter
-        run: python lint.py
-
-      - name: Book-level consistency
-        run: python crosscheck.py
-
-      - name: Every chapter has its five figures and a project line
+      - name: No authoring source is published
+        # The sources moved off the published tree deliberately: a reader takes
+        # one Markdown chapter with its figures as SVG, not a book, and .tex
+        # shows raw markup. The four checks that used to read sections/ now run
+        # in prepublish.py on the authoring machine, because they cannot run
+        # here any more. What this job can still do is make sure the rule holds,
+        # and a rule with no enforcement is a habit.
         run: |
           set -e
-          fail=0
-          for n in $(seq -w 1 20); do
-            test -f "sections/c${n}.tex" || { echo "missing sections/c${n}.tex"; fail=1; }
-            grep -q 'project{' "sections/c${n}.tex" || { echo "c${n}: no project line"; fail=1; }
-            for f in arch wiring uml mem timing; do
-              test -f "figures/c${n}_${f}.tex" || { echo "missing figures/c${n}_${f}.tex"; fail=1; }
-            done
-          done
-          test -f sections/front.tex
-          test -f sections/appendix.tex
-          test -f figures/front_map.tex
-          exit $fail
-
-      - name: The Markdown edition is in step with the source
-        run: |
-          set -e
-          python mdbuild.py >/dev/null
-          if ! git diff --quiet -- chapters; then
-            echo "chapters/ is behind sections/; run python mdbuild.py and commit"
-            git --no-pager diff --stat -- chapters
+          if git ls-files | grep -E '\.tex$'; then
+            echo "A .tex file is committed, and the authoring sources are never"
+            echo "published. Only the Markdown edition and its SVG figures are."
+            echo "The sources stay on the authoring machine; see prepublish.py."
             exit 1
           fi
-          echo "chapters/ matches sections/"
+          echo "no authoring source in the published tree"
 
       - name: Every relative link resolves
         run: python python/tools/check_links.py

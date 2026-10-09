@@ -141,31 +141,39 @@ them.
 
 ## Checks
 
+    python prepublish.py                       everything the workflow cannot see
     python lint.py                             house rules over every chapter
     python crosscheck.py                       book-level consistency
     python python/tools/check_links.py                every relative link and anchor
     python build.py --check sections/c19.tex   compile one chapter and report on it
+
+All of these except the link checker read the authoring sources, which are not
+published, so they run on the authoring machine rather than on a runner.
+`prepublish.py` is the one to run: it regenerates the Markdown edition first,
+then refuses if anything it regenerated moved, if a chapter is missing a figure
+or its project line, if a source has been committed by accident, or if either
+of the other two reports a problem. It also prints how many figures were
+actually rendered, because the drift check can only compare the ones that
+were.
 
 `lint.py` checks prose for em and en dashes, non-ASCII characters, violent
 idioms and the required section skeleton, and checks code blocks for non-ASCII
 and for lines longer than the page can print. `crosscheck.py` checks what
 per-chapter linting cannot see: the variant matrix, figure coverage,
 cross-references, chapter titles against the authoring guide, and that every
-date is written in full. Both run on every push, see
-[`.github/workflows/checks.yml`](.github/workflows/checks.yml).
+date is written in full. **Neither can run on a push any more**, because the
+runner cannot see the sources they read; they run in `prepublish.py` instead.
+What [`.github/workflows/checks.yml`](.github/workflows/checks.yml) still does
+is check the code, the links, and that no authoring source has reached the
+published tree.
 
 ## Repository layout
 
 | Path | What it is |
 |---|---|
 | `chapters/NN-title.md` | the Markdown edition, one file per chapter, generated from `sections/` |
-| `figures/NAME.svg` | every figure rendered, committed so the Markdown draws in a browser |
-| `sections/cNN.tex` | one file per chapter, 01 to 20 |
-| `sections/front.tex` | about, the board, the trap, conventions |
-| `sections/appendix.tex` | the scored project catalogue, board reference, instruments, vocabulary, reference library, variant matrix, languages, courses, roadmaps |
-| `figures/cNN_{arch,wiring,uml,mem,timing}.tex` | five figures per chapter |
-| `main.tex` | preamble, authoring macros, four parts |
-| `tikz_preamble.tex` | shared TikZ and circuitikz styles, including the memory map, register field, clock tree, interrupt vector, cache and timing styles |
+| `figures/NAME.svg` | every figure rendered, committed so the Markdown draws in a browser. Its TikZ source is not published |
+| `prepublish.py` | the four checks the workflow lost, run before pushing |
 | `mdbuild.py` | the Markdown converter, which reuses `build.py`'s parser |
 | `build.py` | figures to SVG, PDF, per-chapter builds, and the HTML converter |
 | `lint.py` | house-style check |

@@ -62,3 +62,17 @@ captures/
 private_journal/
 correspondence/
 DIARY*.md
+
+# The authoring sources stay out of the published tree. A reader of this
+# repository wants a chapter, which is a Markdown file with its figures as SVG
+# beside it; the LaTeX that generates one shows raw markup and helps nobody.
+# The assembled PDF and the single-file HTML are local for the same reason.
+#
+# This is a blanket rule rather than named folders, so a new source file
+# cannot slip through: sections/, figures/*.tex, main.tex and the preamble are
+# all covered by the one line.
+#
+# The cost is named rather than hidden. With the sources ignored, editing one
+# never shows in git status, so nothing reminds anybody to rebuild. That is
+# what prepublish.py is for, and it regenerates before it checks anything.
+*.tex
