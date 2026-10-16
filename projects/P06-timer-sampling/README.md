@@ -1758,6 +1758,43 @@ the interrupt to the wrong handler and passes. The positions are cited one by on
 the register header, and the generated table with one test per row that the
 improvement plan describes is what would check them.
 
+### The transfer-engine back end is fully specified from ST's own material, Saturday 17 October 2026
+
+Every register this back end needs is now read and cited in `acq_dma_double.c`, and
+none of it is written yet: reading came first on purpose, and the code follows in one
+piece once the decision below is made.
+
+**One of the readings changed the design.** On this part the converter raises no
+transfer request unless `CFGR`'s `DMNGT` field says so, 00 leaving data in `DR` alone
+and 11 selecting circular, from `ADC_CONVERSIONDATA_*` in ST's `stm32h7xx_hal_adc.h`.
+**The shared bring-up leaves `DMNGT` at 00**, which is right for the timer and tick
+back ends and wrong for this one, so this file owes one converter write of its own,
+reported in the same wrote-and-read-back form as the eight shared steps. Without it
+every other register here would be correct and nothing would ever move, which is this
+project's characteristic failure.
+
+**The rest, with its sources.** The request routing is `DMAMUX1_Channel0` plus the
+stream number, so channel 1 for stream 1, written with the request value 9, from
+`HAL_DMA_Init`'s own arithmetic in `stm32h7xx_hal_dma.c`. Double buffer mode is `DBM`
+in the control register with `M1AR` taking the second address, then `NDTR`, `PAR`,
+`M0AR`, the interrupt enables and the stream enable last, in the order
+`HAL_DMAEx_MultiBufferStart_IT` writes them. Which half finished is the opposite of
+the one `DMA_SxCR_CT` names, from `LL_DMA_GetCurrentTargetMem`. The flag is
+`DMA_LISR_TCIF1` from `LL_DMA_IsActiveFlag_TC1`, **named per stream in the device
+header so no bit arithmetic is needed and none is done**; its clear macro's name is
+the one thing in the block not quoted from a file read, and a wrong macro name is a
+compile error rather than a silent failure.
+
+**And one decision is not mine.** This back end needs TIM6 running at the sampling
+rate exactly as the timer back end does, and that setup is inline in `acq_timer.c`.
+Three ways: duplicate it here with the duplication named, as option A did for
+`apb1_divisor` on Friday 9 October 2026; factor it into a shared `tim6_bring_up()`
+beside `adc_bringup.c`, checked the same way by counting console-affecting strings
+before and after; or leave this back end refusing until a wider decision about what
+else shares a timer. **I would choose the factoring**, because the converter
+bring-up's paid for itself within two days and the check that made it safe already
+exists, and it is recorded as a question because the last one of these was Joseph's.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
@@ -1785,9 +1822,11 @@ improvement plan describes is what would check them.
 5. **`sampling-dma`**, the last back end with no converter. Its buffer's placement
    is fixed and confirmed in the map file, and its engine, stream, request and
    interrupt are settled from ST's example for this board, and its handler now
-   has a vector, all on Friday 16 October 2026. What is left is double buffer
-   mode's own registers, read from RM0455 and the device header rather than
-   inferred. `sampling-systick`
+   has a vector, all on Friday 16 October 2026. **Every register it needs is
+   read and cited as of Saturday 17 October 2026** and none is written: what
+   stands between the specification and the code is one decision about whether
+   TIM6's setup is duplicated or factored, which is in the section above.
+   `sampling-systick`
    reached it on Friday 9 October 2026; the transfer-engine build still needs its
    engine, stream and request number, all of which are RM0455 table lookups. **Factor the
    bring-up first rather than copying it**, for the reasons and with the scope in

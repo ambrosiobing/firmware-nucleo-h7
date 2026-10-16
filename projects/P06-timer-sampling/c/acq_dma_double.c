@@ -130,19 +130,81 @@ int acq_start(void)
      * invalidate before reading, but clean before letting the engine write. */
     SCB_CleanDCache_by_Addr((uint32_t *) buffer, (int32_t) sizeof buffer);
 
-    /* WHAT THIS STILL NEEDS, as of Friday 16 October 2026, and the list is two
-     * items shorter than it was. The converter bring-up and its trigger
-     * selection are a call to adc_bring_up() exactly as the other two back ends
-     * make it, with TIM6 TRGO on the rising edge, and the engine, stream,
-     * request and interrupt are settled above. What remains is double buffer
-     * mode itself: the stream's control register fields, both memory address
-     * registers, the transfer length of HALF, the peripheral address, which is
-     * the converter's data register, and the transfer complete interrupt enable.
+    /* THE WHOLE SEQUENCE IS NOW SOURCED, Saturday 17 October 2026, AND NONE OF IT
+     * IS WRITTEN YET. Reading came first on purpose; the code follows in one
+     * piece once the decision at the end of this block is made. Every line below
+     * carries where it came from, and all of it is ST's own material for this
+     * part or for this board rather than for the family.
+     *
+     * THE CONVERTER'S DATA MANAGEMENT, AND THIS ONE CHANGES THE DESIGN. On this
+     * part the converter does not raise a transfer request unless CFGR's DMNGT
+     * field says so: 00 leaves data in DR alone, 01 is one shot, 11 is circular,
+     * from ADC_CONVERSIONDATA_* in stm32h7xx_hal_adc.h, which defines them as
+     * ADC_CFGR_DMNGT_0 and _1. THE SHARED BRING-UP LEAVES DMNGT AT 00, which is
+     * right for the other two back ends and wrong for this one, so this file owes
+     * one converter write of its own, after adc_bring_up() returns and before the
+     * timer starts, reported in the same wrote-and-read-back form as the eight
+     * steps so it cannot pass unnoticed. Without it everything else here would be
+     * configured correctly and nothing would ever move, which is this project's
+     * characteristic failure and is worth one line of comment per occurrence.
+     *
+     * THE REQUEST ROUTING. The multiplexer channel belonging to a stream is
+     * DMAMUX1_Channel0 plus the stream number, from HAL_DMA_Init in
+     * stm32h7xx_hal_dma.c, which computes
+     *     DMAmuxChannel = DMAMUX1_Channel0 + stream_number * 4
+     * over an array of channels, and writes the request with
+     *     DMAmuxChannel->CCR = Request & DMAMUX_CxCR_DMAREQ_ID
+     * So stream 1 is routed by DMAMUX1_Channel1 and the value is 9, which is
+     * DMA_REQUEST_ADC1 from stm32h7xx_hal_dma.h.
+     *
+     * DOUBLE BUFFER MODE, from HAL_DMAEx_MultiBufferStart_IT and the helper it
+     * calls in stm32h7xx_hal_dma_ex.c, in the order that function writes them:
+     *     CR  |= DMA_SxCR_DBM
+     *     M1AR = the second memory address
+     *     NDTR = the transfer length
+     *     PAR  = the peripheral address, for peripheral to memory
+     *     M0AR = the first memory address, for peripheral to memory
+     *     CR  |= the transfer complete, transfer error and direct mode error
+     *            interrupt enables
+     *     CR  |= DMA_SxCR_EN, last
+     * The length is HALF, the peripheral address is &ADC1->DR, and the two memory
+     * addresses are the two halves of this file's buffer. The stream must be
+     * disabled and its enable bit seen to clear before any of this, which is the
+     * one ordering rule the HAL enforces separately.
+     *
+     * WHICH HALF FINISHED, which the handler below needs and currently guesses.
+     * The current target bit is DMA_SxCR_CT in the stream's control register,
+     * from LL_DMA_GetCurrentTargetMem in stm32h7xx_ll_dma.h, and the engine is
+     * writing the half that bit names, so the finished half is the other one.
+     *
+     * THE FLAG AND ITS CLEAR, for stream 1 specifically. The device header names
+     * them per stream, so no bit arithmetic is needed and none is done here:
+     * DMA_LISR_TCIF1 to test, from LL_DMA_IsActiveFlag_TC1 in
+     * stm32h7xx_ll_dma.h, and DMA_LIFCR_CTCIF1 to clear by the same naming. The
+     * clear macro's name is the only thing in this block not quoted from a file
+     * I have read, and a wrong macro name is a compile error rather than a silent
+     * failure, which is the safe direction for the one gap.
+     *
+     * AND ONE DECISION IS NOT MINE. This back end needs TIM6 running at the
+     * sampling rate exactly as the timer back end does, and that setup lives
+     * inline in acq_timer.c. Three ways, as with the prescaler reader on Friday
+     * 9 October 2026:
+     *   A. duplicate the TIM6 setup here, with the duplication named in a comment
+     *      rather than hidden, which is what option A did for apb1_divisor.
+     *   B. factor it into a shared tim6_bring_up() beside adc_bringup.c, which is
+     *      the same move that file was and would be checked the same way, by
+     *      counting console-affecting strings before and after.
+     *   C. leave this back end refusing until the factoring is done as part of a
+     *      wider decision about what else shares a timer.
+     * B is the one I would choose, because the converter bring-up's factoring
+     * paid for itself within two days and the check that made it safe already
+     * exists. It is recorded as a question rather than taken, because the last
+     * one of these was Joseph's and the reasoning that applied then applies now.
      *
      * Deliberately absent rather than plausible. A sequence copied from the
      * better known member of this family is exactly the failure the front
-     * matter of the volume warns about, and the two settled items above came
-     * from ST's example for THIS board rather than for the family. */
+     * matter of the volume warns about, and nothing above was taken from that
+     * family's documentation where a file for this part existed instead. */
 
     /* Refusing to run is correct, and the CODE changed on Friday 9 October 2026
      * while the behaviour did not. This returned -3, which is
