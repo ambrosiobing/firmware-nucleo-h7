@@ -114,6 +114,16 @@ jobs:
       - name: Every named section a C file asks for is collected by the linker
         run: python python/tools/check_section_placement.py
 
+      # Three things must be true for an interrupt handler to run and only two
+      # read back: the peripheral's IER bit, the NVIC enable, and a vector. The
+      # third went missing twice. On Wednesday 7 October 2026 ADC_IRQHandler
+      # compiled, linked and was not in the table, so the first end of conversion
+      # branched into .text and cost an evening. On Friday 16 October 2026 P06's
+      # transfer-engine handler was found in the same state, in the tree since
+      # Saturday 3 October 2026. Twice is a class.
+      - name: Every interrupt handler defined here has a vector to reach it
+        run: python python/tools/check_handler_vectors.py
+
       - name: No assembled volume and no PDF is published
         run: |
           set -e

@@ -77,6 +77,7 @@ WEAK_HANDLER(TIM2_IRQHandler);            /* P02's fallback counter, P06 */
 WEAK_HANDLER(TIM3_IRQHandler);            /* P06's acquisition trigger */
 WEAK_HANDLER(ADC_IRQHandler);             /* P06 */
 WEAK_HANDLER(EXTI15_10_IRQHandler);       /* the user button on PC13 */
+WEAK_HANDLER(DMA1_Stream1_IRQHandler);    /* P06's transfer-engine back end */
 
 /* The table itself. KEEP in the linker script stops garbage collection removing
  * it, because nothing in C references it. */
@@ -136,6 +137,20 @@ void (* const g_vectors[])(void) = {
      * This change deliberately does the small sourced thing instead. */
     [IRQ_VECTOR_INDEX(IRQ_ADC)]    = ADC_IRQHandler,
     [IRQ_VECTOR_INDEX(IRQ_USART3)] = USART3_IRQHandler,
+
+    /* P06's transfer-engine back end, added Friday 16 October 2026 BEFORE that
+     * back end is configured, and deliberately in that order. Its handler was
+     * written when that back end was first sketched and this table had no slot for
+     * it, so
+     * it would have compiled, linked and never run: the same three-things-in-a-row
+     * failure the long comment above records, which cost an evening on Wednesday
+     * 7 October 2026. Position 12 from ST's IRQn_Type for this part, cited in
+     * stm32h7a3_regs.h beside the other three. The slot costs nothing in size,
+     * because the array's extent is set by the highest index and USART3 at 39 is
+     * far above 12, and for every image that does NOT define the handler the entry
+     * is the weak alias to Default_Handler, which is a better answer to a spurious
+     * interrupt than the zero vector an unlisted slot leaves. */
+    [IRQ_VECTOR_INDEX(IRQ_DMA1_STREAM1)] = DMA1_Stream1_IRQHandler,
 };
 
 /* A fault that reaches here has no handler, and spinning is the right answer:

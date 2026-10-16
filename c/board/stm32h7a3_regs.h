@@ -1492,6 +1492,20 @@
  *   USART3_IRQn     39    "USART3 global Interrupt"
  *   TIM6_DAC_IRQn   54    "TIM6 global and DAC1&2 underrun error interrupts"
  *
+ * AND ONE MORE, READ Friday 16 October 2026 FOR P06'S TRANSFER-ENGINE BACK END,
+ * from the same enumeration in ST's cmsis_device_h7, which is the published form
+ * of the same header the pack supplies:
+ *
+ *   DMA1_Stream0_IRQn   11    "DMA1 Stream 0 global Interrupt"
+ *   DMA1_Stream1_IRQn   12    "DMA1 Stream 1 global Interrupt"
+ *
+ * THE THREE FIGURES ABOVE WERE RE-READ FROM THAT COPY IN THE SAME PASS AND ALL
+ * THREE AGREE, 18, 39 and 54, which is why the new one is recorded on its
+ * authority rather than needing the pack opened again. Stream 0 is recorded
+ * beside stream 1 because on a part with a request multiplexer the stream is a
+ * free choice, so the neighbour is the one a later change would reach for, and
+ * reading it cost nothing.
+ *
  * The table index is 16 plus the number, because the first sixteen entries are
  * the architectural ones ending at SysTick. TIM6's is recorded because it was
  * read in the same pass and is cheap to keep; nothing declares a handler for it,
@@ -1500,6 +1514,8 @@
 #define IRQ_ADC                 18u
 #define IRQ_USART3              39u
 #define IRQ_TIM6_DAC            54u
+#define IRQ_DMA1_STREAM0        11u
+#define IRQ_DMA1_STREAM1        12u
 #define IRQ_VECTOR_INDEX(n)     (16u + (n))
 
 #endif /* STM32H7A3_REGS_H */

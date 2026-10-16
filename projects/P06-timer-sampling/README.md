@@ -1665,6 +1665,86 @@ section of zeros, so the orphan was costing 256 bytes of image, and collected in
 withdrawn**: the figure proves it was loaded and no longer says where it lived,
 because that build's map file was not kept.
 
+### The transfer-engine back end's engine, stream, request and interrupt, Friday 16 October 2026
+
+Settled from ST's own example for **this board**, not for the family:
+`Projects/NUCLEO-H7A3ZI-Q/Examples/ADC/ADC_DMA_Transfer` in `STM32CubeH7`, whose
+`stm32h7xx_hal_msp.c` configures `DMA1_Stream1` with `DMA_REQUEST_ADC1`,
+peripheral to memory, half-word on both sides, and enables `DMA1_Stream1_IRQn`.
+`DMA_REQUEST_ADC1` is **9** in `stm32h7xx_hal_dma.h`, defined unconditionally for the
+whole H7 family as the DMAMUX1 ADC1 request. Two sources that agree, one of them
+specific to the part.
+
+**One of the four is a choice and not a lookup**, and separating them matters or the
+next reader treats the example as a constraint. On a part with a request multiplexer
+any stream can serve any request, because the multiplexer channel belonging to the
+stream is written with the request number: **stream 1 is ST's choice and stream 0
+would be equally correct.** What is not free is the request number, which is the
+converter's identity on DMAMUX1, and the engine: DMA1 and DMA2 take DMAMUX1 requests
+and reach AXI SRAM, while BDMA sits in the other domain behind DMAMUX2. The file
+keeps stream 1 only so that a reader comparing it with ST's example is not asked to
+track a difference that means nothing, and the placeholder handler named
+`DMA1_Stream0_IRQHandler` is now `DMA1_Stream1_IRQHandler` to match.
+
+**What remains, and it is narrower than it was.** The example uses circular mode with
+one buffer; this build wants double buffer mode, which the HAL exposes as
+`HAL_DMAEx_MultiBufferStart_IT` taking a second memory address. The registers behind
+it, the double buffer and current target bits in the stream's control register, the
+second memory address register, and the transfer complete flag with its clear
+register for stream 1, are RM0455 tables and the device header's bit definitions.
+They are not written until they are read, and the handler is still a shell. The
+converter bring-up itself is no longer on that list: it is a call to `adc_bring_up()`
+exactly as the other two back ends make it.
+
+### The transfer-engine handler had no vector, which is the second time that cost this project, Friday 16 October 2026
+
+Renaming the handler to `DMA1_Stream1_IRQHandler` prompted a one-line look at
+`c/board/startup.c`, which had **no DMA entry of any kind**. That handler has been in
+the tree since Saturday 3 October 2026 and could never have run, whatever the engine
+configuration said.
+
+**This is the failure that cost an evening on Wednesday 7 October 2026**, recorded at
+length in `startup.c` and in `c/board/stm32h7a3_regs.h`: the converter bring-up
+reported all eight steps ok, every register read back what was written, `acq_start`
+returned 0, and no sample ever arrived, because `ADC_IRQHandler` was declared,
+compiled and linked and was not in the table. **Three things must be true for a
+handler to run, the peripheral's own enable in its IER, the interrupt controller's
+enable through NVIC, and a vector for the handler to reach, and only the first two
+read back.** The third has nothing to read back from, which is why it is the one that
+goes missing.
+
+**The position is sourced, not guessed.** `DMA1_Stream1_IRQn` is 12 in ST's
+`IRQn_Type` for this part, read from `cmsis_device_h7`, and the three positions this
+repository already recorded from the pack on Wednesday 7 October 2026 were re-read
+from the same copy in the same pass and all three agree, 18, 39 and 54. Stream 0 at 11
+is recorded beside it, because on a part with a request multiplexer the stream is a
+free choice and the neighbour is what a later change would reach for. The slot costs
+nothing in size, since the array's extent is set by the highest index and USART3 at 39
+is far above 12, and for every image that does not define the handler the entry is the
+weak alias to `Default_Handler`, which is a better answer to a spurious interrupt than
+the zero vector an unlisted slot leaves.
+
+**And the entry was added before the back end is configured, deliberately in that
+order**, because the omission has now happened twice and the configuration is the part
+that would make a reader think the work was done.
+
+**The check runs on every push**, `python/tools/check_handler_vectors.py`: every
+`*_IRQHandler` DEFINED in first-party C against the designated indices in the table,
+with the `IRQ_` naming convention the table already uses, and it also reports an index
+name that no `#define` binds. **Its own first version under-reported and that is
+recorded in it**: the pattern began with a class that matches a newline, so a
+definition with a blank line above it was dropped in silence, which is how it found
+two handlers where the repository defines three. `ADC_IRQHandler` has a blank line
+above it. It was caught by comparing the tool's output against a grep by hand, the
+blank-line case is now one of its eight tests, and the regression guard demands at
+least three handlers so the same under-reporting cannot return quietly.
+
+**What it cannot do, said where the code is.** It checks that an entry exists and
+names the handler, not that the POSITION is right: a vector at the wrong index routes
+the interrupt to the wrong handler and passes. The positions are cited one by one in
+the register header, and the generated table with one test per row that the
+improvement plan describes is what would check them.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
@@ -1689,9 +1769,12 @@ because that build's map file was not kept.
    result at this witness's 10 µs floor, with the reason stated. What remains in
    this item is a finer instrument for criterion 2, and three runs per build where
    one exists.
-5. **`sampling-dma`**, the last back end with no converter, and its buffer's
-   placement is fixed as of Friday 16 October 2026 though its figure in the map
-   file is unread. `sampling-systick`
+5. **`sampling-dma`**, the last back end with no converter. Its buffer's placement
+   is fixed and confirmed in the map file, and its engine, stream, request and
+   interrupt are settled from ST's example for this board, and its handler now
+   has a vector, all on Friday 16 October 2026. What is left is double buffer
+   mode's own registers, read from RM0455 and the device header rather than
+   inferred. `sampling-systick`
    reached it on Friday 9 October 2026; the transfer-engine build still needs its
    engine, stream and request number, all of which are RM0455 table lookups. **Factor the
    bring-up first rather than copying it**, for the reasons and with the scope in

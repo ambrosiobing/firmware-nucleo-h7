@@ -52,11 +52,51 @@ static volatile uint32_t taken_seq;
 static volatile uint32_t overruns;
 static volatile uint8_t  ready_half;    /* the half that just finished */
 
-/* TO BE CONFIRMED against RM0455: which stream of which engine serves this
- * converter, its request multiplexer number, and the interrupt name. All three
- * are table lookups and none is guessed here. The handler name below is a
- * placeholder for whichever stream is chosen. */
-void DMA1_Stream0_IRQHandler(void)
+/* THE ENGINE, THE STREAM, THE REQUEST AND THE INTERRUPT ARE SETTLED, Friday
+ * 16 October 2026, and the source is ST's own example for THIS BOARD rather than
+ * for the family: Projects/NUCLEO-H7A3ZI-Q/Examples/ADC/ADC_DMA_Transfer in
+ * STM32CubeH7, whose stm32h7xx_hal_msp.c configures
+ *
+ *   DmaHandle.Instance = DMA1_Stream1;
+ *   DmaHandle.Init.Request = DMA_REQUEST_ADC1;
+ *   DmaHandle.Init.Direction = DMA_PERIPH_TO_MEMORY;
+ *   DmaHandle.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+ *   DmaHandle.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+ *   HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+ *
+ * and DMA_REQUEST_ADC1 is 9 in stm32h7xx_hal_dma.h, defined unconditionally for
+ * the whole H7 family as "DMAMUX1 ADC1 request". Two sources, and they agree.
+ *
+ * ONE OF THE FOUR IS A CHOICE AND NOT A LOOKUP, which is worth separating or the
+ * next reader will treat ST's example as a constraint. On a part with a request
+ * multiplexer ANY stream can serve ANY request: the multiplexer channel belonging
+ * to the stream is written with the request number, so stream 1 is ST's choice
+ * and stream 0 would be equally correct. What is NOT free is the request number,
+ * which is the converter's identity on DMAMUX1, and the engine: DMA1 and DMA2 are
+ * the engines that take DMAMUX1 requests and reach AXI SRAM, while BDMA sits in
+ * the other domain behind DMAMUX2. Stream 1 is kept here only to match the
+ * example, so that a reader comparing the two files is not asked to track a
+ * difference that means nothing.
+ *
+ * WHAT IS STILL TO BE CONFIRMED, and it is narrower than it was. The example uses
+ * circular mode with one buffer; this build wants double buffer mode, which is
+ * HAL_DMAEx_MultiBufferStart_IT in stm32h7xx_hal_dma_ex.h, taking a second memory
+ * address. The registers behind it, the double buffer bit and the current target
+ * bit in the stream's control register, the second memory address register, and
+ * the transfer complete flag and its clear register for stream 1, are RM0455
+ * tables and the device header's bit definitions. They are not written here
+ * until they are read, and the handler below is therefore still a shell.
+ *
+ * AND THE VECTOR EXISTS NOW, WHICH IT DID NOT WHEN THIS HANDLER WAS WRITTEN.
+ * Renaming it from stream 0 to stream 1 on Friday 16 October 2026 prompted a
+ * one-line check of c/board/startup.c, which had no DMA entry at all: this
+ * handler compiled, linked and could never have run, whatever the engine
+ * configuration said. That is the three-things-in-a-row failure recorded at
+ * length in startup.c and in stm32h7a3_regs.h, which cost P06 an evening on
+ * Wednesday 7 October 2026 through ADC_IRQHandler. The slot is filled from ST's
+ * IRQn_Type, position 12, and python/tools/check_handler_vectors.py now refuses
+ * any defined handler this repository has no vector for. */
+void DMA1_Stream1_IRQHandler(void)
 {
     /* Which half just completed is told by the engine's current target flag,
      * and the answer is the opposite one: if it is now writing half 1, half 0
@@ -90,15 +130,19 @@ int acq_start(void)
      * invalidate before reading, but clean before letting the engine write. */
     SCB_CleanDCache_by_Addr((uint32_t *) buffer, (int32_t) sizeof buffer);
 
-    /* TO BE CONFIRMED, and all of it is a table lookup in RM0455 rather than
-     * anything to infer: the converter bring-up and its trigger selection as
-     * in build 2; the engine, stream and request number; double buffer mode
-     * with both memory addresses and the transfer length of HALF; the
-     * peripheral address; and the transfer complete interrupt.
+    /* WHAT THIS STILL NEEDS, as of Friday 16 October 2026, and the list is two
+     * items shorter than it was. The converter bring-up and its trigger
+     * selection are a call to adc_bring_up() exactly as the other two back ends
+     * make it, with TIM6 TRGO on the rising edge, and the engine, stream,
+     * request and interrupt are settled above. What remains is double buffer
+     * mode itself: the stream's control register fields, both memory address
+     * registers, the transfer length of HALF, the peripheral address, which is
+     * the converter's data register, and the transfer complete interrupt enable.
      *
      * Deliberately absent rather than plausible. A sequence copied from the
      * better known member of this family is exactly the failure the front
-     * matter of the volume warns about. */
+     * matter of the volume warns about, and the two settled items above came
+     * from ST's example for THIS board rather than for the family. */
 
     /* Refusing to run is correct, and the CODE changed on Friday 9 October 2026
      * while the behaviour did not. This returned -3, which is
