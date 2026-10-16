@@ -1728,6 +1728,19 @@ the zero vector an unlisted slot leaves.
 order**, because the omission has now happened twice and the configuration is the part
 that would make a reader think the work was done.
 
+**The rebuild then said something stronger than the finding did.** Adding the
+entry was predicted to change no image's size, since the table's extent is set by
+its highest index; `.isr_vector` did stay 224 bytes in all three images rebuilt,
+and `p01-first-light` and `p06-sampling-timer` did not move. **The transfer-engine
+image grew 84 bytes**, 9992 to 10 076, because the build compiles with
+`-ffunction-sections` and links with `-Wl,--gc-sections`, so until the table
+referenced it nothing did, and the linker had been discarding that handler: **it
+was not in the image at all.** The finding said the handler could never run; the
+arithmetic says it was not there to run, and the 84 bytes are its code arriving
+for the first time since Saturday 3 October 2026. **`nm` closes it with no slack**:
+that handler is `T`, a real definition, of exactly 84 bytes, so the entire delta is
+one function and nothing arrived beside it.
+
 **The check runs on every push**, `python/tools/check_handler_vectors.py`: every
 `*_IRQHandler` DEFINED in first-party C against the designated indices in the table,
 with the `IRQ_` naming convention the table already uses, and it also reports an index

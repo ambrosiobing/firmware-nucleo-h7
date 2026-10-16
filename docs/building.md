@@ -237,7 +237,7 @@ until now there was no recorded figure to compare against after touching one.
 | `p09-codec` | 10 608 B | not rebuilt | not rebuilt |
 | `p06-sampling-timer` | 15 196 B | **15 220 B**, +24 | not rebuilt |
 | `p06-sampling-systick` | 10 232 B | **14 420 B**, +4188: +4164 when it reached the converter later that morning, then +24 | not rebuilt |
-| `p06-sampling-dma` | 10 248 B | not rebuilt | **9992 B**, -256 |
+| `p06-sampling-dma` | 10 248 B | not rebuilt | **9992 B**, -256, then **10 076 B**, +84 |
 
 **The third column refuted what the second column predicted for that row, which is
 why the prediction was written down.** The second column said a rebuild of
@@ -249,6 +249,24 @@ collected, and **a section attribute on uninitialised data makes the compiler em
 LOADED section of zeros**, since nothing tells it the section is `NOLOAD`. So the
 orphan cost 256 bytes of image. Collected into `.dma_buffers (NOLOAD)` it costs none,
 and `arm-none-eabi-nm` now reports it as `b`, a zero-filled symbol, at 0x24000000.
+
+**The +84 refuted a prediction and gave a better fact than the prediction had, and
+the whole of it is one function.** `arm-none-eabi-nm` on the new image reports
+`DMA1_Stream1_IRQHandler` as `T`, a real definition, with a size of exactly 84
+bytes, so nothing came in beside it; the other handlers appear as `W`, weak aliases
+sharing `Default_Handler`'s eight bytes at one address, which is the scheme
+`startup.c` describes doing its work.
+Adding the vector table entry for `DMA1_Stream1_IRQHandler` was predicted to
+leave every image's figure untouched, because the table's extent is set by its
+highest index and the new entry at 12 sits far below USART3 at 39. `.isr_vector`
+did stay 224 bytes in all three images rebuilt, and `p01-first-light` and
+`p06-sampling-timer` did not move. **The transfer-engine image grew 84 bytes**,
+and the cause is that the build compiles with `-ffunction-sections` and links with
+`-Wl,--gc-sections`: until the table referenced it, NOTHING referenced that
+handler, so the linker had been discarding it and **it was not in the image at
+all.** That is a stronger statement than the one the record made, which was that
+the handler could never run: it was not there to run. The +84 is the handler's own
+code arriving for the first time since it was written on Saturday 3 October 2026.
 
 **What the old image's map file would have said, and it was not kept.** The figure
 moving by exactly the buffer's size establishes that the orphan was loaded; whether
