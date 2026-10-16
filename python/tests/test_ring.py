@@ -28,7 +28,7 @@ import subprocess
 import sys
 
 import pytest
-from conftest import BUILD, ROOT, shared_library_name
+from conftest import BUILD, ROOT, shared_library_name, require_artefact
 
 BARRIERS = (0, 1, 2, 3)
 CAPACITY = 256
@@ -52,11 +52,7 @@ _LIBS: dict[int, ctypes.CDLL] = {}
 def lib(mode: int) -> ctypes.CDLL:
     if mode not in _LIBS:
         path = BUILD / shared_library_name("ring{}".format(mode))
-        if not path.exists():
-            pytest.fail(
-                "{} is missing. Build it first:\n"
-                "    python python/tools/build_host.py".format(path.name)
-            )
+        require_artefact(path)
         dll = ctypes.CDLL(str(path))
         dll.ring_init.restype = None
         dll.ring_init.argtypes = [ctypes.POINTER(Ring)]
@@ -85,10 +81,7 @@ def test_property_over_random_bursts(mode):
     non-zero on any of them.
     """
     exe = BUILD / ("property_test{}{}".format(mode, ".exe" if os.name == "nt" else ""))
-    if not exe.exists():
-        pytest.fail(
-            "{} is missing. Build it first: python python/tools/build_host.py".format(exe.name)
-        )
+    require_artefact(exe)
     proc = subprocess.run(
         [str(exe), str(STEPS)], capture_output=True, text=True, timeout=300
     )

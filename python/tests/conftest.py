@@ -225,6 +225,36 @@ FILTER_BUILD_COMMAND = {
 }
 
 
+def require_artefact(path: Path, command: str = "python python/tools/build_host.py") -> None:
+    """Skip or fail on a missing host artefact, by what the machine can be expected to have.
+
+    Two machines run this suite without a compiler ever being invoked locally, and
+    they are not the same case. On win11 aquamarine nothing compiles by rule, so
+    `build-host` does not exist at all; a test that needs an artefact there has
+    nothing to say and skips, naming the WSL command. In CI and in WSL on win11
+    skyhorizon `build_host.py` has just run, so `build-host` exists; an artefact
+    missing from it is a build that drifted, a renamed target or a dropped source,
+    and that must fail loudly rather than skip, or a renamed library would turn a
+    whole file green by never running it.
+
+    Until Friday 16 October 2026 five loaders called pytest.fail on a missing file
+    and the rest called pytest.skip, so the authoring laptop reported 63 failures
+    for want of a compiler while a drifted build in CI would have skipped in the
+    other files. One rule now: the presence of the build directory decides.
+    """
+    if path.exists():
+        return
+    where = "In WSL on bing@JPTOUPM678:\n    {}".format(command)
+    if BUILD.is_dir():
+        pytest.fail(
+            "{} is missing although {} exists, so a build ran and did not produce it: "
+            "a drifted target, not a laptop without a compiler. {}".format(
+                path.name, BUILD.name, where))
+    pytest.skip(
+        "{} is missing and there is no {} on this machine, which does not compile. "
+        "{}".format(path.name, BUILD.name, where))
+
+
 def run_filter(path: Path, lines, required: bool = False):
     """Send every request line through one filter process; return its answers.
 
@@ -350,11 +380,7 @@ def library_path() -> Path:
 def lib():
     """P09's C implementation, from the same source the board links."""
     path = library_path()
-    if not path.exists():
-        pytest.fail(
-            "{} is missing. Build it first:\n"
-            "    python python/tools/build_host.py".format(path.name)
-        )
+    require_artefact(path)
     dll = ctypes.CDLL(str(path))
 
     # Declaring these is not optional. ctypes defaults a return type to c_int,

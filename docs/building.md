@@ -49,12 +49,21 @@ laptop.** win11 aquamarine, which has not been allowed to compile since Saturday
 `frame.dll`, `node_sm.dll`, `ring0.dll` to `ring3.dll`, `cpp_filter.exe` and the
 property-test executables. Every pass and skip count quoted from that laptop in the
 week between was taken with those binaries loaded. They are out of the tree now, and
-without them the suite there reads 156 passing, 146 skipping and **63 failing**,
-fifty-four failures and nine errors at setup: sixty-three tests written in the days that laptop compiled assume the artefact exists
-rather than skipping without it, the way the parity tests do. Teaching them to skip,
-with the build command named, is the open item; until then the honest figure for
-win11 aquamarine is 156 of 365, and a green run there was never evidence about the
-C, C++ or Rust.
+without them the suite there read 156 passing, 146 skipping and **63 failing**,
+fifty-four failures and nine errors at setup: sixty-three tests written in the days
+that laptop compiled assumed the artefact existed rather than skipping without it.
+
+**Since Friday 16 October 2026 one rule decides, `require_artefact` in
+`python/tests/conftest.py`.** A missing artefact where `build-host` does not exist
+at all is a laptop that cannot compile, and the test skips naming the WSL command;
+a missing artefact where `build-host` exists is a build that drifted, a renamed
+target or a dropped source, and the test fails, in CI and in WSL alike. The second
+half is the one worth having: before it, a renamed library would have turned a
+whole file green in CI by never running it, because the files that skipped did so
+regardless of machine. Three tests pin the rule on a temporary tree. The honest
+figure for win11 aquamarine is now 159 of 368 passing with 209 skipping and none
+failing, and a green run there is still no evidence about the C, C++ or Rust; it
+is evidence that the Python half and every check that needs no compiler hold.
 
 `build` is not used by anything. Nineteen chapters named it until Saturday 3
 October 2026, which is how a hand-over command came to fail with

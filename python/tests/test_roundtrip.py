@@ -121,12 +121,10 @@ def _load():
     if _LIB is None:
         import ctypes
 
-        from conftest import CPayload, library_path
+        from conftest import CPayload, library_path, require_artefact
 
         path = library_path()
-        assert path.exists(), "{} is missing. Run: python python/tools/build_host.py".format(
-            path.name
-        )
+        require_artefact(path)
         dll = ctypes.CDLL(str(path))
         dll.payload_encode.restype = ctypes.c_size_t
         dll.payload_encode.argtypes = [

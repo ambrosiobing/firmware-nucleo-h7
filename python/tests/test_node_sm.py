@@ -23,7 +23,7 @@ from __future__ import annotations
 import ctypes
 
 import pytest
-from conftest import BUILD, CPayload, shared_library_name
+from conftest import BUILD, CPayload, shared_library_name, require_artefact
 
 # The states and events, in the order projects/P08-node-state-machine/c/node_sm.h declares them.
 S_INIT, S_IDLE, S_SENSE, S_FEATURE, S_ENCODE, S_TX, S_BACKOFF, S_FAULT = range(8)
@@ -57,9 +57,7 @@ def lib():
     global _LIB
     if _LIB is None:
         path = BUILD / shared_library_name("node_sm")
-        if not path.exists():
-            pytest.fail("{} is missing. Run: python python/tools/build_host.py"
-                        .format(path.name))
+        require_artefact(path)
         d = ctypes.CDLL(str(path))
         d.node_sm_init.argtypes = [ctypes.POINTER(Ctx)]
         d.node_sm_dispatch.restype = ctypes.c_int

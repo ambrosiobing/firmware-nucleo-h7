@@ -14,7 +14,7 @@ code for the same subject.
 [![firmware](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml/badge.svg)](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml)
 
 **What those three check, and what a green badge does not mean.** `book` is the
-prose, the figures and the links. `code` is the host suite, 365 checks on a runner
+prose, the figures and the links. `code` is the host suite, 368 checks on a runner
 with no board. `firmware` cross-compiles for the target. None of the three can see
 the board, so none of them can turn red when a measurement is wrong. Which
 projects have actually run on hardware, which only link, and which are host only
@@ -209,12 +209,16 @@ P01, P02, P09 and, since Wednesday 7 October 2026, P06's timer back end. The
 other twelve carry a README naming what they are, what they need on the bench,
 and that they have not started.
 
-**The suite is 359 checks. On the authoring laptop 156 pass, 146 skip for want of a
-compiler, and 63 fail for the same want because they were written before the rule
-that nothing compiles there and have not yet been taught to skip.** Until Friday
-9 October 2026 that laptop reported them passing, against shared libraries a
-forbidden compiler had built on Thursday 2 October 2026; `docs/building.md` has
-the account.
+**The suite is 368 checks. On the authoring laptop 159 pass and 209 skip for want
+of a compiler, each skip naming the WSL command, and none fail.** Until Friday
+9 October 2026 that laptop reported 204 passing against shared libraries a
+forbidden compiler had built on Thursday 2 October 2026, and for the week after
+it reported 63 failing for want of those libraries; since Friday 16 October 2026
+one rule decides, by whether `build-host` exists at all, and `docs/building.md`
+has the account. The "359" that stood at the head of this sentence for a week
+was a count no guard read; the badge sentence above and the split in
+`projects/README.md` are the two the count guard checks, and this one now says
+the same number they do.
 Both numbers belong here rather than only the flattering one. Every skip needs a
 compiler, which win11 aquamarine is forbidden to run, and each one names the
 command and the laptop that would settle it. So a green run there proves the

@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from conftest import BUILD, shared_library_name
+from conftest import BUILD, shared_library_name, require_artefact
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "projects" / "P05-framing-crc" / "python"))
 
@@ -39,9 +39,7 @@ def lib():
     global _LIB
     if _LIB is None:
         path = BUILD / shared_library_name("frame")
-        if not path.exists():
-            pytest.fail("{} is missing. Run: python python/tools/build_host.py"
-                        .format(path.name))
+        require_artefact(path)
         d = ctypes.CDLL(str(path))
         d.crc16_ref.restype = ctypes.c_uint16
         d.crc16_ref.argtypes = [ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t]
