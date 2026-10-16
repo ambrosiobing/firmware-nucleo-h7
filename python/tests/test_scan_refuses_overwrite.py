@@ -61,10 +61,18 @@ def test_an_existing_json_alone_is_refused_too(tmp_dir):
 def test_a_fresh_name_gets_past_the_refusal_to_the_capture(tmp_dir):
     """Reaching capture() on this laptop fails for want of daqhats, and that
     failure is the proof the refusal did not fire: it is a different exception
-    with a different message."""
+    with a different message.
+
+    --image-bytes is passed because since Friday 16 October 2026 a capture with
+    no firmware identity is refused by its own gate, which sits beside this one
+    and would otherwise be what this test observed. This test is about the
+    overwrite refusal, so it satisfies the other gate rather than removing it;
+    test_scan_requires_identity.py is where that one is tested.
+    """
     out = tmp_dir / "run-004"
     with pytest.raises(SystemExit) as stop:
-        scan.main(["--seconds", "1", "--build", "timer", "--out", str(out)])
+        scan.main(["--seconds", "1", "--build", "timer", "--out", str(out),
+                   "--image-bytes", "15220"])
     message = str(stop.value)
     assert "refusing to overwrite" not in message
     # capture()'s own refusal, which means the overwrite check was passed and the

@@ -850,3 +850,17 @@ firmware is built from a different clone on win11 skyhorizon. That field is
 the Pi is the banner's flash figure, typed in as `--image-bytes` and recorded as
 `firmware_image_bytes`; `started_utc` is recorded beside `captured_utc`, because
 placing a capture needs its start.
+
+**And the field is no longer optional, since later the same evening.** A capture
+with no firmware identity is not evidence, which is what this file has said of a
+capture's metadata since before the field existed, so `scan.py` refuses without
+`--image-bytes` and names the banner to read it from. The refusal sits beside the
+overwrite one and **both come before the capture**, because sixty seconds of a
+shared board and six million samples are the irreversible part and a refusal
+afterwards would cost the run; one test exists only to prove that ordering, by
+observing which of two refusals fires on a laptop with no library. A shakedown
+whose numbers will not be quoted passes `--no-image-identity` with a reason, and
+the reason is recorded in the metadata as `image_identity_waived`. A figure
+outside 1024 to 2 097 152 bytes is refused as a slipped digit, and the comment
+says what that cannot do: 15220 typed for a board running 14420 passes it, and
+only the stamped console file catches that.

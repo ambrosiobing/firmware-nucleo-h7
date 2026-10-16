@@ -25,6 +25,15 @@ from pathlib import Path
 CHANNEL = 0           # the marker wire goes to CH0 on the screw terminal block
 DEFAULT_RATE = 100_000.0   # one channel, so the full aggregate rate is available
 
+# The STM32H7A3ZIT6Q has 2 MB of flash, which every build report in this volume
+# prints as its region size, and the smallest image in it is 9980 B. So a figure
+# outside 1024 to 2097152 is not an image size and is refused as a typing error.
+# THIS CANNOT CATCH A PLAUSIBLE WRONG FIGURE, and it is not meant to: 15220 typed
+# for a board that was running 14420 passes this check and is caught only by the
+# stamped console file for the same window. The check is for a slipped digit.
+FLASH_BYTES = 2 * 1024 * 1024
+MIN_IMAGE_BYTES = 1024
+
 
 def git_describe(where: Path) -> str:
     """The identity of the ANALYSIS: which scan.py and rate.py ran, from the clone
@@ -108,10 +117,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", required=True, help="basename for the two files")
     ap.add_argument("--note", default="", help="anything unusual about this run")
     ap.add_argument("--image-bytes", type=int, default=None,
-                    help="the 'image N B of flash' figure from the board's banner, "
-                         "read on the win11 skyhorizon console at the reflash that "
-                         "precedes this capture; the one identity the firmware has "
-                         "from here")
+                    help="REQUIRED: the 'image N B of flash' figure from the "
+                         "board's banner, read on the win11 skyhorizon console at "
+                         "the reflash that precedes this capture; the one identity "
+                         "the firmware has from here")
+    ap.add_argument("--no-image-identity", metavar="REASON", default=None,
+                    help="take the capture with no firmware identity, for the "
+                         "stated reason, which is recorded in the metadata. For a "
+                         "shakedown of the wiring or the chain, where the numbers "
+                         "will not be quoted")
     a = ap.parse_args(argv)
 
     # A capture is evidence, so an existing output is refused rather than
@@ -125,6 +139,25 @@ def main(argv: list[str] | None = None) -> int:
         sys.exit("refusing to overwrite {}: a capture is evidence, choose a new --out"
                  .format(", ".join(str(q) for q in taken)))
 
+    # And a capture with no firmware identity is not evidence either, which this
+    # file's own docstring said of its metadata before the field existed. Both
+    # refusals come BEFORE the capture, because sixty seconds of the board's time
+    # and six million samples are the irreversible part: refusing afterwards would
+    # cost the run. Added Friday 16 October 2026, the day a capture was taken with
+    # the field absent and attributed only by the console file beside it.
+    if a.image_bytes is None and a.no_image_identity is None:
+        sys.exit(
+            "refusing to capture with no firmware identity. Read the 'image N B of "
+            "flash' figure from the banner the reflash printed on the win11 "
+            "skyhorizon console and pass it as --image-bytes N. If this run is a "
+            "shakedown whose numbers will not be quoted, say so: "
+            "--no-image-identity 'the reason'")
+    if a.image_bytes is not None and not (MIN_IMAGE_BYTES <= a.image_bytes <= FLASH_BYTES):
+        sys.exit(
+            "--image-bytes {} is not an image size: this part has {} B of flash and "
+            "the smallest image in this volume is 9980 B, so that is a slipped "
+            "digit. Read the banner again.".format(a.image_bytes, FLASH_BYTES))
+
     started = datetime.now(timezone.utc)
     samples, info = capture(a.seconds, a.rate, a.channel)
 
@@ -133,15 +166,16 @@ def main(argv: list[str] | None = None) -> int:
         "captured_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "firmware_build": a.build,
         "firmware_image_bytes": a.image_bytes,
+        "image_identity_waived": a.no_image_identity,
         "analysis_identity": git_describe(Path(__file__).resolve().parent.parent),
         "witness": "MCC 118 on Raspberry Pi 4",
         "note": a.note,
         **info,
     }
     if a.image_bytes is None:
-        print("note: no --image-bytes given, so this capture carries no firmware "
-              "identity of its own; the console file for the same window is the "
-              "only attribution")
+        print("note: no firmware identity, waived because {}. The console file for "
+              "the same window is the only attribution this capture has"
+              .format(a.no_image_identity))
 
     out.with_suffix(".csv").write_text("".join(f"{v:.6f}\n" for v in samples))
     out.with_suffix(".json").write_text(json.dumps(meta, indent=2) + "\n")
