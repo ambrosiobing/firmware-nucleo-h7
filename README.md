@@ -14,7 +14,7 @@ code for the same subject.
 [![firmware](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml/badge.svg)](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml)
 
 **What those three check, and what a green badge does not mean.** `book` is the
-prose, the figures and the links. `code` is the host suite, 368 checks on a runner
+prose, the figures and the links. `code` is the host suite, 370 checks on a runner
 with no board. `firmware` cross-compiles for the target. None of the three can see
 the board, so none of them can turn red when a measurement is wrong. Which
 projects have actually run on hardware, which only link, and which are host only
@@ -209,7 +209,7 @@ P01, P02, P09 and, since Wednesday 7 October 2026, P06's timer back end. The
 other twelve carry a README naming what they are, what they need on the bench,
 and that they have not started.
 
-**The suite is 368 checks. On the authoring laptop 159 pass and 209 skip for want
+**The suite is 370 checks. On the authoring laptop 161 pass and 209 skip for want
 of a compiler, each skip naming the WSL command, and none fail.** Until Friday
 9 October 2026 that laptop reported 204 passing against shared libraries a
 forbidden compiler had built on Thursday 2 October 2026, and for the week after

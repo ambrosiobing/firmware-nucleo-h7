@@ -61,9 +61,17 @@ target or a dropped source, and the test fails, in CI and in WSL alike. The seco
 half is the one worth having: before it, a renamed library would have turned a
 whole file green in CI by never running it, because the files that skipped did so
 regardless of machine. Three tests pin the rule on a temporary tree. The honest
-figure for win11 aquamarine is now 159 of 368 passing with 209 skipping and none
+figure for win11 aquamarine is now 161 of 370 passing with 209 skipping and none
 failing, and a green run there is still no evidence about the C, C++ or Rust; it
 is evidence that the Python half and every check that needs no compiler hold.
+**The one place the suite runs in full is WSL on win11 skyhorizon**, where every
+library, every filter and every Rust binary exists: on Friday 16 October 2026 it
+read 368 passed and nothing skipped there, and the fail-on-drift branch was seen
+to fire by moving `libframe.so` aside for one run. The same rule now covers every
+loader in the suite, the arithmetic libraries, the parity C libraries, the filters
+and the Rust binaries alike, the Rust ones judged by `target/release` existing
+rather than `build-host`, which the artefact's own directory supplies without a
+second argument.
 
 `build` is not used by anything. Nineteen chapters named it until Saturday 3
 October 2026, which is how a hand-over command came to fail with

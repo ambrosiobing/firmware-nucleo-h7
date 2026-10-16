@@ -43,6 +43,7 @@ from conftest import (
     FRAME_RUST_FILTER,
     assert_not_vacuous,
     run_filter,
+    require_artefact,
 )
 
 sys.path.insert(
@@ -220,10 +221,6 @@ def test_the_comparison_was_not_vacuous():
 
 def test_rust_is_compared_when_cargo_has_been_run():
     """Named separately so the CI log says whether Rust was in the comparison."""
-    if not FRAME_RUST_FILTER.exists():
-        pytest.skip(
-            "{} is missing. Build it in WSL on bing@JPTOUPM678 with:\n"
-            "    cargo build --release --workspace".format(FRAME_RUST_FILTER.name)
-        )
+    require_artefact(FRAME_RUST_FILTER, "cargo build --release --workspace")
     answers = run_filter(FRAME_RUST_FILTER, ["C 313233343536373839"], required=True)
     assert answers == ["29B1"]

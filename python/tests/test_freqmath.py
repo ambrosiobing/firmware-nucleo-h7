@@ -34,7 +34,7 @@ import ctypes
 
 import pytest
 
-from conftest import BUILD, shared_library_name
+from conftest import BUILD, shared_library_name, require_artefact
 
 LIBRARY = BUILD / shared_library_name("freqmath")
 
@@ -45,9 +45,7 @@ USABLE = 0x10000 * 256  # 16777216 Hz, one full counter per tick
 
 @pytest.fixture(scope="module")
 def lib():
-    if not LIBRARY.exists():
-        pytest.skip("{} is missing. Build it with:\n    "
-                    "python python/tools/build_host.py".format(LIBRARY.name))
+    require_artefact(LIBRARY)
     h = ctypes.CDLL(str(LIBRARY))
     h.freqmath_compose.restype = ctypes.c_uint32
     h.freqmath_compose.argtypes = [ctypes.c_uint32, ctypes.c_uint32]

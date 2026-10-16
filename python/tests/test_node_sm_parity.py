@@ -44,6 +44,7 @@ from conftest import (
     SM_RUST_FILTER,
     assert_not_vacuous,
     run_filter,
+    require_artefact,
 )
 from test_node_sm import Ctx as CCtx, lib as c_lib
 
@@ -294,11 +295,7 @@ def test_the_comparison_was_not_vacuous():
 
 def test_rust_is_compared_when_cargo_has_been_run():
     """Named separately so the CI log says whether Rust was in the comparison."""
-    if not SM_RUST_FILTER.exists():
-        pytest.skip(
-            "{} is missing. Build it in WSL on bing@JPTOUPM678 with:\n"
-            "    cargo build --release --workspace".format(SM_RUST_FILTER.name)
-        )
+    require_artefact(SM_RUST_FILTER, "cargo build --release --workspace")
     got = via_filter(SM_RUST_FILTER, [(5, ["TICK", "BLOCK", "FEATURE_DONE", "FRAME_READY", "TX_OK"])])
     assert got[0]["rows"] == [0, 5, 8, 10, 12]
     assert got[0]["state"] == "IDLE"

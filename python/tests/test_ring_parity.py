@@ -39,7 +39,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import RING_CPP_FILTER, RING_RUST_FILTER, assert_not_vacuous, run_filter
+from conftest import RING_CPP_FILTER, RING_RUST_FILTER, assert_not_vacuous, run_filter, require_artefact
 from test_ring import BARRIERS, CAPACITY, Ring as CRing, lib as c_lib
 
 sys.path.insert(
@@ -275,11 +275,7 @@ def test_the_comparison_was_not_vacuous():
 
 def test_rust_is_compared_when_cargo_has_been_run():
     """Named separately so the CI log says whether Rust was in the comparison."""
-    if not RING_RUST_FILTER.exists():
-        pytest.skip(
-            "{} is missing. Build it in WSL on bing@JPTOUPM678 with:\n"
-            "    cargo build --release --workspace".format(RING_RUST_FILTER.name)
-        )
+    require_artefact(RING_RUST_FILTER, "cargo build --release --workspace")
     answers = via_filter(RING_RUST_FILTER, 2, ["P 41", "G", "S"])
     assert answers == ["put=1 used=1", "get=1 byte=41 used=0",
                        "used=0 drops=0 head=1 tail=1"]

@@ -44,6 +44,7 @@ from conftest import (
     assert_not_vacuous,
     run_filter,
     shared_library_name,
+    require_artefact,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -96,11 +97,7 @@ def c_lib():
     global _LIB
     if _LIB is None:
         path = BUILD / shared_library_name("gates")
-        if not path.exists():
-            pytest.skip(
-                "{} is missing, and this laptop does not compile. In WSL on "
-                "bing@JPTOUPM678:\n    python3 python/tools/build_host.py".format(
-                    path.name))
+        require_artefact(path, "python3 python/tools/build_host.py")
         d = ctypes.CDLL(str(path))
         d.gates_size_answer.restype = ctypes.c_int
         d.gates_size_answer.argtypes = [

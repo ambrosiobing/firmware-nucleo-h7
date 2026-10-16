@@ -33,7 +33,7 @@ import re
 
 import pytest
 
-from conftest import BUILD, ROOT, shared_library_name
+from conftest import BUILD, ROOT, shared_library_name, require_artefact
 
 P01 = ROOT / "projects" / "P01-toolchain-first-light"
 ORACLE = json.loads((P01 / "clock_vectors.json").read_text(encoding="utf-8"))
@@ -69,9 +69,7 @@ class BiasOut(ctypes.Structure):
 
 @pytest.fixture(scope="module")
 def lib():
-    if not LIBRARY.exists():
-        pytest.skip("{} is missing. Build it with:\n    "
-                    "python python/tools/build_host.py".format(LIBRARY.name))
+    require_artefact(LIBRARY)
     handle = ctypes.CDLL(str(LIBRARY))
     handle.clocktree_decode.restype = None
     handle.clocktree_decode.argtypes = [ctypes.POINTER(Regs), ctypes.c_uint32,

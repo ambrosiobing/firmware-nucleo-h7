@@ -43,6 +43,7 @@ from conftest import (
     assert_not_vacuous,
     run_filter,
     shared_library_name,
+    require_artefact,
 )
 
 sys.path.insert(
@@ -102,11 +103,7 @@ def c_lib():
     global _LIB
     if _LIB is None:
         path = BUILD / shared_library_name("attribute")
-        if not path.exists():
-            pytest.skip(
-                "{} is missing, and this laptop does not compile. In WSL on "
-                "bing@JPTOUPM678:\n    python3 python/tools/build_host.py".format(path.name)
-            )
+        require_artefact(path, "python3 python/tools/build_host.py")
         d = ctypes.CDLL(str(path))
         d.attr_attribute.restype = ctypes.c_int
         d.attr_attribute.argtypes = [ctypes.POINTER(CStep), ctypes.POINTER(CRow)]
@@ -402,11 +399,7 @@ def test_the_comparison_was_not_vacuous():
 
 def test_rust_is_compared_when_cargo_has_been_run():
     """Named separately so the CI log says whether Rust was in the comparison."""
-    if not ATTR_RUST_FILTER.exists():
-        pytest.skip(
-            "{} is missing. Build it in WSL on bing@JPTOUPM678 with:\n"
-            "    cargo build --release --workspace".format(ATTR_RUST_FILTER.name)
-        )
+    require_artefact(ATTR_RUST_FILTER, "cargo build --release --workspace")
     answers = via_filter(ATTR_RUST_FILTER, [("the bridge case",
                                              (921600, 1_000_000, 900_000, 0, 0))])
     assert "verdict=BRIDGE" in answers[0]

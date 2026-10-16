@@ -162,8 +162,7 @@ def test_the_two_thread_soak_runs_and_says_what_it_cannot_prove():
     still not an ordering test, and it prints so.
     """
     exe = BUILD / ("soak_threads.exe" if os.name == "nt" else "soak_threads")
-    if not exe.exists():
-        pytest.skip("{} is missing. Run: python python/tools/build_host.py".format(exe.name))
+    require_artefact(exe)
     proc = subprocess.run([str(exe)], capture_output=True, text=True, timeout=180)
     print(proc.stdout.strip())
     assert proc.returncode == 0, proc.stdout + proc.stderr

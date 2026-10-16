@@ -50,6 +50,7 @@ from conftest import (
     assert_not_vacuous,
     run_filter,
     shared_library_name,
+    require_artefact,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -117,11 +118,7 @@ def c_lib():
     global _LIB
     if _LIB is None:
         path = BUILD / shared_library_name("rate")
-        if not path.exists():
-            pytest.skip(
-                "{} is missing, and this laptop does not compile. In WSL on "
-                "bing@JPTOUPM678:\n    python3 python/tools/build_host.py".format(path.name)
-            )
+        require_artefact(path, "python3 python/tools/build_host.py")
         d = ctypes.CDLL(str(path))
         d.rate_analyse.restype = ctypes.c_int
         d.rate_analyse.argtypes = [
@@ -444,11 +441,7 @@ def test_the_comparison_was_not_vacuous(captures_dir):
 
 def test_rust_is_compared_when_cargo_has_been_run(captures_dir):
     """Named separately so the CI log says whether Rust was in the comparison."""
-    if not RATE_RUST_FILTER.exists():
-        pytest.skip(
-            "{} is missing. Build it in WSL on bing@JPTOUPM678 with:\n"
-            "    cargo build --release --workspace".format(RATE_RUST_FILTER.name)
-        )
+    require_artefact(RATE_RUST_FILTER, "cargo build --release --workspace")
     case = [c for c in captures() if c[0].startswith("a clean kilohertz")]
     got = via_filter(RATE_RUST_FILTER, case, captures_dir)[0]
     assert got["pass"], "a clean kilohertz wave must pass every criterion"

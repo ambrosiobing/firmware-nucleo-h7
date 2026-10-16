@@ -49,6 +49,7 @@ from conftest import (
     c_decode,
     c_encode,
     run_codec_filter,
+    require_artefact,
 )
 from test_roundtrip import SEED, random_case
 
@@ -166,11 +167,7 @@ def test_rust_is_compared_when_cargo_has_been_run(lib, vectors):
     This is the one that turns red when the Rust job is removed from `code.yml`
     but the status key still says the language is proven on the host.
     """
-    if not RUST_FILTER.exists():
-        pytest.skip(
-            "{} is missing. Build it in WSL on bing@JPTOUPM678 with:\n"
-            "    cargo build --release --workspace".format(RUST_FILTER.name)
-        )
+    require_artefact(RUST_FILTER, "cargo build --release --workspace")
     got = run_codec_filter(RUST_FILTER, [v["fields"] for v in vectors], required=True)
     for vector, (hex_bytes, decoded) in zip(vectors, got):
         assert hex_bytes == vector["bytes"], vector["name"]

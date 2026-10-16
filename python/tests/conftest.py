@@ -225,7 +225,8 @@ FILTER_BUILD_COMMAND = {
 }
 
 
-def require_artefact(path: Path, command: str = "python python/tools/build_host.py") -> None:
+def require_artefact(path: Path, command: str = "python python/tools/build_host.py",
+                     required: bool = False) -> None:
     """Skip or fail on a missing host artefact, by what the machine can be expected to have.
 
     Two machines run this suite without a compiler ever being invoked locally, and
@@ -240,19 +241,25 @@ def require_artefact(path: Path, command: str = "python python/tools/build_host.
     Until Friday 16 October 2026 five loaders called pytest.fail on a missing file
     and the rest called pytest.skip, so the authoring laptop reported 63 failures
     for want of a compiler while a drifted build in CI would have skipped in the
-    other files. One rule now: the presence of the build directory decides.
+    other files. One rule now: the presence of the artefact's own directory
+    decides, `build-host` for what build_host.py makes and `target/release` for
+    what cargo makes, so one helper serves both kinds without being told which.
+    `required=True` fails regardless, for the one test per project whose purpose
+    is to notice that nothing was compared.
     """
     if path.exists():
         return
     where = "In WSL on bing@JPTOUPM678:\n    {}".format(command)
-    if BUILD.is_dir():
+    if required:
+        pytest.fail("{} is missing and this test requires it. {}".format(path.name, where))
+    if path.parent.is_dir():
         pytest.fail(
             "{} is missing although {} exists, so a build ran and did not produce it: "
             "a drifted target, not a laptop without a compiler. {}".format(
-                path.name, BUILD.name, where))
+                path.name, path.parent.name, where))
     pytest.skip(
         "{} is missing and there is no {} on this machine, which does not compile. "
-        "{}".format(path.name, BUILD.name, where))
+        "{}".format(path.name, path.parent.name, where))
 
 
 def run_filter(path: Path, lines, required: bool = False):
@@ -270,13 +277,8 @@ def run_filter(path: Path, lines, required: bool = False):
     """
     import subprocess
 
-    if not path.exists():
-        message = "{} is missing. Build it with:\n    {}".format(
-            path.name, FILTER_BUILD_COMMAND.get(path, "see the project README")
-        )
-        if required:
-            pytest.fail(message)
-        pytest.skip(message)
+    require_artefact(path, FILTER_BUILD_COMMAND.get(path, "see the project README"),
+                     required=required)
 
     lines = list(lines)
     proc = subprocess.run(

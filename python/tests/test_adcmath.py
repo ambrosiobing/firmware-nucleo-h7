@@ -29,16 +29,14 @@ import pytest
 # every ctypes case skipped on the one laptop that can build the library. The
 # double entry still ran and passed, which is exactly why a skip is worse than a
 # failure: 24 passed looked like success.
-from conftest import BUILD, shared_library_name
+from conftest import BUILD, shared_library_name, require_artefact
 
 LIBRARY = BUILD / shared_library_name("adcmath")
 
 
 @pytest.fixture(scope="module")
 def lib():
-    if not LIBRARY.exists():
-        pytest.skip("{} is missing. Build it with:\n    "
-                    "python python/tools/build_host.py".format(LIBRARY.name))
+    require_artefact(LIBRARY)
     h = ctypes.CDLL(str(LIBRARY))
     h.adcmath_boost.restype = ctypes.c_bool
     h.adcmath_boost.argtypes = [ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32)]

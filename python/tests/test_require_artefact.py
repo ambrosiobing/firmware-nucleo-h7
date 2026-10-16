@@ -8,8 +8,9 @@ library would turn a whole file green by never running it. Until Friday 16 Octob
 2026 five loaders failed and the rest skipped regardless of which machine they were
 on, which gave the authoring laptop 63 failures for want of a compiler.
 
-The helper reads the module-level BUILD, so the test points BUILD at a temporary
-directory for its duration and puts it back in a finally. `tempfile.mkdtemp` rather
+The helper reads the artefact's own parent directory, `build-host` for what
+build_host.py makes and `target/release` for what cargo makes, so one rule serves
+both and the test exercises both on a temporary tree. `tempfile.mkdtemp` rather
 than pytest's `tmp_path`, whose `pytest-current` symlink win11 aquamarine refuses.
 """
 from __future__ import annotations
@@ -26,12 +27,9 @@ import conftest
 @pytest.fixture
 def build_dir():
     d = pathlib.Path(tempfile.mkdtemp(prefix="require-artefact-"))
-    saved = conftest.BUILD
-    conftest.BUILD = d / "build-host"
     try:
-        yield conftest.BUILD
+        yield d / "build-host"
     finally:
-        conftest.BUILD = saved
         shutil.rmtree(d, ignore_errors=True)
 
 
@@ -57,3 +55,23 @@ def test_a_build_directory_without_the_artefact_fails_as_drift(build_dir):
         conftest.require_artefact(build_dir / "libthing.so")
     assert "drifted" in str(why.value)
     assert "libthing.so" in str(why.value)
+
+
+def test_a_rust_filter_is_judged_by_target_release_the_same_way(build_dir):
+    """cargo's output lives under target/release, not build-host; the rule reads
+    the artefact's own directory, so no second argument is needed."""
+    release = build_dir.parent / "target" / "release"
+    with pytest.raises(pytest.skip.Exception):
+        conftest.require_artefact(release / "p06-filter", "cargo build --release --workspace")
+    release.mkdir(parents=True)
+    with pytest.raises(pytest.fail.Exception) as why:
+        conftest.require_artefact(release / "p06-filter", "cargo build --release --workspace")
+    assert "release exists" in str(why.value)
+
+
+def test_required_fails_even_where_nothing_builds(build_dir):
+    """The one test per project whose purpose is to notice that nothing was
+    compared must fail on a missing artefact on every machine."""
+    with pytest.raises(pytest.fail.Exception) as why:
+        conftest.require_artefact(build_dir / "libthing.so", required=True)
+    assert "requires it" in str(why.value)
