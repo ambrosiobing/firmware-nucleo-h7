@@ -55,10 +55,20 @@
 typedef enum {
     RATE_OK                 =  0,
     RATE_ERR_TOO_FEW_EDGES  = -1,  /* fewer than three; nothing to measure */
-    RATE_ERR_NO_SWING       = -2,  /* a flat recording has no edges to find */
+    RATE_ERR_NO_SWING       = -2,  /* a flat recording, swing under RATE_MIN_SWING_V */
     RATE_ERR_TOO_MANY_EDGES = -3,  /* more edges than RATE_MAX_EDGES */
     RATE_ERR_ARGS           = -4,
 } rate_status_t;
+
+/* A marker swing smaller than this is noise and not a pin. The MCC 118's resting
+ * floor with nothing connected is about 20 mV of noise, two orders of magnitude
+ * below a 3.3 V marker and one above any attenuated marker worth analysing, and on
+ * Friday 9 October 2026 a flat recording thresholded that floor into 16 063 edges
+ * at 503 Hz with all five criteria failing, which sends a reader to the firmware's
+ * timing when the fault is that nothing is connected. Below this swing the
+ * analyser refuses and names what to check: the wire, the ground, the marker.
+ * The same constant, with the same reason, sits in rate.py, rate.hpp and lib.rs. */
+#define RATE_MIN_SWING_V 0.1
 
 /* Everything docs/measurement.md asks for, and the verdict on each. */
 typedef struct {

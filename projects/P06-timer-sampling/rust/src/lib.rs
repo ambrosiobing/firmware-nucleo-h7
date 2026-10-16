@@ -59,6 +59,16 @@ pub const MAX_MISSING_EDGES: usize = 0;
 pub const MAX_SAMPLES: usize = 65536;
 pub const MAX_EDGES: usize = 4096;
 
+/// A marker swing smaller than this is noise and not a pin. The MCC 118's resting
+/// floor with nothing connected is about 20 mV of noise, two orders of magnitude
+/// below a 3.3 V marker and one above any attenuated marker worth analysing, and on
+/// Friday 9 October 2026 a flat recording thresholded that floor into 16 063 edges
+/// at 503 Hz with all five criteria failing, which sends a reader to the firmware's
+/// timing when the fault is that nothing is connected. Below this swing the
+/// analyser refuses and names what to check: the wire, the ground, the marker.
+/// The same constant, with the same reason, sits in rate.py, rate.h and rate.hpp.
+pub const MIN_SWING_V: f64 = 0.1;
+
 /// Why an analysis refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refused {
@@ -175,7 +185,8 @@ pub fn marker_edges(samples: &[f64], fs: f64) -> Result<Vec<f64>, Refused> {
         }
     }
     let swing = hi_obs - lo_obs;
-    if swing <= 0.0 {
+    if swing < MIN_SWING_V {
+        // flat, or the HAT's own noise floor
         return Err(Refused::NoSwing);
     }
 
@@ -492,6 +503,23 @@ mod tests {
             analyse(&samples, 100_000.0, 1000.0, &mut r),
             Some(Refused::NoSwing)
         );
+        assert!(!r.pass);
+    }
+
+    /// The HAT's resting floor with nothing connected: 1.65 V and about 20 mV of
+    /// noise. Before Friday 16 October 2026 the thresholds adapted to that noise
+    /// and counted it; a real flat capture gave 16 063 edges at 503 Hz.
+    #[test]
+    fn the_hats_resting_floor_is_refused_as_flat_and_not_measured() {
+        let samples: Vec<f64> = (0..50_000)
+            .map(|k| 1.65 + 0.0102 * (k as f64 * 1.7).sin())
+            .collect();
+        let mut r = Analysis::default();
+        assert_eq!(
+            analyse(&samples, 100_000.0, 1000.0, &mut r),
+            Some(Refused::NoSwing)
+        );
+        assert_eq!(r.edges, 0);
         assert!(!r.pass);
     }
 

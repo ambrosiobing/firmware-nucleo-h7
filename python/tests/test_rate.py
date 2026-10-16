@@ -100,6 +100,15 @@ def case_wrong(duration=2.0, rate=1002.0):
 # forgotten in the other. Each claim is a label, a predicate on the analysis
 # result, and a detail to print when it does not hold.
 
+def case_resting_floor(duration=0.5):
+    """1.65 V with the HAT's own 20 mV of noise and nothing connected. Must be
+    refused by name, not measured: before Friday 16 October 2026 this produced
+    thousands of edges and five failing criteria."""
+    import math
+    n = int(duration * FS)
+    return [1.65 + 0.0102 * math.sin(k * 1.7) for k in range(n)]
+
+
 def _empty_input():
     """Eight samples that never cross a threshold, so there is no edge at all."""
     return [0.0] * 8
@@ -164,6 +173,20 @@ SCENARIOS = [
         ("it does not blame a missing edge",
          lambda r: r["missing_edges"] == 0,
          lambda r: str(r["missing_edges"])),
+    ]),
+    ("the HAT's resting floor, 20 mV of noise, must be refused as flat", case_resting_floor, [
+        ("refused as no_swing",
+         lambda r: r.get("refused") == "no_swing",
+         lambda r: str(r.get("refused"))),
+        ("the message names the swing and what to check",
+         lambda r: "mV" in r.get("error", "") and "ground" in r.get("error", ""),
+         lambda r: r.get("error", "no error")),
+        ("no edges were counted from the noise",
+         lambda r: r["edges"] == 0,
+         lambda r: str(r["edges"])),
+        ("verdict is FAIL",
+         lambda r: r["pass"] is False,
+         lambda r: str(r.get("pass"))),
     ]),
     ("empty input, must not raise", _empty_input, [
         ("reports an error rather than a number",

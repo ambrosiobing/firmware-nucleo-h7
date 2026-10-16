@@ -210,6 +210,13 @@ def captures():
     # Refusals. A flat recording has no edges to find; a fragment has too few.
     out.append(("a flat recording, refused rather than called perfect",
                 [1.65] * n))
+
+    # The HAT's resting floor: 1.65 V with about 20 mV of noise, which is what a
+    # channel with nothing on it records. Before Friday 16 October 2026 every
+    # analyser adapted its thresholds to that 20 mV and counted it, 16 063 edges
+    # at 503 Hz on a real flat capture; all four must refuse it as no_swing now.
+    out.append(("the HAT's resting floor, 20 mV of noise, refused as flat",
+                [1.65 + 0.0102 * math.sin(k * 1.7) for k in range(n)]))
     out.append(("a fragment, too few edges to measure",
                 render(ideal[:2], FS, 200)))
 
@@ -268,12 +275,10 @@ def via_python(cases):
     for _, samples in cases:
         r = py_rate.analyse(samples, FS, NOMINAL)
         if "error" in r:
-            # The Python reports its refusal as a message rather than a code.
-            # Mapped here rather than changed there, because the message is what
-            # a reader of the report sees and the code is what a caller checks.
-            name = ("no_swing" if r["edges"] == 0 and "three" in r["error"]
-                    else "too_few_edges")
-            out.append({"refused": name, "edges": r["edges"]})
+            # The Python reports a refusal as a message for the reader and, since
+            # Friday 16 October 2026, a code for the caller beside it; the code is
+            # what the other three implementations return.
+            out.append({"refused": r["refused"], "edges": r["edges"]})
             continue
         row = {f: r[f] for f in DOUBLE_FIELDS}
         row["edges"] = r["edges"]

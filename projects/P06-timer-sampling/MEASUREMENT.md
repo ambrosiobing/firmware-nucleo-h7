@@ -126,6 +126,18 @@ recover the right answer from the first two and refuse the last two. That test
 runs on any machine with Python and needs no hardware, which is why it was
 written and run first.
 
+**And since Friday 16 October 2026 it must refuse a flat recording by name.** With
+nothing connected the MCC 118 records about 20 mV of noise, and an analysis whose
+thresholds adapt to the observed swing will count that noise: a real flat capture
+on Friday 9 October 2026 gave 16 063 edges at 503 Hz and five failing criteria,
+which reads as a timing fault when the fault is a wire. All four analysers now
+refuse any recording whose swing is below 0.1 V, the same constant with the same
+reason in each, and the Python names what to check: the wire on PB4 at CN7 pin 19,
+the ground, the marker. A synthetic capture of 1.65 V with 20.4 mV of sine noise
+sits in the parity set and must be refused by all four; with the floor at zero the
+same capture yields 27 055 counted edges, which is the mutation that proves the
+floor is load bearing.
+
 ## Status of each criterion, Wednesday 7 October 2026
 
 **Nothing above has been changed since it was written, and nothing above has yet

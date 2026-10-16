@@ -47,7 +47,7 @@ int rate_marker_edges(const double *samples, size_t count, double fs,
         if (samples[i] > hi_obs) hi_obs = samples[i];
     }
     const double swing = hi_obs - lo_obs;
-    if (swing <= 0.0) {
+    if (swing < RATE_MIN_SWING_V) {   /* flat, or the HAT's own noise floor */
         return RATE_ERR_NO_SWING;
     }
 

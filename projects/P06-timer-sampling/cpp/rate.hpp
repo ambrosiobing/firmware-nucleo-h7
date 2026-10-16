@@ -48,6 +48,16 @@ inline constexpr double jitter_sd_max_s = 10e-6;              // criterion 2
 inline constexpr double worst_interval_dev_max_s = 50e-6;     // criterion 3
 inline constexpr std::size_t max_missing_edges = 0;           // criterion 4
 
+// A marker swing smaller than this is noise and not a pin. The MCC 118's resting
+// floor with nothing connected is about 20 mV of noise, two orders of magnitude
+// below a 3.3 V marker and one above any attenuated marker worth analysing, and on
+// Friday 9 October 2026 a flat recording thresholded that floor into 16 063 edges
+// at 503 Hz with all five criteria failing, which sends a reader to the firmware's
+// timing when the fault is that nothing is connected. Below this swing the
+// analyser refuses and names what to check: the wire, the ground, the marker.
+// The same constant, with the same reason, sits in rate.py, rate.h and lib.rs.
+inline constexpr double min_swing_v = 0.1;
+
 inline constexpr std::size_t max_samples = 65536;
 inline constexpr std::size_t max_edges = 4096;
 
@@ -128,7 +138,7 @@ inline std::optional<std::size_t> marker_edges(const double* samples, std::size_
         if (samples[i] > hi_obs) { hi_obs = samples[i]; }
     }
     const double swing = hi_obs - lo_obs;
-    if (swing <= 0.0) {
+    if (swing < min_swing_v) {   // flat, or the HAT's own noise floor
         why = Status::NoSwing;
         return std::nullopt;
     }

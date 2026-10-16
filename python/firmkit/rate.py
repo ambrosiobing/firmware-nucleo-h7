@@ -32,6 +32,21 @@ PASS = {
     "max_missing_edges": 0,             # criterion 4
 }
 
+# A marker swing smaller than this is noise and not a pin. The MCC 118's resting
+# floor with nothing connected is about 20 mV of noise, two orders of magnitude
+# below a 3.3 V marker and one above any attenuated marker worth analysing, and on
+# Friday 9 October 2026 a flat recording thresholded that floor into 16 063 edges
+# at 503 Hz with all five criteria failing, which sends a reader to the firmware's
+# timing when the fault is that nothing is connected. Below this swing the
+# analyser refuses and names what to check: the wire, the ground, the marker.
+# The same constant, with the same reason, sits in rate.h, rate.hpp and lib.rs.
+MIN_SWING_V = 0.1
+
+
+def swing_of(samples: list[float]) -> float:
+    """The observed swing, max minus min, or 0.0 for an empty recording."""
+    return (max(samples) - min(samples)) if samples else 0.0
+
 
 def load(path: Path) -> list[float]:
     """One channel of samples, from .npy or a single-column text file."""
@@ -71,7 +86,7 @@ def marker_edges(samples: list[float], fs: float,
         return []
     lo_obs, hi_obs = min(samples), max(samples)
     swing = hi_obs - lo_obs
-    if swing <= 0:
+    if swing < MIN_SWING_V:
         return []
     low = lo_obs + 0.3 * swing if low is None else low
     high = lo_obs + 0.7 * swing if high is None else high
@@ -126,14 +141,28 @@ def analyse(samples: list[float], fs: float,
             nominal_hz: float = PASS["nominal_hz"]) -> dict:
     """Everything docs/measurement.md asks for, and the verdict on each."""
     edges = marker_edges(samples, fs)
+    swing = swing_of(samples)
     r: dict = {
         "sample_rate_hz": fs,
         "duration_s": len(samples) / fs if fs else 0.0,
         "edges": len(edges),
+        "swing_v": swing,
         "nominal_hz": nominal_hz,
         "resolution_s": 1.0 / fs if fs else float("nan"),
     }
+    # The refusals name what a reader should go and check, because a refusal
+    # that reads like a measurement sends them to the wrong instrument.
+    if len(samples) >= 16 and swing < MIN_SWING_V:
+        r["refused"] = "no_swing"
+        r["error"] = (
+            f"the recording is flat, a swing of {swing * 1e3:.1f} mV where "
+            f"{MIN_SWING_V * 1e3:.0f} mV is the floor. That is a wire not on PB4 at "
+            "CN7 pin 19, a ground not shared, or a marker not driven; it is not a "
+            "timing result")
+        r["pass"] = False
+        return r
     if len(edges) < 3:
+        r["refused"] = "too_few_edges"
         r["error"] = "fewer than three edges; nothing to measure"
         r["pass"] = False
         return r
