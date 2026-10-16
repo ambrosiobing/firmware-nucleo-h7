@@ -1648,8 +1648,22 @@ test failed before the one-character change and passes after it.
 **What the check cannot do, said where the constant is.** It answers whether any rule
 claims a section, not which region the section lands in: a rule collecting a transfer
 buffer into DTCM would pass it and be exactly as wrong. The map file from a real build
-is the authority on the region, and reading it for this buffer is the next step, since
-nothing on win11 aquamarine compiles.
+is the authority on the region.
+
+**And the map file was then read, which is the authority confirming the fix.** Built
+on win11 skyhorizon the same evening: `buffer` at **0x24000000**, size 0x100, inside
+`.dma_buffers` at the same address with `_sdma` to `_edma` 256 bytes apart, which is
+AXI SRAM and reachable by the main transfer engines; `arm-none-eabi-nm` reports it as
+`b`, zero filled, so the section is `NOLOAD` as the script intends. The build's region
+report shows `.dma_buffers 256` where every earlier build showed 0.
+
+**The image also got 256 bytes smaller, and that refuted a prediction of mine.** The
+size table in `docs/building.md` predicted this target would not move; it went 10 248
+to 9992 B. A section attribute on uninitialised data makes the compiler emit a loaded
+section of zeros, so the orphan was costing 256 bytes of image, and collected into a
+`NOLOAD` section it costs none. **An inference that the orphan had been in DTCM is
+withdrawn**: the figure proves it was loaded and no longer says where it lived,
+because that build's map file was not kept.
 
 ### What is next, in the order that makes each claim true
 

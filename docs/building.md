@@ -229,15 +229,36 @@ checked rather than trusted.** `c/board/startup.c`, `c/board/system.c`,
 `c/board/retarget.c` and `c/ld/stm32h7a3zi.ld` are linked into every image here, and
 until now there was no recorded figure to compare against after touching one.
 
-| target | FLASH, the morning baseline | FLASH, the same day after `marker_toggle` |
-|---|---|---|
-| `p01-first-light` | 11 772 B | not rebuilt |
-| `p01-pll280` | 36 772 B | not rebuilt |
-| `p02-ring-none` | 9980 B | not rebuilt |
-| `p09-codec` | 10 608 B | not rebuilt |
-| `p06-sampling-timer` | 15 196 B | **15 220 B**, +24 |
-| `p06-sampling-systick` | 10 232 B | **14 420 B**, +4188: +4164 when it reached the converter later that morning, then +24 |
-| `p06-sampling-dma` | 10 248 B | not rebuilt; it calls `marker_init` and nothing else in `marker.c`, so a rebuild is expected to move it by 0 and that expectation is written here to be checked |
+| target | FLASH, Friday 9 October 2026 morning | after `marker_toggle`, same day | after the section fix, Friday 16 October 2026 |
+|---|---|---|---|
+| `p01-first-light` | 11 772 B | not rebuilt | not rebuilt |
+| `p01-pll280` | 36 772 B | not rebuilt | not rebuilt |
+| `p02-ring-none` | 9980 B | not rebuilt | not rebuilt |
+| `p09-codec` | 10 608 B | not rebuilt | not rebuilt |
+| `p06-sampling-timer` | 15 196 B | **15 220 B**, +24 | not rebuilt |
+| `p06-sampling-systick` | 10 232 B | **14 420 B**, +4188: +4164 when it reached the converter later that morning, then +24 | not rebuilt |
+| `p06-sampling-dma` | 10 248 B | not rebuilt | **9992 B**, -256 |
+
+**The third column refuted what the second column predicted for that row, which is
+why the prediction was written down.** The second column said a rebuild of
+`p06-sampling-dma` was expected to move it by 0, because it calls `marker_init` and
+nothing else in `marker.c`. It moved by **-256**, which is exactly the size of the
+sample buffer, and the reason is the section fix of Friday 16 October 2026 rather
+than the marker: that buffer's section attribute named a section no linker rule
+collected, and **a section attribute on uninitialised data makes the compiler emit a
+LOADED section of zeros**, since nothing tells it the section is `NOLOAD`. So the
+orphan cost 256 bytes of image. Collected into `.dma_buffers (NOLOAD)` it costs none,
+and `arm-none-eabi-nm` now reports it as `b`, a zero-filled symbol, at 0x24000000.
+
+**What the old image's map file would have said, and it was not kept.** The figure
+moving by exactly the buffer's size establishes that the orphan was loaded; whether
+its run-time address was in the FLASH region itself or in a RAM region with its load
+image in FLASH cannot be recovered from the figure alone, and that build's map file
+no longer exists. **An inference that it had been in `.bss` in DTCM was stated in
+chat before this arithmetic was done, and it is withdrawn**: both possibilities are
+wrong for a transfer engine's buffer, and which one it was is now unanswerable rather
+than answered. Keeping the map file of an image whose placement is in question is
+the lesson, and it costs one copy.
 
 The second column was added the same day, Friday 9 October 2026, after `marker.c`
 gained a toggle in place of a pulse: the two images that call it grew by the same
