@@ -1619,6 +1619,38 @@ label said so. `git pull` opens every Pi hand-over now. And `scan.py`'s
 `analysis_identity` now, and the firmware's identity on the Pi is the banner's flash
 figure, taken as `--image-bytes`.
 
+### The transfer-engine back end's buffer was placed by no rule at all, Friday 16 October 2026
+
+Found by reading `acq_dma_double.c` before starting work on it, in code that has
+never run, and it is the whole of that file's own warning happening to that file.
+
+Its sample buffer carried `__attribute__((section(".dma_buffer")))`. The linker
+script collects `.dma_buffers` and `.dma_buffers*`, and **an ld pattern ending in a
+star matches names that START with it**, so a name one character shorter matched
+neither. **No rule in the script placed that buffer.** An orphan section goes where
+the linker likes, and on this part that is not cosmetic: the file's header calls the
+placement the most important comment in this repository, because the main transfer
+engines cannot reach the tightly coupled memories at all, so a buffer that lands
+there moves nothing and reports no error rather than failing.
+
+**The one section attribute in the volume whose correctness is load bearing was the
+one that did not match**, and the defect was a missing letter. The other two,
+`.isr_vector` and `.text.p09pad`, match their rules.
+
+**The check that would have caught it now runs on every push.**
+`python/tools/check_section_placement.py` compares every `section(".name")` attribute
+in first-party C and C++ against every `*(pattern)` rule in the linker script, with
+ld's glob rules, and names the near-miss pattern when one is unmatched so the fix
+needs no search. It was run before the fix and reported exactly this, which is the
+mutation in its natural direction: the defect was the mutation, and the regression
+test failed before the one-character change and passes after it.
+
+**What the check cannot do, said where the constant is.** It answers whether any rule
+claims a section, not which region the section lands in: a rule collecting a transfer
+buffer into DTCM would pass it and be exactly as wrong. The map file from a real build
+is the authority on the region, and reading it for this buffer is the next step, since
+nothing on win11 aquamarine compiles.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
@@ -1643,7 +1675,9 @@ figure, taken as `--image-bytes`.
    result at this witness's 10 µs floor, with the reason stated. What remains in
    this item is a finer instrument for criterion 2, and three runs per build where
    one exists.
-5. **`sampling-dma`**, the last back end with no converter. `sampling-systick`
+5. **`sampling-dma`**, the last back end with no converter, and its buffer's
+   placement is fixed as of Friday 16 October 2026 though its figure in the map
+   file is unread. `sampling-systick`
    reached it on Friday 9 October 2026; the transfer-engine build still needs its
    engine, stream and request number, all of which are RM0455 table lookups. **Factor the
    bring-up first rather than copying it**, for the reasons and with the scope in

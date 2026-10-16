@@ -32,8 +32,19 @@
 /* Placed by name, not left to the linker's default. The section is defined in
  * the linker script and must land in a memory the transfer engine can reach.
  * Aligned to a cache line so an invalidate of this buffer cannot touch
- * anything else, which is the other half of doing maintenance correctly. */
-__attribute__((section(".dma_buffer"), aligned(32)))
+ * anything else, which is the other half of doing maintenance correctly.
+ *
+ * AND THE NAME WAS WRONG BY ONE LETTER UNTIL Friday 16 October 2026, which is
+ * the whole of the trap above happening to this file. It read ".dma_buffer";
+ * the linker script collects ".dma_buffers" and ".dma_buffers*", and an ld
+ * pattern ending in a star matches names that START with it, so a name one
+ * character shorter matched neither and NO RULE PLACED THIS BUFFER. An orphan
+ * section goes where the linker likes, which on this part is how a buffer ends
+ * up in a memory the transfer engines cannot reach, moving nothing and
+ * reporting no error. Found by reading the file rather than by building it, in
+ * code that has never run, and python/tools/check_section_placement.py now
+ * compares every section attribute against the script's rules on every push. */
+__attribute__((section(".dma_buffers"), aligned(32)))
 static uint16_t buffer[2u * HALF];
 
 static volatile uint32_t ready_seq;

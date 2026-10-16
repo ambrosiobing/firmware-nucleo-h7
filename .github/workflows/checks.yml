@@ -103,6 +103,17 @@ jobs:
       - name: Every firmware target links the sources it reaches
         run: python python/tools/check_link_closure.py
 
+      # P06's transfer-engine back end placed its sample buffer in
+      # ".dma_buffer" while the linker script collects ".dma_buffers" and
+      # ".dma_buffers*". An ld pattern ending in a star matches names that
+      # START with it, so a name one character shorter matched neither and no
+      # rule placed that buffer. On this part the main transfer engines cannot
+      # reach the tightly coupled memories, so an orphan buffer that lands
+      # there moves nothing and reports no error. Found by reading on Friday
+      # 16 October 2026, in code that has never run.
+      - name: Every named section a C file asks for is collected by the linker
+        run: python python/tools/check_section_placement.py
+
       - name: No assembled volume and no PDF is published
         run: |
           set -e
