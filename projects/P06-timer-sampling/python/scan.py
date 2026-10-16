@@ -27,7 +27,13 @@ DEFAULT_RATE = 100_000.0   # one channel, so the full aggregate rate is availabl
 
 
 def git_describe(where: Path) -> str:
-    """The build identity. A capture with no build identity is not evidence."""
+    """The identity of the ANALYSIS: which scan.py and rate.py ran, from the clone
+    they ran in. Until Friday 16 October 2026 this was recorded as the firmware's
+    identity, which it never was: the firmware is built from a different clone on
+    a different laptop, and the only thing on the Raspberry Pi that identifies it
+    is the flash figure the board prints in its banner, typed in by the operator
+    as --image-bytes. On that day the field would have read 8dbba7b, a stale
+    script, for a board running an image built from 9ca1bfd."""
     try:
         out = subprocess.run(["git", "describe", "--always", "--dirty", "--tags"],
                              cwd=where, capture_output=True, text=True, timeout=10)
@@ -101,6 +107,11 @@ def main(argv: list[str] | None = None) -> int:
                     help="which firmware build is on the board right now")
     ap.add_argument("--out", required=True, help="basename for the two files")
     ap.add_argument("--note", default="", help="anything unusual about this run")
+    ap.add_argument("--image-bytes", type=int, default=None,
+                    help="the 'image N B of flash' figure from the board's banner, "
+                         "read on the win11 skyhorizon console at the reflash that "
+                         "precedes this capture; the one identity the firmware has "
+                         "from here")
     a = ap.parse_args(argv)
 
     # A capture is evidence, so an existing output is refused rather than
@@ -114,16 +125,23 @@ def main(argv: list[str] | None = None) -> int:
         sys.exit("refusing to overwrite {}: a capture is evidence, choose a new --out"
                  .format(", ".join(str(q) for q in taken)))
 
+    started = datetime.now(timezone.utc)
     samples, info = capture(a.seconds, a.rate, a.channel)
 
     meta = {
+        "started_utc": started.isoformat(timespec="seconds"),
         "captured_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "firmware_build": a.build,
-        "firmware_identity": git_describe(Path(__file__).resolve().parent.parent),
+        "firmware_image_bytes": a.image_bytes,
+        "analysis_identity": git_describe(Path(__file__).resolve().parent.parent),
         "witness": "MCC 118 on Raspberry Pi 4",
         "note": a.note,
         **info,
     }
+    if a.image_bytes is None:
+        print("note: no --image-bytes given, so this capture carries no firmware "
+              "identity of its own; the console file for the same window is the "
+              "only attribution")
 
     out.with_suffix(".csv").write_text("".join(f"{v:.6f}\n" for v in samples))
     out.with_suffix(".json").write_text(json.dumps(meta, indent=2) + "\n")

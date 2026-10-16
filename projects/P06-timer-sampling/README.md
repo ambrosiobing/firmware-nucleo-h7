@@ -1600,6 +1600,25 @@ repeat with the host stamping alongside was clean, console and pin together.
 **The rule that earned:** the stamped console runs beside every capture, and the
 other session is asked to be quiet for its length; pre-flight item 12.
 
+### The oscillator settles after a reset, Friday 16 October 2026
+
+Two 60 second captures in one powered window, started 17 s and 8 min 48 s after
+the reflash, with the console stamped alongside and clean: **1002.7077 Hz at minute one, 1002.8069
+Hz at minute nine, 99 ppm apart at 0.1 ppm each**, and a capture from minute six
+of another window within 0.7 ppm of minute nine. A crystal-clocked HAT cannot do
+that, so the HSI runs about 100 ppm low in the first minute after a reset and is
+flat by minute six. **Last week's 285 ppm spread was when each capture was taken,
+not the instruments**, and the question left open on Friday 9 October 2026 is
+closed. Criterion 1 still fails at every minute. A rate quoted for this board now
+says how long after the reset it was taken.
+
+**A capture was lost a second time to the same overwrite**, because the Pi's clone
+had not been pulled since before the refusal was committed; its own "rising edges"
+label said so. `git pull` opens every Pi hand-over now. And `scan.py`'s
+`firmware_identity` field named the wrong thing, the Pi clone's commit; it is
+`analysis_identity` now, and the firmware's identity on the Pi is the banner's flash
+figure, taken as `--image-bytes`.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
@@ -1617,7 +1636,9 @@ other session is asked to be quiet for its length; pre-flight item 12.
    is taken, Friday 9 October 2026**: the timer build passes criteria 2, 3 and 4
    and fails 1 on the oscillator, on two seconds and on sixty. The host clock
    alongside resolved 44 ppm and could not settle the instruments against the
-   oscillator; two HAT runs in one powered window can, later. The tick build then
+   oscillator; two HAT runs in one powered window did, on Friday 16 October 2026:
+   the oscillator settles about 100 ppm upward in the first six minutes after a
+   reset. The tick build then
    gave the same four numbers, so the comparison the chapter exists for is a null
    result at this witness's 10 µs floor, with the reason stated. What remains in
    this item is a finer instrument for criterion 2, and three runs per build where

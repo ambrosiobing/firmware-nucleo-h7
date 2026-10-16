@@ -781,3 +781,72 @@ exactly a late edge, a hold and a short interval, and **it was the probe**, whic
 prediction did not list; the clean run shows nothing. The README's standing
 prediction that the tick build loses on spread and worst case is **not decided**:
 this witness cannot see the quantity it is about.
+
+## The oscillator settles after a reset, and the 285 ppm was when each capture was taken, Friday 16 October 2026
+
+The measurement this file named a week ago as the one that needs no host: two
+60 second captures inside one powered window, the first minute and the ninth.
+
+### The design, and what each outcome would have meant
+
+The HAT's sample clock is a crystal and does not move by parts per million in ten
+minutes; the HSI is an RC oscillator and might. So two captures in one window, each
+good to 0.1 ppm, separate the two readings of Friday 9 October 2026's spread: more
+than about 10 ppm between them is the oscillator moving inside the window; a few
+ppm is an oscillator that is flat and a spread that lives between power cycles or
+in the HAT. The timer image was reflashed with the console stamped for 640 s, the
+first capture started 17 s after the copy and the second 8 min 48 s after it, both
+times read from the Pi's own `captured_utc` against the copy line at 21:41:00.
+
+### The result
+
+    minute one   run-007  21:41:17 to 21:42:17  60160 edges  1002.7077 +/- 0.0001 Hz
+                          spread 3.47 us  worst inside 50 us  missing 0
+    minute nine  run-008  21:49:48 to 21:50:48  60167 edges  1002.8069 +/- 0.0001 Hz
+                          spread 3.50 us  worst inside 50 us  missing 0
+
+**99 ppm apart, inside one window, on one instrument, with nothing touching the
+board between them.** A third point from an earlier window the same evening, a
+capture from about minute six, read 1002.8076 Hz, within 0.7 ppm of minute nine.
+So the HSI runs about a hundred parts per million low in the first minute after a
+reset and is flat to a part per million by minute six. **Last week's 285 ppm across
+three captures was when each was taken after its reset, not what measured it**, and
+the open question of Friday 9 October 2026, the instruments or the oscillator, is
+answered: the oscillator. The mechanism of the settling is not named here; the
+shape and the size are measured, and a rate quoted for this board from now on says
+how long after the reset it was taken.
+
+Two things this does not change. Criterion 1 fails at every minute of the window,
+2700 to 2800 ppm above the claim. And the host-clock method, measured at 44 ppm per
+ten minutes from its own stamp jitter, could never have resolved a 100 ppm settling
+inside one of its windows, which is why the question stood open for a week.
+
+### The attribution, and a loss on the way to it
+
+**Both captures sit inside one stamped window and the board did nothing in it.**
+The copy went at 21:41:00 local; `console-timer-20261016-214100.txt` holds 699
+lines, one banner, 666 reports from 21:41:02 to 21:51:39 with every step exactly
+15, so no reset, no pause and no second reader; run-007 ran from 21:41:17 and
+run-008 from 21:49:48, both within it. That is pre-flight item 12 doing its work
+on the first measurement after it was written.
+
+**A capture was lost a second time by the same mechanism as last week.** The first
+run under the name `run-007`, taken about minute six of an earlier window that
+evening, delivered 5 988 756 samples where every other 60 second run delivers
+5 999 616, 108.6 ms fewer, with one missing edge and a spread of 4.08 µs, the
+arithmetic of one half-millisecond outlier among 60 056 intervals; the console
+stamped alongside showed every block on time, so that loss was on the Pi side and
+not the board's. Its shape was never read: the second run reused `--out run-007`
+and `scan.py` replaced it. The refusal that prevents exactly this had been in the
+repository since Friday 9 October 2026, and the Raspberry Pi's clone had not been
+pulled since before it; the report's own label, "rising edges", said so, and nobody
+read it. **A guard that is committed and not pulled is not on the bench.** Every
+hand-over to the Pi now begins with `git pull`, and the Pi is at `9ca1bfd`.
+
+The overwrite exposed one more thing in `scan.py`: it recorded `git describe` of the
+Pi's clone under the name `firmware_identity`, which it never was, since the
+firmware is built from a different clone on win11 skyhorizon. That field is
+`analysis_identity` now, which is what it measures, and the firmware's identity on
+the Pi is the banner's flash figure, typed in as `--image-bytes` and recorded as
+`firmware_image_bytes`; `started_utc` is recorded beside `captured_utc`, because
+placing a capture needs its start.
