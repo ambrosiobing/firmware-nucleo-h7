@@ -22,6 +22,17 @@ linker script, with ld's glob rules: `*` any run of characters, `?` one, `[...]`
 class. A name matched by no pattern is reported, with the closest patterns named so
 the fix is obvious rather than a search.
 
+WHAT IT READS, AND WHAT IT REFUSES TO READ. Comment bodies are blanked before
+either pattern is applied, in the C sources and in the linker script alike. A check
+whose needle appears in prose matches its own explanation: this script's script-side
+needle is `*(name)`, and the linker script carries the words "FIRST, before
+`*(.text)`, because ..." inside a comment, which the raw text reports as a
+thirty-first collection rule where the script has thirty. That one is harmless,
+because a real `*(.text)` follows four lines later, but the direction is the
+dangerous one: a rule existing only in a comment would make a section that nothing
+collects look collected. Found on Saturday 17 October 2026 by comparing the
+pattern's hits before and after stripping, which is to say not by it failing.
+
 WHAT IT CANNOT DO. It says nothing about WHICH region a matched section lands in, so
 a rule that collects `.dma_buffers` into DTCM would pass this check and be exactly
 as wrong as the defect it was written for. The region is a property of the output
@@ -49,6 +60,50 @@ INPUT_RULE = re.compile(r'\*\s*\(([^)]*)\)')
 SOURCE_SUFFIXES = {".c", ".h", ".cpp", ".hpp"}
 
 
+def code_only(text, line_comments=True):
+    """The text with every comment body blanked and the line structure kept.
+
+    Newlines inside a removed span are preserved, so every line number this script
+    reports is still the line the construct sits on. String and character literals
+    are stepped over rather than scanned, because a section attribute's own name is
+    a string literal and a `//` inside one is not a comment. `line_comments` is
+    False for a linker script, where `//` is not a comment at all.
+    """
+    out, i, n = [], 0, len(text)
+    while i < n:
+        pair = text[i:i + 2]
+        if pair == "/*":
+            end = text.find("*/", i + 2)
+            if end == -1:                      # unterminated: keep nothing after it
+                out.append("\n" * text.count("\n", i))
+                break
+            out.append("\n" * text.count("\n", i, end))
+            i = end + 2
+            continue
+        if line_comments and pair == "//":
+            end = text.find("\n", i)
+            if end == -1:
+                break
+            i = end
+            continue
+        ch = text[i]
+        if ch in "\"'":
+            j = i + 1
+            while j < n:
+                if text[j] == "\\":
+                    j += 2
+                    continue
+                if text[j] == ch or text[j] == "\n":
+                    break
+                j += 1
+            out.append(text[i:j + 1])
+            i = j + 1
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def sources():
     """Every first-party C and C++ file: the shared trees and each project's own."""
     roots = [ROOT / "c"]
@@ -74,8 +129,14 @@ def attributes(files):
             text = f.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        for m in ATTRIBUTE.finditer(text):
-            line = text[: m.start()].count("\n") + 1
+        # Both the search and the line count use the SAME string. Taking an
+        # offset from the stripped text and counting newlines in the original
+        # reports a line number that is too small by the size of every comment
+        # above it. That is how this was introduced and caught here on
+        # Saturday 17 October 2026: the report said startup.c:22 for line 84.
+        code = code_only(text)
+        for m in ATTRIBUTE.finditer(code):
+            line = code[: m.start()].count("\n") + 1
             found.append((m.group(1), f.relative_to(ROOT).as_posix(), line))
     return found
 
@@ -83,6 +144,7 @@ def attributes(files):
 def patterns(script_text):
     """Every input-section pattern the script collects, with its line number."""
     out = []
+    script_text = code_only(script_text, line_comments=False)
     for m in INPUT_RULE.finditer(script_text):
         line = script_text[: m.start()].count("\n") + 1
         for word in m.group(1).split():

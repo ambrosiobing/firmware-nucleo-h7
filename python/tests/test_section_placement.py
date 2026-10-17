@@ -113,3 +113,98 @@ def test_every_section_attribute_in_this_repository_is_collected():
     assert orphans == [], (
         "these section attributes are collected by no linker rule, so the linker "
         "places them where it likes: {}".format(orphans))
+
+
+def test_a_rule_that_exists_only_in_a_comment_is_not_a_rule(tree):
+    """The self-matching failure, in the direction that would let a defect pass. A
+    comment mentioning `*(.ghost)` must not make `.ghost` collected; the same text
+    outside a comment must."""
+    script = tree / "ghost.ld"
+    script.write_text(
+        "SECTIONS {\n"
+        "  /* Put it FIRST, before *(.ghost), because order matters here. */\n"
+        "  .text : { *(.text) }\n"
+        "}\n", encoding="utf-8")
+    pats = [pat for pat, _ln in checker.patterns(script.read_text(encoding="utf-8"))]
+    assert pats == [".text"], pats
+
+    script.write_text(
+        "SECTIONS {\n"
+        "  .ghost : { *(.ghost) }\n"
+        "  .text : { *(.text) }\n"
+        "}\n", encoding="utf-8")
+    pats = [pat for pat, _ln in checker.patterns(script.read_text(encoding="utf-8"))]
+    assert pats == [".ghost", ".text"], pats
+
+
+def test_an_attribute_named_only_in_a_comment_is_not_an_attribute(tree):
+    """The same failure in the other direction, where it would cry wolf: a comment
+    explaining the `.dma_buffer` defect must not be reported as a defect."""
+    src = tree / "b.c"
+    src.write_text(
+        "/* The attribute used to read section(\".dma_buffer\"), one letter short. */\n"
+        "__attribute__((section(\".dma_buffers\")))\n"
+        "static unsigned short buffer[8];\n", encoding="utf-8")
+    text = checker.code_only(src.read_text(encoding="utf-8"))
+    assert [m.group(1) for m in checker.ATTRIBUTE.finditer(text)] == [".dma_buffers"]
+
+
+def test_stripping_a_comment_keeps_every_later_line_number(tree):
+    """Line numbers are what makes a report actionable, so the blanking preserves
+    them rather than closing the gap."""
+    script = tree / "lines.ld"
+    script.write_text(
+        "SECTIONS {\n"
+        "  /* one\n"
+        "   * two\n"
+        "   * three *(.decoy)\n"
+        "   */\n"
+        "  .text : { *(.text) }\n"
+        "}\n", encoding="utf-8")
+    pats = checker.patterns(script.read_text(encoding="utf-8"))
+    assert pats == [(".text", 6)], pats
+
+
+def test_a_comment_opener_inside_a_string_is_not_a_comment(tree):
+    """Stepping over literals matters because the needle itself is a literal."""
+    src = tree / "c.c"
+    src.write_text(
+        "static const char *u = \"https://example.invalid/*not a comment*/\";\n"
+        "__attribute__((section(\".kept\")))\n"
+        "static unsigned short kept[2];\n", encoding="utf-8")
+    text = checker.code_only(src.read_text(encoding="utf-8"))
+    assert [m.group(1) for m in checker.ATTRIBUTE.finditer(text)] == [".kept"]
+
+
+def test_the_real_linker_script_has_one_rule_only_in_prose():
+    """The instance that prompted the stripping, pinned so the fix cannot silently
+    regress: the raw text yields one more rule than the code does, and it is
+    `.text` from the comment above the P09 pad rule."""
+    raw = checker.SCRIPT.read_text(encoding="utf-8")
+    with_prose = [pat for pat, _ln in checker.patterns(
+        raw.replace("/*", "   ").replace("*/", "   "))]
+    code = [pat for pat, _ln in checker.patterns(raw)]
+    assert len(with_prose) == len(code) + 1
+    extra = list(with_prose)
+    for pat in code:
+        extra.remove(pat)
+    assert extra == [".text"], extra
+
+
+def test_the_line_number_survives_the_whole_attributes_path(tree, monkeypatch):
+    """The path the report actually uses, which the test above deliberately does
+    not exercise. Blanking the comments shortens the text in characters while
+    keeping its lines, so a line number counted in a different string than the one
+    searched comes out too small by every comment above it."""
+    src = tree / "d.c"
+    src.write_text(
+        "/* A header comment with plenty of words in it, and more than one\n"
+        " * line of them, so that a miscounted offset cannot pass unnoticed.\n"
+        " * It also mentions section(\".decoy\") to earn its place here.\n"
+        " */\n"
+        "#include <stdint.h>\n"
+        "\n"
+        "__attribute__((section(\".real\"), aligned(32)))\n"
+        "static uint16_t buffer[8];\n", encoding="utf-8")
+    monkeypatch.setattr(checker, "ROOT", tree)
+    assert checker.attributes([src]) == [(".real", "d.c", 7)]
