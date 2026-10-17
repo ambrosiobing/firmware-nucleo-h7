@@ -1434,6 +1434,23 @@ offers an external trigger. Every range it is likely to offer contains 3.3 V,
 which is a reason to *expect* it to be fine and **not** a reason to skip reading
 the guide.
 
+**The offset between the two boards' grounds is now measured, and it is 4.7 to
+8.3 millivolts.** It came free on Saturday 17 October 2026 from a wire that was
+meant for something else: P06's PC3 lead went to a GND terminal on the MCC 118
+before it went to a GND pin on CN11, and the converter read 94 to 165 counts in the
+first case against 1 to 2 in the second, at 50.4 microvolts per count. On a 3.3 V
+logic edge that offset is 0.24 per cent of the swing and three orders of magnitude
+below the 0.1 V hysteresis the rate analysers use, **so it cannot move an edge
+count.** That sentence was previously an assumption and is now a figure.
+
+Two limits on it, both worth more than the number. It does not prove the two grounds
+were bonded at the time, because a few millivolts is also what an unbonded ground
+held close by leakage would give, and the state of wire one was not recorded for that
+capture. And it is one reading on one afternoon, not a specification: a different
+supply, a different lead or a different mains outlet could move it, so the figure is
+a demonstration that the term is negligible here rather than a bound that holds
+everywhere.
+
 ## 4.5 The pre-flight list, before power on
 
 Please run down this list. It is twelve items and it takes under a minute.

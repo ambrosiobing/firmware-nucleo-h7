@@ -1795,6 +1795,97 @@ else shares a timer. **I would choose the factoring**, because the converter
 bring-up's paid for itself within two days and the check that made it safe already
 exists, and it is recorded as a question because the last one of these was Joseph's.
 
+### The grounded control reproduces nine days later, and the wire became an instrument, Saturday 17 October 2026
+
+Four captures of the timer build in one session, all from the same 15 220-byte image
+with nothing rebuilt, taken because the first of them showed `mean` at about 3500 and
+**the record already had a sentence for that**: a floating PC3 reads near 3200, and a
+different `mean` means the wire moved rather than that the firmware did.
+
+**The control passes, and it is the first time this project has reproduced one of its
+own controls on a later date.** `mean` reads **1 to 2 across 75 reports**, which is
+the same band and the same spread of one count as Thursday 8 October 2026, nine days
+and an unknown number of bench disturbances earlier. The threshold was the one
+published then and not rewritten now: within a few counts of 0 and steady.
+
+**And the intermediate step turned one wire into a measurement nobody asked for.**
+The PC3 lead went first to a ground terminal on the **MCC 118**, which is a ground on
+a different board, and only afterwards to a **GND pin on CN11** beside PC3 at pin 37.
+Three points result, all at 16 bits against a 3.3 V reference, so one count is
+50.4 microvolts:
+
+| PC3 connected to | `mean` | As a voltage | Reports |
+|---|---|---|---|
+| nothing, floating | 3301 to 3857 | 166 to 194 mV | 76 |
+| a GND terminal on the MCC 118, another board | 94 to 165 | 4.7 to 8.3 mV | 78 |
+| a GND pin on CN11, its own board | 1 to 2 | 0.05 to 0.10 mV | 75 |
+
+**The middle row is a reading of the offset between two boards' grounds**, and it was
+obtained with no instrument beyond the converter already under test. Four to eight
+millivolts is small, and its smallness is itself informative: a lead to a ground that
+was not bonded at all would be expected to sit further away and to drift, so the
+figure is consistent with the two grounds being joined and separated by a few
+millivolts of return path. **What it does not do is prove that bonding**, because this
+capture cannot distinguish a bonded ground a few millivolts away from an unbonded one
+held close by leakage, and the state of the section 4.4 ground lead at the time was
+not recorded. The three outcomes were written down before the 08:52 capture ran, and
+the one that happened, tens to low hundreds, was the third of them.
+
+**Why the middle row matters beyond curiosity.** The witness measures a marker pin
+against the MCC 118's ground. An offset of 8 mV on a 3.3 V logic edge is 0.24 percent
+of the swing, which is three orders of magnitude below the 0.1 V hysteresis the
+analysers use, so it cannot move an edge count. That is now a figure rather than an
+assumption, and it is the sort of thing that is cheap to measure while the wire is
+already in hand and expensive to guess at later.
+
+**What these captures settle about the converter, independent of the wire.**
+
+`OVRMOD` **is 0 as found**, printed in seven banners across all four captures. That
+line existed in no committed file in this repository before today, and it is the
+baseline the open decision needs: with `OVRMOD` clear the data register is preserved,
+which is exactly what `acq_timer.c`'s handler argues from and names as the value it
+reports rather than sets.
+
+**Both poll counts held still within the session and are still known to move between
+sessions.** Calibration took 180 polls and the enable was ready after 4 polls in every
+one of the seven banners. This page has read 187 for calibration on another evening,
+so the honest statement is that neither figure is a property of the part and both were
+stable across seven boots of one session.
+
+**`overruns 0` and `convovr 0` in every report of every capture**, about 300 of them,
+with the overrun interrupt enabled and `IER` reading back `00000014`.
+
+**And the documented truncation reproduced, which is a third instance.** One banner
+cuts off mid-word at `moves only wh` and the next begins immediately, because a reset
+landed inside the roughly ten seconds the report takes to leave the port. Section 1.5
+of `docs/the-board-and-the-wiring.md` warns about it from two earlier captures that
+lost their core frequency line. Harmless here, since the next boot reprinted
+everything, and worth a third mention only because the warning has now earned its
+place three times.
+
+### The build stamp cannot identify this image, and the gap is exactly where this project was hurt
+
+The banner reads `main.c built Oct  9 2026 09:31:08` while the image file is dated
+Friday 16 October 2026 at 23:47. The stamp is eight days older than the image and its
+own comment says why: **it moves only when `main.c` recompiles.**
+
+So neither the stamp nor the `15220 B` size distinguishes this image from one built
+before Friday 16 October 2026, and the change made that evening was the **vector table
+entry in `startup.c`**, a different translation unit whose addition left this image's
+size unchanged. A reader of these captures cannot tell from the banner whether the
+flashed image carries that entry.
+
+**That is the gap in the worst possible place.** This project lost an evening on
+Wednesday 7 October 2026 to a handler with no vector, in `startup.c`, and the
+self-identification the volume adopted afterwards cannot see changes to `startup.c`.
+It is recorded here rather than fixed because the fix is a decision about what the
+banner should carry, and the candidates differ in cost: a `git describe` string
+compiled into the image names the commit exactly and makes every image depend on the
+working tree's cleanliness; a stamp per translation unit is cheap but verbose; and the
+image size already printed is a weak discriminator that happens to be blind in this
+case. Nothing here is urgent, because the three functional claims above do not depend
+on the vector entry, which only matters to the transfer-engine build.
+
 ### A third class of field, and a comment that pointed at nothing, Saturday 17 October 2026
 
 The `DMNGT` finding above raised a question it did not answer: if one field in the
