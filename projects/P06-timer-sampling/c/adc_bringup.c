@@ -119,6 +119,38 @@
 #define ADC_RES_16BIT            0u
 #define ADC_SQR1_ONE_CONVERSION  0u
 
+/* AND A THIRD CLASS, WHICH THIS FILE'S OWN TAXONOMY DID NOT HAVE UNTIL Saturday
+ * 17 October 2026: the fields this file LEAVES AT THEIR RESET VALUE, which are
+ * not all the same for every back end.
+ *
+ * Step 7's write is the only write to ADC1->CFGR in this repository and it masks
+ * RES, EXTSEL and EXTEN and nothing else, so every other field of that register
+ * is whatever reset left. Two of them are known, and neither was chosen here.
+ *
+ * DMNGT decides whether the converter raises a transfer request AT ALL. Its
+ * reset 00 is right for the two back ends that read DR themselves and wrong for
+ * the one that does not, which would configure its own peripheral correctly and
+ * move nothing. The write that fixes it is owed by acq_dma_double.c and is
+ * specified there, because the file that needs a field should be the file that
+ * writes it. The entry here exists so that the NEXT back end asks the question
+ * of its own fields rather than finding it the same way.
+ *
+ * OVRMOD decides what an overrun DOES to the data. acq_timer.c reports it as
+ * found and declines to choose, which was right for a value nothing depended
+ * on; its handler then wrote a correctness argument that DOES depend on it, and
+ * said so plainly: with OVRMOD clear the data register is preserved, so until
+ * OVR is cleared the converter keeps discarding and the stream stops for good
+ * while every register still reads back correctly. The dependency is named where
+ * it is relied upon, which is why this is an open decision and not a defect.
+ *
+ * ENUMERATING THE REST NEEDS THE VENDOR HEADER, WHICH IS NOT ON THE AUTHORING
+ * LAPTOP. Every register name here comes from stm32h7xx.h, which arrives with
+ * the pack on win11 skyhorizon and in continuous integration, so the complete
+ * list of CFGR's fields and their reset values cannot be read where this comment
+ * was written and is not guessed here. The two above are named because both were
+ * read: DMNGT from ADC_CONVERSIONDATA_* in stm32h7xx_hal_adc.h, and OVRMOD from
+ * ADC_CFGR_OVRMOD at line 2784 of stm32h7a3xxq.h. */
+
 /* tADCVREG_STUP, the internal regulator start-up time, from
  * stm32h7xx_ll_adc.h line 1537 where ST names it
  * LL_ADC_DELAY_INTERNAL_REGUL_STAB_US. ST's own comment calls for a DELAY rather
@@ -292,8 +324,15 @@ int adc_bring_up(uint32_t pclk1_hz, uint32_t divisor,
      * This is a plain printf rather than a adc_report() call on purpose: adc_report()
      * prints REFUSED for a false result, and a sequence that prints REFUSED and
      * then carries on would be worse than one that does not mention the flag.
-     * The OVRMOD line later in this file is printed the same way for the same
-     * reason.
+     * The OVRMOD line in acq_timer.c is printed the same way for the same
+     * reason. THAT SENTENCE SAID "later in this file" UNTIL Saturday 17 October
+     * 2026, and it was true when it was written on Thursday 8 October 2026,
+     * because both lines were in acq_timer.c then. The move of Friday 9 October
+     * 2026 brought this half here and left the OVRMOD print there, so the
+     * pointer travelled with the half that moved. The move's published criterion
+     * was that every configuration read-back come back identical line for line,
+     * which a comment cannot fail, so nothing checked this and nothing could
+     * have: it was found by reading the file before working on it.
      *
      * WHAT TO WATCH FOR. Set is expected, because ST's documented start-up time
      * has just elapsed. CLEAR WOULD BE THE INTERESTING RESULT and it would mean

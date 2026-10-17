@@ -148,6 +148,17 @@ int acq_start(void)
      * configured correctly and nothing would ever move, which is this project's
      * characteristic failure and is worth one line of comment per occurrence.
      *
+     * AND IT IS NOT THE ONLY CONVERTER FIELD THIS FILE OWES A DECISION ON.
+     * OVRMOD is left at its reset value too, reported as found by acq_timer.c
+     * and chosen by nobody, and it decides what an overrun does to the data:
+     * clear preserves the old sample, set lets the new one overwrite it. For the
+     * two back ends whose HANDLER reads DR that was a reading nothing depended
+     * on. For this one, whose ENGINE reads DR, the question is different and the
+     * answer is not inherited: this file counts overruns of its own, and what a
+     * converter overrun does to a double-buffered stream has to be decided
+     * before the count means anything. Recorded here as the second open field
+     * rather than written, for the same reason as the first.
+     *
      * THE REQUEST ROUTING. The multiplexer channel belonging to a stream is
      * DMAMUX1_Channel0 plus the stream number, from HAL_DMA_Init in
      * stm32h7xx_hal_dma.c, which computes

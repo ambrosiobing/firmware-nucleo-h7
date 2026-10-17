@@ -1795,6 +1795,55 @@ else shares a timer. **I would choose the factoring**, because the converter
 bring-up's paid for itself within two days and the check that made it safe already
 exists, and it is recorded as a question because the last one of these was Joseph's.
 
+### A third class of field, and a comment that pointed at nothing, Saturday 17 October 2026
+
+The `DMNGT` finding above raised a question it did not answer: if one field in the
+shared bring-up is wrong for a back end that inherits it, which others are
+per-back-end decisions frozen at one value? Asking it of `adc_bringup.c` found two
+things, both by reading.
+
+**The file's own taxonomy of its fields was incomplete.** It names two classes, the
+values the caller picks, which are the trigger's, and the values the file chooses
+because they are the same for every back end, which are the resolution and the
+sequence length. There is a third: **the fields it leaves at their reset value, which
+are not all the same for every back end.** Step 7's write is the only write to
+`ADC1->CFGR` in this repository and it masks `RES`, `EXTSEL` and `EXTEN` and nothing
+else, so every other field of that register is whatever reset left. `DMNGT` is one.
+`OVRMOD` is the other, and it decides what an overrun does to the data.
+
+**`OVRMOD` was right to be a reading and is now a decision, because of who reads the
+data register.** `acq_timer.c` reports it as found and declines to choose, which was
+correct for a value nothing depended on. Its handler then wrote a correctness
+argument that does depend on it, and named the dependency rather than hiding it: with
+`OVRMOD` clear the data register is preserved, so until `OVR` is cleared the converter
+keeps discarding and the stream stops for good while every register still reads back
+correctly. For a back end whose **handler** reads `DR` that argument holds. For one
+whose **engine** reads `DR` it is a different question, so the field is now an open
+decision recorded in both files rather than a reading. The dependency being named
+where it is relied upon is why this is an open decision and not a defect.
+
+**Enumerating the rest needs the vendor header, which is not on the authoring
+laptop.** Every converter register name in this project comes from ST's
+`stm32h7xx.h`, which arrives with the pack on win11 skyhorizon and in continuous
+integration, so the complete list of `CFGR`'s fields and their reset values cannot be
+read where this was written and is not guessed. The two named above are named because
+both were read.
+
+**And a comment pointed at a line that is not in its file.** `adc_bringup.c` said the
+`OVRMOD` line was "later in this file"; there is no `OVRMOD` line in that file at all.
+Git says the sentence was written on Thursday 8 October 2026 in `acq_timer.c`, where
+it was true, that file then holding five `OVRMOD` mentions. The move of Friday 9
+October 2026 brought the regulator-flag half here and left the `OVRMOD` print there,
+so **the pointer travelled with the half that moved**. The move's published criterion
+was that every configuration read-back come back identical line for line, and a
+comment cannot fail that check, so nothing verified this and nothing could have.
+
+**It is not worth a checker and that was measured rather than assumed.** Eleven
+comments in first-party C claim something is "in this file"; nine name no identifier
+at all, and of the two that do, the other one is sound, both its names appearing four
+times in their own file. A checker for a population of two, catching one, would cost
+more than reading does.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
