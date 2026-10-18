@@ -88,16 +88,16 @@ is a visible commit with a reason rather than a quiet edit.
 ## Running them
 
 ```bash
-cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/gates.py charge captures/ledger.json
+cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python projects/P12-energy-regression/python/gates.py charge captures/ledger.json
 ```
 
 ```bash
-cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/gates.py size build-host/sizes.json
+cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python projects/P12-energy-regression/python/gates.py size build-host/sizes.json
 ```
 
 ## Layout
 
-    python/gates.py                       both gates, one shape
+    projects/P12-.../python/gates.py      both gates, one shape
     projects/P12-.../budgets.json             flash and RAM limits, design decisions
     projects/P12-.../baseline.json            the charge baseline, all placeholders
     python/tests/test_gates.py                sixteen checks, no hardware

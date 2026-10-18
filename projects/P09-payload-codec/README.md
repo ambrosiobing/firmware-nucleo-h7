@@ -56,11 +56,27 @@ cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python python/tools/build_hos
 ```
 
 ```bash
-cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python -m pytest tests -q
+cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python -m pytest python/tests -q
 ```
 
-Twenty-one checks, about six seconds, 100000 random cases per property. The
-first command uses the compiler directly because win11 aquamarine has CMake but
+**That path read `tests` until Sunday 18 October 2026, and this suite has never
+lived there.** The command failed with pytest's exit code 4 and "no tests ran",
+which is loud rather than silent, so nobody was told that checks had passed when
+none had. A documented command that cannot run is a defect anyway, and the figure
+that used to sit here, twenty-one checks, was reachable from no command at all.
+
+**What this project's own checks do, measured on win11 aquamarine on Sunday
+18 October 2026.** They are `test_vectors.py`, `test_roundtrip.py`, `test_cpp.py`,
+`test_parity.py` and `test_micropython_subset.py`, which collect **25 checks**
+between them, of which **9 pass here and 16 skip**. Every skip names the artefact
+it wants, `payload.dll` or `cpp_filter.exe`, and the WSL command on win11
+skyhorizon that builds it. The 100 000-case property run is among the skips, so
+the seconds it takes are a figure from the machine that compiles rather than from
+this one. The suite's own total is stated in the root `README.md`, where a test
+compares it against the live collection, and is deliberately not repeated here: a
+fourth copy of that number is a fourth place for it to drift.
+
+The first command uses the compiler directly because win11 aquamarine has CMake but
 no `make` and no `ninja`; `CMakeLists.txt` carries the chapter's published build
 line for a machine that has a generator.
 

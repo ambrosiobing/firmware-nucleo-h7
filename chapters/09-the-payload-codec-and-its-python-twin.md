@@ -163,7 +163,7 @@ The interface between the codec and everything else is two functions and a buffe
 ```text
   codec/fields.py  (the specification, written once, read by everything)
         |
-        +--> tools/gen_codec.py --> payload_fields.h   (C, for the board)
+        +--> python/tools/gen_codec.py --> payload_fields.h  (C, the board)
         |                       \-> payload_fields.py  (Python, for the host)
         |
         +--> docs/bitorder.md    (the written bit order: MSB first, bit 39 first on the wire)
@@ -196,7 +196,7 @@ nucleo-h7a3-codec/
   codec/payload.h
   codec/payload.hpp               # the C++ variant, compile-time field widths
   codec/payload.py                # the Python twin: bit reader and writer
-  tools/gen_codec.py              # emits payload_fields.h and payload_fields.py
+  python/tools/gen_codec.py       # emits payload_fields.h, .py and fields.rs
   docs/bitorder.md                # the written bit order, the normative document
   test/vectors.json               # hand computed, never generated
   test/test_roundtrip.py          # the property test, ctypes into the C encoder
@@ -429,9 +429,11 @@ The host is the same Python module the property test uses, which is the point: t
 *Figure 9.5. Nine bytes on the wire at 115200, and what the host is doing while they arrive. The frame duration is arithmetic rather than a measurement, and chapter 6 built the instrument that would confirm it.*
 
 ```bash
-python tools/gen_codec.py codec/fields.py --out-c codec --out-py codec
-cmake -B build-host -DPAYLOAD_HOST=ON && cmake --build build-host -j   # libpayload.so
-python -m pytest test -q                                     # vectors, then 100k cases
+python python/tools/gen_codec.py projects/P09-payload-codec/fields.py \
+    --out-c c/payload --out-py python/firmkit \
+    --out-rs projects/P09-payload-codec/rust/src
+python python/tools/build_host.py            # the shared libraries and the filters
+python -m pytest python/tests -q             # vectors, then 100k cases
 cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"
 cmake --build build-fw --target p09-codec     # then copy the .bin onto the probe's disk
 ```
