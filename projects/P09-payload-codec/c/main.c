@@ -4,9 +4,17 @@
  * What this file adds is the one thing the host cannot show: that the same
  * payload_encode, compiled for the Cortex-M7, produces the same five bytes.
  *
- * It has never been compiled. There is no arm-none-eabi-gcc on win11 aquamarine
- * as of Thursday 1 October 2026, so this file is written and left honest rather
- * than guessed at and claimed.
+ * IT HAS RUN ON THE BOARD SINCE Saturday 3 October 2026, and this paragraph said
+ * it had never been compiled until Sunday 18 October 2026. That was true when it
+ * was written on Thursday 1 October 2026. What the board showed is the one thing
+ * the host could not: the negative golden vector, feature -1, encodes to
+ * 2405FFFFE8 on the Cortex-M7, byte for byte what the host produces, so sign
+ * extension, bit order and field packing agree between the two compilers.
+ *
+ * What is still true is the reason that paragraph existed. There is no
+ * arm-none-eabi-gcc on win11 aquamarine, where this file is edited, so it is
+ * written honest rather than guessed at and claimed, and the host suite skips
+ * every target that needs a compiler.
  *
  * Unlike chapter 6's back ends, nothing here needs a value confirmed against
  * RM0455. The codec touches no peripheral, no clock and no memory region, which

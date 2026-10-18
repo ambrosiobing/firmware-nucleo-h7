@@ -18,8 +18,25 @@
  * the LEDs if there is not, because a board with no console that merely sits
  * there tells the reader nothing.
  *
- * NEVER COMPILED. There is no arm-none-eabi-gcc on win11 aquamarine as of
- * Thursday 1 October 2026.
+ * COMPILED, FLASHED AND RUN SINCE Friday 2 October 2026, and this paragraph
+ * said the opposite until Sunday 18 October 2026. It read NEVER COMPILED, which
+ * was true when it was written on Thursday 1 October 2026 and stopped being true
+ * the next day. It is corrected rather than deleted, because the order in which
+ * this file was written and then proved is part of what P01 demonstrates: the
+ * program was complete, and honest about what it could not establish, before any
+ * compiler had seen it.
+ *
+ * This is the program behind the p01-first-light image, cross compiled on win11
+ * skyhorizon with CubeIDE's toolchain, and what it printed over COM13 at 115200
+ * is what this project's README reports. The 280 MHz figures and the sixteen
+ * measured core clocks belong to p01-pll280, a second image, and not to this
+ * file, which runs on the reset clock by design.
+ *
+ * WHAT IS STILL TRUE IS THE REASON THAT PARAGRAPH EXISTED. There is no
+ * arm-none-eabi-gcc on win11 aquamarine, where this file is edited, so nothing
+ * here is checked by a compiler at the moment it is written, and the host suite
+ * skips every target that needs one with each skip naming the command that
+ * would run it elsewhere.
  */
 #include <stddef.h>
 #include <stdio.h>
