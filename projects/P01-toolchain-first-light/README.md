@@ -1006,16 +1006,30 @@ correct together, and anything that goes wrong afterwards is something else.
 
 ## What it refuses, and what each refusal costs
 
-Three of the four refusals this project started with have been lifted, each by
-reading an authority rather than by guessing. What remains is one row, and it is
-the row that matters most:
+**All four refusals this project started with have been lifted**, each by reading
+an authority rather than by guessing, and this section said three until Sunday
+18 October 2026. The fourth was lifted on Sunday 4 October 2026 and the table still
+listed it as refused for a fortnight.
 
-| Refused | Why | What it needs |
-|---|---|---|
-| 280 MHz core clock | the PLL fields, the flash access latency and the voltage scaling are all RM0455's and none has been read | RM0455, the clock tree and power chapters |
+The fourth is worth its own sentence, because it was not lifted the way its own row
+predicted. **That row named RM0455 as what it needed, and RM0455 is still unread.**
+What settled the PLL fields, the flash access latency and the voltage scaling was
+ST's own material for this part, the same authority that settled the register bases,
+the console pins and the interrupt positions. A refusal names what it needs, and
+being lifted by a different authority than the one it named is the ordinary case
+here rather than the exception.
+
+**And it was lifted by a second image rather than by this one.** `p01-first-light`
+still runs on the reset clock and still reports it, which is a design choice and not
+an unmet dependency: it is the smallest program that proves a toolchain, and it
+blinks before any register address has been read. `p01-pll280` is the image that
+reaches 280 MHz, in eight gated steps each reading back what it wrote, and that
+clock is now measured sixteen times against this board's own crystal rather than
+asserted.
 
 | Lifted, and by what | When |
 |---|---|
+| The 280 MHz core clock: the PLL fields, the flash latency and the voltage scaling came from ST's own material for this part, proved by `p01-pll280` in eight gated steps, and the result is measured sixteen times. RM0455 remains unread and was not needed | Sunday 4 October 2026 |
 | Every GPIO and RCC access: the peripheral base addresses came from ST's own CMSIS device header for this die, named in `BOARD_REGS_CONFIRMED` | Friday 2 October 2026 |
 | The console, and therefore printf: the probe's virtual serial port pins were settled and recorded in `BOARD_CONSOLE_PINS_CONFIRMED`, and the console reaches COM13 at 115200 | Friday 2 October 2026 |
 | Claims about time: `board_core_hz()` reports the clock decoded from RCC at startup, and the delay loop calibrates itself against `DWT_CYCCNT` on every boot | Friday 2 October 2026 |
@@ -1023,12 +1037,16 @@ the row that matters most:
 Each refusal is a value returned, not a comment. `board_clock_status()`,
 `board_console_status()` and `board_core_hz()` are how a project finds out, and
 `main.c` prints all three and signals them on the LEDs as well, because a board
-with no working console that merely sits there tells a reader nothing. The one
-remaining refusal is still reported that way: `board_clock_status()` returns
-`BOARD_CLOCK_AT_RESET_SPEED`, which is why every cycle figure in this volume is
-a figure at 64 MHz and says so.
+with no working console that merely sits there tells a reader nothing. The
+mechanism outlived the refusals it was built for: in `p01-first-light`
+`board_clock_status()` still returns `BOARD_CLOCK_AT_RESET_SPEED`, which is now a
+statement about which image is running rather than about an authority nobody has
+read, and every figure taken with that image is a figure at 64 MHz and says so.
 
-**Why refuse rather than use a plausible value.** The three clock values each get
+**Why refuse rather than use a plausible value**, which is kept in full because
+the refusal was lifted by reading exactly the thing this paragraph said was at
+stake, and because the reasoning is what P06 later needed. The three clock values
+each get
 the part wrong in a different way. Too little flash latency executes garbage once
 the clock rises. Wrong voltage scaling works at room temperature and fails warm.
 The wrong PLL divider is the worst of the three: the part runs at a plausible
