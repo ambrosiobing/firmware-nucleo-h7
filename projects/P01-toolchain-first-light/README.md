@@ -1156,13 +1156,27 @@ finding.
 
 ## Not done
 
-- No size figures and no map file reconciliation yet. The build writes a map file
-  and `cmake/check_retarget.cmake` already reads it, so the reconciliation is a
-  script that does not exist rather than a build that cannot produce the inputs.
-- The interrupt vector positions below the sixteen architectural entries are
-  this family's published ones and have not been read from RM0455. The table
-  carries only what is certain and leaves the rest as the default handler, so an
-  unconfirmed position cannot silently misroute.
+- **The size figures exist and the reconciliation still does not.** This bullet
+  said neither existed until Sunday 18 October 2026, which was true when it was
+  written and stopped being true once the images were built on win11 skyhorizon.
+  `docs/building.md` carries a dated size table with this project's images in it,
+  `p01-first-light` at 11 772 B. What is still missing is the map file
+  reconciliation: the build writes a map file and `cmake/check_retarget.cmake`
+  already reads it, so `python/tools/reconcile_size.py` is a script that does not
+  exist rather than a build that cannot produce the inputs, and `check_status.py`
+  names it among the paths this volume mentions in order to say they are absent.
+- **The interrupt vector positions come from ST's `IRQn_Type` for this exact
+  part**, read on Wednesday 7 October 2026 from `stm32h7a3xxq.h` in
+  STM32Cube_FW_H7_V1.13.0, which is the authority that also settled the console
+  pins, the counting input, the signal source and the converter's channel. This
+  bullet called them the family's published positions until Sunday 18 October
+  2026, and that was true when it was written. RM0455 would say the same, remains
+  unread, and is not needed for this. The table still carries only what is certain
+  and leaves the rest as the default handler, so an unconfirmed position cannot
+  silently misroute, and since Friday 16 October 2026
+  `python/tools/check_handler_vectors.py` refuses any handler this repository
+  defines that the table has no entry for, which is the failure that cost an
+  evening on Wednesday 7 October 2026.
 - `python/tools/reconcile_size.py`, which the chapter asks for to sum the map file
   against the size output, waits for a build that produces either.
 - Nothing touches option bytes, here or anywhere in this volume, until the
