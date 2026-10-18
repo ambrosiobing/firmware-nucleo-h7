@@ -23,16 +23,21 @@ which refused and counted, the order they came back in, and the two free-running
 counters, over 9620 operations in each of the four ordering modes. What no host
 can compare is the cost of those modes, which is this project's actual subject.
 
-**State: written and tested on the host, never run on the target.** The ordering
-argument is the deliverable and the host cannot test it, which is the single most
-important sentence in this directory. See below.
+**State: runs on the board, four targets, one per ordering mode**, the producer in
+thread mode and the consumer in SysTick.
 
-The reason it has not run on the target changed on Friday 2 October 2026 and is
-worth stating so it is not assumed. It used to be that no cross toolchain existed
-anywhere. One does now, and five firmware targets build clean with it. What is
-missing is narrower: no firmware target compiles `c/ring/ring.c`, because the
-project that would exercise it from an interrupt is P03 and that has not been
-built either. So this is waiting on a target of its own rather than on tooling.
+**This paragraph said the opposite until Sunday 18 October 2026.** It read "written
+and tested on the host, never run on the target" and called that the single most
+important sentence in this directory. It was true when it was written and stopped
+being true on Saturday 3 October 2026, when the four targets were built and
+measured, so it stood false for a fortnight. The sentence a document nominates as
+its most important one is the one most worth re-reading, and nothing about being
+important makes a sentence self-maintaining.
+
+**The ordering argument is still the deliverable and the host still cannot test
+it**, which is why this is a correction rather than a tidy-up. The host figures
+below prove the structure; only the board can price the barriers. That price is in
+"On the board" and it overturned this project's first table.
 
 The structure itself lives in [`c/ring/ring.c`](../../c/ring/ring.c) rather than
 here, because P03 fills it from an interrupt, P04 from a transfer engine, P05
@@ -120,7 +125,34 @@ cd C:\Users\aquamarine\Desktop\firmware-nucleo-h7; python -m pytest python/tests
 | Peak occupancy reached | 256 of 256 | the full boundary is genuinely exercised |
 | Suite runtime, four modes | about 9 seconds | was 127 seconds before the loop moved into C |
 | `ring.c` object size at -Os | 1347 bytes | host x86-64, **not** the flash cost |
-| Cycles per put, per mode | not measured | needs the target and P01's toolchain |
+| Cycles per put, per mode | measured, see "On the board" below | Saturday 3 October 2026, four targets, instruction cache on |
+
+## On the board, Saturday 3 October 2026
+
+**These figures lived only in the state table of [`projects/README.md`](../README.md)
+until Sunday 18 October 2026**, while this page said the project had never run. They
+are transcribed from there because that is the only record: no console capture is
+committed anywhere in this repository, which is a gap this volume now names rather
+than one it has closed.
+
+**Re-measured with the instruction cache on, and that overturned the first table.**
+Cold, the `DMB` build measured 2 cycles FASTER than no barrier at all, so the
+comparison had the sign wrong and not merely the magnitude. The earlier claims of 7
+and 17 cycles are withdrawn.
+
+| Ordering mode | Cycles per put and get | Bytes |
+|---|---|---|
+| compiler fence | 0.00 | 0 |
+| one `DMB` in put and get | 22.00 | 16 |
+| acquire plus release | 29.00 | 24 |
+
+**The compiler fence costs nothing and is not nothing.** It emits different
+instructions of the same length, which the build tells apart by SHA-256 rather than
+by size, so a barrier that costs zero cycles and zero bytes is still an observable
+change to the image. A size comparison alone would have reported no difference and
+been wrong about the cause.
+
+Zero mismatches in 21.4 million bytes across the four targets.
 
 ## Three corrections to the published chapter
 
@@ -159,9 +191,12 @@ a compiler that refused everything.
 
 ## Not done
 
-- Never compiled for the target, so no cycle counts. `-DRING_BARRIER=0` against
-  the other three is the measurement that makes the cost of correctness a number
-  rather than a belief, and it needs P01.
+- **Taken on Saturday 3 October 2026, and this bullet claimed otherwise until
+  Sunday 18 October 2026.** It asked for `-DRING_BARRIER=0` against the other three
+  as the measurement that would make the cost of correctness a number rather than a
+  belief. That measurement exists, in "On the board" above, and it corrected a sign
+  as well as a magnitude. The bullet is kept rather than deleted because what it
+  asked for is exactly what the board delivered.
 - The buffer's placement is a decision this project records and P19 revisits: in
   tightly coupled memory for now, which reverses the moment a transfer engine
   becomes the producer, because the main engines cannot reach that memory at all.
