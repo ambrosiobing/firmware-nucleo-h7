@@ -9,8 +9,21 @@ actually does.
 **Four implementations of the witness, proven equivalent on Sunday
 4 October 2026**, which is the half of this project that can be proven. All four
 agree on all nineteen fields of all nine captures, in WSL on the win11 skyhorizon
-demo laptop, bing@JPTOUPM678, with cargo 1.99.0, gcc 15 and Python 3.14.4. The three back ends still refuse at
-run time rather than guessing a setting RM0455 governs; the witness is arithmetic
+demo laptop, bing@JPTOUPM678, with cargo 1.99.0, gcc 15 and Python 3.14.4.
+
+**Where the three back ends stand, Monday 19 October 2026.** The timer back end
+runs on the board and has been measured through the witness. The tick back end
+runs and has been measured the same way. The transfer-engine back end is now
+WRITTEN, every register from ST's material for this part, and **has never been
+compiled**: continuous integration does not build P06's targets because they
+include the vendor device header this repository does not vendor, and the one
+laptop that could build them has no toolchain installed as of that date. Each
+still refuses at run time rather than guessing a setting it has not read, which
+is a design property and not a statement about which of them work; that sentence
+used to read "the three back ends still refuse", which was true when written and
+had stopped being true for two of them.
+
+The witness is arithmetic
 over a recording, and it is the piece that decides whether a clean square wave at
 a plausible wrong rate is reported as a pass.
 

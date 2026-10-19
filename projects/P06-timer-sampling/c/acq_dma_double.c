@@ -23,11 +23,32 @@
  */
 #include "acq.h"
 #include "acq_errors.h"
+#include "adc_bringup.h"
 #include "marker.h"
+#include "tim6_bringup.h"
+#include "board.h"
 
 #include "stm32h7xx.h"
 
 #define HALF 64u                       /* samples per half */
+
+/* The stream this back end uses, and the request number that reaches it.
+ *
+ * STREAM 1 IS ST'S CHOICE AND NOT A CONSTRAINT, which the comment above the
+ * handler argues at length: on a part with a request multiplexer any stream can
+ * serve any request. It is kept to match ST's example for this board so that a
+ * reader comparing the two files tracks no difference that means nothing.
+ *
+ * The request value 9 is NOT free: it is the converter's identity on DMAMUX1,
+ * DMA_REQUEST_ADC1 in stm32h7xx_hal_dma.h. It is spelled out here rather than
+ * included from the HAL, because this project links no HAL at all.
+ *
+ * The poll bound is orders of magnitude of headroom rather than a tuned number:
+ * a stream that has been told to stop clears its enable bit in a few cycles, so
+ * anything that reaches this count is a stream that is not responding. */
+#define DMA_STREAM_NUMBER      1u
+#define DMA_REQUEST_ADC1_ID    9u
+#define DMA_STOP_POLLS_MAX     1000000u
 
 /* Placed by name, not left to the linker's default. The section is defined in
  * the linker script and must land in a memory the transfer engine can reach.
@@ -78,14 +99,18 @@ static volatile uint8_t  ready_half;    /* the half that just finished */
  * example, so that a reader comparing the two files is not asked to track a
  * difference that means nothing.
  *
- * WHAT IS STILL TO BE CONFIRMED, and it is narrower than it was. The example uses
- * circular mode with one buffer; this build wants double buffer mode, which is
- * HAL_DMAEx_MultiBufferStart_IT in stm32h7xx_hal_dma_ex.h, taking a second memory
- * address. The registers behind it, the double buffer bit and the current target
- * bit in the stream's control register, the second memory address register, and
- * the transfer complete flag and its clear register for stream 1, are RM0455
- * tables and the device header's bit definitions. They are not written here
- * until they are read, and the handler below is therefore still a shell.
+ * ALL OF IT IS NOW READ AND WRITTEN, Monday 19 October 2026, and this paragraph
+ * said the opposite until that day. It listed the double buffer bit, the current
+ * target bit, the second memory address register and the transfer complete flag
+ * with its clear register as unread, and called the handler below a shell. Every
+ * one of those was read from stm32h7a3xxq.h, the Q-suffix header for this exact
+ * part, with the line numbers quoted beside each use in acq_start, and RM0455 was
+ * not needed for any of them.
+ *
+ * ONE QUESTION THE READING DID NOT ANSWER, and it is left open rather than
+ * guessed: whether double buffer mode implies circular behaviour on this part.
+ * The sourced sequence does not write CIRC, so neither does this file. If the
+ * stream delivers two halves and stops, that bit is the first thing to read.
  *
  * AND THE VECTOR EXISTS NOW, WHICH IT DID NOT WHEN THIS HANDLER WAS WRITTEN.
  * Renaming it from stream 0 to stream 1 on Friday 16 October 2026 prompted a
@@ -101,7 +126,8 @@ void DMA1_Stream1_IRQHandler(void)
     /* Which half just completed is told by the engine's current target flag,
      * and the answer is the opposite one: if it is now writing half 1, half 0
      * is the one that finished. */
-    uint8_t now_writing = 1u;  /* TO BE CONFIRMED: read the current target bit */
+    const uint8_t now_writing =
+        ((DMA1_Stream1->CR & DMA_SxCR_CT) != 0u) ? 1u : 0u;
     ready_half = now_writing ^ 1u;
 
     if (ready_seq != taken_seq) {
@@ -109,7 +135,12 @@ void DMA1_Stream1_IRQHandler(void)
     }
     ready_seq++;
 
-    /* TO BE CONFIRMED: clear the transfer complete flag for this stream. */
+    /* Clear by writing one to the stream's own bit in the low interrupt flag
+     * clear register. Named per stream by the device header, so no arithmetic:
+     * DMA_LIFCR_CTCIF1 is bit 11, read Monday 19 October 2026 from
+     * stm32h7a3xxq.h line 6889, which is the one name Saturday 17 October
+     * 2026's specification could not quote from a file it had read. */
+    DMA1->LIFCR = DMA_LIFCR_CTCIF1;
 }
 
 int acq_start(void)
@@ -130,99 +161,215 @@ int acq_start(void)
      * invalidate before reading, but clean before letting the engine write. */
     SCB_CleanDCache_by_Addr((uint32_t *) buffer, (int32_t) sizeof buffer);
 
-    /* THE WHOLE SEQUENCE IS NOW SOURCED, Saturday 17 October 2026, AND NONE OF IT
-     * IS WRITTEN YET. Reading came first on purpose; the code follows in one
-     * piece once the decision at the end of this block is made. Every line below
-     * carries where it came from, and all of it is ST's own material for this
-     * part or for this board rather than for the family.
+    /* WRITTEN ON MONDAY 19 OCTOBER 2026, AND EVERY NAME IN IT WAS READ FIRST.
+     * The specification this replaces was carried here unwritten from Saturday
+     * 17 October 2026 on purpose, and the four names it could not quote were read
+     * on Monday 19 October 2026 from stm32h7a3xxq.h in STM32Cube_FW_H7_V1.13.0,
+     * the Q-suffix header for this exact part, at the line numbers given below.
      *
-     * THE CONVERTER'S DATA MANAGEMENT, AND THIS ONE CHANGES THE DESIGN. On this
-     * part the converter does not raise a transfer request unless CFGR's DMNGT
-     * field says so: 00 leaves data in DR alone, 01 is one shot, 11 is circular,
-     * from ADC_CONVERSIONDATA_* in stm32h7xx_hal_adc.h, which defines them as
-     * ADC_CFGR_DMNGT_0 and _1. THE SHARED BRING-UP LEAVES DMNGT AT 00, which is
-     * right for the other two back ends and wrong for this one, so this file owes
-     * one converter write of its own, after adc_bring_up() returns and before the
-     * timer starts, reported in the same wrote-and-read-back form as the eight
-     * steps so it cannot pass unnoticed. Without it everything else here would be
-     * configured correctly and nothing would ever move, which is this project's
-     * characteristic failure and is worth one line of comment per occurrence.
+     * NONE OF THIS HAS BEEN COMPILED. The three P06 targets are not built by
+     * continuous integration, which says so in firmware.yml's own header because
+     * they include the vendor device header this repository does not vendor, and
+     * the one laptop that could build them had its toolchain removed. So this is
+     * code written from sourced names and checked by nothing yet, which is a
+     * weaker claim than anything else in this file, and the state table says so.
      *
-     * AND IT IS NOT THE ONLY CONVERTER FIELD THIS FILE OWES A DECISION ON.
-     * OVRMOD is left at its reset value too, reported as found by acq_timer.c
-     * and chosen by nobody, and it decides what an overrun does to the data:
-     * clear preserves the old sample, set lets the new one overwrite it. For the
-     * two back ends whose HANDLER reads DR that was a reading nothing depended
-     * on. For this one, whose ENGINE reads DR, the question is different and the
-     * answer is not inherited: this file counts overruns of its own, and what a
-     * converter overrun does to a double-buffered stream has to be decided
-     * before the count means anything. Recorded here as the second open field
-     * rather than written, for the same reason as the first.
-     *
-     * THE REQUEST ROUTING. The multiplexer channel belonging to a stream is
-     * DMAMUX1_Channel0 plus the stream number, from HAL_DMA_Init in
-     * stm32h7xx_hal_dma.c, which computes
-     *     DMAmuxChannel = DMAMUX1_Channel0 + stream_number * 4
-     * over an array of channels, and writes the request with
-     *     DMAmuxChannel->CCR = Request & DMAMUX_CxCR_DMAREQ_ID
-     * So stream 1 is routed by DMAMUX1_Channel1 and the value is 9, which is
-     * DMA_REQUEST_ADC1 from stm32h7xx_hal_dma.h.
-     *
-     * DOUBLE BUFFER MODE, from HAL_DMAEx_MultiBufferStart_IT and the helper it
-     * calls in stm32h7xx_hal_dma_ex.c, in the order that function writes them:
-     *     CR  |= DMA_SxCR_DBM
-     *     M1AR = the second memory address
-     *     NDTR = the transfer length
-     *     PAR  = the peripheral address, for peripheral to memory
-     *     M0AR = the first memory address, for peripheral to memory
-     *     CR  |= the transfer complete, transfer error and direct mode error
-     *            interrupt enables
-     *     CR  |= DMA_SxCR_EN, last
-     * The length is HALF, the peripheral address is &ADC1->DR, and the two memory
-     * addresses are the two halves of this file's buffer. The stream must be
-     * disabled and its enable bit seen to clear before any of this, which is the
-     * one ordering rule the HAL enforces separately.
-     *
-     * WHICH HALF FINISHED, which the handler below needs and currently guesses.
-     * The current target bit is DMA_SxCR_CT in the stream's control register,
-     * from LL_DMA_GetCurrentTargetMem in stm32h7xx_ll_dma.h, and the engine is
-     * writing the half that bit names, so the finished half is the other one.
-     *
-     * THE FLAG AND ITS CLEAR, for stream 1 specifically. The device header names
-     * them per stream, so no bit arithmetic is needed and none is done here:
-     * DMA_LISR_TCIF1 to test, from LL_DMA_IsActiveFlag_TC1 in
-     * stm32h7xx_ll_dma.h, and DMA_LIFCR_CTCIF1 to clear by the same naming. The
-     * clear macro's name is the only thing in this block not quoted from a file
-     * I have read, and a wrong macro name is a compile error rather than a silent
-     * failure, which is the safe direction for the one gap.
-     *
-     * AND ONE DECISION IS NOT MINE. This back end needs TIM6 running at the
-     * sampling rate exactly as the timer back end does, and that setup lives
-     * inline in acq_timer.c. Three ways, as with the prescaler reader on Friday
-     * 9 October 2026:
-     *   A. duplicate the TIM6 setup here, with the duplication named in a comment
-     *      rather than hidden, which is what option A did for apb1_divisor.
-     *   B. factor it into a shared tim6_bring_up() beside adc_bringup.c, which is
-     *      the same move that file was and would be checked the same way, by
-     *      counting console-affecting strings before and after.
-     *   C. leave this back end refusing until the factoring is done as part of a
-     *      wider decision about what else shares a timer.
-     * B is the one I would choose, because the converter bring-up's factoring
-     * paid for itself within two days and the check that made it safe already
-     * exists. It is recorded as a question rather than taken, because the last
-     * one of these was Joseph's and the reasoning that applied then applies now.
-     *
-     * Deliberately absent rather than plausible. A sequence copied from the
-     * better known member of this family is exactly the failure the front
-     * matter of the volume warns about, and nothing above was taken from that
-     * family's documentation where a file for this part existed instead. */
+     * THE ORDER IS ST'S, NOT MINE. Everything below follows
+     * HAL_DMAEx_MultiBufferStart_IT and the helper it calls in
+     * stm32h7xx_hal_dma_ex.c: double buffer bit, second address, length,
+     * peripheral address, first address, interrupt enables, stream enable last.
+     * Where this file departs from that order it would be a defect, so the order
+     * is worth checking against that function rather than against taste. */
 
-    /* Refusing to run is correct, and the CODE changed on Friday 9 October 2026
-     * while the behaviour did not. This returned -3, which is
-     * ACQ_ERR_APB1_PRESCALER in the timer back end behind the same interface, so
-     * main.c printed a number whose documented meaning was a clock prescaler that
-     * had never been the problem. See acq_errors.h. */
-    return ACQ_ERR_DMA_UNCONFIGURED;
+    /* The converter first, because its trigger is what the timer exists to make
+     * and because the field this file owes it can only be written while no
+     * conversion is running. */
+    const int tim_rc = tim6_bring_up(ACQ_RATE_HZ);
+    if (tim_rc != 0) {
+        return tim_rc;
+    }
+
+    const uint32_t pclk1 = board_pclk1_hz();
+
+    const int adc_rc = adc_bring_up(pclk1, apb1_divisor(),
+                                    ADC_EXTSEL_TIM6_TRGO, ADC_EXTEN_RISING,
+                                    "TIM6 TRGO on the rising edge");
+    if (adc_rc != 0) {
+        return adc_rc;
+    }
+
+    /* THE ONE CONVERTER FIELD THIS BACK END OWES, and the reading that changed
+     * this file's design. On this part the converter raises no transfer request
+     * at all unless CFGR's DMNGT field says so: 00 leaves the sample in DR, 11 is
+     * circular, from ADC_CONVERSIONDATA_* in stm32h7xx_hal_adc.h, which defines
+     * them over ADC_CFGR_DMNGT_0 and _1. The shared bring-up leaves it at 00,
+     * which is right for the two back ends whose handler reads DR and wrong for
+     * this one, and without this write every other register here would read back
+     * correctly and nothing would ever move.
+     *
+     * Written HERE and not in the shared file, because the field belongs to
+     * whichever back end moves the samples. Written AFTER adc_bring_up returns
+     * and BEFORE the converter is armed, which is the only window: these bits are
+     * write protected while a conversion is running, and ADSTART is still clear.
+     * Reported in the same wrote-and-read-back form as the eight shared steps so
+     * it cannot pass unnoticed. */
+    const uint32_t dmngt_circular = ADC_CFGR_DMNGT_0 | ADC_CFGR_DMNGT_1;
+    ADC1->CFGR = (ADC1->CFGR & ~ADC_CFGR_DMNGT) | dmngt_circular;
+    const bool dmngt_ok = (ADC1->CFGR & ADC_CFGR_DMNGT) == dmngt_circular;
+    adc_report("data management circular", dmngt_circular, ADC1->CFGR, dmngt_ok);
+    if (!dmngt_ok) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
+    /* The engine's clock. RCC_AHB1ENR_DMA1EN is bit 0, read Monday 19 October
+     * 2026 from stm32h7a3xxq.h line 13546, the sibling of the ADC12EN the shared
+     * bring-up already writes in the same register.
+     *
+     * NOTHING CLOCKS THE REQUEST MULTIPLEXER SEPARATELY, and that is a read
+     * result rather than an assumption: this header defines no
+     * RCC_AHB1ENR_DMAMUX name at all, and HAL_DMA_Init writes no such bit. */
+    RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;
+    (void) RCC->AHB1ENR;               /* the write is posted; read it back */
+    const bool dma_clocked = (RCC->AHB1ENR & RCC_AHB1ENR_DMA1EN) != 0u;
+    adc_report("dma1 clock", RCC_AHB1ENR_DMA1EN, RCC->AHB1ENR, dma_clocked);
+    if (!dma_clocked) {
+        return ACQ_ERR_DMA_UNCONFIGURED;
+    }
+
+    /* The stream must be disabled and SEEN to clear before anything else is
+     * written to it, which is the one ordering rule the HAL enforces separately
+     * from the register order below. EN reads low when the stream is ready,
+     * which the device header says in its own comment at line 6690. The wait is
+     * bounded because nothing in this volume waits forever. */
+    DMA1_Stream1->CR &= ~DMA_SxCR_EN;
+    uint32_t polls = 0u;
+    while (((DMA1_Stream1->CR & DMA_SxCR_EN) != 0u) && (polls < DMA_STOP_POLLS_MAX)) {
+        polls++;
+    }
+    const bool stream_idle = (DMA1_Stream1->CR & DMA_SxCR_EN) == 0u;
+    adc_report("dma stream idle", polls, DMA1_Stream1->CR, stream_idle);
+    if (!stream_idle) {
+        return ACQ_ERR_DMA_UNCONFIGURED;
+    }
+
+    /* THE REQUEST ROUTING. The multiplexer channel belonging to a stream is
+     * DMAMUX1_Channel0 advanced by the stream number, from HAL_DMA_Init's own
+     * arithmetic in stm32h7xx_hal_dma.c, which computes the channel as
+     * DMAMUX1_Channel0 plus stream_number times the size of one channel and then
+     * writes CCR = Request & DMAMUX_CxCR_DMAREQ_ID. That field is eight bits at
+     * bit 0, read Monday 19 October 2026 from line 7003. The request value is 9,
+     * which is DMA_REQUEST_ADC1 in stm32h7xx_hal_dma.h, defined for the whole
+     * family as the DMAMUX1 ADC1 request.
+     *
+     * The arithmetic is kept rather than a named channel macro, because the
+     * arithmetic is what was read.
+     *
+     * AND THIS IS THE ONE CONSTRUCT HERE WHOSE DECLARATION I HAVE NOT READ.
+     * Indexing DMAMUX1_Channel0 assumes the device header defines it as a
+     * pointer to one channel's registers, which is what HAL's own byte
+     * arithmetic over it implies and what every other CMSIS peripheral macro
+     * does, but the definition itself was not opened. A wrong assumption there
+     * is a COMPILE ERROR rather than a silent misconfiguration, which is the
+     * same safe direction Saturday 17 October 2026 accepted for the flag's clear
+     * macro, and that one turned out to be right. */
+    DMAMUX1_Channel0[DMA_STREAM_NUMBER].CCR =
+        DMA_REQUEST_ADC1_ID & DMAMUX_CxCR_DMAREQ_ID;
+    const uint32_t ccr = DMAMUX1_Channel0[DMA_STREAM_NUMBER].CCR;
+    const bool routed = (ccr & DMAMUX_CxCR_DMAREQ_ID) == DMA_REQUEST_ADC1_ID;
+    adc_report("dmamux request 9", DMA_REQUEST_ADC1_ID, ccr, routed);
+    if (!routed) {
+        return ACQ_ERR_DMA_UNCONFIGURED;
+    }
+
+    /* THE STREAM ITSELF, in ST's order. The control word is assembled whole
+     * rather than read-modified, because the stream is idle and every field in it
+     * is this file's to choose:
+     *
+     *   DBM    bit 18, double buffer mode, line 6640
+     *   DIR    bits 7:6, left at 00 for peripheral to memory, line 6670. Written
+     *          as a cleared field rather than omitted, so the intent is in the
+     *          code and not only in the silicon's reset value.
+     *   MINC   bit 10, memory increment, line 6661. The peripheral address does
+     *          not increment, which is the default and is correct: DR is one
+     *          register.
+     *   PSIZE  bits 12:11 = 01, halfword, line 6657
+     *   MSIZE  bits 14:13 = 01, halfword, line 6652
+     *
+     * Halfword both sides because the converter is configured for 16 bits and the
+     * buffer is uint16_t, and because ST's example for this board sets both to
+     * halfword.
+     *
+     * CIRC, bit 8, is NOT written, and that is deliberate rather than forgotten:
+     * the sourced sequence does not write it. Whether double buffer mode implies
+     * circular behaviour on this part is an RM0455 question this volume has not
+     * read, so the bit is left alone rather than set on a guess. If the stream
+     * stops after two halves, that is the first thing to read. */
+    DMA1_Stream1->CR = DMA_SxCR_DBM
+                     | DMA_SxCR_MINC
+                     | DMA_SxCR_PSIZE_0
+                     | DMA_SxCR_MSIZE_0;
+
+    DMA1_Stream1->M1AR = (uint32_t) &buffer[HALF];
+    DMA1_Stream1->NDTR = HALF;
+    DMA1_Stream1->PAR  = (uint32_t) &ADC1->DR;
+    DMA1_Stream1->M0AR = (uint32_t) &buffer[0];
+
+    /* The three interrupt enables ST's helper sets: transfer complete, transfer
+     * error and direct mode error, at bits 4, 2 and 1, lines 6678, 6684 and 6687.
+     * The two error enables are set even though this file's handler ignores them,
+     * because an unhandled error flag that nobody enabled is indistinguishable
+     * from a stream that simply stopped. */
+    DMA1_Stream1->CR |= DMA_SxCR_TCIE | DMA_SxCR_TEIE | DMA_SxCR_DMEIE;
+
+    const uint32_t cr_wanted = DMA_SxCR_DBM | DMA_SxCR_MINC
+                             | DMA_SxCR_PSIZE_0 | DMA_SxCR_MSIZE_0
+                             | DMA_SxCR_TCIE | DMA_SxCR_TEIE | DMA_SxCR_DMEIE;
+    const bool cr_ok = (DMA1_Stream1->CR & ~DMA_SxCR_EN) == cr_wanted;
+    adc_report("dma stream configured", cr_wanted, DMA1_Stream1->CR, cr_ok);
+    if (!cr_ok) {
+        return ACQ_ERR_DMA_UNCONFIGURED;
+    }
+
+    const bool addrs_ok = (DMA1_Stream1->M0AR == (uint32_t) &buffer[0])
+                       && (DMA1_Stream1->M1AR == (uint32_t) &buffer[HALF])
+                       && (DMA1_Stream1->NDTR == HALF);
+    adc_report("dma both halves", HALF, DMA1_Stream1->NDTR, addrs_ok);
+    if (!addrs_ok) {
+        return ACQ_ERR_DMA_UNCONFIGURED;
+    }
+
+    /* The vector exists and the handler is reachable; what remains is to let the
+     * controller deliver the line. The priority matches the converter's in the
+     * other two back ends, so no back end's handler can pre-empt another's. */
+    NVIC_SetPriority(DMA1_Stream1_IRQn, 5u);
+    NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+
+    /* Stale flags cleared before the stream runs, for the reason acq_timer.c
+     * gives about the converter's: a left-over transfer complete would make the
+     * first interrupt report a half that predates this call. */
+    DMA1->LIFCR = DMA_LIFCR_CTCIF1;
+
+    /* The stream last of the engine's writes, which is ST's order and also the
+     * only safe one: every address and length it will use is already in place. */
+    DMA1_Stream1->CR |= DMA_SxCR_EN;
+    const bool running = (DMA1_Stream1->CR & DMA_SxCR_EN) != 0u;
+    adc_report("dma stream enabled", DMA_SxCR_EN, DMA1_Stream1->CR, running);
+    if (!running) {
+        return ACQ_ERR_DMA_UNCONFIGURED;
+    }
+
+    /* Arm the converter BEFORE the trigger source starts, so the first update
+     * event is not emitted into an unarmed converter and lost. ADSTART is
+     * read-set, so it is written with the same mask discipline as the rest. */
+    ADC1->CR = (ADC1->CR & ~ADC_CR_READ_SET_BITS) | ADC_CR_ADSTART;
+    const bool armed = (ADC1->CR & ADC_CR_ADSTART) != 0u;
+    adc_report("armed for the trigger", ADC_CR_ADSTART, ADC1->CR, armed);
+    if (!armed) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
+    tim6_start();
+    return 0;
 }
 
 int acq_take(acq_block_t *out)
@@ -255,8 +402,15 @@ uint32_t acq_overruns(void) { return overruns; }
  * engine is not keeping up, or its request is misrouted through DMAMUX1, the
  * symptom is OVR and the application's own block counter would show nothing
  * wrong. So this is the build that most needs the flag and the one least
- * entitled to report it, because it does not configure the converter at all yet.
- * Saying -1 is what keeps that from reading as a clean run later. */
+ * entitled to report it.
+ *
+ * THE REASON CHANGED ON MONDAY 19 OCTOBER 2026 WHILE THE ANSWER DID NOT. This
+ * said the back end does not configure the converter at all, which stopped being
+ * true the moment acq_start started writing DMNGT. What is still absent is
+ * narrower and is a decision rather than an omission: OVRIE is not enabled here
+ * and OVRMOD is not chosen, both recorded as open fields in acq_start, so there
+ * is no watched flag behind which a count could be honest. Saying -1 is what
+ * keeps that from reading as a clean run later. */
 int acq_conv_overruns(uint32_t *out)
 {
     (void) out;
