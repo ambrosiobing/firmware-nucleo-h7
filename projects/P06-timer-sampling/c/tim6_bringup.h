@@ -37,11 +37,24 @@
  * caller passes, so a back end sampling at something other than ACQ_RATE_HZ needs no
  * change here.
  *
- * THE MOVE'S CRITERION, published before the move as the converter bring-up's was:
- * the timer build's console output must come back BYTE-IDENTICAL, line for line,
- * because a pure move changes no register write and no format string. The two
- * measured poll counts in that output belong to the converter and are free to move;
- * nothing this file prints is a measurement.
+ * THE MOVE'S CRITERION, published before the move as the converter bring-up's was,
+ * and MET on Monday 19 October 2026. Every one of the twenty-four configuration
+ * read-back lines and the timer clock line above them came back identical on the
+ * board, hex for hex, against the capture committed from Friday 16 October 2026,
+ * because a pure move changes no register write and no format string.
+ *
+ * THE WORDING WAS WRONG WHEN FIRST WRITTEN HERE and is corrected rather than
+ * quietly adjusted afterwards. It said the console OUTPUT must come back
+ * byte-identical, which is too strong and was fixed before the capture was taken,
+ * not after: the banner prints the image size, the image grew by 56 bytes because
+ * the moved code can no longer be inlined into acq_start, so that one line reads
+ * 15276 where it read 15220 and SHOULD. The criterion is about the configuration
+ * read-backs, which is how the converter move of Friday 9 October 2026 worded it
+ * and how this should have been worded from the start.
+ *
+ * The two measured poll counts in that output belong to the converter and are free
+ * to move; nothing this file prints is a measurement. They read 180 and 4 before and
+ * after, which is not part of the criterion and is recorded because it is true.
  */
 #ifndef TIM6_BRINGUP_H
 #define TIM6_BRINGUP_H

@@ -1914,6 +1914,57 @@ image size already printed is a weak discriminator that happens to be blind in t
 case. Nothing here is urgent, because the three functional claims above do not depend
 on the vector entry, which only matters to the transfer-engine build.
 
+### The TIM6 move is verified on the board, and the transfer engine compiles, Monday 19 October 2026
+
+The factoring of Monday 19 October 2026 was judged by a criterion published in
+`tim6_bringup.h` before the move was made. **It is met.** All twenty-four
+configuration read-back lines and the timer clock line above them came back identical
+on the board, hex for hex, against the capture committed from Friday 16 October 2026:
+`as found 20000000`, `read back 00030000`, `10000100`, `00001001`, `F3FFFFFF`,
+`00000E00`, `00000340`, `800005A0`, `00000014`, `10000105`, and both poll counts at
+180 and 4. A pure move changed no register write and no format string, and that is
+now a measurement rather than an argument from a diff.
+
+**One line differed and was excluded from the criterion before the capture, not
+after.** The banner prints the image size, and the image grew 56 bytes because the
+moved code can no longer be inlined into `acq_start`, so it reads 15 276 B where it
+read 15 220 B. The original wording in that header said the console OUTPUT must be
+byte-identical, which was too strong; it is corrected there with the reason, and the
+correction is dated before the run.
+
+**The three size predictions were written down before the build and all three held.**
+The timer build grew slightly at +56 bytes, the tick build did not move at all from
+14 420 B because it links `tim6_bringup.c` and calls nothing from it so the linker
+discards both functions, and the transfer-engine build grew substantially at +5736
+bytes. `docs/building.md` carries the table.
+
+**The transfer-engine back end compiles**, which is the first thing that has ever been
+true of it. Its map puts `.dma_buffers` at `0x24000000`, 256 bytes, in AXI SRAM where
+the engines can reach it. **It has still never run**, and nothing here claims it does.
+
+### The mean swung by a factor of three, and the move is excluded as the cause
+
+The first post-move capture read `mean` from 9364 up to 10323, dropped to a band
+around 3600 to 5899, returned, then settled at 3052 to 3409 for the rest of the run.
+Against two pre-move captures that sat at 3039 to 3438 throughout, that looks exactly
+like a regression caused by the code.
+
+**It is not, and two independent facts exclude it.** The converter's configuration is
+identical line for line, so the channel, the preselection, the sampling time, the
+resolution, the trigger and the kernel clock are all unchanged. And the grounded
+control was repeated on the post-move image: `mean` 2 to 6 across 77 reports, against
+a threshold of within a few counts of zero published on Thursday 8 October 2026, where
+the control of Saturday 17 October 2026 gave 1 to 2. A converter that is sampling
+wrongly does not return to a few counts of zero when its pin is tied to ground.
+
+So `mean` was reading pickup on a floating PC3, which this file has recorded as
+meaningless since Thursday 8 October 2026, when it changed by three orders of
+magnitude between two nights with nothing deliberately connected. **What this episode
+adds is the discriminator rather than an explanation**: the grounded control settles
+in one capture whether an unexplained analogue reading implicates the firmware, and it
+cost one wire and seventy-five seconds. No cause is offered for the swing itself, and
+one observation would not support one.
+
 ### A third class of field, and a comment that pointed at nothing, Saturday 17 October 2026
 
 The `DMNGT` finding above raised a question it did not answer: if one field in the

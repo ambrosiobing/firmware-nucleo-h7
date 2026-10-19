@@ -1363,6 +1363,24 @@ cross-referenced, which is the pedantry this document promised.
 
 ## 4.2 The pin budget: what is already spoken for
 
+**WHAT IS PHYSICALLY ON THE BOARD, photographed Monday 19 October 2026.** This
+section is a budget of pins and not a record of what is plugged in, and this
+catalogue's own rule is that a photograph belongs in the same hand-over as the first
+run after a physical change. So: an **X-NUCLEO-53L8A1** shield is stacked on the
+NUCLEO-H7A3ZI-Q, covering the Arduino headers, and two jumper wires run to the Morpho
+header near its `COMP` and `GND` legends. The USB lead is on CN1, the ST-LINK port.
+
+That shield belongs to no project in this volume and is not used by any image here.
+It matters for one reason only: it occupies the Arduino headers, so **CN9 pin 5 is
+not reachable while it is fitted** and PC3 has to be wired at CN11 pin 37 instead,
+which is the same net. The P06 captures of Monday 19 October 2026 were taken with it
+in place, and the grounded control still read within a few counts of zero, so nothing
+about it disturbs the converter.
+
+What the photographs do NOT establish is which pins the two wires are on. The pin
+numbers in this document come from Joseph's statement plus the measurement that
+corroborates it, not from the images, and a photograph is not a pinout.
+
 Before you choose a pin for anything, please check it against this list. Every
 one of these is settled and in use.
 

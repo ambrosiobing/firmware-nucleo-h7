@@ -229,15 +229,31 @@ checked rather than trusted.** `c/board/startup.c`, `c/board/system.c`,
 `c/board/retarget.c` and `c/ld/stm32h7a3zi.ld` are linked into every image here, and
 until now there was no recorded figure to compare against after touching one.
 
-| target | FLASH, Friday 9 October 2026 morning | after `marker_toggle`, same day | after the section fix, Friday 16 October 2026 |
-|---|---|---|---|
-| `p01-first-light` | 11 772 B | not rebuilt | not rebuilt |
-| `p01-pll280` | 36 772 B | not rebuilt | not rebuilt |
-| `p02-ring-none` | 9980 B | not rebuilt | not rebuilt |
-| `p09-codec` | 10 608 B | not rebuilt | not rebuilt |
-| `p06-sampling-timer` | 15 196 B | **15 220 B**, +24 | not rebuilt |
-| `p06-sampling-systick` | 10 232 B | **14 420 B**, +4188: +4164 when it reached the converter later that morning, then +24 | not rebuilt |
-| `p06-sampling-dma` | 10 248 B | not rebuilt | **9992 B**, -256, then **10 076 B**, +84 |
+| target | FLASH, Friday 9 October 2026 morning | after `marker_toggle`, same day | after the section fix, Friday 16 October 2026 | after the TIM6 factoring and the transfer engine, Monday 19 October 2026 |
+|---|---|---|---|---|
+| `p01-first-light` | 11 772 B | not rebuilt | not rebuilt | not rebuilt |
+| `p01-pll280` | 36 772 B | not rebuilt | not rebuilt | not rebuilt |
+| `p02-ring-none` | 9980 B | not rebuilt | not rebuilt | not rebuilt |
+| `p09-codec` | 10 608 B | not rebuilt | not rebuilt | not rebuilt |
+| `p06-sampling-timer` | 15 196 B | **15 220 B**, +24 | not rebuilt | **15 276 B**, +56 |
+| `p06-sampling-systick` | 10 232 B | **14 420 B**, +4188: +4164 when it reached the converter later that morning, then +24 | not rebuilt | **14 420 B**, unchanged |
+| `p06-sampling-dma` | 10 248 B | not rebuilt | **9992 B**, -256, then **10 076 B**, +84 | **15 812 B**, +5736 |
+
+**The fourth column was predicted in writing before the build ran and all three
+predictions held**, which is the first time this table has been used that way rather
+than read afterwards. The timer build was predicted to grow slightly, because the
+moved code sits in its own translation unit and can no longer be inlined into
+`acq_start`: +56 bytes. The tick build was predicted not to move at all, because it
+links `tim6_bringup.c` and calls nothing from it, so `-ffunction-sections` with
+`--gc-sections` should discard both functions: unchanged at 14 420 B, and that is the
+discard demonstrated rather than assumed. The transfer-engine build was predicted to
+grow substantially, having gained the whole configuration with eight read-back reports
+and their format strings: +5736 bytes.
+
+**And its map confirms the buffer again**: `.dma_buffers` holds 256 bytes at
+`0x24000000`, which is AXI SRAM and reachable by the transfer engines, the placement
+whose one-letter error on Friday 16 October 2026 is what `check_section_placement.py`
+exists for.
 
 **The third column refuted what the second column predicted for that row, which is
 why the prediction was written down.** The second column said a rebuild of
