@@ -48,11 +48,38 @@ build-host/
 *.stale-*
 .pytest_cache/
 
-# Captures. A capture without its build identity is not evidence, and one with
-# it is too large and too specific to belong in the history.
+# Captures, and the two kinds are not the same thing. This comment used to give
+# one reason for all three patterns, "a capture without its build identity is not
+# evidence, and one with it is too large and too specific to belong in the
+# history", and on Monday 19 October 2026 the two halves turned out to point in
+# opposite directions.
+#
+# WHAT STAYS OUT is the witness's own sample data. Sixty seconds on the MCC 118 at
+# 100 kS/s is six million samples, so "too large" is about these and only these.
+# captures/ is the directory scan.py writes them into on the Raspberry Pi.
 *.csv
 *.npz
 captures/
+
+# WHAT IS KEPT is console text, under each project's own console/ directory, and
+# the first half of that old reason is the argument for keeping it: every one of
+# these carries its build identity in the banner, the image size in bytes and the
+# build stamp, so it IS evidence by this volume's own test. Ten of them were
+# committed on Monday 19 October 2026 at 6292 to 56675 bytes each, about 254 kB
+# in total, because P02's page had come to say in words that a reader could not
+# check its figures against the board.
+#
+# No rule is needed to keep them, since nothing here ignored .txt. This paragraph
+# exists so the next person weighing a capture against the rule above knows which
+# half of it applies, and so that a project's console/ is not swept up by someone
+# generalising captures/.
+
+# The cross build's output tree. NOT ignored until Monday 19 October 2026, which
+# only showed on win11 skyhorizon because that is the one laptop where it exists:
+# its git status listed build-fw/ as untracked, and a git add -A there would have
+# staged an entire build tree. The rule against git add -A was the only thing in
+# the way, which is one rule too few for a directory that regenerates.
+build-fw/
 
 # Journals and correspondence never reach a published repository, private
 # shares included. They live in the catalogue, which is local only. A published
