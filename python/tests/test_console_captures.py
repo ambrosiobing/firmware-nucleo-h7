@@ -42,8 +42,13 @@ POLLS = re.compile(r"calibration took (\d+) polls")
 OVRMOD = re.compile(r"overrun mode as found\s+(\d+)")
 ACQUISITION = re.compile(r"acquisition\s+(\w+)")
 
-# The two sizes docs/building.md publishes, as the captures print them.
-EXPECTED_IMAGE = {"systick": "14420", "timer": "15220"}
+# The image sizes docs/building.md publishes for each back end, as the captures
+# print them. A SET per back end rather than one value, because a back end has as
+# many image sizes as it has had builds: the timer build was 15220 B until the TIM6
+# factoring of Monday 19 October 2026 and 15276 B after it, and captures of both are
+# evidence. This started as one value each and would have rejected the post-move
+# captures, which is the test being wrong rather than the captures.
+EXPECTED_IMAGE = {"systick": {"14420"}, "timer": {"15220", "15276"}}
 
 
 def captures():
@@ -75,7 +80,11 @@ def test_the_back_end_in_the_name_is_the_back_end_in_the_file(path):
     named = "systick" if "systick" in path.name else "timer"
     reported = set(ACQUISITION.findall(text))
     assert reported == {named}, "%s reports %s" % (path.name, sorted(reported))
-    assert set(IMAGE.findall(text)) == {EXPECTED_IMAGE[named]}
+    sizes = set(IMAGE.findall(text))
+    assert sizes <= EXPECTED_IMAGE[named], (
+        "%s reports image size %s, which is not a published size for the %s back "
+        "end. Either the capture is mislabelled or docs/building.md has a build "
+        "this test does not know about" % (path.name, sorted(sizes), named))
 
 
 def test_the_captured_image_sizes_are_the_published_ones():
@@ -83,10 +92,12 @@ def test_the_captured_image_sizes_are_the_published_ones():
     sizes with a space as a thousands separator, so the digits are compared."""
     published = (ROOT / "docs" / "building.md").read_text(encoding="utf-8")
     digits = re.sub(r"[^\d]", "", published)
-    for backend, size in sorted(EXPECTED_IMAGE.items()):
-        assert size in digits, (
-            "%s's captured image size %s appears nowhere in docs/building.md, so "
-            "either the size table or the captures have moved" % (backend, size))
+    for backend, sizes in sorted(EXPECTED_IMAGE.items()):
+        for size in sorted(sizes):
+            assert size in digits, (
+                "%s's captured image size %s appears nowhere in docs/building.md, "
+                "so either the size table or the captures have moved"
+                % (backend, size))
 
 
 @pytest.mark.parametrize("path", captures(), ids=lambda p: p.name)
