@@ -386,6 +386,15 @@ foreach(BACKEND systick timer dma)
                 # without anything noticing. One entry here serves all three
                 # targets because this foreach shares its SOURCES list.
                 projects/P06-timer-sampling/c/adc_bringup.c
+                # tim6_bringup.c, added Monday 19 October 2026, for the same
+                # reason and by the same decision: two of the three back ends
+                # need TIM6 at the sampling rate with its trigger output on the
+                # update event, and the transfer-engine back end could not be
+                # written while that setup was inline in acq_timer.c. The tick
+                # back end links it and calls nothing from it, which costs the
+                # linker one discarded section under --gc-sections and is
+                # simpler than a per-backend SOURCES list for one file.
+                projects/P06-timer-sampling/c/tim6_bringup.c
                 c/instr/cyccnt.c
                 c/instr/freqcount.c
                 c/instr/freqmath.c

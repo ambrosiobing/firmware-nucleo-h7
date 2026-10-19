@@ -25,12 +25,12 @@
 
 #include "adcmath.h"
 #include "cyccnt.h"
-#include "pwmmath.h"
 
 #include "stm32h7xx.h"
 
 #include <stdio.h>
 #include "adc_bringup.h"
+#include "tim6_bringup.h"
 
 /* Reached the way main.c reaches board_init, by declaration rather than by
  * include, because CMake puts only this project's c/ and c/instr on this
@@ -127,65 +127,31 @@ int acq_start(void)
     taken_seq = 0u;
     overruns = 0u;
 
-    RCC->APB1LENR |= RCC_APB1LENR_TIM6EN;
-    (void) RCC->APB1LENR;              /* the write is posted; read it back */
+    /* THE TIMER LEFT THIS FILE on Monday 19 October 2026, for tim6_bringup.c,
+     * so that the transfer-engine back end reaches the same timer instead of
+     * carrying a second copy of it. Joseph took that decision over the two
+     * alternatives, which were to duplicate the setup there with the
+     * duplication named in a comment, as option A did for apb1_divisor(), or to
+     * leave that back end refusing: a known duplication is not a reason to
+     * leave code unwritten, and a named one still leaves two copies that drift.
+     *
+     * Every refusal this used to make, it still makes, with the same numbers
+     * from acq_errors.h, because the caller returns them unchanged. The move's
+     * criterion is that this build's console output comes back byte-identical.
+     *
+     * The timer is left CONFIGURED AND STOPPED. It is started at the end of this
+     * function, after the converter is armed, and that ordering is the reason the
+     * two halves are separate functions rather than one. */
+    const int tim_rc = tim6_bring_up(ACQ_RATE_HZ);
+    if (tim_rc != 0) {
+        return tim_rc;
+    }
 
-    /* TIM6 at exactly 1 kHz, and the timer clock is now derived rather than
-     * refused.
-     *
-     * THIS BLOCK USED TO RETURN -2 UNCONDITIONALLY, with a comment saying the
-     * APB1 timer clock was unconfirmed and that whether the timer clock equals
-     * the bus clock or twice it was the factor between 1 kHz and 2 kHz. That is
-     * exactly the question pwmmath_timer_hz answers, from ST's own
-     * stm32h7xx_hal_rcc_ex.h lines 3596 to 3605, sourced Tuesday 6 October 2026:
-     * the timer kernel clock is min(HCLK, 2 x PCLK) with TIMPRE clear and
-     * min(HCLK, 4 x PCLK) with it set. Fourteen cases of that rule are checked
-     * on the host against a second derivation, so the factor is settled and no
-     * longer guessed.
-     *
-     * Three things can still refuse, and each says which. */
+    /* The bus clock is still needed HERE, for the converter rather than the
+     * timer: its boost setting and its kernel clock are both derived from it.
+     * tim6_bring_up() has already refused if this were zero, so it is read
+     * without a second check and the check is not duplicated. */
     const uint32_t pclk1 = board_pclk1_hz();
-    if (pclk1 == 0u) {
-        /* The clock tree was not decoded, so there is no honest frequency to
-         * plan against. */
-        return ACQ_ERR_PCLK1_UNKNOWN;
-    }
-
-    /* TIMPRE read rather than assumed. Nothing in this repository writes the
-     * bit, so it is whatever reset left, which is clear; reading it costs one
-     * load and means this does not depend on that staying true. */
-    const bool timpre = (RCC->CFGR & RCC_CFGR_TIMPRE) != 0u;
-    const uint32_t timer_clk_hz = pwmmath_timer_hz(pclk1, apb1_divisor(), timpre);
-    if (timer_clk_hz == 0u) {
-        /* Either CDPPRE1 holds a ratio this volume has not sourced, or the
-         * rule does not cover the combination. Refusing is correct: a build
-         * that guessed the clock would produce a clean looking square wave at
-         * the wrong rate, and the whole point of chapter 6 is that such a wave
-         * is indistinguishable from a right one without an external witness. */
-        return ACQ_ERR_APB1_PRESCALER;
-    }
-
-    printf("  tim6 clock            %lu Hz  (pclk1 %lu, /%lu, timpre %u)\r\n",
-           (unsigned long) timer_clk_hz, (unsigned long) pclk1,
-           (unsigned long) apb1_divisor(), (unsigned) timpre);
-
-    const uint32_t ticks = timer_clk_hz / ACQ_RATE_HZ;
-    uint32_t psc = 0u;
-    uint32_t arr = ticks;
-    while (arr > 0xFFFFu) {            /* TIM6 is a 16-bit counter */
-        psc++;
-        arr = ticks / (psc + 1u);
-    }
-
-    TIM6->CR1 = 0u;
-    TIM6->PSC = psc;
-    TIM6->ARR = arr - 1u;
-    TIM6->CNT = 0u;
-    TIM6->EGR = TIM_EGR_UG;            /* load the prescaler immediately */
-
-    /* Trigger output on the update event. This is the line that makes the
-     * timing a hardware property. */
-    TIM6->CR2 = (TIM6->CR2 & ~TIM_CR2_MMS) | (2u << TIM_CR2_MMS_Pos);
 
     /* The converter, which is what the trigger above exists to start. It
      * reports each step and refuses at the first input it does not have.
@@ -294,8 +260,7 @@ int acq_start(void)
         return ACQ_ERR_ADC_CHANNEL;
     }
 
-    TIM6->CR1 |= TIM_CR1_CEN;
-    printf("  tim6 started, so conversions begin on its update event\r\n");
+    tim6_start();
     return 0;
 }
 
