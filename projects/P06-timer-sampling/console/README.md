@@ -1,8 +1,14 @@
 # The console captures, as they came off the port
 
-Ten files, committed on Monday 19 October 2026, taken on Friday 9 October 2026,
-Friday 16 October 2026 and Saturday 17 October 2026. They are the board's own words,
-unedited, including the timestamps and the truncation.
+Twelve files, taken on Friday 9 October 2026, Friday 16 October 2026, Saturday
+17 October 2026 and Monday 19 October 2026. They are the board's own words, unedited,
+including the timestamps and the truncation.
+
+Ten were committed on Monday 19 October 2026 because P02's page had come to say a
+reader could not check its figures against the board. **The last two were committed
+the same day for the opposite reason**: they are the evidence that the TIM6 factoring
+changed nothing, and a verdict without its capture is the thing those ten exist to
+stop.
 
 **Why they are here.** Until this directory existed, every board figure in this
 volume was transcribed prose: the number appeared in a README and the capture it came
@@ -27,25 +33,52 @@ evidence. `.gitignore` says which kind of capture stays out and why.
 | `p06-timer-console-2026-10-17-0810.txt` | timer | 15 220 B | 12 853 | 219 | 5 | 840 | no |
 | `p06-timer-console-2026-10-17-0852.txt` | timer | 15 220 B | 6 292 | 112 | 1 | 1140 | no |
 | `p06-timer-console-2026-10-17-0857.txt` | timer | 15 220 B | 8 199 | 145 | 2 | 1050 | no |
+| `p06-timer-postmove-2026-10-19-1411.txt` | timer | **15 276 B** | 6 392 | 112 | 1 | 1140 | no |
+| `p06-timer-postmove-2026-10-19-1419.txt` | timer | **15 276 B** | 6 211 | 113 | 1 | 1155 | no |
 
 `python/tests/test_console_captures.py` reads every one of these and checks the
 columns above against the files, so this table cannot drift from them.
 
-## Three things that are only visible with all ten side by side
+## What the last two are for
+
+`p06-timer-postmove-2026-10-19-1411.txt` is the capture that met the TIM6 move's
+published criterion: all twenty-four configuration read-back lines and the timer
+clock line identical to `console-timer-20261016-214100.txt`, hex for hex, across a
+code change, a toolchain reinstall and a drive-letter shift. The image line reads
+15 276 B where that one reads 15 220 B, which the criterion excluded in advance
+because the moved code can no longer be inlined.
+
+Its `mean` column is the other half of the story and looks alarming: 9364 rising to
+10323, down to a band near 3600 to 5899, back up, then settling at 3052 to 3409. On a
+floating PC3 that is pickup, and `p06-timer-postmove-2026-10-19-1419.txt` is what
+settles it: the same image with PC3 grounded at CN11 pin 37 reads `mean` **2 to 6**
+across 77 reports, against the threshold of within a few counts of zero published on
+Thursday 8 October 2026. A converter sampling wrongly does not return to a few counts
+of zero when its pin is tied to ground, so the move is excluded as the cause of the
+swing by measurement rather than by argument.
+
+**Both report the same image size, and that is what makes them a pair.** The
+verification and its control were taken from one build, twenty-three minutes apart,
+with nothing rebuilt between them.
+
+## Three things that are only visible with the whole set side by side
 
 **The build stamp cannot tell the back ends apart.** All ten read `Oct  9 2026
-09:31:08`, including the 14 420-byte systick image and the 15 220-byte timer image.
+09:31:08`, including the 14 420-byte systick image and the 15 220-byte timer image,
+**and so do the two post-move captures**, whose image is 56 bytes larger. `main.c` was
+not recompiled by the factoring, so its stamp did not move even though the image did,
+which is the same fact a third time and the strongest form of it yet.
 `main.c` is shared by all three back ends, so its stamp is identical across images
 that differ by 800 bytes and by which mechanism moves the samples. Only the printed
 image size separates them. On Sunday 18 October 2026 this volume recorded that the
 stamp cannot see a change in `startup.c`; this is the stronger version of the same
 fact, and it is the reason `--image-bytes` is a required argument to `scan.py`.
 
-**All ten report `calibration took 180 polls`**, on three separate days a week apart.
+**All twelve report `calibration took 180 polls`**, across four separate days.
 This volume's prose says that count is known to move between sessions, on the strength
 of a 187 reading, and **187 is in none of these captures**. So that claim rests on a
 session whose console was never saved. It is not contradicted here, because a figure
-seen once and not kept is not refuted by ten later figures agreeing with each other;
+seen once and not kept is not refuted by twelve later figures agreeing with each other;
 it is simply no longer supported by anything a reader can open.
 
 **Six carry a per-line timestamp and four do not.** The six from Friday 9 October
