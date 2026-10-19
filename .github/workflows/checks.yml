@@ -124,6 +124,16 @@ jobs:
       - name: Every interrupt handler defined here has a vector to reach it
         run: python python/tools/check_handler_vectors.py
 
+      # check_links.py validates every Markdown link and nothing validated the
+      # commands, so a rename could leave a reader holding a path that moved.
+      # Three had: P09's README offered "pytest tests" where the suite is
+      # python/tests, with a figure of twenty-one checks beside it that no
+      # command could produce, and P12's README named python/gates.py twice for
+      # a program whose own usage message carried the right path. Found Sunday
+      # 18 October 2026 by asking whether this volume's own commands still run.
+      - name: Every path a documented command names exists
+        run: python python/tools/check_doc_commands.py
+
       - name: No assembled volume and no PDF is published
         run: |
           set -e
