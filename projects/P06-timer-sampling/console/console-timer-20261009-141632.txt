@@ -1,0 +1,104 @@
+2026-10-09 14:16:34.191 nucleo-h7a3-sampling
+2026-10-09 14:16:34.196 acquisition   timer
+2026-10-09 14:16:34.222 nominal rate  1000 Hz
+2026-10-09 14:16:34.231 instrument    core cycle counter
+2026-10-09 14:16:34.239 tick rate     64000000 Hz
+2026-10-09 14:16:34.263 image         15220 B of flash, the figure the build reports
+2026-10-09 14:16:34.276 main.c built  Oct  9 2026 09:31:08, which moves only when THIS file recompiles
+2026-10-09 14:16:34.284 tim6 clock            64000000 Hz  (pclk1 64000000, /1, timpre 0)
+2026-10-09 14:16:34.295 adc control register       as found 20000000  DEEPPWD 1  ADVREGEN 0
+2026-10-09 14:16:34.314 adc leave deep power-down  ok       wrote 00000000  read back 00000000
+2026-10-09 14:16:34.323 adc regulator enable       ok       wrote 10000000  read back 10000000
+2026-10-09 14:16:34.332 adc regulator start-up     ok       wrote 0000000A  read back 10000000
+2026-10-09 14:16:34.403 adc regulator ready flag   set    isr 00001000  (LDORDY, bit 12)
+2026-10-09 14:16:34.404 adc clock mode sync /4     ok       wrote 00000003  read back 00030000
+2026-10-09 14:16:34.419 adc boost mode             ok       wrote 00000001  read back 10000100
+2026-10-09 14:16:34.452 kernel clock 16000000 Hz from HCLK 64000000 over 4, boost 1
+2026-10-09 14:16:34.503 adc calibration            ok       wrote 80000000  read back 10000100
+2026-10-09 14:16:34.560 calibration took 180 polls
+2026-10-09 14:16:34.592 adc enable, one write      ok       wrote 00000001  read back 00001001
+2026-10-09 14:16:34.625 ready after 4 polls with NO re-assertion, so the erratum did not bite here
+2026-10-09 14:16:34.651 adc PC3 to analog          ok       wrote 00000003  read back F3FFFFFF
+2026-10-09 14:16:34.681 adc preselection           ok       wrote 00002000  read back 00002000
+2026-10-09 14:16:34.708 adc sampling time          ok       wrote 00000007  read back 00000E00
+2026-10-09 14:16:34.720 adc sequence of one        ok       wrote 0000000D  read back 00000340
+2026-10-09 14:16:34.730 adc trigger and 16 bits    ok       wrote 0000000D  read back 800005A0
+2026-10-09 14:16:34.737 channel 13 on PC3 at CN9 pin 5, 810.5 cycles, 16 bits,
+2026-10-09 14:16:34.752 started by TIM6 TRGO on the rising edge
+2026-10-09 14:16:34.760 adc end of conversion irq  ok       wrote 00000004  read back 00000004
+2026-10-09 14:16:34.769 adc overrun irq            ok       wrote 00000010  read back 00000014
+2026-10-09 14:16:34.776 adc overrun mode as found  0  (0 keeps the old sample, 1 the new)
+2026-10-09 14:16:34.784 adc armed for the trigger  ok       wrote 00000004  read back 10000105
+2026-10-09 14:16:34.791 tim6 started, so conversions begin on its update event
+2026-10-09 14:16:34.800 converter overrun  watched, so convovr below is a real count
+2026-10-09 14:16:35.491 seq 15  blocks 15  mean 2787  overruns 0  convovr 0
+2026-10-09 14:16:36.470 seq 30  blocks 30  mean 2874  overruns 0  convovr 0
+2026-10-09 14:16:37.214 seq 45  blocks 45  mean 3011  overruns 0  convovr 0
+2026-10-09 14:16:38.148 seq 60  blocks 60  mean 3053  overruns 0  convovr 0
+2026-10-09 14:16:39.098 seq 75  blocks 75  mean 3100  overruns 0  convovr 0
+2026-10-09 14:16:40.048 seq 90  blocks 90  mean 2971  overruns 0  convovr 0
+2026-10-09 14:16:41.057 seq 105  blocks 105  mean 2932  overruns 0  convovr 0
+2026-10-09 14:16:41.999 seq 120  blocks 120  mean 2877  overruns 0  convovr 0
+2026-10-09 14:16:42.929 seq 135  blocks 135  mean 2842  overruns 0  convovr 0
+2026-10-09 14:16:43.932 seq 150  blocks 150  mean 2830  overruns 0  convovr 0
+2026-10-09 14:16:44.871 seq 165  blocks 165  mean 2850  overruns 0  convovr 0
+2026-10-09 14:16:45.827 seq 180  blocks 180  mean 3039  overruns 0  convovr 0
+2026-10-09 14:16:46.760 seq 195  blocks 195  mean 3141  overruns 0  convovr 0
+2026-10-09 14:16:47.754 seq 210  blocks 210  mean 3022  overruns 0  convovr 0
+2026-10-09 14:16:48.705 seq 225  blocks 225  mean 2940  overruns 0  convovr 0
+2026-10-09 14:16:49.656 seq 240  blocks 240  mean 2937  overruns 0  convovr 0
+2026-10-09 14:16:50.586 seq 255  blocks 255  mean 2826  overruns 0  convovr 0
+2026-10-09 14:16:51.590 seq 270  blocks 270  mean 2745  overruns 0  convovr 0
+2026-10-09 14:16:52.532 seq 285  blocks 285  mean 2814  overruns 0  convovr 0
+2026-10-09 14:16:53.467 seq 300  blocks 300  mean 2873  overruns 0  convovr 0
+2026-10-09 14:16:54.473 seq 315  blocks 315  mean 3047  overruns 0  convovr 0
+2026-10-09 14:16:55.395 seq 330  blocks 330  mean 3112  overruns 0  convovr 0
+2026-10-09 14:16:56.334 seq 345  blocks 345  mean 3008  overruns 0  convovr 0
+2026-10-09 14:16:57.283 seq 360  blocks 360  mean 2914  overruns 0  convovr 0
+2026-10-09 14:16:58.238 seq 375  blocks 375  mean 2902  overruns 0  convovr 0
+2026-10-09 14:16:59.249 seq 390  blocks 390  mean 2915  overruns 0  convovr 0
+2026-10-09 14:17:00.190 seq 405  blocks 405  mean 2839  overruns 0  convovr 0
+2026-10-09 14:17:01.145 seq 420  blocks 420  mean 2822  overruns 0  convovr 0
+2026-10-09 14:17:02.097 seq 435  blocks 435  mean 2855  overruns 0  convovr 0
+2026-10-09 14:17:03.028 seq 450  blocks 450  mean 2957  overruns 0  convovr 0
+2026-10-09 14:17:04.022 seq 465  blocks 465  mean 3135  overruns 0  convovr 0
+2026-10-09 14:17:04.961 seq 480  blocks 480  mean 3063  overruns 0  convovr 0
+2026-10-09 14:17:05.895 seq 495  blocks 495  mean 2939  overruns 0  convovr 0
+2026-10-09 14:17:06.865 seq 510  blocks 510  mean 2868  overruns 0  convovr 0
+2026-10-09 14:17:07.867 seq 525  blocks 525  mean 2851  overruns 0  convovr 0
+2026-10-09 14:17:08.803 seq 540  blocks 540  mean 2843  overruns 0  convovr 0
+2026-10-09 14:17:09.767 seq 555  blocks 555  mean 2752  overruns 0  convovr 0
+2026-10-09 14:17:10.694 seq 570  blocks 570  mean 2867  overruns 0  convovr 0
+2026-10-09 14:17:11.693 seq 585  blocks 585  mean 3026  overruns 0  convovr 0
+2026-10-09 14:17:12.640 seq 600  blocks 600  mean 3080  overruns 0  convovr 0
+2026-10-09 14:17:13.588 seq 615  blocks 615  mean 3031  overruns 0  convovr 0
+2026-10-09 14:17:14.524 seq 630  blocks 630  mean 2883  overruns 0  convovr 0
+2026-10-09 14:17:15.522 seq 645  blocks 645  mean 2887  overruns 0  convovr 0
+2026-10-09 14:17:16.440 seq 660  blocks 660  mean 2867  overruns 0  convovr 0
+2026-10-09 14:17:17.390 seq 675  blocks 675  mean 2870  overruns 0  convovr 0
+2026-10-09 14:17:18.342 seq 690  blocks 690  mean 2807  overruns 0  convovr 0
+2026-10-09 14:17:19.340 seq 705  blocks 705  mean 3015  overruns 0  convovr 0
+2026-10-09 14:17:20.275 seq 720  blocks 720  mean 3131  overruns 0  convovr 0
+2026-10-09 14:17:21.211 seq 735  blocks 735  mean 3052  overruns 0  convovr 0
+2026-10-09 14:17:22.190 seq 750  blocks 750  mean 2981  overruns 0  convovr 0
+2026-10-09 14:17:23.134 seq 765  blocks 765  mean 2954  overruns 0  convovr 0
+2026-10-09 14:17:24.136 seq 780  blocks 780  mean 2842  overruns 0  convovr 0
+2026-10-09 14:17:25.073 seq 795  blocks 795  mean 2796  overruns 0  convovr 0
+2026-10-09 14:17:26.006 seq 810  blocks 810  mean 2762  overruns 0  convovr 0
+2026-10-09 14:17:26.969 seq 825  blocks 825  mean 2955  overruns 0  convovr 0
+2026-10-09 14:17:27.964 seq 840  blocks 840  mean 3071  overruns 0  convovr 0
+2026-10-09 14:17:28.900 seq 855  blocks 855  mean 2992  overruns 0  convovr 0
+2026-10-09 14:17:29.837 seq 870  blocks 870  mean 2889  overruns 0  convovr 0
+2026-10-09 14:17:30.839 seq 885  blocks 885  mean 2898  overruns 0  convovr 0
+2026-10-09 14:17:31.773 seq 900  blocks 900  mean 2810  overruns 0  convovr 0
+2026-10-09 14:17:32.737 seq 915  blocks 915  mean 2842  overruns 0  convovr 0
+2026-10-09 14:17:33.685 seq 930  blocks 930  mean 2958  overruns 0  convovr 0
+2026-10-09 14:17:34.621 seq 945  blocks 945  mean 3120  overruns 0  convovr 0
+2026-10-09 14:17:35.622 seq 960  blocks 960  mean 3095  overruns 0  convovr 0
+2026-10-09 14:17:36.561 seq 975  blocks 975  mean 2913  overruns 0  convovr 0
+2026-10-09 14:17:37.498 seq 990  blocks 990  mean 2937  overruns 0  convovr 0
+2026-10-09 14:17:38.500 seq 1005  blocks 1005  mean 2879  overruns 0  convovr 0
+2026-10-09 14:17:39.434 seq 1020  blocks 1020  mean 2815  overruns 0  convovr 0
+2026-10-09 14:17:40.409 seq 1035  blocks 1035  mean 2825  overruns 0  convovr 0
+2026-10-09 14:17:41.360 seq 1050  blocks 1050  mean 2978  overruns 0  convovr 0
+2026-10-09 14:17:42.294 seq 1065  blocks 1065  mean 3082  overruns 0  convovr 0

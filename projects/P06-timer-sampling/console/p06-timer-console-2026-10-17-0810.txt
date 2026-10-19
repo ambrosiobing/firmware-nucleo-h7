@@ -1,0 +1,218 @@
+
+nucleo-h7a3-sampling
+  acquisition   timer
+  nominal rate  1000 Hz
+  instrument    core cycle counter
+  tick rate     64000000 Hz
+  image         15220 B of flash, the figure the build reports
+  main.c built  Oct  9 2026 09:31:08, which moves only when THIS file recompiles
+  tim6 clock            64000000 Hz  (pclk1 64000000, /1, timpre 0)
+  adc control register       as found 20000000  DEEPPWD 1  ADVREGEN 0
+  adc leave deep power-down  ok       wrote 00000000  read back 00000000
+  adc regulator enable       ok       wrote 10000000  read back 10000000
+  adc regulator start-up     ok       wrote 0000000A  read back 10000000
+  adc regulator ready flag   set    isr 00001000  (LDORDY, bit 12)
+  adc clock mode sync /4     ok       wrote 00000003  read back 00030000
+  adc boost mode             ok       wrote 00000001  read back 10000100
+      kernel clock 16000000 Hz from HCLK 64000000 over 4, boost 1
+  adc calibration            ok       wrote 80000000  read back 10000100
+      calibration took 180 polls
+  adc enable, one write      ok       wrote 00000001  read back 00001001
+      ready after 4 polls with NO re-assertion, so the erratum did not bite here
+  adc PC3 to analog          ok       wrote 00000003  read back F3FFFFFF
+  adc preselection           ok       wrote 00002000  read back 00002000
+  adc sampling time          ok       wrote 00000007  read back 00000E00
+  adc sequence of one        ok       wrote 0000000D  read back 00000340
+  adc trigger and 16 bits    ok       wrote 0000000D  read back 800005A0
+      channel 13 on PC3 at CN9 pin 5, 810.5 cycles, 16 bits,
+      started by TIM6 TRGO on the rising edge
+  adc end of conversion irq  ok       wrote 00000004  read back 00000004
+  adc overrun irq            ok       wrote 00000010  read back 00000014
+  adc overrun mode as found  0  (0 keeps the old sample, 1 the new)
+  adc armed for the trigger  ok       wrote 00000004  read back 10000105
+  tim6 started, so conversions begin on its update event
+  converter overrun  watched, so convovr below is a real count
+
+nucleo-h7a3-sampling
+  acquisition   timer
+  nominal rate  1000 Hz
+  instrument    core cycle counter
+  tick rate     64000000 Hz
+  image         15220 B of flash, the figure the build reports
+  main.c built  Oct  9 2026 09:31:08, which moves only when THIS file recompiles
+  tim6 clock            64000000 Hz  (pclk1 64000000, /1, timpre 0)
+  adc control register       as found 20000000  DEEPPWD 1  ADVREGEN 0
+  adc leave deep power-down  ok       wrote 00000000  read back 00000000
+  adc regulator enable       ok       wrote 10000000  read back 10000000
+  adc regulator start-up     ok       wrote 0000000A  read back 10000000
+  adc regulator ready flag   set    isr 00001000  (LDORDY, bit 12)
+  adc clock mode sync /4     ok       wrote 00000003  read back 00030000
+  adc boost mode             ok       wrote 00000001  read back 10000100
+      kernel clock 16000000 Hz from HCLK 64000000 over 4, boost 1
+  adc calibration            ok       wrote 80000000  read back 10000100
+      calibration took 180 polls
+  adc enable, one write      ok       wrote 00000001  read back 00001001
+      ready after 4 polls with NO re-assertion, so the erratum did not bite here
+  adc PC3 to analog          ok       wrote 00000003  read back F3FFFFFF
+  adc preselection           ok       wrote 00002000  read back 00002000
+  adc sampling time          ok       wrote 00000007  read back 00000E00
+  adc sequence of one        ok       wrote 0000000D  read back 00000340
+  adc trigger and 16 bits    ok       wrote 0000000D  read back 800005A0
+      channel 13 on PC3 at CN9 pin 5, 810.5 cycles, 16 bits,
+      started by TIM6 TRGO on the rising edge
+  adc end of conversion irq  ok       wrote 00000004  read back 00000004
+  adc overrun irq            ok       wrote 00000010  read back 00000014
+  adc overrun mode as found  0  (0 keeps the old sample, 1 the new)
+  adc armed for the trigger  ok       wrote 00000004  read back 10000105
+  tim6 started, so conversions begin on its update event
+  converter overrun  watched, so convovr below is a real count
+seq 15  blocks 15  mean 5950  overruns 0  convovr 0
+seq 30  blocks 30  mean 3208  overruns 0  convovr 0
+seq 45  blocks 45  mean 3206  overruns 0  convovr 0
+
+nucleo-h7a3-sampling
+  acquisition   timer
+  nominal rate  1000 Hz
+  instrument    core cycle counter
+  tick rate     64000000 Hz
+  image         15220 B of flash, the figure the build reports
+  main.c built  Oct  9 2026 09:31:08, which moves only when THIS file recompiles
+  tim6 clock            64000000 Hz  (pclk1 64000000, /1, timpre 0)
+  adc control register       as found 20000000  DEEPPWD 1  ADVREGEN 0
+  adc leave deep power-down  ok       wrote 00000000  read back 00000000
+  adc regulator enable       ok       wrote 10000000  read back 10000000
+  adc regulator start-up     ok       wrote 0000000A  read back 10000000
+  adc regulator ready flag   set    isr 00001000  (LDORDY, bit 12)
+  adc clock mode sync /4     ok       wrote 00000003  read back 00030000
+  adc boost mode             ok       wrote 00000001  read back 10000100
+      kernel clock 16000000 Hz from HCLK 64000000 over 4, boost 1
+  adc calibration            ok       wrote 80000000  read back 10000100
+      calibration took 180 polls
+  adc enable, one write      ok       wrote 00000001  read back 00001001
+      ready after 4 polls with NO re-assertion, so the erratum did not bite here
+  adc PC3 to analog          ok       wrote 00000003  read back F3FFFFFF
+  adc preselection           ok       wrote 00002000  read back 00002000
+  adc sampling time          ok       wrote 00000007  read back 00000E00
+  adc sequence of one        ok       wrote 0000000D  read back 00000340
+  adc trigger and 16 bits    ok       wrote 0000000D  read back 800005A0
+      channel 13 on PC3 at CN9 pin 5, 810.5 cycles, 16 bits,
+      started by TIM6 TRGO on the rising edge
+  adc end of conversion irq  ok       wrote 00000004  read back 00000004
+  adc overrun irq            ok       wrote 00000010  read back 00000014
+  adc overrun mode as found  0  (0 keeps the old sample, 1 the new)
+  adc armed for the trigger  ok       wrote 00000004  read back 10000105
+  tim6 started, so conversions begin on its update event
+  converter overrun  watched, so convovr below is a real count
+seq 15  blocks 15  mean 4519  overruns 0  convovr 0
+seq 30  blocks 30  mean 4608  overruns 0  convovr 0
+seq 45  blocks 45  mean 4267  overruns 0  convovr 0
+seq 60  blocks 60  mean 4051  overruns 0  convovr 0
+seq 75  blocks 75  mean 4099  overruns 0  convovr 0
+seq 90  blocks 90  mean 4216  overruns 0  convovr 0
+seq 105  blocks 105  mean 4283  overruns 0  convovr 0
+seq 120  blocks 120  mean 4520  overruns 0  convovr 0
+seq 135  blocks 135  mean 4740  overruns 0  convovr 0
+seq 150  blocks 150  mean 4659  overruns 0  convovr 0
+seq 165  blocks 165  mean 4332  overruns 0  convovr 0
+seq 180  blocks 180  mean 4308  overruns 0  convovr 0
+seq 195  blocks 195  mean 4398  overruns 0  convovr 0
+seq 210  blocks 210  mean 4290  overruns 0  convovr 0
+seq 225  blocks 225  mean 3440  overruns 0  convovr 0
+
+nucleo-h7a3-sampling
+  acquisition   timer
+  nominal rate  1000 Hz
+  instrument    core cycle counter
+  tick rate     64000000 Hz
+  image         15220 B of flash, the figure the build reports
+  main.c built  Oct  9 2026 09:31:08, which moves only wh
+nucleo-h7a3-sampling
+  acquisition   timer
+  nominal rate  1000 Hz
+  instrument    core cycle counter
+  tick rate     64000000 Hz
+  image         15220 B of flash, the figure the build reports
+  main.c built  Oct  9 2026 09:31:08, which moves only when THIS file recompiles
+  tim6 clock            64000000 Hz  (pclk1 64000000, /1, timpre 0)
+  adc control register       as found 20000000  DEEPPWD 1  ADVREGEN 0
+  adc leave deep power-down  ok       wrote 00000000  read back 00000000
+  adc regulator enable       ok       wrote 10000000  read back 10000000
+  adc regulator start-up     ok       wrote 0000000A  read back 10000000
+  adc regulator ready flag   set    isr 00001000  (LDORDY, bit 12)
+  adc clock mode sync /4     ok       wrote 00000003  read back 00030000
+  adc boost mode             ok       wrote 00000001  read back 10000100
+      kernel clock 16000000 Hz from HCLK 64000000 over 4, boost 1
+  adc calibration            ok       wrote 80000000  read back 10000100
+      calibration took 180 polls
+  adc enable, one write      ok       wrote 00000001  read back 00001001
+      ready after 4 polls with NO re-assertion, so the erratum did not bite here
+  adc PC3 to analog          ok       wrote 00000003  read back F3FFFFFF
+  adc preselection           ok       wrote 00002000  read back 00002000
+  adc sampling time          ok       wrote 00000007  read back 00000E00
+  adc sequence of one        ok       wrote 0000000D  read back 00000340
+  adc trigger and 16 bits    ok       wrote 0000000D  read back 800005A0
+      channel 13 on PC3 at CN9 pin 5, 810.5 cycles, 16 bits,
+      started by TIM6 TRGO on the rising edge
+  adc end of conversion irq  ok       wrote 00000004  read back 00000004
+  adc overrun irq            ok       wrote 00000010  read back 00000014
+  adc overrun mode as found  0  (0 keeps the old sample, 1 the new)
+  adc armed for the trigger  ok       wrote 00000004  read back 10000105
+  tim6 started, so conversions begin on its update event
+  converter overrun  watched, so convovr below is a real count
+seq 15  blocks 15  mean 3334  overruns 0  convovr 0
+seq 30  blocks 30  mean 3523  overruns 0  convovr 0
+seq 45  blocks 45  mean 3694  overruns 0  convovr 0
+seq 60  blocks 60  mean 3782  overruns 0  convovr 0
+seq 75  blocks 75  mean 3569  overruns 0  convovr 0
+seq 90  blocks 90  mean 3490  overruns 0  convovr 0
+seq 105  blocks 105  mean 3372  overruns 0  convovr 0
+seq 120  blocks 120  mean 3356  overruns 0  convovr 0
+seq 135  blocks 135  mean 3381  overruns 0  convovr 0
+seq 150  blocks 150  mean 3598  overruns 0  convovr 0
+seq 165  blocks 165  mean 3688  overruns 0  convovr 0
+seq 180  blocks 180  mean 3645  overruns 0  convovr 0
+seq 195  blocks 195  mean 3489  overruns 0  convovr 0
+seq 210  blocks 210  mean 3457  overruns 0  convovr 0
+seq 225  blocks 225  mean 3364  overruns 0  convovr 0
+seq 240  blocks 240  mean 3313  overruns 0  convovr 0
+seq 255  blocks 255  mean 3552  overruns 0  convovr 0
+seq 270  blocks 270  mean 3780  overruns 0  convovr 0
+seq 285  blocks 285  mean 3656  overruns 0  convovr 0
+seq 300  blocks 300  mean 3414  overruns 0  convovr 0
+seq 315  blocks 315  mean 3467  overruns 0  convovr 0
+seq 330  blocks 330  mean 3401  overruns 0  convovr 0
+seq 345  blocks 345  mean 3374  overruns 0  convovr 0
+seq 360  blocks 360  mean 3604  overruns 0  convovr 0
+seq 375  blocks 375  mean 3789  overruns 0  convovr 0
+seq 390  blocks 390  mean 3632  overruns 0  convovr 0
+seq 405  blocks 405  mean 3478  overruns 0  convovr 0
+seq 420  blocks 420  mean 3411  overruns 0  convovr 0
+seq 435  blocks 435  mean 3353  overruns 0  convovr 0
+seq 450  blocks 450  mean 3323  overruns 0  convovr 0
+seq 465  blocks 465  mean 3548  overruns 0  convovr 0
+seq 480  blocks 480  mean 3809  overruns 0  convovr 0
+seq 495  blocks 495  mean 3682  overruns 0  convovr 0
+seq 510  blocks 510  mean 3487  overruns 0  convovr 0
+seq 525  blocks 525  mean 3409  overruns 0  convovr 0
+seq 540  blocks 540  mean 3357  overruns 0  convovr 0
+seq 555  blocks 555  mean 3293  overruns 0  convovr 0
+seq 570  blocks 570  mean 3570  overruns 0  convovr 0
+seq 585  blocks 585  mean 3816  overruns 0  convovr 0
+seq 600  blocks 600  mean 3636  overruns 0  convovr 0
+seq 615  blocks 615  mean 3419  overruns 0  convovr 0
+seq 630  blocks 630  mean 3390  overruns 0  convovr 0
+seq 645  blocks 645  mean 3345  overruns 0  convovr 0
+seq 660  blocks 660  mean 3429  overruns 0  convovr 0
+seq 675  blocks 675  mean 3714  overruns 0  convovr 0
+seq 690  blocks 690  mean 3740  overruns 0  convovr 0
+seq 705  blocks 705  mean 3447  overruns 0  convovr 0
+seq 720  blocks 720  mean 3472  overruns 0  convovr 0
+seq 735  blocks 735  mean 3344  overruns 0  convovr 0
+seq 750  blocks 750  mean 3335  overruns 0  convovr 0
+seq 765  blocks 765  mean 3519  overruns 0  convovr 0
+seq 780  blocks 780  mean 3766  overruns 0  convovr 0
+seq 795  blocks 795  mean 3570  overruns 0  convovr 0
+seq 810  blocks 810  mean 3481  overruns 0  convovr 0
+seq 825  blocks 825  mean 3392  overruns 0  convovr 0
+seq 840  blocks 840  mean 3404  overruns 0  convovr 0
+
