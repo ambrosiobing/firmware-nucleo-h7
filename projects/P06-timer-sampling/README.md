@@ -88,6 +88,21 @@ The criteria in short: the mean rate within 0.1 percent, the interval spread
 below 10 microseconds, no single interval more than 50 microseconds off, and
 zero dropped or doubled edges.
 
+**THE CLAIM IS MEASURED AND NOT MET, and that belongs here rather than only at the
+end of this page.** Criterion 1 fails by 2804 parts per million on the
+specification's 60 second run and by 2818 by an independent instrument. Criteria 2,
+3 and 4 pass, two of them at the witness's floor rather than the board's. The
+failure is structural: the timer divides the oscillator the part boots on, that
+oscillator runs 2630 to 3257 ppm high on this board, and a 1000 ppm criterion cannot
+be met from a source wrong by three times it, so **no finer instrument changes this
+result.** The verdict with every figure, both instruments and what would change it
+is the last section of `MEASUREMENT.md`.
+
+It is not a partial pass and the claim is not restated as approximate to fit the
+reading. What the project delivers is the failure together with its cause, measured
+from outside the part: the firmware reported no overruns and eight bring-up steps
+reading back correctly while running 2818 ppm fast, and nothing on the die noticed.
+
 **Why all four and not just the first.** The synthetic test demonstrated the
 trap: with one edge dropped from a thousand, the mean rate was still within
 1 Hz of nominal. A rate criterion alone cannot establish a timing claim.

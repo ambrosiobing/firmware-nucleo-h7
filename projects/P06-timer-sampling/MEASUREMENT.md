@@ -864,3 +864,66 @@ the reason is recorded in the metadata as `image_identity_waived`. A figure
 outside 1024 to 2 097 152 bytes is refused as a slipped digit, and the comment
 says what that cannot do: 15220 typed for a board running 14420 passes it, and
 only the stamped console file catches that.
+
+## The verdict on the claim, Monday 19 October 2026
+
+**Appended, not edited**, like every section since the first run. Nothing above has
+changed, and the status table of Wednesday 7 October 2026 still reads "not evaluated"
+four times because that is what it said before any instrument was connected. This
+section is where it is answered.
+
+**THE CLAIM IS MEASURED AND NOT MET.** The firmware claims it samples at exactly
+1000.0 Hz, which this file defined as the mean rate within 0.1 percent together with
+three criteria on the individual intervals. Criterion 1 fails. Criteria 2, 3 and 4
+pass, and two of them pass at the instrument's floor rather than the board's.
+
+| Criterion | Verdict | Figure | Instrument |
+|---|---|---|---|
+| 1. Mean rate within 0.1 percent | **FAIL** | 1002.8038 Hz, +2804 ppm, on the specification's 60 second run | MCC 118 on the Raspberry Pi 4B `eplepi`, Friday 9 October 2026 |
+| 1, independently | **FAIL** | 1002.818 Hz, +2818 ppm | the host clock over a 600 second console run, Thursday 8 October 2026 |
+| 2. Interval spread below 10 microseconds | pass | 3.52 microseconds | MCC 118, and the figure is the instrument's floor |
+| 3. No interval more than 50 microseconds off | pass | 9.81 microseconds worst of 60 165 | MCC 118 |
+| 4. Zero dropped or doubled edges | pass | 60 165 edges, none missing | MCC 118 |
+
+**The failure is structural, which is why no further measurement is planned.** The
+part samples on a timer derived from the oscillator it boots on, and that oscillator
+runs 2630 to 3257 ppm high on this board across every reading this volume has taken.
+A criterion of 1000 ppm cannot be met from a source that is wrong by three times it,
+and nothing in the sampling path can correct it: the timer divides the oscillator, so
+the error passes through unchanged. **A finer instrument cannot change this result.**
+Two independent instruments already agree on the sign and the magnitude, and the more
+accurate of the two is the host clock rather than the witness, which is stated in
+P06's README with its reasoning.
+
+**And the figure carries a condition that was not in the original criteria.** The
+oscillator settles about 100 ppm upward in the first six minutes after a reset,
+1002.7077 Hz rising to 1002.8069 Hz inside one powered window on Friday 16 October
+2026. So a rate for this board is not a single number: it is a number with a time
+since reset beside it. The criteria as written on Wednesday 7 October 2026 did not
+ask for that, and could not have, because nobody knew it yet. It is recorded here
+rather than retrofitted into them.
+
+**What is deliberately NOT claimed.** Criteria 2 and 3 passed with figures below half
+the witness's 10 microsecond sample period, which this file predicted would happen
+and said in advance would make criterion 2 survivable and criterion 3 unresolved. So
+those two passes bound the board at the instrument's resolution rather than measuring
+it. The chapter's central comparison, whether a hardware trigger beats a software
+one, is a **null result with a stated reason**: at this witness's resolution the two
+builds are indistinguishable, 3.39 against 3.51 microseconds, which is a result and
+not a gap.
+
+**What this is not.** It is not a partial pass, and the claim is not restated as
+approximate to accommodate the measurement. The claim as written fails. The project's
+value is the failure together with its cause, measured by an instrument that does not
+share the part's timebase: the part reported `overruns 0`, `convovr 0` and eight
+bring-up steps all reading back correctly while running 2818 ppm fast, and **nothing
+on the die noticed.** That is the thesis of the chapter, measured rather than argued.
+
+**What would change the verdict**, and both are changes to the claim or the hardware
+rather than to the measurement. A clock source accurate enough to carry 0.1 percent,
+which on this board means the 32.768 kHz crystal, and the arithmetic refuses it: 1000
+Hz needs a divisor of 32.768 where 1024 Hz needs exactly 32, and whether a low-power
+timer can drive the converter's external trigger is an RM0455 question this volume has
+not read. Or restating the project's claim as a nominal rate with its measured
+tolerance and its time since reset, which is a decision about what P06 asserts and
+not a new reading.
