@@ -659,7 +659,7 @@ after the run that produced it, the thing you have is a table, not a constant.
 | **PD9** | USART3 RX, console, AF7 | | Settled, ST board support package |
 | **PD12** | LPTIM1_IN1, counting input, **AF1** | **CN10 pin 21**, Arduino D29 | Settled. ST's LPTIM pulse counter example and ST's PWM external clock example both state the CN10 position |
 | **PE13** | TIM1 channel 3, signal source, **AF1** | **CN10 pin 10**, Arduino D3 | Settled. `Examples/TIM/TIM_DMA/readme.txt` gives peripheral, channel, port pin, connector, pin number and Arduino name in one sentence |
-| **PB4** | Marker pin for the witness | **CN7 pin 19**, Arduino D25, and **CN12 pin 27** on the Morpho header | Settled, both positions. Zio from UM2408 Rev 6 **Table 18, page 44**, signal name D25, function SPI_B_MISO on SPI3. Morpho from **Table 19, page 47**, the CN12 odd column. **CN7 pin 19 is covered while the X-NUCLEO-53L8A1 is stacked**, so CN12 pin 27 is where the wire goes |
+| **PB4** | Marker pin for the witness. **`NJTRST` after reset** and **`TIM3_CH1` on AF2**, both from DS13195 Rev 1, pages 66 and 70 | **CN7 pin 19**, Arduino D25, and **CN12 pin 27** on the Morpho header | Settled, both positions. Zio from UM2408 Rev 6 **Table 18, page 44**, signal name D25, function SPI_B_MISO on SPI3. Morpho from **Table 19, page 47**, the CN12 odd column. **CN7 pin 19 is covered while the X-NUCLEO-53L8A1 is stacked**, so CN12 pin 27 is where the wire goes |
 | PA13 | SWDIO | | Debugger. Do not touch |
 | PA14 | SWCLK | | Debugger. Do not touch |
 | PB3 | SWO | | Debugger trace. UM2408 gives it as D23/SWO |
@@ -707,10 +707,33 @@ control was measured through it on Monday 19 October 2026 and again on Tuesday
 20 October 2026. CN12 is expected to be the same, and expected is not measured:
 the first witness run with the shield fitted is what will confirm it.
 
-**One thing UM2408 does not say about PB4, so it is not claimed here.** Its
-footnote list gives PB3 as D23/SWO and says nothing about PB4. Whether PB4
-carries a JTAG function by default on this package is a datasheet question
-nobody here has read. It does not affect the debugger in use, because the probe
+**THE DATASHEET QUESTION ABOUT PB4 IS READ, Tuesday 20 October 2026, and the
+answer is yes.** DS13195 Rev 1's pin table on page 66 prints this pin as
+**`PB4(NJTRST)`**, which is that table's notation for the function after reset, so
+**PB4 comes out of reset as JTAG's reset input**, not as a plain input. Table 9 on
+page 70 gives its sixteen alternate functions: AF0 `NJTRST`, AF1 `TIM16_BKIN`,
+**AF2 `TIM3_CH1`**, AF5 `SPI1_MISO/I2S1_SDI`, AF6 `SPI3_MISO/I2S3_SDI`, AF7
+`SPI2_NSS/I2S2_WS`, AF8 `SPI6_MISO/I2S6_SDI`, AF9 `SDMMC2_D3`, AF11 `UART7_TX`,
+AF15 `EVENTOUT`, and nothing on the rest.
+
+**So using it as the marker is repurposing a JTAG pin, which is safe here and
+worth stating rather than assuming.** `marker_init` writes `MODER` to output,
+which takes the pin away from `NJTRST`. The probe runs SWD, which needs SWCLK on
+PA14, SWDIO on PA13 and SWO on PB3, so nothing in the debug path is lost. The
+earlier paragraph reasoned exactly that and could not source it; it is sourced now.
+
+**AND AF2 IS THE REASON THE MARKER CAN EVENTUALLY BE DRIVEN IN HARDWARE.**
+`TIM3_CH1` reaches this pin, and TIM3 also appears in the converter's external
+trigger list as `TIM3_TRGO` and `TIM3_CH4`, so one timer can both start the
+conversions and toggle the pin with no processor in the path. That is the decision
+of Tuesday 20 October 2026 becoming buildable, and it is written up in P06's page.
+
+**The mirror and the revision, because a distributor copy is not a source.**
+st.com timed out twice from win11 aquamarine, so the file came from RS Online's
+mirror, and the citation is the vendor's own footer printed on the page:
+`DS13195 - Rev 1`, pages 66 and 70. The earlier note that UM2408 says nothing about
+PB4 stands: its footnote list gives PB3 as D23/SWO and says nothing about this
+pin. It does not affect the debugger in use, because the probe
 runs SWD, which needs SWCLK on PA14, SWDIO on PA13 and SWO on PB3, and none of
 those is PB4.
 

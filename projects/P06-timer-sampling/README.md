@@ -2122,14 +2122,34 @@ timer and transfer-engine builds alike, or TIM6 keeps the trigger and a second
 timer is slaved to its output, in which case the marker edge sits one
 synchronisation step behind the conversion and the page must say so.
 
-**Two lookups are needed and neither can be done on win11 aquamarine.** They are
-named here with their source so the next session does not rediscover the
-question.
+**BOTH LOOKUPS ARE DONE, Tuesday 20 October 2026, and together they remove the
+second decision.** `TIM3_CH1` reaches PB4 on AF2, from DS13195 Rev 1 Table 9
+page 70, and the converter's trigger list from `stm32h7xx_ll_adc.h` carries both
+`TIM3_TRGO` and `TIM3_CH4`. **So one timer does both jobs**: TIM3 triggers the
+conversions through its trigger output and toggles PB4 through channel 1, with no
+processor in the path and no second timer slaved to the first.
+
+**That is the arrangement the three-builds table has always needed**, and it needs
+no change of pin: the marker stays on PB4, which is where Joseph's wire already
+sits at CN12 pin 27. What remains is a build, not a question: TIM3 replaces TIM6 as
+the trigger for the timer and transfer-engine builds, `EXTSEL` moves from 13 to the
+value the LL header gives for `TIM3_TRGO`, channel 1 is configured for output
+compare on AF2, and `marker_toggle` leaves the interrupt path for those two builds.
+**The tick build keeps its software toggle**, because its whole point is that the
+processor is in the path.
+
+**One thing the datasheet added that was not asked for.** PB4 comes out of reset as
+`NJTRST`, JTAG's reset input, which the wiring page now records. Driving it as the
+marker is repurposing a JTAG pin, which is safe under SWD and is now sourced rather
+than reasoned.
+
+**The two lookups as they were posed**, kept because the sourcing matters more than
+the answer:
 
 | What must be read | Where it is | Why not from the manual |
 |---|---|---|
 | Which `EXTSEL` events are timer trigger outputs, and which of those timers have output channels | ST's LL header in the pack on win11 skyhorizon, `stm32h7xx_ll_adc.h`, whose line 993 is where `EXTSEL` 13 for TIM6 TRGO came from; the symbols are `LL_ADC_REG_TRIG_EXT_*` | **RM0455 page 1028 lists `EXTSEL` as "Event 0" to "Event 31" and names no timer at all.** The mapping is not in the register description, which is why this project sourced 13 from the headers in the first place |
-| Which timer channel can reach PB4, or which free pin a candidate channel can reach | the STM32H7A3 datasheet's alternate function table | Both of UM2408's pin tables have now been read, Table 18 page 44 for CN7 pin 19 and Table 19 page 47 for CN12 pin 27, and neither gives an alternate function. UM2408 Table 18 page 44 gives PB4 as CN7 pin 19 and the board's Arduino name, not the part's alternate functions. The datasheet is not on this laptop and st.com serves no PDF here |
+| ~~Which timer channel can reach PB4~~ **Answered Tuesday 20 October 2026: `TIM3_CH1` on AF2**, from DS13195 Rev 1 Table 9 page 70 | read from RS Online's mirror after st.com timed out twice; the citation is the vendor footer on the page | Both of UM2408's pin tables were read first and neither gives an alternate function, which is why the datasheet was needed. UM2408 Table 18 page 44 gives PB4 as CN7 pin 19 and the board's Arduino name, not the part's alternate functions. The datasheet is not on this laptop and st.com serves no PDF here |
 
 **Nothing is changed in the code for this decision today, and the reason is not
 only the missing documents.** Whether this engine moves a sample at all is prior
