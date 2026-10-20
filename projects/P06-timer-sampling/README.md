@@ -2126,7 +2126,7 @@ question.
 
 | What must be read | Where it is | Why not from the manual |
 |---|---|---|
-| Which `EXTSEL` events are timer trigger outputs, and which of those timers have output channels | ST's HAL header in the pack on win11 skyhorizon, the same source that gave `EXTSEL` 13 for TIM6 TRGO | **RM0455 page 1028 lists `EXTSEL` as "Event 0" to "Event 31" and names no timer at all.** The mapping is not in the register description, which is why this project sourced 13 from the headers in the first place |
+| Which `EXTSEL` events are timer trigger outputs, and which of those timers have output channels | ST's LL header in the pack on win11 skyhorizon, `stm32h7xx_ll_adc.h`, whose line 993 is where `EXTSEL` 13 for TIM6 TRGO came from; the symbols are `LL_ADC_REG_TRIG_EXT_*` | **RM0455 page 1028 lists `EXTSEL` as "Event 0" to "Event 31" and names no timer at all.** The mapping is not in the register description, which is why this project sourced 13 from the headers in the first place |
 | Which timer channel can reach PB4, or which free pin a candidate channel can reach | the STM32H7A3 datasheet's alternate function table | UM2408 Table 18 page 44 gives PB4 as CN7 pin 19 and the board's Arduino name, not the part's alternate functions. The datasheet is not on this laptop and st.com serves no PDF here |
 
 **Nothing is changed in the code for this decision today, and the reason is not
