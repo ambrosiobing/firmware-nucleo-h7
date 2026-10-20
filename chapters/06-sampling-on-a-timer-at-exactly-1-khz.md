@@ -215,12 +215,80 @@ uint32_t cyccnt_now(void) { return DWT->CYCCNT; }
 
 If the self-test returns zero, the fallback is a free-running 32-bit timer with its prescaler set to one and its reload value left at the maximum, read through the same header. It is one of only two 32-bit timers on this part, which is why chapter 20 is careful about who owns it. The two backends differ in one way that matters and the header says so: the trace counter counts core clocks and the timer counts timer clocks, and on this part those are the same number only because chapter 1 configured the buses that way. Store the tick rate next to the reading rather than assuming it.
 
-**Step 3.** **Build the first acquisition: the system tick.** This is the simplest thing that can work and it is a real variant, not a strawman. The tick exception fires at 1 kHz, starts a conversion, waits for it, stores it, and toggles the marker.
+**Step 3.** **Bring the converter up, in ST's order, before any build converts.** This is the step whose absence makes the rest of the chapter useless, and it is the one that is specific to this family rather than to this book. On this part a converter that has been handed a trigger and told to start, with none of the eight steps below, **configures perfectly and converts nothing**: every register reads back exactly as written, the trigger arrives, and the data register never fills.
+
+```c
+/* adc_bringup.c, called by all three builds before they arm anything */
+int adc_bring_up(uint32_t pclk1_hz, uint32_t apb_div, uint32_t extsel,
+                 uint32_t exten, const char *trigger_name)
+{
+    /* 1. Leave deep power-down. A converter in it answers writes and
+          converts nothing, which is the first silent state. */
+    ADC1->CR &= ~ADC_CR_DEEPPWD;
+
+    /* 2. The internal regulator on, and 3. the start-up wait, which is a
+          DELAY and not a poll because that is what ST's sequence does.
+          LDORDY at bit 12 of ISR is a real flag and is not used here; the
+          delay is kept deliberately and the reason is in the source. */
+    ADC1->CR |= ADC_CR_ADVREGEN;
+    cyccnt_delay_us(10u);                       /* tADCVREG_STUP */
+
+    /* 4. The kernel clock in the common register, then the boost field for
+          the clock the converter will actually run at. Boost precedes
+          calibration: calibrating at one boost setting and running at
+          another calibrates the analogue path for conditions it never
+          sees. */
+    ADC12_COMMON->CCR = (ADC12_COMMON->CCR & ~ADC_CCR_CKMODE) | kernel_clock;
+    ADC1->CR = (ADC1->CR & ~ADC_CR_BOOST) | boost_for(pclk1_hz, apb_div);
+
+    /* 5. Calibrate, wait for ADCAL to clear, then enable and wait for
+          ADRDY. Both are polls with a bounded count, and the count is
+          printed: this is where "calibration took 180 polls" comes from. */
+    ADC1->CR |= ADC_CR_ADCAL;
+    while ((ADC1->CR & ADC_CR_ADCAL) != 0u) { }
+    ADC1->CR |= ADC_CR_ADEN;
+    while ((ADC1->ISR & ADC_ISR_ADRDY) == 0u) { }
+
+    /* 6. The preselection bit for the channel. RM0455 section 27.4.12:
+          for each channel selected through SQRx the corresponding PCSEL
+          bit must be configured first, because it drives the analog switch
+          inside the I/O. The register resets to zero, so a build that
+          skips this converts a disconnected pin. Parts without PCSEL have
+          no such register, which is exactly why code copied from one of
+          them leaves this out. */
+    ADC1->PCSEL |= 1u << (channel & 0x1Fu);
+
+    /* 7. The trigger and the resolution, both fields of CFGR. In this
+          chapter's order they belong to the timer step below, which is why
+          this function takes extsel and exten as arguments. */
+    ADC1->CFGR = (ADC1->CFGR & ~(ADC_CFGR_RES | ADC_CFGR_EXTSEL | ADC_CFGR_EXTEN))
+               | resolution | (extsel << ADC_CFGR_EXTSEL_Pos)
+               | (exten << ADC_CFGR_EXTEN_Pos);
+
+    /* 8. The sampling time and the rank. A sampling time too short for the
+          source impedance reads low and reads stable, which is the second
+          silent state. */
+    ADC1->SMPR2 = sampling_time_for(channel);
+    ADC1->SQR1  = channel << ADC_SQR1_SQ1_Pos;  /* one conversion, rank 1 */
+    return 0;
+}
+```
+
+**Every step reports what it wrote and what the register holds, and refuses on a mismatch.** That pair is the whole reason the bring-up is worth writing out rather than calling a vendor helper: a converter has at least two states in which it is misconfigured and silent, deep power-down and an unselected channel, and neither of them is visible from the samples. Eight lines of `wrote 00000014 read back 00000014` are what turn both into something a console can show. The project's own page carries the sourcing for every value, each one taken from ST's headers and its example for this exact board rather than chosen.
+
+**This step did not exist in this chapter until Tuesday 20 October 2026**, and the omission is recorded rather than quietly filled because of what it would have cost a reader. All three acquisition sketches went straight to `ADSTART`. A reader following the chapter would have built the tick version, the timer version and the transfer-engine version, watched all three report correct configuration, and seen no samples from any of them, with nothing in the chapter to suggest where to look. **The one trap that makes most published material wrong for this part was missing from the chapter whose code needs it**, while the project page beside it had carried all eight steps with their sources since Wednesday 7 October 2026.
+
+**Step 4.** **Build the first acquisition: the system tick.** This is the simplest thing that can work and it is a real variant, not a strawman. The tick exception fires at 1 kHz, starts a conversion, waits for it, stores it, and toggles the marker.
 
 ```c
 /* acq_systick.c */
 void acq_start(void)
 {
+    /* The eight steps of step 3, with a SOFTWARE trigger: this build starts
+       each conversion itself, so EXTEN is 0 and there is no trigger source. */
+    adc_bring_up(board_pclk1_hz(), apb1_divisor(),
+                 0u, ADC_EXTEN_SOFTWARE, "software, one conversion per tick");
+
     SysTick->LOAD = 280000u - 1u;     /* 280 MHz core clock, exactly 1 ms */
     SysTick->VAL  = 0u;
     SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk
@@ -250,7 +318,7 @@ void marker_toggle(void)
 
 The waiting loop is the whole lesson. Measure it with the wrapper from step 2 and write the number in the budget table. At 1 kHz it is invisible; the point of measuring it now is that chapter 13 samples faster.
 
-**Step 4.** **Build the second acquisition: a timer starts the converter.** Now no software sits between the timer and the conversion. The timer's update event is routed to its trigger output and the converter is configured to start on it.
+**Step 5.** **Build the second acquisition: a timer starts the converter.** Now no software sits between the timer and the conversion. The timer's update event is routed to its trigger output and the converter is configured to start on it.
 
 ```c
 /* acq_timer.c */
@@ -262,11 +330,13 @@ void acq_start(void)
     TIM6->CR2 = (2u << TIM_CR2_MMS_Pos);          /* TRGO on update */
     TIM6->EGR = TIM_EGR_UG;
 
-    /* ADC1: external trigger, rising edge, source number from RM0455's
-       trigger table for THIS part. Do not copy it from an H743 project. */
-    ADC1->CFGR = (ADC1->CFGR & ~ADC_CFGR_EXTSEL_Msk)
-               | (ADC_TRIGGER_TIM6_TRGO << ADC_CFGR_EXTSEL_Pos)
-               | (1u << ADC_CFGR_EXTEN_Pos);      /* rising edge */
+    /* The same eight steps, with the trigger passed in rather than written
+       here. The source number is 13 for TIM6 TRGO on THIS part; do not copy
+       it from an H743 project. One function owns that register's fields, so
+       there is exactly one write to CFGR in the whole build. */
+    adc_bring_up(board_pclk1_hz(), apb1_divisor(),
+                 ADC_EXTSEL_TIM6_TRGO, ADC_EXTEN_RISING,
+                 "TIM6 TRGO on the rising edge");
     ADC1->CR  |= ADC_CR_ADSTART;
     TIM6->CR1  = TIM_CR1_CEN;
 }
@@ -274,7 +344,7 @@ void acq_start(void)
 
 The marker now moves into the end-of-conversion interrupt, which is one step further from the timer and so one step worse as a witness of the timer. Toggle it in both places under a build switch and let the witness tell you how much that step costs. That comparison is a measurement this book has not seen published for this family.
 
-**Step 5.** **Build the third acquisition: double-buffered transfer.** The stream controller on this family carries two memory pointers and a bit saying which one it is currently filling. Set both pointers, enable double-buffer mode, and take the transfer interrupts. **Two of the writes below are the ones a reader is most likely to leave out, and either omission alone gives a build whose every register reads back exactly as intended while no sample ever moves**: the converter's data management field, and the multiplexer channel that routes the request.
+**Step 6.** **Build the third acquisition: double-buffered transfer.** The stream controller on this family carries two memory pointers and a bit saying which one it is currently filling. Set both pointers, enable double-buffer mode, and take the transfer interrupts. **Two of the writes below are the ones a reader is most likely to leave out, and either omission alone gives a build whose every register reads back exactly as intended while no sample ever moves**: the converter's data management field, and the multiplexer channel that routes the request.
 
 ```c
 /* acq_dma_double.c */
@@ -285,6 +355,12 @@ static const uint16_t *ready_ptr;
 
 void acq_start(void)
 {
+    /* 0. The same eight steps as the other two builds, with the timer's
+          trigger, because nothing below configures the converter itself. */
+    adc_bring_up(board_pclk1_hz(), apb1_divisor(),
+                 ADC_EXTSEL_TIM6_TRGO, ADC_EXTEN_RISING,
+                 "TIM6 TRGO on the rising edge");
+
     /* 1. The converter must be told to RAISE a transfer request at all. This
           field is 00 after reset, which is right for the two builds that read
           the data register themselves and wrong for this one. 11 is circular:
@@ -343,7 +419,7 @@ void DMA1_Stream0_IRQHandler(void)
 
 Two further traps live in this step's code and both belong to this family. The first is the cache: with the data cache enabled and the buffers in the main memory region, the processor can read a stale line that the engine has already overwritten. The fix is to invalidate the block before reading it, and the complete treatment is chapter 19. The second is reach: the tightly coupled memories are fast and the main transfer engines cannot see them at all, so a buffer moved there for speed produces a transfer that appears to run and writes nothing. That is item 16 on the confirm list and the most common fault in this family.
 
-**Step 6.** **Run the witness.** On the Pi, scan one channel continuously and write the samples with the metadata that makes them interpretable later. The API names below follow the HAT library's published examples; check them against the version you install rather than against this page.
+**Step 7.** **Run the witness.** On the Pi, scan one channel continuously and write the samples with the metadata that makes them interpretable later. The API names below follow the HAT library's published examples; check them against the version you install rather than against this page.
 
 ```python
 # witness/scan.py: runs on the Raspberry Pi
@@ -378,7 +454,7 @@ open("meta.json", "w").write(json.dumps(
 
 Record the rate the library granted rather than the rate you asked for. A HAT that quietly rounds the scan rate to something it can divide exactly turns a clean measurement into a systematic error of the same size as the effect.
 
-**Step 7.** **Turn edges into a rate with an uncertainty.** The analysis is short and every line of it is a decision worth defending in a README.
+**Step 8.** **Turn edges into a rate with an uncertainty.** The analysis is short and every line of it is a decision worth defending in a README.
 
 ```python
 # witness/rate.py
@@ -417,7 +493,7 @@ print(f"jitter, peak    {np.abs(resid).max()*1e9:.1f} ns")
 
 Report all four numbers. The rate without the jitter hides a build that is on average right and individually wrong, which is exactly what the tick build with a long conversion wait looks like.
 
-**Step 8.** **Build the gated frequency counter on the board.** The witness is on the other side of the room and needs a Pi. The board can measure a periodic signal by itself, and from here on it does. One 32-bit timer counts edges arriving on its external trigger input; a second timer, clocked from the system clock, opens and closes the gate.
+**Step 9.** **Build the gated frequency counter on the board.** The witness is on the other side of the room and needs a Pi. The board can measure a periodic signal by itself, and from here on it does. One 32-bit timer counts edges arriving on its external trigger input; a second timer, clocked from the system clock, opens and closes the gate.
 
 ```c
 /* instr/freqcount.c: counts edges on TIM5_ETR over a gate from TIM7. */
@@ -446,7 +522,7 @@ void TIM7_IRQHandler(void)
 
 The resolution of this instrument is one count in the gate. On a 1 kHz signal with a one second gate that is one part in a thousand, which is far too coarse to see the effect this chapter is after. The upgrade is the classic one and is worth the extra twenty lines: stop counting edges in a fixed window and instead capture the system-clock time of the Nth edge. With a 32-bit capture timer at 280 MHz, a thousand periods are timed to about 3.6 ns, which is under four parts in a billion of the interval. Resolution then stops being the limit and the oscillator becomes the limit, which is the honest place for it to be.
 
-**Step 9.** **Test the analysis before you trust it.** The rate script is the instrument's most fragile part, so it is tested on synthetic input with a known answer, on the host, in continuous integration. This is the same discipline chapter 12 turns into a rig.
+**Step 10.** **Test the analysis before you trust it.** The rate script is the instrument's most fragile part, so it is tested on synthetic input with a known answer, on the host, in continuous integration. This is the same discipline chapter 12 turns into a rig.
 
 ```python
 # witness/test_rate.py
@@ -537,7 +613,7 @@ The comparison across the top three rows is the part this book has not found pub
 
 ## Stretch goals
 
-- Replace the gated counter with the reciprocal counter sketched in step 9 and show the resolution improving by three orders of magnitude while the stated accuracy does not move, because the oscillator has become the limit.
+- Replace the gated counter with the reciprocal counter sketched in step 10 and show the resolution improving by three orders of magnitude while the stated accuracy does not move, because the oscillator has become the limit.
 - Run the witness against the board's low-speed crystal instead of its sampling interrupt, by routing a divided crystal output to the marker pin, and compare the two oscillators the board carries. Chapter 7 needs that number.
 - Raise the rate to 10 kHz and then 50 kHz and find where each of the three builds stops meeting its budget. The tick build will be the first to stop and the witness can say by how much.
 - Publish the analysis script and its synthetic test as a small standalone package, since no permissively licensed tool in the pool turns a sampled square wave into a rate with an uncertainty.
