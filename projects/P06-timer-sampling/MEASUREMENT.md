@@ -977,3 +977,61 @@ path through the Morpho header, which was wired that afternoon on the strength o
 a datasheet table and had carried no signal when it went in: 60 185 edges and
 **zero missing**. A pin read out of UM2408 Table 19 and a wire fitted by hand are
 both claims until something counts edges through them.
+
+
+## The tick build through the same wire, and the chapter's prediction gets no support
+
+**Taken twenty minutes after the timer run, on the same marker path at CN12
+pin 27, with nothing moved between them.** That is the first time the two builds
+have been compared with the physical path held constant and known, rather than
+compared across sessions.
+
+    duration            59.996 s, 60172 edges, both polarities
+    rate, fitted        1002.9472 +/- 0.0000 Hz
+    rate, counted       1002.9397 Hz
+    interval mean       997.07 us
+    interval spread     3.59 us standard deviation
+    worst interval      990.16 us, 9.84 us from nominal
+    missing edges       0
+
+      FAIL  rate_within_tolerance
+      pass  jitter_within_limit
+      pass  worst_interval_within_limit
+      pass  no_missing_edges
+      pass  routes_agree
+
+**Side by side, and the prediction is the loser.**
+
+| | `sampling-systick` | `sampling-timer` |
+|---|---|---|
+| spread | **3.59 us** | 3.66 us |
+| worst interval, from nominal | 9.84 us | 9.87 us |
+| rate, fitted | 1002.9472 Hz | 1003.0960 Hz |
+| edges | 60 172 | 60 185 |
+| missing edges | 0 | 0 |
+
+**The chapter predicted the tick build would be worst on spread and worst case.
+It is marginally better on both.** The differences are 0.07 and 0.03
+microseconds against a witness sample period of 10, so the honest reading is not
+that the prediction is refuted but that **this instrument cannot resolve the
+quantity the prediction is about**, and the sign of the difference is the opposite
+of the predicted one. A null result whose sign points the wrong way is still a null
+result, and it is a second one: Friday 16 October 2026 gave 3.39 against 3.51
+microseconds for the same pair across sessions.
+
+**So the comparison is now a null result reproduced through a different physical
+path, in one session, with the wire unchanged between the two runs.** That is
+worth more than the first statement of it, because the earlier pair could have been
+explained by anything that differed between two evenings. This pair cannot.
+
+**The 149 ppm between the two builds' rates is the oscillator, not the build.**
+Both drive the converter from the same HSI, and the runs are twenty minutes apart.
+This project has recorded about a hundred ppm of settling in the six minutes after
+a reset and a band about 600 ppm wide across sessions, so a 149 ppm gap between two
+runs of the same board is inside what the clock does on its own. **Attributing it
+to the back ends would be the error this file exists to prevent.**
+
+**And each run's edge count checks its own fitted rate.** The tick build's fit
+predicts 60 172.8 edges over 59.996 seconds and the run counted 60 172; the timer
+build's predicts 60 185.8 over 60.000 and counted 60 185. Both within one edge, and
+in both cases the tally and the fit were computed independently.

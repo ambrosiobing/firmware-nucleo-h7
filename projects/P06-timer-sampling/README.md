@@ -2351,6 +2351,37 @@ node existed at all. This repository's own pre-flight list carries that check as
 item 10, `ls /dev/spidev0.0` before trusting `hat_list`, and skipping it cost one
 traceback.
 
+### The tick build through the same wire, Tuesday 20 October 2026
+
+**The chapter's central comparison now has both builds measured on one wire in one
+session**, which it has never had: previous pairs were taken on different evenings
+through the Zio position before the shield was fitted.
+
+| | `sampling-systick` | `sampling-timer` | verdict |
+|---|---|---|---|
+| interval spread | **3.59 us** | 3.66 us | criterion 2 passes for both, both instrument-limited |
+| worst interval, off nominal | 9.84 us | 9.87 us | criterion 3 passes for both |
+| missing edges | 0 | 0 | criterion 4 passes for both |
+| rate, fitted | 1002.9472 Hz | 1003.0960 Hz | criterion 1 **fails** for both |
+
+**The prediction in the three-builds table is that the tick build is worst on
+spread and worst case. It is marginally better on both**, by 0.07 and 0.03
+microseconds, on an instrument whose sample period is 10 microseconds. The
+prediction is not refuted, because nothing here can resolve a difference that
+small; it is unsupported, and the sign is the wrong way round.
+
+**What makes this pair better evidence than the pair from Friday 16 October 2026**
+is that nothing moved between the two runs. Same wire at CN12 pin 27, same shield
+fitted, same HAT, twenty minutes apart. The earlier pair, 3.39 against 3.51
+microseconds, was taken across sessions and could be explained by anything that
+differed between two evenings.
+
+**The 149 ppm between the two rates is the oscillator and not the builds.** Both
+trigger from the same HSI, this project has measured about a hundred ppm of
+settling in the first six minutes after a reset, and the band across sessions is
+about 600 ppm wide. A gap that size between two runs twenty minutes apart is what
+the clock does by itself.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
