@@ -2014,6 +2014,98 @@ at all, and of the two that do, the other one is sound, both its names appearing
 times in their own file. A checker for a population of two, catching one, would cost
 more than reading does.
 
+### The transfer-engine back end's first run, specified before it happens, Tuesday 20 October 2026
+
+Written while preparing the run and before any of it exists, so no criterion can
+be adjusted to fit an answer. It follows the form used for criterion 1's attempt
+further up this page.
+
+**What the run is.** Build `p06-sampling-dma`, flash it, and read COM13 at 115200
+in the same command, because the board is shared and a console opened after the
+copy misses the banner. Press the black RESET button while the reader counts. Let
+it run for at least 120 seconds with PC3 grounded at CN11 pin 37.
+
+**What the output must contain before any figure is read.** The banner naming
+`acquisition   dma`, then the input pin and the eight converter steps, then this
+back end's own seven: data management circular, dma1 clock, dma stream idle,
+dmamux request 9, dma stream configured, dma both halves, dma stream enabled.
+Every one prints what it wrote and what the register held. **A refusal on any of
+them ends the run there**, and the line that refused is the finding.
+
+**The criteria, each able to fail.**
+
+1. **`blocks` advances at all.** This is the whole question for a back end that
+   has never run. Zero blocks with all fifteen configuration lines reading ok is
+   the specific failure this build is built to make visible.
+2. **The report cadence in time is 0.96 seconds per line, within 2 percent.**
+   A line is emitted every 15 blocks of 64 samples, which is 960 samples, so at a
+   true 1 kHz the lines arrive 1.04 per second. **The cadence in blocks cannot
+   fail and is not a criterion**: `main.c` says so in its own comment, after this
+   page once published "blocks rises by roughly 15 each line", which is 1000 over
+   64 and could not have come out otherwise. The cadence in TIME can fail, and
+   half rate or double rate would show as 1.92 or 0.48 seconds per line.
+3. **`mean` reads 2 to 6 across the run** with PC3 grounded, the same threshold
+   published on Thursday 8 October 2026 and met by the timer build on Saturday
+   17 October 2026 and Monday 19 October 2026. A converter that is sampling
+   something other than the pin does not return to a few counts of zero when the
+   pin is tied to ground.
+4. **`overruns` stays 0.** That counter is main failing to collect a finished
+   half, and at 15.6 halves per second it has no excuse. A nonzero count would be
+   a finding about the application loop rather than about the engine.
+5. **`convovr` reads -1 for the whole run, and that is a PASS.** This back end
+   does not watch the converter's overrun flag and the banner says so. A zero
+   there would be the defect, because it would be a count nobody earned.
+
+**If `blocks` stays at zero, the suspect list is shorter than it was.** `CIRC`
+is off it: RM0455 pages 605 and 622 say the hardware forces that bit when double
+buffer mode is set and the stream is enabled. What remains, in the order the
+console can answer it: the data management field, whose read-back is printed; the
+multiplexer routing, whose read-back is printed; the stream's own enable bit,
+printed; and **the converter's overrun flag, which is the only one of the four
+this build cannot see**, because it neither enables the interrupt nor clears the
+flag. An overrun stops every further transfer request until software clears it,
+so a run that produces a few blocks and then stops has that as its first suspect
+and no line in the output will say so.
+
+**What this run cannot settle, and the reason is structural rather than an
+omission.** `MEASUREMENT.md` measures criteria 2, 3 and 4 from the marker pin's
+edges, one per sample. **This back end toggles the marker nowhere.** It calls
+`marker_init` and never calls `marker_toggle`, where both other back ends toggle
+in their sampling interrupt. That is not a missing line: **nothing happens in
+software per sample in this build**, which is the entire point of it, so a
+per-sample edge cannot exist. Its handler fires once per 64 samples.
+
+So the prediction in the three-builds table above, that this build is
+indistinguishable from the timer build **on spread**, cannot be evaluated by the
+published method as the code stands. That is recorded here rather than discovered
+as a flat line on the witness, and the choice is Joseph's:
+
+| Option | What the witness would then measure | What it costs |
+|---|---|---|
+| Toggle in the block handler | the regularity of block completions, 15.6 per second | the prediction must be relabelled: it would be a claim about blocks, not about samples, and the table's "on spread" would need to say so |
+| Leave it untoggled | nothing from this build | criteria 2, 3 and 4 are unavailable for this back end, which must be written into `MEASUREMENT.md` rather than left implicit |
+| Drive the pin from a timer channel in hardware | the sample instants themselves, for all three builds | the stretch goal this page already names; it is the only route that separates handler latency from the conversion instant, and for this build it is the only route at all |
+
+**The honest reading of that table is that the third option is what the chapter's
+comparison actually requires**, and that the first two are ways of saying so with
+different amounts of candour. Nothing is changed in the code today: the run below
+is worth making first, because whether this engine moves a sample at all is prior
+to what the marker should mean.
+
+**The hand-over, when the bench is free.** On win11 skyhorizon, PowerShell 5.1,
+one line that dot-sources the toolchain, builds, resolves the board by its volume
+label and opens the console in the same command:
+
+    cd C:\Users\skyhorizon\Desktop\firmware-nucleo-h7; . .\projects\P01-toolchain-first-light\Use-CubeIDEToolchain.ps1; cmake --build build-fw --target p06-sampling-dma; if ($LASTEXITCODE -ne 0) { Write-Host 'BUILD FAILED, board untouched' } else { $v = Get-Volume | Where-Object { $_.FileSystemLabel -eq 'NOD_H7A3ZIQ' }; if (-not $v) { Write-Host 'NOT FLASHED: no volume labelled NOD_H7A3ZIQ' } else { Copy-Item build-fw\p06-sampling-dma.bin "$($v.DriveLetter):\" -Force; $p = New-Object System.IO.Ports.SerialPort COM13,115200,None,8,one; $p.DtrEnable = $true; $p.RtsEnable = $true; $p.Open(); 1..240 | ForEach-Object { Start-Sleep -Milliseconds 500; $s = $p.ReadExisting(); if ($s) { Write-Host -NoNewline $s } }; $p.Close() } }
+
+**A second route exists as of Tuesday 20 October 2026 and is unproven for this
+project.** A Debian `arm-none-eabi-gcc` 14.2.1 on PATH in WSL on the same laptop
+was probed that day and compiles, links bare metal, links newlib and carries the
+hard-float multilib. It has never built this project, which needs the vendor
+device header at a Windows path reachable as `/mnt/c/...`, so the route above is
+the one with six images behind it and the WSL route is a first attempt rather than
+a fallback.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
