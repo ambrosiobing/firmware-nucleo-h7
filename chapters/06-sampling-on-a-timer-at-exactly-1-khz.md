@@ -274,7 +274,7 @@ void acq_start(void)
 
 The marker now moves into the end-of-conversion interrupt, which is one step further from the timer and so one step worse as a witness of the timer. Toggle it in both places under a build switch and let the witness tell you how much that step costs. That comparison is a measurement this book has not seen published for this family.
 
-**Step 5.** **Build the third acquisition: double-buffered transfer.** The stream controller on this family carries two memory pointers and a bit saying which one it is currently filling. Set both pointers, enable double-buffer mode, and take the half and full transfer interrupts.
+**Step 5.** **Build the third acquisition: double-buffered transfer.** The stream controller on this family carries two memory pointers and a bit saying which one it is currently filling. Set both pointers, enable double-buffer mode, and take the transfer interrupts. **Two of the writes below are the ones a reader is most likely to leave out, and either omission alone gives a build whose every register reads back exactly as intended while no sample ever moves**: the converter's data management field, and the multiplexer channel that routes the request.
 
 ```c
 /* acq_dma_double.c */
@@ -285,18 +285,48 @@ static const uint16_t *ready_ptr;
 
 void acq_start(void)
 {
-    DMA1_Stream0->PAR  = (uint32_t) &ADC1->DR;
-    DMA1_Stream0->M0AR = (uint32_t) buf_a;
-    DMA1_Stream0->M1AR = (uint32_t) buf_b;
-    DMA1_Stream0->NDTR = HALF;
+    /* 1. The converter must be told to RAISE a transfer request at all. This
+          field is 00 after reset, which is right for the two builds that read
+          the data register themselves and wrong for this one. 11 is circular:
+          a request after every conversion, including past the last transfer. */
+    ADC1->CFGR = (ADC1->CFGR & ~ADC_CFGR_DMNGT)
+               | ADC_CFGR_DMNGT_0 | ADC_CFGR_DMNGT_1;
+
+    /* 2. The engine's clock, then the stream disabled and SEEN to be idle
+          before any of its other registers are written. */
+    RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;
+    DMA1_Stream0->CR &= ~DMA_SxCR_EN;
+    while ((DMA1_Stream0->CR & DMA_SxCR_EN) != 0u) { }
+
+    /* 3. The request routing, which is a register write and not a table
+          lookup. The multiplexer channel belonging to this stream carries the
+          request id, and for ADC1 on this part that id is 9. It is not the
+          number RM0433 gives. */
+    DMAMUX1_Channel0->CCR = 9u & DMAMUX_CxCR_DMAREQ_ID;
+
+    /* 4. The stream. CIRC is deliberately absent: RM0455 pages 605 and 622 say
+          double-buffer mode enables circular behaviour automatically and that
+          the hardware forces that bit once the stream is enabled, so writing
+          it would change nothing either way. */
     DMA1_Stream0->CR   = DMA_SxCR_DBM            /* two pointers, ping-pong */
                        | DMA_SxCR_MINC
-                       | (1u << DMA_SxCR_MSIZE_Pos)   /* 16-bit memory */
-                       | (1u << DMA_SxCR_PSIZE_Pos)   /* 16-bit peripheral */
-                       | DMA_SxCR_TCIE
-                       | DMA_SxCR_EN;
-    /* The request number that connects ADC1 to this stream comes from the
-       DMAMUX request table in RM0455. It is not the same number as RM0433. */
+                       | DMA_SxCR_MSIZE_0        /* 16-bit memory */
+                       | DMA_SxCR_PSIZE_0;       /* 16-bit peripheral */
+    DMA1_Stream0->M1AR = (uint32_t) buf_b;
+    DMA1_Stream0->NDTR = HALF;
+    DMA1_Stream0->PAR  = (uint32_t) &ADC1->DR;
+    DMA1_Stream0->M0AR = (uint32_t) buf_a;
+    DMA1_Stream0->CR  |= DMA_SxCR_TCIE | DMA_SxCR_TEIE | DMA_SxCR_DMEIE;
+
+    /* 5. The vector must EXIST, or this handler is unreachable however correct
+          the configuration is; chapter 1's startup table is where to check.
+          Then stale flags cleared, the stream enabled LAST of the engine's
+          writes, the converter armed, and only then the timer started. */
+    NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+    DMA1->LIFCR = DMA_LIFCR_CTCIF0;
+    DMA1_Stream0->CR |= DMA_SxCR_EN;
+    ADC1->CR |= ADC_CR_ADSTART;
+    TIM6->CR1 |= TIM_CR1_CEN;
 }
 
 void DMA1_Stream0_IRQHandler(void)
@@ -309,12 +339,14 @@ void DMA1_Stream0_IRQHandler(void)
 }
 ```
 
-Two traps live in these twenty lines and both belong to this family. The first is the cache: with the data cache enabled and the buffers in the main memory region, the processor can read a stale line that the engine has already overwritten. The fix is to invalidate the block before reading it, and the complete treatment is chapter 19. The second is reach: the tightly coupled memories are fast and the main transfer engines cannot see them at all, so a buffer moved there for speed produces a transfer that appears to run and writes nothing. That is item 16 on the confirm list and the most common fault in this family.
+**The first and third writes above were missing from this step until Tuesday 20 October 2026**, and the omission is recorded rather than quietly repaired, because it is the most useful thing in the step. As first published it set the pointers, the counter and the peripheral address, assembled a control word with `DBM`, and named the request number only in a comment. Either gap alone is enough: with the data management field at its reset 00 the converter raises no request whatever, so the stream sits enabled and idle, all eight bring-up steps report success, every configuration read-back is correct, and the block counter never moves. **A build that reads back perfectly and transfers nothing is the hardest failure in this chapter to diagnose from the console alone**, which is why those writes are now numbered with the reason beside each one.
+
+Two further traps live in this step's code and both belong to this family. The first is the cache: with the data cache enabled and the buffers in the main memory region, the processor can read a stale line that the engine has already overwritten. The fix is to invalidate the block before reading it, and the complete treatment is chapter 19. The second is reach: the tightly coupled memories are fast and the main transfer engines cannot see them at all, so a buffer moved there for speed produces a transfer that appears to run and writes nothing. That is item 16 on the confirm list and the most common fault in this family.
 
 **Step 6.** **Run the witness.** On the Pi, scan one channel continuously and write the samples with the metadata that makes them interpretable later. The API names below follow the HAT library's published examples; check them against the version you install rather than against this page.
 
 ```python
-# witness/scan.py -- runs on the Raspberry Pi
+# witness/scan.py: runs on the Raspberry Pi
 import json, time
 import numpy as np
 from daqhats import mcc118, OptionFlags, hat_list, HatIDs
@@ -463,7 +495,7 @@ If the board stops responding to the debugger after a build that enables the tra
 - The witness reports a sample rate whose stated uncertainty does not contain the difference between the three builds, or it reports that it does and the chapter says the three are indistinguishable at this rate. Either result is publishable; a result with no uncertainty is not.
 - The three builds compile from one unmodified application source, proven by a checksum of that file being identical in all three build logs.
 - The cycle counter's self-test runs on a board that has never had a debugger attached in that power cycle, and the result is recorded in the README either way. If the trace counter does not run without a debugger, the timer backend is used and the chapter says so.
-- The overrun count is zero over a ten minute run for the double-buffered build, and is greater than zero when the processing is deliberately slowed past the block budget. A counter that never increments has not been tested.
+- The overrun count is zero over a ten minute run for the double-buffered build, and is greater than zero when the processing is deliberately slowed past the block budget. A counter that never increments has not been tested. **The second half of this criterion costs a decision, noted here on Tuesday 20 October 2026 rather than discovered at the bench**: on this converter an overrun does not lose one sample, it blocks every further transfer request until software clears the flag. RM0455 page 980 states it, and this project had already derived the same thing from the register semantics in its timer build. So a deliberately slowed run does not give a rising count and a continuing stream; it gives one overrun and then silence, unless the build enables the overrun interrupt and clears the flag in its handler the way the timer build does. Until it does, the honest report is that the count is unavailable rather than zero.
 - The rate analysis passes its synthetic test on the host, in continuous integration, with no board attached.
 - The marker toggle's cost in cycles is measured and written in the repository, because seven later chapters inherit it.
 
