@@ -2307,6 +2307,50 @@ with the output redirected is two minutes and gives the directory an artefact wi
 the same provenance as the other twelve. Until then this section is the record, and
 it says where its numbers came from.
 
+### The witness ran through CN12 pin 27, and the wire is measured, Tuesday 20 October 2026
+
+**Both of the day's doubts are answered by one capture.** The marker path through
+the Morpho position carries signal, and criteria 2, 3 and 4 pass through it. The
+run is 6 000 000 samples at 100 kHz, sixty seconds, on the MCC 118 on `eplepi`.
+
+| Figure | Reading | Against |
+|---|---|---|
+| edges, both polarities | **60 185** | 60 186 predicted by the fitted rate, so the tally and the fit agree to one edge |
+| rate, fitted | **1003.0960 +/- 0.0001 Hz** | criterion 1 wants 999.0 to 1001.0, so **FAIL** at +3096 ppm |
+| rate, counted | 1003.0819 Hz | the two routes agree, which is itself a pass |
+| interval spread | 3.66 us standard deviation | criterion 2 passes, and 3.66 is below half the witness's 10 us period, so it bounds the board rather than measuring it |
+| worst interval | 990.13 us, 9.87 us from nominal | criterion 3 passes |
+| missing edges | **0** | criterion 4 passes |
+
+**The verdict is FAIL and only criterion 1 fails**, for the reason this project has
+published since Wednesday 7 October 2026: the internal oscillator cannot carry a
+0.1 percent claim. +3096 ppm sits inside the 2630 to 3257 ppm band this board has
+given across sessions, so it is a fourth reading of a known failure rather than a
+new one.
+
+**What was genuinely open until this run, and is not now.** The wire fitted that
+afternoon to CN12 pin 27 had carried nothing. A Morpho position read out of UM2408
+Table 19 and a jumper pushed onto a header are both claims, and **60 185 edges with
+zero missing is what turns them into a measurement.** The doubt about whether that
+wiring was worth doing was reasonable and is now settled by a count.
+
+**Three things this run did not change.** Criterion 2 is still limited by the
+witness and not by the board, so the finer instrument remains the open item.
+Criterion 1 still fails and the options for it are still a better clock or a
+restated claim. And the transfer-engine build still toggles the marker nowhere, so
+this reading belongs to the timer build alone.
+
+**How the capture was reached, because it cost two detours worth recording.** The
+first flash command omitted the toolchain dot-source, so `cmake` was not found and
+the board was flashed with the `.bin` already present; that was the correct current
+timer image, 15 276 B, because the day's only change to a file this build compiles
+was comment-only and proven so before it was committed. Then `scan.py` failed with
+`Addr 0: Board not responding`, which was not the HAT: both SPI0 chip selects on
+`eplepi` were held by CAN overlays for hardware that is not fitted, so no `spidev`
+node existed at all. This repository's own pre-flight list carries that check as
+item 10, `ls /dev/spidev0.0` before trusting `hat_list`, and skipping it cost one
+traceback.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified

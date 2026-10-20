@@ -927,3 +927,53 @@ timer can drive the converter's external trigger is an RM0455 question this volu
 not read. Or restating the project's claim as a nominal rate with its measured
 tolerance and its time since reset, which is a decision about what P06 asserts and
 not a new reading.
+
+
+## A fourth reading, through a pin nobody had measured, Tuesday 20 October 2026
+
+**The verdict does not change and one thing about it is now stronger.** This run
+was taken with the marker on **CN12 pin 27**, the Morpho position, because the
+X-NUCLEO-53L8A1 covers CN7 pin 19, which nothing in this volume had noticed until
+that day. So it is the first reading of criteria 2, 3 and 4 taken through a
+different physical path to the same pin, and it agrees with the readings taken
+through the Zio position before the shield was fitted.
+
+    duration            60.000 s, 60185 edges, both polarities
+    witness resolution  10.0 us per sample
+    rate, fitted        1003.0960 +/- 0.0001 Hz
+    rate, counted       1003.0819 Hz
+    interval mean       996.93 us
+    interval spread     3.66 us standard deviation
+    worst interval      990.13 us, 9.87 us from nominal
+    missing edges       0
+
+      FAIL  rate_within_tolerance
+      pass  jitter_within_limit
+      pass  worst_interval_within_limit
+      pass  no_missing_edges
+      pass  routes_agree
+
+**The edge count checks the rate without being told it.** 1003.0960 Hz over sixty
+seconds, with the marker toggling once per sample, predicts 60 186 edges and the
+run counted 60 185. One edge in sixty seconds is the agreement between a fitted
+frequency and a raw tally, and neither was derived from the other.
+
+**Criterion 1 fails at +3096 ppm**, which sits inside the 2630 to 3257 ppm band
+this board's internal oscillator has given across sessions. The earlier verdict
+quoted 2818 ppm. The difference is larger than the hundred ppm of post-reset
+settling recorded above, so the honest statement is that this board's HSI gives a
+figure in a band about 600 ppm wide across sessions, and a single number for it has
+never been available.
+
+**Criteria 2 and 3 pass and remain instrument-limited, exactly as this file said
+they would.** The spread is 3.66 microseconds against a witness sample period of
+10, so it is below half the resolution and bounds the board rather than measuring
+it. `rate.py` prints that conclusion itself rather than leaving it to a reader.
+**The finer instrument for criterion 2 is still the open item**, unchanged by this
+run.
+
+**What this run adds that the three before it could not.** It proves the marker
+path through the Morpho header, which was wired that afternoon on the strength of
+a datasheet table and had carried no signal when it went in: 60 185 edges and
+**zero missing**. A pin read out of UM2408 Table 19 and a wire fitted by hand are
+both claims until something counts edges through them.
