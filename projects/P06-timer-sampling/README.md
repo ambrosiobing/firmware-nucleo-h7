@@ -2038,21 +2038,56 @@ more than reading does.
    result at this witness's 10 µs floor, with the reason stated. What remains in
    this item is a finer instrument for criterion 2, and three runs per build where
    one exists.
-5. **`sampling-dma`**, the last back end with no converter. Its buffer's placement
-   is fixed and confirmed in the map file, and its engine, stream, request and
-   interrupt are settled from ST's example for this board, and its handler now
-   has a vector, all on Friday 16 October 2026. **Every register it needs is
-   read and cited as of Saturday 17 October 2026** and none is written: what
-   stands between the specification and the code is one decision about whether
-   TIM6's setup is duplicated or factored, which is in the section above.
-   `sampling-systick`
-   reached it on Friday 9 October 2026; the transfer-engine build still needs its
-   engine, stream and request number, all of which are RM0455 table lookups. **Factor the
-   bring-up first rather than copying it**, for the reasons and with the scope in
-   the section below.
-6. **`OVRMOD` as a decision rather than a reading.** It now reads 0 as found, and
-   nothing chooses it. Choosing it needs a reason, and the reason will come from
-   what a real source on PC3 turns out to need.
+5. ~~**`sampling-dma`**, the last back end with no converter.~~ **Written and
+   compiling since Monday 19 October 2026, and it has never run.** Its buffer's
+   placement is fixed and confirmed in the map file, its engine, stream, request
+   and interrupt were settled from ST's example for this board and its handler got
+   a vector, all on Friday 16 October 2026. Every register it needs was read and
+   cited on Saturday 17 October 2026. The TIM6 decision that blocked it was taken
+   on Monday 19 October 2026, the setup is one shared function, the back end's
+   whole configuration is written, and the build grew by 5736 bytes with its buffer
+   at `0x24000000` in AXI SRAM. **What remains is its first run**, which is the
+   only thing on this page that needs the board rather than a reader.
+
+   Two sentences of this item were removed on Tuesday 20 October 2026 rather than
+   struck through, because they were not merely out of date. One said the thing
+   standing between the specification and the code was the TIM6 decision, which had
+   been taken and acted on. The other said the build still needed its engine,
+   stream and request number as RM0455 table lookups, **which this same item's
+   first sentence had called settled four days earlier**, and which came from ST's
+   headers rather than from any table. An item that contradicts itself is worse
+   than an item that is behind.
+6. **`OVRMOD` needs no choosing, and what it was standing in for does.**
+   Narrowed on Tuesday 20 October 2026 by reading RM0455 Rev 13 rather than by any
+   measurement. The field reads 0 as found and nothing writes it, and page 980
+   recommends exactly 0 where an overrun is to be treated as an error, which is
+   this project's position. **So the as-found value is already the recommended
+   one.**
+
+   What the item was really holding open is the transfer-engine back end's
+   behaviour, and that is sharper than a field. On this converter an overrun does
+   not lose one sample: page 980 says the requests stop and stay stopped until
+   software clears the flag, which `acq_timer.c` had already derived from the
+   register semantics on Saturday 17 October 2026. So an overrun on the
+   transfer-engine build ends the stream, the block counter stops advancing, and
+   the console shows a run that went quiet with no line saying why. The timer build
+   enables the overrun interrupt and counts and clears the flag in its handler.
+   **The open question is whether the transfer-engine build adopts that pattern
+   whole**, which would make `acq_conv_overruns` return a count instead of -1.
+
+   And one question is left for the first run rather than guessed: clearing the
+   flag unblocks the requests, and nothing read so far says what then holds between
+   the stream's current target, its remaining `NDTR` and the samples already
+   placed.
+
+7. **`CIRC` is answered and needs nothing**, Tuesday 20 October 2026. RM0455
+   Rev 13 section 15.3.11 on page 605 says double-buffer mode enables circular
+   behaviour automatically and that the bit is not relevant; the bit's own
+   description on page 622 says the hardware forces it to 1 once the stream is
+   enabled. The back end leaves it unwritten, which was copied from ST's sequence
+   and is now correct for a reason. **It also comes off the first run's suspect
+   list**: a stream that delivers two halves and stops cannot be explained by that
+   bit.
 
 ### The converter's own overrun, closed Thursday 8 October 2026
 
