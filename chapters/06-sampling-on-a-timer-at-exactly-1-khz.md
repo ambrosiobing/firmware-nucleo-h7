@@ -368,7 +368,13 @@ void acq_start(void)
        figure its acceptance criterion asks for. The handler must CLEAR the
        flag as well as count it: on this converter an overrun stops the
        conversions until the flag is cleared, so enabling the interrupt and
-       not clearing it gives one report and then silence. */
+       not clearing it gives one report and then silence.
+
+       STALE FLAGS FIRST. The bring-up above ran conversions of its own while
+       it checked the configuration, so a left-over flag here would make the
+       first interrupt report something that predates this call. Both are
+       cleared by writing one to them. */
+    ADC1->ISR  = ADC_ISR_EOC | ADC_ISR_OVR;
     ADC1->IER |= ADC_IER_OVRIE;
     ADC1->CR  |= ADC_CR_ADSTART;
     TIM6->CR1  = TIM_CR1_CEN;
