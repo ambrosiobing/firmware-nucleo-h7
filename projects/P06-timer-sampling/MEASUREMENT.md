@@ -1035,3 +1035,41 @@ to the back ends would be the error this file exists to prevent.**
 predicts 60 172.8 edges over 59.996 seconds and the run counted 60 172; the timer
 build's predicts 60 185.8 over 60.000 and counted 60 185. Both within one edge, and
 in both cases the tally and the fit were computed independently.
+
+
+## The control: the transfer-engine build drives no marker, measured
+
+**This volume has asserted since Monday 19 October 2026 that the transfer-engine
+back end toggles the marker nowhere, and until Tuesday 20 October 2026 that was a
+reading of the code.** It is now a reading of the board. Sixty seconds of the same
+witness, on the same wire, with the same shield fitted, an hour after the timer
+build put 60 185 edges through it:
+
+    FAIL: the recording is flat, a swing of 5.1 mV where 100 mV is the floor.
+    That is a wire not on PB4 ... or a ground not shared, or a marker not
+    driven; it is not a timing result
+
+**The refusal is the result.** `rate.py` declines to report a rate and names what a
+reader should check, which is what a refusal is for. Of the three causes it lists,
+two are excluded by the run that preceded it: the wire is on PB4 and the grounds
+are shared, both proven by 60 185 edges through that same lead with nothing moved
+between the two captures. **What remains is the third, a marker not driven, which
+is the claim under test.**
+
+**The control works because nothing changed between the two runs.** Same lead at
+CN12 pin 27, same shield, same HAT, same evening, one image swapped. A flat
+recording on its own would mean a broken bench; a flat recording an hour after a
+working one, from the same bench with a different image, means the image. That is
+the whole argument and it needs no further instrument.
+
+**The 5.1 mV of swing is itself a cross-check.** The offset between the two boards'
+grounds was measured at 4.7 to 8.3 millivolts on Saturday 17 October 2026 by a
+wire that was in the wrong place. A flat line reading 5.1 mV is that offset, which
+means the witness is seeing the undriven pin correctly rather than seeing nothing
+at all.
+
+**And the refusal named a pin that cannot be used.** Its text said PB4 at CN7
+pin 19, the Zio position, covered by the stacked shield since before Monday
+19 October 2026. A refusal that sends a reader to the wrong place is worse than one
+that names none, so the message now points at the wiring section instead and says
+that an undriven marker is the expected result for this build rather than a defect.

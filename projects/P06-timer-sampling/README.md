@@ -2382,6 +2382,36 @@ settling in the first six minutes after a reset, and the band across sessions is
 about 600 ppm wide. A gap that size between two runs twenty minutes apart is what
 the clock does by itself.
 
+### The control run, and it produced nothing on purpose, Tuesday 20 October 2026
+
+**The claim that this back end toggles the marker nowhere was a reading of the code
+until tonight.** The witness now says it too. Sixty seconds, same wire at CN12
+pin 27, same shield, an hour after the timer build put 60 185 edges through that
+lead, and `rate.py` refused the capture: **a swing of 5.1 mV against a 100 mV
+floor.**
+
+**Two of the three causes the refusal lists are excluded by the preceding run.**
+The wire is on PB4 and the grounds are shared, both proven by 60 185 edges through
+the same lead with nothing moved between captures. The third, a marker not driven,
+is the claim under test, so the control passes by failing.
+
+**The swing cross-checks the bench rather than merely bounding it.** 5.1 mV is the
+ground offset between the two boards, measured independently at 4.7 to 8.3
+millivolts on Saturday 17 October 2026, so the witness is reading an undriven pin
+rather than reading nothing.
+
+**One defect came out of it.** The refusal's text named PB4 at CN7 pin 19, the Zio
+position that the shield has covered since before Monday 19 October 2026, so a
+reader following the message would check a pin they cannot reach. It now points at
+`docs/the-board-and-the-wiring.md` 4.4 and says plainly that an undriven marker is
+this build's expected result rather than a fault.
+
+**And the console capture attempted earlier is 7 lines and 289 bytes**, the banner
+alone, so it is **not** committed to `console/`. The reader opened while the probe
+was still programming and the port went with the re-enumeration. The method is
+sound: the same reader took the full output minutes later. A capture of a banner
+with no data is not evidence of anything and does not belong beside the twelve.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified

@@ -156,9 +156,11 @@ def analyse(samples: list[float], fs: float,
         r["refused"] = "no_swing"
         r["error"] = (
             f"the recording is flat, a swing of {swing * 1e3:.1f} mV where "
-            f"{MIN_SWING_V * 1e3:.0f} mV is the floor. That is a wire not on PB4 at "
-            "CN7 pin 19, a ground not shared, or a marker not driven; it is not a "
-            "timing result")
+            f"{MIN_SWING_V * 1e3:.0f} mV is the floor. That is a wire not on PB4, "
+            "whose connector position depends on what is stacked on the board and "
+            "is stated in docs/the-board-and-the-wiring.md 4.4; or a ground not "
+            "shared; or a marker not driven, which is the expected result for the "
+            "transfer-engine build and not a defect. It is not a timing result")
         r["pass"] = False
         return r
     if len(edges) < 3:
