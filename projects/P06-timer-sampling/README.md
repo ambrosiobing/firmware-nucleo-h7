@@ -2405,7 +2405,10 @@ the clock does by itself.
    gave the same four numbers, so the comparison the chapter exists for is a null
    result at this witness's 10 µs floor, with the reason stated. What remains in
    this item is a finer instrument for criterion 2, and three runs per build where
-   one exists.
+   one exists. **Tuesday 20 October 2026 added one run each for the timer and tick
+   builds**, taken on one wire in one session, which is the first pair of theirs
+   that shares a physical path. The finer instrument is untouched: both runs sat
+   below half the witness's sample period again.
 5. ~~**`sampling-dma`**, the last back end with no converter.~~ **Written and
    compiling since Monday 19 October 2026, and it has never run.** Its buffer's
    placement is fixed and confirmed in the map file, its engine, stream, request
@@ -2414,8 +2417,13 @@ the clock does by itself.
    cited on Saturday 17 October 2026. The TIM6 decision that blocked it was taken
    on Monday 19 October 2026, the setup is one shared function, the back end's
    whole configuration is written, and the build grew by 5736 bytes with its buffer
-   at `0x24000000` in AXI SRAM. **What remains is its first run**, which is the
-   only thing on this page that needs the board rather than a reader.
+   at `0x24000000` in AXI SRAM. ~~**What remains is its first run**~~ **and it ran on Tuesday 20 October 2026**:
+   1890 blocks of 64, which is 120 960 samples, over 126 report lines, with
+   `overruns 0` and `convovr 0` on every one. **That sentence was predicted to go
+   stale in the commit that wrote it**, which said it was a statement about that
+   day and would be wrong the moment the run happened. It was wrong within hours,
+   which is the shortest-lived claim on this page and the only one that announced
+   its own expiry.
 
    Two sentences of this item were removed on Tuesday 20 October 2026 rather than
    struck through, because they were not merely out of date. One said the thing
@@ -2440,13 +2448,18 @@ the clock does by itself.
    transfer-engine build ends the stream, the block counter stops advancing, and
    the console shows a run that went quiet with no line saying why. The timer build
    enables the overrun interrupt and counts and clears the flag in its handler.
-   **The open question is whether the transfer-engine build adopts that pattern
-   whole**, which would make `acq_conv_overruns` return a count instead of -1.
+   ~~**The open question is whether the transfer-engine build adopts that pattern
+   whole**~~ **and it does, as of Tuesday 20 October 2026.** Joseph took the
+   decision with the reasoning attached, the build enables `OVRIE`, its own
+   `ADC_IRQHandler` counts and clears the flag, and the first run printed
+   `converter overrun  watched, so convovr below is a real count` with `convovr 0`
+   on all 126 report lines. `acq_conv_overruns` returns a count rather than -1.
 
-   And one question is left for the first run rather than guessed: clearing the
-   flag unblocks the requests, and nothing read so far says what then holds between
-   the stream's current target, its remaining `NDTR` and the samples already
-   placed.
+   **One question is still left for a run and the first one could not answer it**,
+   because no overrun occurred: clearing the flag unblocks the requests, and
+   nothing read so far says what then holds between the stream's current target,
+   its remaining `NDTR` and the samples already placed. **A clean run cannot
+   settle a recovery question**, so this waits for a deliberately slowed one.
 
 7. **`CIRC` is answered and needs nothing**, Tuesday 20 October 2026. RM0455
    Rev 13 section 15.3.11 on page 605 says double-buffer mode enables circular
@@ -2456,6 +2469,13 @@ the clock does by itself.
    and is now correct for a reason. **It also comes off the first run's suspect
    list**: a stream that delivers two halves and stops cannot be explained by that
    bit.
+
+   **And the part confirmed the manual the same afternoon.** The stream's control
+   register reads `00042C16` before the enable, which is exactly the word the code
+   assembles, and `00042D17` after it. The difference is `0x101`: bit 0, which the
+   code wrote, and **bit 8, `CIRC`, which nothing in this repository has ever
+   written**. A documentary claim and a register read-back agreeing is a stronger
+   result than either alone.
 
 ### The converter's own overrun, closed Thursday 8 October 2026
 
