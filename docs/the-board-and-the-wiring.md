@@ -1526,12 +1526,18 @@ maximum as configured. The self test runs at 1 MHz, comfortably inside it.
 > **As of Tuesday 20 October 2026 the wire is on CN12 pin 27**, stated by Joseph,
 > with the shield stacked. No edge has been observed through it yet.
 
-**The ground wire is the half that is not stated, and it is the half that goes in
-first.** A signal lead to the HAT without a ground reference between the two boards
-is the arrangement that read 94 to 165 counts on Saturday 17 October 2026 instead
-of 1 to 2. So before the next witness run: a wire from a **GND** pin on the
-NUCLEO-H7A3ZI-Q to the **ground terminal** on the MCC 118's screw block, and the
-offset between those grounds is already measured at 4.7 to 8.3 millivolts.
+**BOTH WIRES ARE IN AS OF Tuesday 20 October 2026**, stated by Joseph: the
+ground from a **GND** pin on the NUCLEO-H7A3ZI-Q to the **ground terminal** on the
+MCC 118's screw block, and the signal from **CN12 pin 27** to **channel 0**. The
+ground went in because a signal lead without a reference between the two boards is
+the arrangement that read 94 to 165 counts on Saturday 17 October 2026 instead of
+1 to 2, and the offset between those grounds is measured at 4.7 to 8.3 millivolts.
+
+**So the path is complete and no edge has gone through it.** The run that would
+have used it was the transfer-engine build, which toggles this pin nowhere. **The
+next capture has to be the timer or the tick build**, and until one of them puts
+edges into the HAT this is a wired path rather than a measured one, which is the
+distinction this page exists to keep.
 
 **A series resistor in the signal wire is insurance against the wire finding the
 wrong terminal, not protection for the board**, which is driving that pin

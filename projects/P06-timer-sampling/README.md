@@ -2205,10 +2205,11 @@ This board's does.
 the wire went on, because this afternoon's was the transfer-engine build, which
 toggles the marker nowhere. **The first witness run after this change has to be
 `p06-sampling-timer` or `p06-sampling-systick`**, and until one of them puts edges
-into the MCC 118 the wire is connected and unmeasured. The ground lead between the
-two boards is the other half and is not stated yet; without it the HAT reads the
-ground offset rather than the signal, which cost 94 to 165 counts on Saturday
-17 October 2026.
+into the MCC 118 the wire is connected and unmeasured. **The ground lead went in the same day**, from a GND pin on the NUCLEO-H7A3ZI-Q
+to the MCC 118's ground terminal, so both wires of 4.4 are now present. Without it
+the HAT reads the ground offset rather than the signal, which cost 94 to 165 counts
+on Saturday 17 October 2026. **What is still missing is a run**: the timer or the
+tick build, since the transfer-engine build drives this pin nowhere.
 
 **Nothing is blocked today.** This afternoon's run used no marker, and the
 transfer-engine back end toggles it nowhere. Criteria 2, 3 and 4 for the timer and
