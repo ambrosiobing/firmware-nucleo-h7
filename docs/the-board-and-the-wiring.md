@@ -1533,11 +1533,30 @@ ground went in because a signal lead without a reference between the two boards 
 the arrangement that read 94 to 165 counts on Saturday 17 October 2026 instead of
 1 to 2, and the offset between those grounds is measured at 4.7 to 8.3 millivolts.
 
-**So the path is complete and no edge has gone through it.** The run that would
-have used it was the transfer-engine build, which toggles this pin nowhere. **The
-next capture has to be the timer or the tick build**, and until one of them puts
-edges into the HAT this is a wired path rather than a measured one, which is the
-distinction this page exists to keep.
+**THE PATH IS MEASURED AS OF Tuesday 20 October 2026, and it took two captures to
+say so.** The timer build put **60 185 edges** through it and the tick build
+**60 172**, both with zero missing, both inside sixty seconds, twenty minutes
+apart with nothing moved between them. The distinction this page keeps, between a
+wired path and a measured one, is closed for this wire.
+
+**PHOTOGRAPHED THE SAME EVENING, which is when this catalogue says a photograph is
+due**: in the same hand-over as the first run after a physical change, not a week
+later. Two views show the Raspberry Pi 4 with the MCC 118 seated on it, both jumper
+leads running from the HAT's screw terminal block down to the Nucleo's Morpho
+headers, the X-NUCLEO-53L8A1 stacked on the Nucleo, and the USB lead on CN1.
+
+**What the photographs do NOT establish, and it is the same caveat as the
+set of Monday 19 October 2026.** They do not show which pins the leads sit on. That comes from Joseph's
+statement of CN12 pin 27 to channel 0, from UM2408 Table 19 for the position, and
+from the two edge counts above, which are the only evidence that the pin named is
+the pin driven. **A photograph is not a pinout**, and two photographs are not two
+pinouts.
+
+**One bench-hygiene observation from the same pictures.** Several loose single
+strands of wire are lying on the paper around both boards. None is on a header in
+the images, and a stray strand near a powered header is the kind of thing that
+costs an afternoon rather than a minute, so it is worth clearing before the next
+capture rather than after the next surprise.
 
 **A series resistor in the signal wire is insurance against the wire finding the
 wrong terminal, not protection for the board**, which is driving that pin
