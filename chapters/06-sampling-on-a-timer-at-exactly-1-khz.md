@@ -386,6 +386,7 @@ The marker now moves into the end-of-conversion interrupt, which is one step fur
 #define HALF 128u
 static uint16_t buf_a[HALF], buf_b[HALF];
 static volatile uint32_t ready_seq, taken_seq;
+static volatile uint32_t conv_overruns;   /* the converter's, not the application's */
 static const uint16_t *ready_ptr;
 
 void acq_start(void)
@@ -435,9 +436,33 @@ void acq_start(void)
           writes, the converter armed, and only then the timer started. */
     NVIC_EnableIRQ(DMA1_Stream0_IRQn);
     DMA1->LIFCR = DMA_LIFCR_CTCIF0;
+
+    /* 6. The converter's overrun, which matters more to THIS build than to
+          either of the others. RM0455 page 980: an overrun does not lose one
+          sample here, it blocks every further transfer request until software
+          clears the flag. Unwatched, the first overrun ends the stream, the
+          transfer complete interrupt stops arriving, the block counter stops,
+          and nothing in the output says why. */
+    ADC1->ISR  = ADC_ISR_OVR;         /* stale flags before the enable */
+    ADC1->IER |= ADC_IER_OVRIE;
+    NVIC_EnableIRQ(ADC_IRQn);
+
     DMA1_Stream0->CR |= DMA_SxCR_EN;
     ADC1->CR |= ADC_CR_ADSTART;
     TIM6->CR1 |= TIM_CR1_CEN;
+}
+
+/* One flag, and it MUST be cleared as well as counted: counting without
+   clearing leaves the flag set, re-enters forever and makes the count
+   meaningless, and clearing is also what unblocks the engine's requests. There
+   is no end-of-conversion work and no EOCIE, because nothing in this build
+   reads the data register, which is the whole point of it. */
+void ADC_IRQHandler(void)
+{
+    if ((ADC1->ISR & ADC_ISR_OVR) != 0u) {
+        conv_overruns++;
+        ADC1->ISR = ADC_ISR_OVR;
+    }
 }
 
 void DMA1_Stream0_IRQHandler(void)
@@ -446,9 +471,22 @@ void DMA1_Stream0_IRQHandler(void)
     /* CT says which pointer the engine is filling NOW, so the other is ready */
     ready_ptr = (DMA1_Stream0->CR & DMA_SxCR_CT) ? buf_a : buf_b;
     ready_seq++;
-    marker_toggle();
+    marker_toggle();                  /* read the note below before copying */
 }
 ```
+
+**That `marker_toggle()` is one of three options and it is NOT the one chosen.**
+An edge here fires once per 64 samples, so it measures block completions and not
+the instants of individual conversions, which is what the variants table at the
+end of this chapter predicts about this build. **A per-sample edge cannot exist
+in this build at all**: nothing happens in software per sample, which is its
+reason for existing. On Tuesday 20 October 2026 the decision was taken to drive
+the marker from a timer channel in hardware instead, which is the only
+arrangement that measures the predicted quantity, and it cannot be written yet:
+RM0455 section 46.2 page 1754 says TIM6 and TIM7 are basic timers with no capture
+or compare channels and no pin, and TIM6 is what triggers the conversions. The
+line stays in the sketch so this step runs, and the honest reading of it is that
+it measures the block rate, not the sample rate.
 
 **The first and third writes above were missing from this step until Tuesday 20 October 2026**, and the omission is recorded rather than quietly repaired, because it is the most useful thing in the step. As first published it set the pointers, the counter and the peripheral address, assembled a control word with `DBM`, and named the request number only in a comment. Either gap alone is enough: with the data management field at its reset 00 the converter raises no request whatever, so the stream sits enabled and idle, all eight bring-up steps report success, every configuration read-back is correct, and the block counter never moves. **A build that reads back perfectly and transfers nothing is the hardest failure in this chapter to diagnose from the console alone**, which is why those writes are now numbered with the reason beside each one.
 
@@ -606,7 +644,7 @@ If the board stops responding to the debugger after a build that enables the tra
 - The witness reports a sample rate whose stated uncertainty does not contain the difference between the three builds, or it reports that it does and the chapter says the three are indistinguishable at this rate. Either result is publishable; a result with no uncertainty is not.
 - The three builds compile from one unmodified application source, proven by a checksum of that file being identical in all three build logs.
 - The cycle counter's self-test runs on a board that has never had a debugger attached in that power cycle, and the result is recorded in the README either way. If the trace counter does not run without a debugger, the timer backend is used and the chapter says so.
-- The overrun count is zero over a ten minute run for the double-buffered build, and is greater than zero when the processing is deliberately slowed past the block budget. A counter that never increments has not been tested. **The second half of this criterion costs a decision, noted here on Tuesday 20 October 2026 rather than discovered at the bench**: on this converter an overrun does not lose one sample, it blocks every further transfer request until software clears the flag. RM0455 page 980 states it, and this project had already derived the same thing from the register semantics in its timer build. So a deliberately slowed run does not give a rising count and a continuing stream; it gives one overrun and then silence, unless the build enables the overrun interrupt and clears the flag in its handler the way the timer build does. Until it does, the honest report is that the count is unavailable rather than zero.
+- The overrun count is zero over a ten minute run for the double-buffered build, and is greater than zero when the processing is deliberately slowed past the block budget. A counter that never increments has not been tested. **The decision this criterion needed was taken on Tuesday 20 October 2026 and the step above now carries it**: the build enables the overrun interrupt and clears the flag in its handler, so the count is real and a zero is earned. The paragraph below is kept because the mechanism is the reason the decision went that way: on this converter an overrun does not lose one sample, it blocks every further transfer request until software clears the flag. RM0455 page 980 states it, and this project had already derived the same thing from the register semantics in its timer build. So a deliberately slowed run does not give a rising count and a continuing stream; it gives one overrun and then silence, unless the build enables the overrun interrupt and clears the flag in its handler the way the timer build does. Until it does, the honest report is that the count is unavailable rather than zero.
 - The rate analysis passes its synthetic test on the host, in continuous integration, with no board attached.
 - The marker toggle's cost in cycles is measured and written in the repository, because seven later chapters inherit it.
 
