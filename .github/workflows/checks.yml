@@ -134,6 +134,16 @@ jobs:
       - name: Every path a documented command names exists
         run: python python/tools/check_doc_commands.py
 
+      # A register a build writes that its chapter never names is a reader
+      # following the chapter and getting a board that reports itself correct
+      # and does nothing. Chapter six had four of those on Tuesday 20 October
+      # 2026: the whole converter bring-up, the marker pin's configuration, the
+      # overrun interrupt its own acceptance criterion asks for, and the input
+      # pin left out of the step written to fix the first one. The allowlist
+      # carries the eleven names that are deliberate, each with its reason.
+      - name: Every register a build writes is named in its chapter
+        run: python python/tools/check_chapter_registers.py
+
       - name: No assembled volume and no PDF is published
         run: |
           set -e
