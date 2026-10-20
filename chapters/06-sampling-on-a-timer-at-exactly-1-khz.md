@@ -222,8 +222,16 @@ If the self-test returns zero, the fallback is a free-running 32-bit timer with 
 int adc_bring_up(uint32_t pclk1_hz, uint32_t apb_div, uint32_t extsel,
                  uint32_t exten, const char *trigger_name)
 {
+    /* 0. THE PIN FIRST. Every register below this can be correct while
+          nothing reaches the converter, because the signal goes nowhere and
+          goes nowhere silently. PC3 to analog mode, which is MODER 11, and
+          the port's clock before that. */
+    RCC->AHB4ENR |= RCC_AHB4ENR_GPIOCEN;
+    (void) RCC->AHB4ENR;              /* read back: the write is posted */
+    GPIOC->MODER |= 3u << (3u * 2u);  /* PC3, two bits per pin, 11 analog */
+
     /* 1. Leave deep power-down. A converter in it answers writes and
-          converts nothing, which is the first silent state. */
+          converts nothing, which is the second silent state. */
     ADC1->CR &= ~ADC_CR_DEEPPWD;
 
     /* 2. The internal regulator on, and 3. the start-up wait, which is a
@@ -274,7 +282,7 @@ int adc_bring_up(uint32_t pclk1_hz, uint32_t apb_div, uint32_t extsel,
 }
 ```
 
-**Every step reports what it wrote and what the register holds, and refuses on a mismatch.** That pair is the whole reason the bring-up is worth writing out rather than calling a vendor helper: a converter has at least two states in which it is misconfigured and silent, deep power-down and an unselected channel, and neither of them is visible from the samples. Eight lines of `wrote 00000014 read back 00000014` are what turn both into something a console can show. The project's own page carries the sourcing for every value, each one taken from ST's headers and its example for this exact board rather than chosen.
+**Every step reports what it wrote and what the register holds, and refuses on a mismatch.** That pair is the whole reason the bring-up is worth writing out rather than calling a vendor helper: this converter has at least three states in which it is misconfigured and silent, an unconfigured input pin, deep power-down and an unselected channel, and not one of them is visible from the samples. Eight lines of `wrote 00000014 read back 00000014` are what turn both into something a console can show. The project's own page carries the sourcing for every value, each one taken from ST's headers and its example for this exact board rather than chosen.
 
 **This step did not exist in this chapter until Tuesday 20 October 2026**, and the omission is recorded rather than quietly filled because of what it would have cost a reader. All three acquisition sketches went straight to `ADSTART`. A reader following the chapter would have built the tick version, the timer version and the transfer-engine version, watched all three report correct configuration, and seen no samples from any of them, with nothing in the chapter to suggest where to look. **The one trap that makes most published material wrong for this part was missing from the chapter whose code needs it**, while the project page beside it had carried all eight steps with their sources since Wednesday 7 October 2026.
 
@@ -303,10 +311,28 @@ void SysTick_Handler(void)
     ring_put((uint16_t) ADC1->DR);
 }
 
-/* marker.c: one store, no read-modify-write, no branch. The witness can only
-   see what this function shows it, so its own cost is part of the measurement.
-   Measure it with the wrapper from step 2 and record the number: every later
-   chapter that uses a marker pin inherits it. */
+/* marker.c. The pin must be CLOCKED and CONFIGURED before any of this means
+   anything: a port whose clock is off ignores the write and reads back zero,
+   and a pin in its reset mode drives nothing, so a build that skips this
+   toggles in software and shows the witness a flat line. */
+void marker_init(void)
+{
+    RCC->AHB4ENR |= RCC_AHB4ENR_GPIOBEN;
+    (void) RCC->AHB4ENR;              /* read back: the write is posted */
+
+    const uint32_t pos2 = MARKER_PIN * 2u;
+    MARKER_PORT->MODER   = (MARKER_PORT->MODER & ~(3u << pos2))
+                         | (1u << pos2);        /* output */
+    MARKER_PORT->OTYPER &= ~(1u << MARKER_PIN); /* push-pull */
+    MARKER_PORT->PUPDR  &= ~(3u << pos2);       /* no pull */
+    MARKER_PORT->OSPEEDR |= (3u << pos2);       /* fastest slew this pin has */
+    marker_low();
+}
+
+/* One store, no read-modify-write, no branch. The witness can only see what
+   this function shows it, so its own cost is part of the measurement. Measure
+   it with the wrapper from step 2 and record the number: every later chapter
+   that uses a marker pin inherits it. */
 void marker_toggle(void)
 {
     static uint32_t level;
@@ -337,10 +363,19 @@ void acq_start(void)
     adc_bring_up(board_pclk1_hz(), apb1_divisor(),
                  ADC_EXTSEL_TIM6_TRGO, ADC_EXTEN_RISING,
                  "TIM6 TRGO on the rising edge");
+
+    /* The overrun interrupt, without which this build cannot report the one
+       figure its acceptance criterion asks for. The handler must CLEAR the
+       flag as well as count it: on this converter an overrun stops the
+       conversions until the flag is cleared, so enabling the interrupt and
+       not clearing it gives one report and then silence. */
+    ADC1->IER |= ADC_IER_OVRIE;
     ADC1->CR  |= ADC_CR_ADSTART;
     TIM6->CR1  = TIM_CR1_CEN;
 }
 ```
+
+**The slew setting is not housekeeping and it is the only place in this volume where it is load-bearing.** The witness interpolates each crossing, so a slow edge widens the uncertainty on every edge time in the run, which is the figure the whole chapter exists to produce. The fastest slew the pin offers costs nothing here because the marker drives a 220 Ω resistor and nothing else.
 
 The marker now moves into the end-of-conversion interrupt, which is one step further from the timer and so one step worse as a witness of the timer. Toggle it in both places under a build switch and let the witness tell you how much that step costs. That comparison is a measurement this book has not seen published for this family.
 
