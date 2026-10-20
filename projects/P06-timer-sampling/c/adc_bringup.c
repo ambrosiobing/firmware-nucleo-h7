@@ -123,9 +123,16 @@
  * 17 October 2026: the fields this file LEAVES AT THEIR RESET VALUE, which are
  * not all the same for every back end.
  *
- * Step 7's write is the only write to ADC1->CFGR in this repository and it masks
- * RES, EXTSEL and EXTEN and nothing else, so every other field of that register
- * is whatever reset left. Two of them are known, and neither was chosen here.
+ * Step 7's write masks RES, EXTSEL and EXTEN and nothing else, so every other
+ * field of that register is whatever reset left unless another file writes it.
+ * Two of them are known, and neither was chosen here.
+ *
+ * THIS PARAGRAPH SAID STEP 7 WAS THE ONLY WRITE TO ADC1->CFGR IN THIS
+ * REPOSITORY, and it stopped being true on Monday 19 October 2026, when
+ * acq_dma_double.c began writing DMNGT. The sentence below predicted that write
+ * and named the file that owed it, so this paragraph falsified its own opening
+ * line and went on standing for a day. That write masks DMNGT alone, which is
+ * why OVRMOD below is still as reset found it.
  *
  * DMNGT decides whether the converter raises a transfer request AT ALL. Its
  * reset 00 is right for the two back ends that read DR themselves and wrong for

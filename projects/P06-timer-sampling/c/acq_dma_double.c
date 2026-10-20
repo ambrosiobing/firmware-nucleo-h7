@@ -107,10 +107,20 @@ static volatile uint8_t  ready_half;    /* the half that just finished */
  * part, with the line numbers quoted beside each use in acq_start, and RM0455 was
  * not needed for any of them.
  *
- * ONE QUESTION THE READING DID NOT ANSWER, and it is left open rather than
- * guessed: whether double buffer mode implies circular behaviour on this part.
- * The sourced sequence does not write CIRC, so neither does this file. If the
- * stream delivers two halves and stops, that bit is the first thing to read.
+ * THE ONE QUESTION THE HEADER READING COULD NOT ANSWER IS ANSWERED, from
+ * RM0455 Rev 13 on Tuesday 20 October 2026, and the answer is that not writing
+ * CIRC is correct for a reason stronger than the sourcing. Section 15.3.11,
+ * Double-buffer mode, page 605: when double buffer mode is enabled the circular
+ * mode is automatically enabled, the CIRC bit is not relevant, and the memory
+ * pointers are swapped at each end of transaction. The bit's own description,
+ * page 622, says the same thing from the other side: CIRC is forced to 1 by
+ * hardware if DBM is set, as soon as the stream is enabled.
+ *
+ * SO ONE ENTRY COMES OFF THE FIRST RUN'S SUSPECT LIST. This file said that if
+ * the stream delivered two halves and stopped, CIRC was the first thing to read.
+ * It cannot be the cause: the hardware sets it when EN goes to 1. A stream that
+ * stops after two halves has some other reason, and the first thing to read is
+ * then the converter's OVR flag, for the reason given at acq_conv_overruns.
  *
  * AND THE VECTOR EXISTS NOW, WHICH IT DID NOT WHEN THIS HANDLER WAS WRITTEN.
  * Renaming it from stream 0 to stream 1 on Friday 16 October 2026 prompted a
@@ -299,11 +309,13 @@ int acq_start(void)
      * buffer is uint16_t, and because ST's example for this board sets both to
      * halfword.
      *
-     * CIRC, bit 8, is NOT written, and that is deliberate rather than forgotten:
-     * the sourced sequence does not write it. Whether double buffer mode implies
-     * circular behaviour on this part is an RM0455 question this volume has not
-     * read, so the bit is left alone rather than set on a guess. If the stream
-     * stops after two halves, that is the first thing to read. */
+     * CIRC, bit 8, is NOT written, and as of Tuesday 20 October 2026 that is
+     * correct by the manual rather than only by the sourcing. RM0455 Rev 13
+     * page 622: CIRC is forced to 1 by hardware if DBM is set, as soon as the
+     * stream is enabled. Page 605 says it from the other side, that double
+     * buffer mode enables circular mode automatically and the bit is not
+     * relevant. Writing it would change nothing; leaving it alone is not a
+     * gamble that happened to pay. */
     DMA1_Stream1->CR = DMA_SxCR_DBM
                      | DMA_SxCR_MINC
                      | DMA_SxCR_PSIZE_0
@@ -410,7 +422,54 @@ uint32_t acq_overruns(void) { return overruns; }
  * narrower and is a decision rather than an omission: OVRIE is not enabled here
  * and OVRMOD is not chosen, both recorded as open fields in acq_start, so there
  * is no watched flag behind which a count could be honest. Saying -1 is what
- * keeps that from reading as a clean run later. */
+ * keeps that from reading as a clean run later.
+ *
+ * AND RM0455 RAISES THE STAKES OF THAT DECISION RATHER THAN SETTLING IT, read
+ * on Tuesday 20 October 2026. Rev 13, Managing conversions using the DMA, page
+ * 980: if an overrun occurs because the engine could not serve the request in
+ * time, the converter STOPS GENERATING REQUESTS, the new conversion is not
+ * transferred, and the requests stay blocked UNTIL THE SOFTWARE CLEARS OVR.
+ *
+ * So on this back end an overrun is not a lost sample. It is the end of the
+ * stream. Nothing here clears OVR, so the transfer complete interrupt stops
+ * arriving, the block counter stops advancing, and the console shows a run that
+ * simply went quiet with no line saying why. That is the failure mode this
+ * build is most exposed to and the one it currently reports least.
+ *
+ * AND THE MECHANISM WAS ARGUED IN THIS DIRECTORY BEFORE THE MANUAL WAS READ,
+ * which is worth saying plainly rather than letting the page number take the
+ * credit. acq_timer.c's handler states it from the register semantics alone,
+ * Saturday 17 October 2026: with OVRMOD clear the data register is preserved, so
+ * until OVR is cleared the converter keeps discarding and the stream stops for
+ * good while every register still reads back correctly. adc_bringup.c carries
+ * the same argument in its list of fields left at reset. RM0455 page 980 is
+ * INDEPENDENT CONFIRMATION of a conclusion this project had already reached by
+ * reading the bits, and the two agreeing is the result, not the page.
+ *
+ * WHAT IS ACTUALLY OPEN IS NARROWER THAN THIS FILE SAID. OVRMOD is not unset: it
+ * is 0 as found, reported from the board on Thursday 8 October 2026 and left
+ * alone by the write at acq_start, which masks DMNGT and nothing else. Page 1027
+ * gives the field's meaning, 0 preserves the old data register value and 1
+ * overwrites it with the latest conversion, and page 980 recommends 0 exactly
+ * where overruns are to be managed as errors. So the as-found value is already
+ * the one the manual recommends for this build, and nothing needs writing.
+ *
+ * THE OPEN PART IS WHETHER THIS BACK END ADOPTS THE SIBLING'S PATTERN WHOLE.
+ * acq_timer.c enables OVRIE, counts OVR in its handler and clears it there, and
+ * its own comment says that enabling OVRIE without clearing would make the count
+ * meaningless. That pattern is proven on the board. Adopting it here makes
+ * acq_conv_overruns return a real count instead of -1 and turns a silent stop
+ * into a reported one.
+ *
+ * ONE QUESTION THE MANUAL DID NOT ANSWER IN WHAT WAS READ, left open rather than
+ * guessed: clearing OVR unblocks the requests, and nothing on page 980 says what
+ * then holds between the stream's current target, its remaining NDTR and the
+ * samples already placed. Whether a cleared overrun resumes a correctly aligned
+ * double-buffer stream or a shifted one is a question for the first run.
+ *
+ * This file still does not choose. It records that the choice has a consequence
+ * the first run would otherwise present as a silence, and that -1 is the honest
+ * return until something watches the flag. */
 int acq_conv_overruns(uint32_t *out)
 {
     (void) out;
