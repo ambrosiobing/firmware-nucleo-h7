@@ -187,7 +187,7 @@ is not a dependency list.
 | what is needed | state as of Tuesday 6 October 2026 |
 |---|---|
 | the APB1 timer clock, so TIM6 divides to exactly 1 kHz | **sourced.** The TIMPRE rule from `stm32h7xx_hal_rcc_ex.h` lines 3596 to 3605, now in `c/instr/pwmmath.h` with the arithmetic and a host test |
-| the marker pin, which is what any witness actually watches | **sourced.** PB4, CN7 pin 19, Arduino D25, from UM2408 Rev 6 Table 18 page 44, which is this board's own table and not the H745's beside it |
+| the marker pin, which is what any witness actually watches | **sourced, at both of its positions.** PB4 at CN7 pin 19, Arduino D25, from UM2408 Rev 6 Table 18 page 44, and at **CN12 pin 27** from Table 19 page 47. **The Zio position is covered while the X-NUCLEO-53L8A1 is stacked**, confirmed by looking at the board on Tuesday 20 October 2026, so the wire goes to CN12 pin 27. Table 18 is this board's own table and not the H745's beside it |
 | the ADC external trigger value naming TIM6 TRGO | **sourced.** `EXTSEL` 13, from `stm32h7xx_ll_adc.h` line 993, cross-checked against TIM1 CH1 carrying no `EXTSEL` bits at all, which the field's table requires at position zero |
 | the DMAMUX1 request number for the converter | **sourced.** 9, from `stm32h7xx_hal_dma.h` line 229. This one belongs to `acq_dma_double.c` |
 | **the converter bring-up sequence** | **not sourced, and it gates all three back ends.** Deep power-down exit, the voltage regulator and its start-up wait, calibration, channel preselection, boost and clock mode, enable and the ready flag. ST's `stm32h7xx_hal_adc.c` implements all of it, so it is derivable from the pack the way the clock tree was, but it has not been read |
@@ -650,7 +650,9 @@ timebase on this die that could count the sampling interval is derived from the
 same oscillator that defines it, so firmware timing itself would confirm a wrong
 rate exactly as readily as a right one. That is why the project was built around
 an external witness before any of it was written. The MCC 118 on the Raspberry Pi
-watching the marker on PB4 at CN7 pin 19 is the measurement. The wire is not
+watching the marker on PB4 is the measurement, at whichever of its two positions
+the shield leaves reachable, which `docs/the-board-and-the-wiring.md` 4.4 states.
+The wire is not
 connected, and until it is, the 1 kHz in this project's title is a claim.
 
 ### The converted value, which is not the result
@@ -773,7 +775,7 @@ enough to make the claim and the number is withdrawn rather than averaged.
 nothing else. Criteria 2, 3 and 4 are the interval spread, the worst case interval
 and dropped or doubled edges, and all three are about the instants of individual
 conversions. The console sees only block completions, 64 samples apart, so it
-cannot observe an interval at all. **The MCC 118 on PB4 at CN7 pin 19 remains the
+cannot observe an interval at all. **The MCC 118 on PB4 remains the
 only route to three of the four**, and those three are the chapter's actual
 subject.
 
@@ -2127,7 +2129,7 @@ question.
 | What must be read | Where it is | Why not from the manual |
 |---|---|---|
 | Which `EXTSEL` events are timer trigger outputs, and which of those timers have output channels | ST's LL header in the pack on win11 skyhorizon, `stm32h7xx_ll_adc.h`, whose line 993 is where `EXTSEL` 13 for TIM6 TRGO came from; the symbols are `LL_ADC_REG_TRIG_EXT_*` | **RM0455 page 1028 lists `EXTSEL` as "Event 0" to "Event 31" and names no timer at all.** The mapping is not in the register description, which is why this project sourced 13 from the headers in the first place |
-| Which timer channel can reach PB4, or which free pin a candidate channel can reach | the STM32H7A3 datasheet's alternate function table | UM2408 Table 18 page 44 gives PB4 as CN7 pin 19 and the board's Arduino name, not the part's alternate functions. The datasheet is not on this laptop and st.com serves no PDF here |
+| Which timer channel can reach PB4, or which free pin a candidate channel can reach | the STM32H7A3 datasheet's alternate function table | Both of UM2408's pin tables have now been read, Table 18 page 44 for CN7 pin 19 and Table 19 page 47 for CN12 pin 27, and neither gives an alternate function. UM2408 Table 18 page 44 gives PB4 as CN7 pin 19 and the board's Arduino name, not the part's alternate functions. The datasheet is not on this laptop and st.com serves no PDF here |
 
 **Nothing is changed in the code for this decision today, and the reason is not
 only the missing documents.** Whether this engine moves a sample at all is prior
@@ -2149,6 +2151,140 @@ hard-float multilib. It has never built this project, which needs the vendor
 device header at a Windows path reachable as `/mnt/c/...`, so the route above is
 the one with six images behind it and the WSL route is a first attempt rather than
 a fallback.
+
+### The marker pin is under the shield, and its Morpho position is read, Tuesday 20 October 2026
+
+**Found by Joseph asking where the marker wire goes**, which this volume's wiring
+page is supposed to answer without being asked. It recorded that the stacked
+X-NUCLEO-53L8A1 makes **CN9 pin 5 unreachable**, so PC3 is wired at CN11 pin 37
+instead, and said nothing about **CN7 pin 19**, which is PB4 and the pin every
+criterion except the console readings is measured from. **CN7 is a Zio header, not
+a Morpho one**, so the same shield covers it. Joseph confirmed by looking at the
+board: no jumper can reach it while the shield is fitted.
+
+**So the fallback stopped being optional and the Morpho table was read.** Until
+that day every mention of PB4 in this volume gave one position, from UM2408
+Table 18, which is the Zio table. **Table 19 on page 47 puts PB4 at CN12 pin 27.**
+
+**The column was resolved by coordinates rather than by reading order**, because a
+four-column table flattens into an interleaved sequence that could put PB4 on
+either header. PC3 is the anchor: it extracts at x 177 against pin number 37,
+which is the CN11 odd column and the position this volume and ST's own converter
+example already carry. With the mapping fixed, PB4 at x 367 against pin number 27
+is CN12 pin 27, and PB3, known here as D23 and SWO, lands in the same column at
+pin 31 as a second check.
+
+**Reachability was the open half and Joseph closed it the same day, by fitting the
+wire.** The marker lead runs from **CN12 pin 27 to MCC 118 channel 0** as of
+Tuesday 20 October 2026. That matters more than it sounds, because UM2408 section
+7.17 calls CN11 and CN12 "two male pin header footprints", **OFF by default**, so a
+Morpho position is a fallback only on a board whose footprint carries a header.
+This board's does.
+
+**What remains unproven is the path, not the pin.** No run has toggled PB4 since
+the wire went on, because this afternoon's was the transfer-engine build, which
+toggles the marker nowhere. **The first witness run after this change has to be
+`p06-sampling-timer` or `p06-sampling-systick`**, and until one of them puts edges
+into the MCC 118 the wire is connected and unmeasured. The ground lead between the
+two boards is the other half and is not stated yet; without it the HAT reads the
+ground offset rather than the signal, which cost 94 to 165 counts on Saturday
+17 October 2026.
+
+**Nothing is blocked today.** This afternoon's run used no marker, and the
+transfer-engine back end toggles it nowhere. Criteria 2, 3 and 4 for the timer and
+tick builds are measured from that pin, so this is needed before the next witness
+run and not before.
+
+### The transfer-engine back end ran, Tuesday 20 October 2026
+
+**It moves samples.** 1890 blocks of 64, which is 120 960 samples, across 126
+report lines, with `overruns 0` and `convovr 0` on every one of them. The back end
+written on Monday 19 October 2026 and compiled for the first time that afternoon
+had never run until now.
+
+**The criteria were published before the run and four of the five are met. The
+fifth was mis-specified by me and the measurement is better than the criterion.**
+
+| Criterion, as published | Measured | Verdict |
+|---|---|---|
+| 1. `blocks` advances at all | 1890 blocks, 126 lines | **met** |
+| 2. the report cadence is 0.96 s per line within 2 percent | 126 lines against a reader window of at least 120 s, where 120 960 samples at exactly 1 kHz is 120.96 s | **consistent, not established**: this capture carries no per-line timestamps, so the window length is known only as a lower bound |
+| 3. `mean` reads 2 to 6 across the run | **1 to 6** | **the criterion is wrong, the threshold is met**: see below |
+| 4. `overruns` stays 0 | 0 on all 126 lines | **met** |
+| 5. `convovr` reads 0 and the zero is earned | 0 on all 126 lines, with the banner printing "watched, so convovr below is a real count" | **met** |
+
+**Criterion 3 had a lower bound on a quantity whose ideal is zero, which is
+backwards.** It was written from the band the post-move capture happened to show,
+2 to 6, rather than from the threshold that band was tested against, which is
+within a few counts of zero and was published on Thursday 8 October 2026. A reading
+of 1 is better than a reading of 2. The criterion should have had an upper bound
+only, the measurement passes the threshold it was derived from, and the band
+widened downward rather than upward, which is the direction that cannot be a
+defect.
+
+#### The manual's claim about CIRC is now measured on the board
+
+This is the result worth more than the five criteria, and it was not one of them.
+The configuration read-backs print the stream's control register twice, before the
+enable and after it.
+
+    adc dma stream configured  ok  wrote 00042C16  read back 00042C16
+    adc dma stream enabled     ok  wrote 00000001  read back 00042D17
+
+**The pre-enable value is exactly the word the code assembles**, `DBM` with `MINC`,
+`PSIZE_0`, `MSIZE_0` and the three interrupt enables, which comes to `0x00042C16`
+by arithmetic. **The post-enable value differs by `0x101`, which is bit 0 and bit
+8.** Bit 0 is `EN` and the code wrote it. **Bit 8 is `CIRC` and nothing in this
+repository has ever written it.**
+
+So RM0455 Rev 13 section 15.3.11 page 605 and the bit's own description on page 622,
+read on this laptop that morning, are confirmed by the part itself that afternoon:
+double buffer mode enables circular behaviour automatically and the hardware forces
+that bit as soon as the stream is enabled. **A documentary claim and a register
+read-back agreeing is a stronger result than either alone**, and it retroactively
+justifies leaving the bit unwritten, which until this morning was only a copy of
+ST's sequence.
+
+#### Three other things the run settled or moved
+
+**The buffer is where the linker put it and where the engines can reach it.** The
+map reports `.dma_buffers` at `0x24000000`, 256 bytes, which is 64 samples times
+two halves times two bytes, in AXI SRAM.
+
+**The build stamp is stale against the image for the fourth time, and in a new
+way.** This image reports `main.c built Oct  9 2026 09:31:09` where all twelve
+committed captures read `09:31:08`. The one second is not a rebuild: each target
+compiles its own `main.o`, and the three were built a second apart on Friday
+9 October 2026. **So `main.c` was not recompiled today even though the image grew
+to 15 988 B**, which is the same blind spot this volume has recorded for the back
+ends, for a change in `startup.c` and for a change that altered the image size.
+
+**Calibration took 181 polls**, which is a third distinct value after 180 and 187.
+The claim that this count is not a property of the part is now supported by three
+readings rather than by two, one of which had no capture behind it.
+
+#### What the run did not settle, unchanged by it
+
+Criteria 2, 3 and 4 of `MEASUREMENT.md` are about the instants of individual
+conversions and are measured from the marker pin's edges. **This back end toggles
+the marker nowhere**, by the structural argument above, so the run says nothing
+about them and the witness was not used. The hardware marker decision stands where
+it stood this morning, and the first of its two lookups is now done: the converter's
+selectable triggers come from `stm32h7xx_ll_adc.h`, whose `LL_ADC_REG_TRIG_EXT_*`
+symbols name TIM1 CH1, CH2 and CH3, TIM2 CH2, TIM3 TRGO and CH4, TIM4 CH4 and TRGO,
+TIM8 TRGO and TRGO2, TIM1 TRGO and TRGO2, TIM2 TRGO, TIM6 TRGO, TIM15 TRGO,
+TIM23 TRGO and TIM24 TRGO. **Every one of those except TIM6 belongs to a timer with
+capture and compare channels**, so the trigger can move to a timer that also drives
+a pin. Which channel reaches PB4 is the remaining lookup and needs the datasheet.
+
+#### The capture's provenance, stated rather than assumed
+
+The figures above were read from the terminal, not from a file the reader wrote.
+Every capture committed to `console/` so far was written by a redirecting reader,
+and this one was printed to the screen, so **it is not committed here**. A re-run
+with the output redirected is two minutes and gives the directory an artefact with
+the same provenance as the other twelve. Until then this section is the record, and
+it says where its numbers came from.
 
 ### What is next, in the order that makes each claim true
 

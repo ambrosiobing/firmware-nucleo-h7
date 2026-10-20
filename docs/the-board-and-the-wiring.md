@@ -659,7 +659,7 @@ after the run that produced it, the thing you have is a table, not a constant.
 | **PD9** | USART3 RX, console, AF7 | | Settled, ST board support package |
 | **PD12** | LPTIM1_IN1, counting input, **AF1** | **CN10 pin 21**, Arduino D29 | Settled. ST's LPTIM pulse counter example and ST's PWM external clock example both state the CN10 position |
 | **PE13** | TIM1 channel 3, signal source, **AF1** | **CN10 pin 10**, Arduino D3 | Settled. `Examples/TIM/TIM_DMA/readme.txt` gives peripheral, channel, port pin, connector, pin number and Arduino name in one sentence |
-| **PB4** | Marker pin for the witness | **CN7 pin 19**, Arduino D25 | Settled. UM2408 Rev 6 **Table 18, page 44**, signal name D25, function SPI_B_MISO on SPI3 |
+| **PB4** | Marker pin for the witness | **CN7 pin 19**, Arduino D25, and **CN12 pin 27** on the Morpho header | Settled, both positions. Zio from UM2408 Rev 6 **Table 18, page 44**, signal name D25, function SPI_B_MISO on SPI3. Morpho from **Table 19, page 47**, the CN12 odd column. **CN7 pin 19 is covered while the X-NUCLEO-53L8A1 is stacked**, so CN12 pin 27 is where the wire goes |
 | PA13 | SWDIO | | Debugger. Do not touch |
 | PA14 | SWCLK | | Debugger. Do not touch |
 | PB3 | SWO | | Debugger trace. UM2408 gives it as D23/SWO |
@@ -681,6 +681,31 @@ clock while D10 is the chip select, so D13 is right and the D10 is a slip.
 Nothing here depends on PA5. The point is only this: **these readmes are not
 individually authoritative.** Two of them agreeing is worth much more than one of
 them stating.
+
+**THE MORPHO POSITION WAS READ ON Tuesday 20 October 2026 BECAUSE THE ZIO ONE
+BECAME UNREACHABLE.** Until that day every mention of PB4 in this volume gave one
+position, CN7 pin 19, from Table 18, which is the **Zio** table. Joseph confirmed
+by looking at the board that the stacked X-NUCLEO-53L8A1 covers CN7 pin 19 and no
+jumper can reach it, which made the fallback required rather than interesting.
+**UM2408 Rev 6 Table 19 on page 47, "Pin assignment of MCU with ST morpho
+connector", puts PB4 at CN12 pin 27**, in the CN12 odd column.
+
+**How that column was resolved, because a flattened table is not evidence.** The
+text extractor returns the four columns interleaved, so reading order alone could
+put PB4 on either header. The row was resolved by coordinates instead: the CN11
+odd signal column sits at x 175 and the CN12 odd at x 367, and **PC3 appears at
+x 177 against pin number 37**, which is the position ST's own converter example
+and this volume already carry as CN11 pin 37. With that anchor fixing the mapping,
+PB4 at x 367 against pin number 27 is CN12 pin 27. PB3, which this volume knows as
+D23 and SWO, lands in the same column at pin 31, which is a second consistency
+check rather than a new claim.
+
+**What is NOT established about reaching it.** CN12 is the Morpho header on the
+opposite side from CN11, outside the Arduino footprint the shield mates with, and
+CN11 pin 37 is confirmed reachable with the shield fitted because the grounded
+control was measured through it on Monday 19 October 2026 and again on Tuesday
+20 October 2026. CN12 is expected to be the same, and expected is not measured:
+the first witness run with the shield fitted is what will confirm it.
 
 **One thing UM2408 does not say about PB4, so it is not claimed here.** Its
 footnote list gives PB3 as D23/SWO and says nothing about PB4. Whether PB4
@@ -1373,9 +1398,37 @@ NUCLEO-H7A3ZI-Q, covering the Arduino headers, and two jumper wires run to the M
 header near its `COMP` and `GND` legends. The USB lead is on CN1, the ST-LINK port.
 
 That shield belongs to no project in this volume and is not used by any image here.
-It matters for one reason only: it occupies the Arduino headers, so **CN9 pin 5 is
-not reachable while it is fitted** and PC3 has to be wired at CN11 pin 37 instead,
-which is the same net. The P06 captures of Monday 19 October 2026 were taken with it
+It matters for two reasons, and until Tuesday 20 October 2026 this page recorded
+only the first. It occupies the Arduino headers, so **CN9 pin 5 is not reachable
+while it is fitted** and PC3 has to be wired at CN11 pin 37 instead, which is the
+same net. **And CN7 pin 19, which is PB4 and the marker pin every criterion except
+the console readings is measured from, is covered by the same shield and cannot
+take a jumper either.** CN7 is a Zio header, not a Morpho one, which is why the
+shield sits on it. The marker's wire moves to **CN12 pin 27**, the Morpho position
+read from UM2408 Table 19 page 47 on the day the obstruction was confirmed.
+
+**That second sentence is the one this page should have carried from the start.**
+The consequence was recorded for the pin the converter samples and not for the pin
+the witness watches, although both are on Zio headers and the same shield covers
+both. It was found by Joseph asking where the marker wire goes, which is a
+question this page is supposed to answer without being asked.
+
+**AND CN12 IS POPULATED ON THIS BOARD, WHICH WAS NOT A SAFE ASSUMPTION.** Section
+7.17 of UM2408 calls CN11 and CN12 "two male pin header footprints", **OFF by
+default**, so a Morpho position is only a fallback on a board where that footprint
+carries a header. Joseph settled it on Tuesday 20 October 2026 by fitting the wire:
+**the marker lead now runs from CN12 pin 27 to MCC 118 channel 0**. CN11 was
+already known populated, because PC3's ground lead has measured through CN11
+pin 37 since Monday 19 October 2026.
+
+**What that does and does not establish.** It establishes that the pin exists,
+carries a header and takes a jumper. **It does not establish that the witness sees
+anything through it**, because no run has toggled that pin since the wire went on:
+this afternoon's run was the transfer-engine build, which toggles the marker
+nowhere. Bench state is not the record, so the first witness run after this change
+is what turns a connected wire into a measured path, and it must be
+`p06-sampling-timer` or `p06-sampling-systick`, since those are the two builds that
+drive the pin. The P06 captures of Monday 19 October 2026 were taken with it
 in place, and the grounded control still read within a few counts of zero, so nothing
 about it disturbs the converter.
 
@@ -1436,9 +1489,26 @@ maximum as configured. The self test runs at 1 MHz, comfortably inside it.
 > NUCLEO-H7A3ZI-Q to the **ground terminal** on the MCC 118 DAQ HAT's screw
 > terminal block, which is on a **Raspberry Pi 4**.
 >
-> **Wire two, signal.** From **CN7 pin 19**, which is **PB4**, which is Arduino
-> **D25**, the **marker pin, an output from the board**; to **MCC 118 channel 0**,
-> an **input to the HAT**.
+> **Wire two, signal.** From **PB4**, the **marker pin and an output from the
+> board**, to **MCC 118 channel 0**, an **input to the HAT**. PB4 is exposed at
+> two places and which one to use depends on the shield:
+>
+> **With the X-NUCLEO-53L8A1 stacked, use CN12 pin 27**, the Morpho position from
+> UM2408 Rev 6 Table 19 page 47. The shield covers CN7, so the Zio position
+> cannot take a jumper.
+>
+> **With no shield fitted, CN7 pin 19 is the same net** and is Arduino D25, from
+> UM2408 Table 18 page 44.
+>
+> **As of Tuesday 20 October 2026 the wire is on CN12 pin 27**, stated by Joseph,
+> with the shield stacked. No edge has been observed through it yet.
+
+**The ground wire is the half that is not stated, and it is the half that goes in
+first.** A signal lead to the HAT without a ground reference between the two boards
+is the arrangement that read 94 to 165 counts on Saturday 17 October 2026 instead
+of 1 to 2. So before the next witness run: a wire from a **GND** pin on the
+NUCLEO-H7A3ZI-Q to the **ground terminal** on the MCC 118's screw block, and the
+offset between those grounds is already measured at 4.7 to 8.3 millivolts.
 
 **A series resistor in the signal wire is insurance against the wire finding the
 wrong terminal, not protection for the board**, which is driving that pin
