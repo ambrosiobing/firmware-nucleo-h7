@@ -2052,20 +2052,27 @@ them ends the run there**, and the line that refused is the finding.
 4. **`overruns` stays 0.** That counter is main failing to collect a finished
    half, and at 15.6 halves per second it has no excuse. A nonzero count would be
    a finding about the application loop rather than about the engine.
-5. **`convovr` reads -1 for the whole run, and that is a PASS.** This back end
-   does not watch the converter's overrun flag and the banner says so. A zero
-   there would be the defect, because it would be a count nobody earned.
+5. **`convovr` reads 0 for the whole run, and a 0 here is now earned.**
+   Rewritten hours after it was first published, because the decision to watch
+   the flag was taken the same day: this criterion said `convovr` reads -1 and
+   that a zero would be the defect. The back end now enables `OVRIE` and its
+   `ADC_IRQHandler` counts and clears the flag, so the banner prints "watched,
+   so convovr below is a real count" and a zero means the flag was watched
+   throughout and never set. **A -1 would now be the defect**, because the only
+   way to get one is for the interface to report that nobody looked.
 
 **If `blocks` stays at zero, the suspect list is shorter than it was.** `CIRC`
 is off it: RM0455 pages 605 and 622 say the hardware forces that bit when double
 buffer mode is set and the stream is enabled. What remains, in the order the
 console can answer it: the data management field, whose read-back is printed; the
 multiplexer routing, whose read-back is printed; the stream's own enable bit,
-printed; and **the converter's overrun flag, which is the only one of the four
-this build cannot see**, because it neither enables the interrupt nor clears the
-flag. An overrun stops every further transfer request until software clears it,
-so a run that produces a few blocks and then stops has that as its first suspect
-and no line in the output will say so.
+printed; and **the converter's overrun flag, which this build could not see
+when this section was written and now can**. An overrun stops every further
+transfer request until software clears it, so a run that produces a few blocks
+and then stops had that as its first suspect with nothing in the output to say
+so. Since the decision of Tuesday 20 October 2026 the same failure appears as
+`convovr` rising while `blocks` stops, which is the difference between a symptom
+and a diagnosis.
 
 **What this run cannot settle, and the reason is structural rather than an
 omission.** `MEASUREMENT.md` measures criteria 2, 3 and 4 from the marker pin's
@@ -2088,9 +2095,46 @@ as a flat line on the witness, and the choice is Joseph's:
 
 **The honest reading of that table is that the third option is what the chapter's
 comparison actually requires**, and that the first two are ways of saying so with
-different amounts of candour. Nothing is changed in the code today: the run below
-is worth making first, because whether this engine moves a sample at all is prior
-to what the marker should mean.
+different amounts of candour.
+
+#### Joseph took the third option the same day, and it cannot be written yet
+
+**Decided Tuesday 20 October 2026, with the reasoning stated rather than the
+choice alone**: do not publish a comparison the instrument cannot perform, and
+choose the option that measures the claimed quantity. The table's prediction is
+about the spread of sample instants, so the marker has to be driven by the thing
+that determines those instants.
+
+**What blocks it is a fact about this part, not a preference.** RM0455 Rev 13
+section 46.2 on page 1754: TIM6 and TIM7 are BASIC timers, whose features are a
+16-bit auto-reload upcounter, a prescaler, a synchronisation circuit to trigger
+the converter, and an interrupt or transfer request on update. **They have no
+capture or compare channels and they drive no pin.** TIM6 is the timer that
+triggers every conversion in two of the three builds, so the trigger source as it
+stands cannot also toggle the marker.
+
+**So the decision implies a second decision nobody has taken**, and it is the one
+to settle before any code: either the conversion trigger moves to a timer that
+has output channels and can also trigger ADC1, which changes `EXTSEL` for the
+timer and transfer-engine builds alike, or TIM6 keeps the trigger and a second
+timer is slaved to its output, in which case the marker edge sits one
+synchronisation step behind the conversion and the page must say so.
+
+**Two lookups are needed and neither can be done on win11 aquamarine.** They are
+named here with their source so the next session does not rediscover the
+question.
+
+| What must be read | Where it is | Why not from the manual |
+|---|---|---|
+| Which `EXTSEL` events are timer trigger outputs, and which of those timers have output channels | ST's HAL header in the pack on win11 skyhorizon, the same source that gave `EXTSEL` 13 for TIM6 TRGO | **RM0455 page 1028 lists `EXTSEL` as "Event 0" to "Event 31" and names no timer at all.** The mapping is not in the register description, which is why this project sourced 13 from the headers in the first place |
+| Which timer channel can reach PB4, or which free pin a candidate channel can reach | the STM32H7A3 datasheet's alternate function table | UM2408 Table 18 page 44 gives PB4 as CN7 pin 19 and the board's Arduino name, not the part's alternate functions. The datasheet is not on this laptop and st.com serves no PDF here |
+
+**Nothing is changed in the code for this decision today, and the reason is not
+only the missing documents.** Whether this engine moves a sample at all is prior
+to what the marker should mean, and the run specified above answers that for the
+cost of one flash. A hardware marker built before that run would be two new
+claims in one image, which is the mistake this project named on Saturday
+17 October 2026 when it kept the TIM6 move and the overrun watch apart.
 
 **The hand-over, when the bench is free.** On win11 skyhorizon, PowerShell 5.1,
 one line that dot-sources the toolchain, builds, resolves the board by its volume

@@ -71,6 +71,13 @@ static uint16_t buffer[2u * HALF];
 static volatile uint32_t ready_seq;
 static volatile uint32_t taken_seq;
 static volatile uint32_t overruns;
+
+/* The converter's own overrun count, separate from `overruns` above and
+ * answering a different question: this one is the converter unable to deliver a
+ * conversion because the previous result had not left DR, which on this back end
+ * means the engine did not serve the request. Watched since Tuesday
+ * 20 October 2026, so acq_conv_overruns reports a real count rather than -1. */
+static volatile uint32_t conv_overruns;
 static volatile uint8_t  ready_half;    /* the half that just finished */
 
 /* THE ENGINE, THE STREAM, THE REQUEST AND THE INTERRUPT ARE SETTLED, Friday
@@ -131,6 +138,32 @@ static volatile uint8_t  ready_half;    /* the half that just finished */
  * Wednesday 7 October 2026 through ADC_IRQHandler. The slot is filled from ST's
  * IRQn_Type, position 12, and python/tools/check_handler_vectors.py now refuses
  * any defined handler this repository has no vector for. */
+/* THE CONVERTER'S HANDLER, WHICH THIS BACK END DID NOT HAVE UNTIL Tuesday
+ * 20 October 2026. It handles exactly one flag. There is no end-of-conversion
+ * work here and no EOCIE: nothing in this build reads DR, which is the whole
+ * point of it, so the only converter event worth an interrupt is the one that
+ * stops the stream.
+ *
+ * COUNTING WITHOUT CLEARING WOULD BE WORSE THAN NOT WATCHING, which acq_timer.c
+ * says of its own handler: the flag stays set, the interrupt re-enters forever,
+ * and the count means nothing. Clearing it also unblocks the engine's requests,
+ * per RM0455 page 980.
+ *
+ * WHAT THE MANUAL DID NOT SAY, left open rather than guessed and now reachable:
+ * clearing OVR unblocks the requests, and nothing read so far says what then
+ * holds between the stream's current target, its remaining NDTR and the samples
+ * already placed. A run that recovers from an overrun with its halves still
+ * aligned and one that recovers shifted look the same from this counter. The
+ * first run is what can answer it, and this handler is what makes the question
+ * observable at all. */
+void ADC_IRQHandler(void)
+{
+    if ((ADC1->ISR & ADC_ISR_OVR) != 0u) {
+        conv_overruns++;
+        ADC1->ISR = ADC_ISR_OVR;       /* write one to clear, not a read-modify */
+    }
+}
+
 void DMA1_Stream1_IRQHandler(void)
 {
     /* Which half just completed is told by the engine's current target flag,
@@ -230,6 +263,38 @@ int acq_start(void)
     if (!dmngt_ok) {
         return ACQ_ERR_ADC_CHANNEL;
     }
+
+    /* THE OVERRUN FLAG IS WATCHED, WHICH IS A DECISION TAKEN ON Tuesday
+     * 20 October 2026 and not a field this file found set. The reasoning is
+     * Joseph's and is better than the choice: an overrun that reports itself is
+     * a measured defect, and one that shows up as a console going quiet is an
+     * unmeasured one. The timer back end has had this pattern since Saturday
+     * 17 October 2026 and it is proven on the board, so adopting it whole makes
+     * the two back ends report the same failure the same way.
+     *
+     * IT MATTERS MORE HERE THAN THERE, for the reason RM0455 page 980 gives: an
+     * overrun on this converter does not lose one sample, it blocks every
+     * further transfer request until software clears the flag. Unwatched, the
+     * first overrun would end the stream, the transfer complete interrupt would
+     * stop arriving, the block counter would stop advancing, and no line in the
+     * output would say why.
+     *
+     * STALE FLAGS FIRST, then the enable, then the read-back. Clearing OVR
+     * before enabling the interrupt is what keeps a flag set by the bring-up's
+     * own conversions from counting as a run's first overrun. */
+    ADC1->ISR = ADC_ISR_OVR;
+    ADC1->IER |= ADC_IER_OVRIE;
+    const bool ovrie = (ADC1->IER & ADC_IER_OVRIE) != 0u;
+    adc_report("overrun irq", ADC_IER_OVRIE, ADC1->IER, ovrie);
+    if (!ovrie) {
+        return ACQ_ERR_ADC_CHANNEL;
+    }
+
+    /* The converter's vector is the one ADC_IRQHandler below reaches through,
+     * and it exists: startup.c declares it weak at IRQ_ADC and
+     * check_handler_vectors.py refuses any defined handler with no vector. */
+    NVIC_SetPriority(ADC_IRQn, 5u);
+    NVIC_EnableIRQ(ADC_IRQn);
 
     /* The engine's clock. RCC_AHB1ENR_DMA1EN is bit 0, read Monday 19 October
      * 2026 from stm32h7a3xxq.h line 13546, the sibling of the ADC12EN the shared
@@ -408,72 +473,48 @@ int acq_take(acq_block_t *out)
 
 uint32_t acq_overruns(void) { return overruns; }
 
-/* NOT WATCHED HERE, so -1, and this is the back end where that answer is least
- * comfortable. A transfer engine reading DR is exactly the arrangement where the
- * converter's OVR is the primary failure mode rather than a remote one: if the
- * engine is not keeping up, or its request is misrouted through DMAMUX1, the
+/* WATCHED SINCE Tuesday 20 October 2026, so this returns a real count, and the
+ * four paragraphs this comment used to carry are compressed into one history
+ * below rather than deleted. A transfer engine is exactly the arrangement where
+ * the converter's OVR is the primary failure mode rather than a remote one: if
+ * the engine is not keeping up, or its request is misrouted through DMAMUX1, the
  * symptom is OVR and the application's own block counter would show nothing
- * wrong. So this is the build that most needs the flag and the one least
- * entitled to report it.
+ * wrong. This was the build that most needed the flag and, until that day, the
+ * one least entitled to report it.
  *
- * THE REASON CHANGED ON MONDAY 19 OCTOBER 2026 WHILE THE ANSWER DID NOT. This
- * said the back end does not configure the converter at all, which stopped being
- * true the moment acq_start started writing DMNGT. What is still absent is
- * narrower and is a decision rather than an omission: OVRIE is not enabled here
- * and OVRMOD is not chosen, both recorded as open fields in acq_start, so there
- * is no watched flag behind which a count could be honest. Saying -1 is what
- * keeps that from reading as a clean run later.
+ * HOW THE ANSWER GOT HERE, in four steps, because the reasoning is the useful
+ * part and each step was wrong in a different way.
  *
- * AND RM0455 RAISES THE STAKES OF THAT DECISION RATHER THAN SETTLING IT, read
- * on Tuesday 20 October 2026. Rev 13, Managing conversions using the DMA, page
- * 980: if an overrun occurs because the engine could not serve the request in
- * time, the converter STOPS GENERATING REQUESTS, the new conversion is not
- * transferred, and the requests stay blocked UNTIL THE SOFTWARE CLEARS OVR.
+ * It first said the back end does not configure the converter at all. That
+ * stopped being true on Monday 19 October 2026 when acq_start began writing
+ * DMNGT.
  *
- * So on this back end an overrun is not a lost sample. It is the end of the
- * stream. Nothing here clears OVR, so the transfer complete interrupt stops
- * arriving, the block counter stops advancing, and the console shows a run that
- * simply went quiet with no line saying why. That is the failure mode this
- * build is most exposed to and the one it currently reports least.
+ * It then said what was absent was narrower: OVRIE unenabled and OVRMOD
+ * unchosen, with no watched flag behind which a count could be honest.
  *
- * AND THE MECHANISM WAS ARGUED IN THIS DIRECTORY BEFORE THE MANUAL WAS READ,
- * which is worth saying plainly rather than letting the page number take the
- * credit. acq_timer.c's handler states it from the register semantics alone,
- * Saturday 17 October 2026: with OVRMOD clear the data register is preserved, so
- * until OVR is cleared the converter keeps discarding and the stream stops for
- * good while every register still reads back correctly. adc_bringup.c carries
- * the same argument in its list of fields left at reset. RM0455 page 980 is
- * INDEPENDENT CONFIRMATION of a conclusion this project had already reached by
- * reading the bits, and the two agreeing is the result, not the page.
+ * RM0455 Rev 13 page 980, read on Tuesday 20 October 2026, raised the stakes
+ * rather than settling it: an overrun does not lose one sample, it blocks every
+ * further transfer request until software clears the flag. So an unwatched
+ * overrun ends the stream, and the console shows a run that goes quiet with no
+ * line saying why. The same page also showed OVRMOD needed no choosing: 0 as
+ * found is the value it recommends where an overrun is an error.
  *
- * WHAT IS ACTUALLY OPEN IS NARROWER THAN THIS FILE SAID. OVRMOD is not unset: it
- * is 0 as found, reported from the board on Thursday 8 October 2026 and left
- * alone by the write at acq_start, which masks DMNGT and nothing else. Page 1027
- * gives the field's meaning, 0 preserves the old data register value and 1
- * overwrites it with the latest conversion, and page 980 recommends 0 exactly
- * where overruns are to be managed as errors. So the as-found value is already
- * the one the manual recommends for this build, and nothing needs writing.
+ * Joseph took the remaining decision the same day and the ground he gave is
+ * better than the choice: AN OVERRUN THAT REPORTS ITSELF IS A MEASURED DEFECT,
+ * AND ONE THAT SHOWS UP AS A CONSOLE GOING QUIET IS AN UNMEASURED ONE. The
+ * timer back end had the pattern already, proven on the board since Saturday
+ * 17 October 2026, so adopting it whole makes both back ends report the same
+ * failure the same way. acq_start enables OVRIE and ADC_IRQHandler above counts
+ * and clears the flag.
  *
- * THE OPEN PART IS WHETHER THIS BACK END ADOPTS THE SIBLING'S PATTERN WHOLE.
- * acq_timer.c enables OVRIE, counts OVR in its handler and clears it there, and
- * its own comment says that enabling OVRIE without clearing would make the count
- * meaningless. That pattern is proven on the board. Adopting it here makes
- * acq_conv_overruns return a real count instead of -1 and turns a silent stop
- * into a reported one.
- *
- * ONE QUESTION THE MANUAL DID NOT ANSWER IN WHAT WAS READ, left open rather than
- * guessed: clearing OVR unblocks the requests, and nothing on page 980 says what
- * then holds between the stream's current target, its remaining NDTR and the
- * samples already placed. Whether a cleared overrun resumes a correctly aligned
- * double-buffer stream or a shifted one is a question for the first run.
- *
- * This file still does not choose. It records that the choice has a consequence
- * the first run would otherwise present as a silence, and that -1 is the honest
- * return until something watches the flag. */
+ * WHAT A ZERO FROM THIS FUNCTION NOW MEANS, and it is not what -1 meant: the
+ * flag was watched for the whole run and never set. The run that reported
+ * overruns 0 for 390 blocks on Wednesday 7 October 2026 while nothing watched
+ * this flag is why acq.h keeps the two answers separate. */
 int acq_conv_overruns(uint32_t *out)
 {
-    (void) out;
-    return -1;
+    *out = conv_overruns;
+    return 0;
 }
 
 const char *acq_name(void) { return "dma"; }
