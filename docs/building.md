@@ -107,9 +107,28 @@ The on-board debugger presents a USB mass storage disk. Copying a raw binary ont
 it programs the part and resets it. There is no separate flashing tool and none is
 needed.
 
-On the win11 skyhorizon demo laptop the disk is `D:`, labelled `NOD_H7A3ZIQ`.
+On the win11 skyhorizon demo laptop that disk is labelled `NOD_H7A3ZIQ` and
+**the letter it takes is not fixed**, so the command resolves the volume by its
+label and refuses when there is none:
 
-    Copy-Item build-fw\p09-codec.bin D:\ -Force
+    $v = Get-Volume | Where-Object { $_.FileSystemLabel -eq 'NOD_H7A3ZIQ' }; if (-not $v) { Write-Host 'NOT FLASHED: no volume labelled NOD_H7A3ZIQ, so the board is off, unplugged or still enumerating. The old image is still on it.' } else { Copy-Item build-fw\p09-codec.bin "$($v.DriveLetter):\" -Force; Write-Host "copied to $($v.DriveLetter):, the board is programming" }
+
+**Why the letter moves, and the direction is backwards from the intuition.** It
+was `D:` from Friday 2 October 2026 until Monday 19 October 2026, when it became
+`E:` with nothing changed on the board or in its firmware. An external SSD had
+been attached; Windows reports that enclosure as `Fixed`, so it keeps whichever
+letter it was given, and the probe's disk is the **removable** volume, which takes
+the lowest free letter. So the board is the one that moves, not the drive that was
+added.
+
+**What a copy to the bare letter costs.** It writes the image into the root of
+whatever now holds that letter, reports success, flashes nothing, and the console
+afterwards prints the **previous** image's banner. Every figure in that capture is
+then attributed to the wrong image, and nothing in the output looks wrong, because
+each image in this volume names itself and the name would be correct. Four
+hand-overs on Monday 19 October 2026 named the letter before this was understood,
+and none of them ran. The guarded build-and-flash line later in this file resolves
+the volume the same way, which is where the form above comes from.
 
 `probe-rs` and `openocd` are both reasonable tools for this part and neither has
 been used in this repository. Chapters referred to `probe-rs run` until Saturday 3

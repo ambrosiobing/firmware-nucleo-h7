@@ -257,7 +257,7 @@ cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"
 cmake --build build-fw --target p01-first-light
 ```
 
-Then copy `build-fw/p01-first-light.bin` onto the disk the probe presents, which on the laptop this was built on is `D:`, labelled `NOD_H7A3ZIQ`.
+Then copy `build-fw/p01-first-light.bin` onto the disk the probe presents, which is labelled `NOD_H7A3ZIQ`. Resolve the volume by that label rather than by a letter: the letter is whatever Windows had free when the board enumerated, it was `D:` on the laptop this was built on until Monday 19 October 2026 and `E:` afterwards, and a copy to the wrong letter reports success while flashing nothing. `docs/building.md` carries the command and the reason.
 
 The quotes around the toolchain argument are required. Without them PowerShell splits it at the final dot, CMake is handed `cmake/arm-none-eabi` and reports the missing file rather than the quoting, and the error after that one points somewhere else entirely.
 

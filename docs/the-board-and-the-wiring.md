@@ -213,7 +213,9 @@ converter code has a `HAL_GetREVID() <= REV_ID_Y` branch, and it sits in the
 `#else` that this part never compiles, so **there is no revision fork for the
 H7A3.** Reading Rev X confirms that rather than complicating it.
 
-On this bench the disk is `D:`, labelled `NOD_H7A3ZIQ`. That label is worth a
+On this bench the disk is labelled `NOD_H7A3ZIQ` and its drive letter moves,
+which `docs/building.md` explains beside the flashing command. That label is
+worth a
 pedantic footnote, because it looks like a typo and is not: **a FAT volume label
 is eleven characters, `NOD_H7A3ZIQ` is exactly eleven, so ST dropped the E from
 `NODE` and kept the Q.** If you are matching the label in a script, match the
@@ -1247,7 +1249,7 @@ ST's pack configures either on this package.** The LPTIM route has ST's own
 working pulse counter example for this exact board, naming the peripheral, the
 counting mode, the pin and its alternate function.
 
-So: **the narrower instrument with a complete set of facts beat the wider one
+So: **the narrower instrument with a complete set of facts outperformed the wider one
 with a gap in it.** That is the refuse-rather-than-guess rule applied to a design
 choice rather than to a value.
 
