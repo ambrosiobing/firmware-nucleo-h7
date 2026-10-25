@@ -61,6 +61,24 @@ CLOCK_RUST_FILTER = ROOT / "target" / "release" / executable_name("p01-filter")
 
 
 # ----------------------------------------------------------------------------
+# ONE SPELLING FOR THE HOST BUILD COMMAND, Sunday 25 October 2026.
+#
+# The staleness guard below fired in WSL on win11 skyhorizon and printed
+# "python python/tools/build_host.py" directly under a line naming
+# bing@JPTOUPM678. docs/building.md line 42 documents "python3" for that machine,
+# and the parity skip at the bottom of this same file already prints "python3".
+# One file, two spellings, for one machine, and the one a reader runs is whichever
+# the guard happened to print.
+#
+# A REMEDY IS RUN VERBATIM, which is the whole reason this matters. The rule this
+# catalogue already carries is that a guard's remedy must clear its condition, and
+# a remedy naming an interpreter that may not exist on the machine the same
+# sentence names does not. python3 is correct on every machine that runs this
+# builder, so this constant is python3 and every other spelling in this file is
+# gone.
+BUILD_HOST_CMD = "python3 python/tools/build_host.py"
+
+# ----------------------------------------------------------------------------
 # Host artefacts must be newer than the sources they were built from.
 #
 # Every filter and shared library under build-host, and every Rust filter under
@@ -143,7 +161,7 @@ def stale_artefacts(root: Path = ROOT, build: Path | None = None,
         for art in sorted(build.iterdir()):
             if art.is_file() and art.suffix in {".so", ".dll", ".exe", ".o", ""}:
                 if art.stat().st_mtime < c_time:
-                    out.append((art, c_src, "python python/tools/build_host.py"))
+                    out.append((art, c_src, BUILD_HOST_CMD))
 
     if rust_filters is None:
         rust_filters = [v for k, v in globals().items()
@@ -206,26 +224,26 @@ def pytest_sessionstart(session):
 #        figures, out. Decimal throughout, including the registers, so that no
 #        implementation needs a second parser
 FILTER_BUILD_COMMAND = {
-    CPP_FILTER: "python python/tools/build_host.py",
-    FRAME_CPP_FILTER: "python python/tools/build_host.py",
-    SM_CPP_FILTER: "python python/tools/build_host.py",
+    CPP_FILTER: BUILD_HOST_CMD,
+    FRAME_CPP_FILTER: BUILD_HOST_CMD,
+    SM_CPP_FILTER: BUILD_HOST_CMD,
     RUST_FILTER: "cargo build --release --workspace",
     FRAME_RUST_FILTER: "cargo build --release --workspace",
     SM_RUST_FILTER: "cargo build --release --workspace",
-    RING_CPP_FILTER: "python python/tools/build_host.py",
+    RING_CPP_FILTER: BUILD_HOST_CMD,
     RING_RUST_FILTER: "cargo build --release --workspace",
-    ATTR_CPP_FILTER: "python python/tools/build_host.py",
+    ATTR_CPP_FILTER: BUILD_HOST_CMD,
     ATTR_RUST_FILTER: "cargo build --release --workspace",
-    RATE_CPP_FILTER: "python python/tools/build_host.py",
+    RATE_CPP_FILTER: BUILD_HOST_CMD,
     RATE_RUST_FILTER: "cargo build --release --workspace",
-    GATES_CPP_FILTER: "python python/tools/build_host.py",
+    GATES_CPP_FILTER: BUILD_HOST_CMD,
     GATES_RUST_FILTER: "cargo build --release --workspace",
-    CLOCK_CPP_FILTER: "python python/tools/build_host.py",
+    CLOCK_CPP_FILTER: BUILD_HOST_CMD,
     CLOCK_RUST_FILTER: "cargo build --release --workspace",
 }
 
 
-def require_artefact(path: Path, command: str = "python python/tools/build_host.py",
+def require_artefact(path: Path, command: str = BUILD_HOST_CMD,
                      required: bool = False) -> None:
     """Skip or fail on a missing host artefact, by what the machine can be expected to have.
 
@@ -317,7 +335,7 @@ def assert_not_vacuous(present, project: str, minimum: int = 3):
         pytest.skip(
             "{} compared {} of four languages here ({}). The other filters need a\n"
             "compiler, which this laptop does not run. In WSL on bing@JPTOUPM678:\n"
-            "    python3 python/tools/build_host.py\n"
+            "    " + BUILD_HOST_CMD + "\n"
             "    cargo build --release --workspace".format(project, len(present), names)
         )
     pytest.fail(

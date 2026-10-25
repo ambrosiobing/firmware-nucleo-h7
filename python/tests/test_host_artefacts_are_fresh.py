@@ -62,7 +62,33 @@ def test_a_source_newer_than_the_artefact_names_both_and_the_command(tree):
     _set_time(src, 1_000_100.0)
     stale = conftest.stale_artefacts(root=d, build=build, rust_filters=[])
     assert [(a.name, s.name, c) for a, s, c in stale] == [
-        ("libthing.so", "thing.c", "python python/tools/build_host.py")]
+        ("libthing.so", "thing.c", "python3 python/tools/build_host.py")]
+
+
+def test_the_remedy_names_the_interpreter_the_building_page_names():
+    """The command the guard prints must be the one the documentation documents.
+
+    Sunday 25 October 2026. The guard fired in WSL on win11 skyhorizon and printed
+    `python python/tools/build_host.py` directly under a line naming
+    bing@JPTOUPM678, while docs/building.md documents `python3` for that machine
+    and the parity skip in the same conftest already printed `python3`. One file,
+    two spellings, one machine.
+
+    **A remedy is run verbatim**, so this is not cosmetic: the rule is that a
+    guard's remedy must clear its condition, and one naming an interpreter that
+    may not exist on the machine the same sentence names does not.
+
+    This compares the constant against the building page rather than against
+    itself, because a test asserting that a constant equals itself would pass for
+    any value including the wrong one.
+    """
+    root = pathlib.Path(__file__).resolve().parents[2]
+    page = (root / "docs" / "building.md").read_text(encoding="utf-8")
+    assert conftest.BUILD_HOST_CMD in page, (
+        "the guard's remedy is not the command docs/building.md names: %r"
+        % conftest.BUILD_HOST_CMD)
+    assert conftest.BUILD_HOST_CMD.startswith("python3 "), (
+        "WSL on bing@JPTOUPM678 is where this runs and python3 is its interpreter")
 
 
 def test_no_build_directory_is_nothing_to_report(tree):
