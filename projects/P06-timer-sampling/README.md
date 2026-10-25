@@ -2503,6 +2503,32 @@ pattern from reporting `==`, `!=`, `<=` and `>=` as writes.
    blocks delivered and overruns of both kinds. A reader who expects the marker to
    rank those two builds is holding the wrong instrument.
 
+#### The cross build ran, Sunday 25 October 2026, and the new file compiles
+
+**The only check that could cover `tim3_bringup.c` has now run**, on win11 skyhorizon
+with the bundled toolchain, `arm-none-eabi-gcc` 14.3.1, confirmed by resolving the
+name rather than by the PATH script's exit status. All three targets link.
+
+| image | FLASH | against Monday 19 October 2026 |
+|---|---|---|
+| `p06-sampling-timer.bin` | 15 576 B | +300 |
+| `p06-sampling-dma.bin` | 16 344 B | +532, spanning two changes |
+| `p06-sampling-systick.bin` | 14 420 B | unchanged |
+
+**The tick build being byte-identical is the useful one.** It links the second marker
+init and both of `tim3_bringup.c`'s functions and calls none of them, so the linker
+must discard all three, and it did exactly that for the second time on this row.
+
+**The transfer-engine delta cannot be attributed and is not claimed as the marker's
+cost.** Its figure of Monday 19 October 2026 predates the overrun work of Tuesday 20 October 2026, and
+the image that ran that day printed its own size in a banner whose only capture was
+the truncated file not committed. **Declining to commit it was too strong a
+judgement**: a banner with no data behind it is still the record of an image's size,
+and that is the figure this row needed.
+
+**Nothing has been flashed.** Three sizes and a successful link are not a
+measurement, and the four predictions above are still unanswered.
+
 #### What was verified without a compiler, and what still needs one
 
 **Thirteen CMSIS names and two struct layouts were checked against the part's

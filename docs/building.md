@@ -248,15 +248,51 @@ checked rather than trusted.** `c/board/startup.c`, `c/board/system.c`,
 `c/board/retarget.c` and `c/ld/stm32h7a3zi.ld` are linked into every image here, and
 until now there was no recorded figure to compare against after touching one.
 
-| target | FLASH, Friday 9 October 2026 morning | after `marker_toggle`, same day | after the section fix, Friday 16 October 2026 | after the TIM6 factoring and the transfer engine, Monday 19 October 2026 |
-|---|---|---|---|---|
-| `p01-first-light` | 11 772 B | not rebuilt | not rebuilt | not rebuilt |
-| `p01-pll280` | 36 772 B | not rebuilt | not rebuilt | not rebuilt |
-| `p02-ring-none` | 9980 B | not rebuilt | not rebuilt | not rebuilt |
-| `p09-codec` | 10 608 B | not rebuilt | not rebuilt | not rebuilt |
-| `p06-sampling-timer` | 15 196 B | **15 220 B**, +24 | not rebuilt | **15 276 B**, +56 |
-| `p06-sampling-systick` | 10 232 B | **14 420 B**, +4188: +4164 when it reached the converter later that morning, then +24 | not rebuilt | **14 420 B**, unchanged |
-| `p06-sampling-dma` | 10 248 B | not rebuilt | **9992 B**, -256, then **10 076 B**, +84 | **15 812 B**, +5736 |
+| target | FLASH, Friday 9 October 2026 morning | after `marker_toggle`, same day | after the section fix, Friday 16 October 2026 | after the TIM6 factoring and the transfer engine, Monday 19 October 2026  after the hardware marker on TIM3, Sunday 25 October 2026 |
+|---|---|---|---|---|---|
+| `p01-first-light` | 11 772 B | not rebuilt | not rebuilt | not rebuilt | not rebuilt |
+| `p01-pll280` | 36 772 B | not rebuilt | not rebuilt | not rebuilt | not rebuilt |
+| `p02-ring-none` | 9980 B | not rebuilt | not rebuilt | not rebuilt | not rebuilt |
+| `p09-codec` | 10 608 B | not rebuilt | not rebuilt | not rebuilt | not rebuilt |
+| `p06-sampling-timer` | 15 196 B | **15 220 B**, +24 | not rebuilt | **15 276 B**, +56 | **15 576 B**, +300 |
+| `p06-sampling-systick` | 10 232 B | **14 420 B**, +4188: +4164 when it reached the converter later that morning, then +24 | not rebuilt | **14 420 B**, unchanged | **14 420 B**, unchanged again |
+| `p06-sampling-dma` | 10 248 B | not rebuilt | **9992 B**, -256, then **10 076 B**, +84 | **15 812 B**, +5736 | **16 344 B**, +532 against Monday 19 October 2026 and NOT attributable |
+
+**The fifth column, Sunday 25 October 2026, and one of its three figures cannot be
+attributed, which is a cost of something not recorded five days earlier.**
+
+**No size prediction was published before this build, and the practice says one
+should have been.** The fourth column's three predictions were written down first and
+all three held, which is what made that column worth having. This column was read
+afterwards. The omission is recorded rather than quietly skipped, because a figure
+read afterwards is weaker evidence than the same figure predicted, and the difference
+is exactly what the fourth column demonstrated.
+
+**The tick build is unchanged at 14 420 bytes, and that is the strongest of the
+three.** It links `marker.c` with a second init it never calls and `tim3_bringup.c`
+with two functions it never calls, so `-ffunction-sections` with `--gc-sections` must
+discard all three. It did, to the byte, for the second time on this row. **A discard
+demonstrated twice on different code is a property of the build rather than a
+coincidence.**
+
+**The timer build grew 300 bytes** for four register writes, a report function, two
+read-back lines and their format strings, plus the alternate-function init. That is
+plausible and it is not predicted, so it is a measurement of nothing in particular.
+
+**And the transfer-engine build's +532 is against the wrong baseline.** Its Monday
+19 October 2026 figure of 15 812 bytes predates the overrun work of Tuesday
+20 October 2026, which added `OVRIE`, a handler, a counter and a report line to that
+build. So the delta spans two changes and cannot be split between them from this
+table.
+
+**Why the baseline is missing is worth more than the number.** The image that ran on
+Tuesday 20 October 2026 printed its size in its banner, and the only capture of that
+banner was a truncated seven-line file I declined to commit on the ground that a
+banner with no data proves nothing. **That was too strong: it was the only record of
+that image's size.** A banner is a measurement of the image even when the run that
+follows it is lost, and the rule it should have been judged by is the one this volume
+already keeps, that the banner is how an image identifies itself. The capture is gone
+and the figure with it.
 
 **The fourth column was predicted in writing before the build ran and all three
 predictions held**, which is the first time this table has been used that way rather
