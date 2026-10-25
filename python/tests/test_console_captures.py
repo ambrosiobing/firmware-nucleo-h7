@@ -45,10 +45,11 @@ ACQUISITION = re.compile(r"acquisition\s+(\w+)")
 # The image sizes docs/building.md publishes for each back end, as the captures
 # print them. A SET per back end rather than one value, because a back end has as
 # many image sizes as it has had builds: the timer build was 15220 B until the TIM6
-# factoring of Monday 19 October 2026 and 15276 B after it, and captures of both are
+# factoring of Monday 19 October 2026, 15276 B after it, and 15576 B since the
+# hardware marker on TIM3 of Sunday 25 October 2026, and captures of all three are
 # evidence. This started as one value each and would have rejected the post-move
 # captures, which is the test being wrong rather than the captures.
-EXPECTED_IMAGE = {"systick": {"14420"}, "timer": {"15220", "15276"}}
+EXPECTED_IMAGE = {"systick": {"14420"}, "timer": {"15220", "15276", "15576"}}
 
 
 def captures():
@@ -112,14 +113,44 @@ def test_the_overrun_mode_line_belongs_to_the_timer_back_end(path):
         assert found == {"0"}, "expected the overrun mode as found 0, got %s" % found
 
 
-def test_every_capture_reports_the_same_calibration_poll_count():
-    """The index says the 187 reading this volume's prose cites is in none of these,
-    and this is the half of that statement a test can hold: all ten agree."""
+# Every calibration poll count any committed capture reports, with the reason each
+# is here. This is NOT a constant and the converter's own bring-up says so: the
+# count is a measured quantity, free to move between sessions, and nothing in this
+# repository writes it.
+#
+# 180 is twelve captures across four days from Friday 9 October 2026 to Monday
+# 19 October 2026. 187 is Sunday 25 October 2026, the first hardware-marker run, and
+# it is the figure this volume's prose had cited since before any capture was kept:
+# the console README recorded that the claim rested on a session nobody saved, and
+# that the twelve agreeing at 180 did not refute it. A capture now carries it.
+#
+# A new value is a deliberate entry here rather than a looser assertion, so a count
+# that moves again is a decision somebody records and not a silence.
+EXPECTED_POLLS = {"180", "187"}
+
+
+def test_every_capture_reports_a_recorded_calibration_poll_count():
+    """The count may move between sessions; which values have been SEEN is pinned.
+
+    An earlier version of this asserted every capture reported 180, which was true
+    of twelve captures and became false on the thirteenth. That assertion was
+    stronger than the quantity allows: adc_bringup.c's own comment says the poll
+    count is measured and free to move, so a test demanding one value was pinning a
+    coincidence. What is worth pinning is the SET, because a count outside it is
+    either a new session worth recording or a transcription error worth catching.
+    """
     counts = {}
     for path in captures():
         counts[path.name] = set(POLLS.findall(text_of(path)))
+    for name, seen in sorted(counts.items()):
+        assert len(seen) == 1, "%s reports %s poll counts" % (name, sorted(seen))
     every = set().union(*counts.values())
-    assert every == {"180"}, "poll counts across the captures: %s" % counts
+    assert every <= EXPECTED_POLLS, (
+        "a poll count no capture had before: %s. Add it to EXPECTED_POLLS with the "
+        "session it came from, or check the transcription" % sorted(every - EXPECTED_POLLS))
+    assert every == EXPECTED_POLLS, (
+        "EXPECTED_POLLS names a count no capture reports any more: %s"
+        % sorted(EXPECTED_POLLS - every))
 
 
 def test_the_two_captures_of_identical_length_are_not_the_same_file():

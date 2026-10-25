@@ -2557,6 +2557,84 @@ win11 skyhorizon, then the cross build there, in that order, before anything is
 flashed. Nothing in this section is a measurement and nothing in it has touched
 the board.
 
+### The hardware marker ran, and the console settled three things, Sunday 25 October 2026
+
+**The timer build was reflashed and read in one line**, because the board is shared
+between two volumes and a console without its own reflash prints whichever image was
+there before. Sixty seconds, 62 report lines, **930 blocks of 64, which is 59 520
+samples, with `overruns 0` and `convovr 0` on every line**.
+
+**The image identifies itself and the figure matches the file.** The banner reads
+**15 576 B**, which is exactly the length of `p06-timer-hwmarker` as the cross build
+wrote it. That is the baseline this page lost when the truncated capture of Tuesday
+20 October 2026 was not committed, recovered.
+
+**The build stamp is five days stale and that is correct.** It reads `Oct 9 2026
+09:31:08`, because `main.c` did not change and the stamp moves only when that file
+recompiles. **So the stamp cannot identify this image and the printed size can**,
+which is the fact `scan.py` requires `--image-bytes` for and the third time this
+volume has met it.
+
+#### The two new register lines read back exactly what was written
+
+    tim3 marker channel mode   ok       wrote 00000030  read back 00000030
+    tim3 marker channel output ok       wrote 00000001  read back 00000001
+
+**0x30 is `OC1M` at 011 with `CC1S` clear**, which is toggle mode on an output, and
+0x01 is `CC1E` with `CC1P` clear, the whole of the output enable on a general-purpose
+timer. Both read back identical to the write, so the channel took.
+
+**And the trigger moved, which the converter's own read-back proves rather than
+asserts:**
+
+    adc trigger and 16 bits    ok       wrote 00000004  read back 80000480
+        started by TIM3 TRGO on the rising edge
+
+**0x480 decodes to `EXTSEL` 4 and `EXTEN` 1.** Bits 9 to 5 hold 0x480 shifted right
+by five and masked to five bits, which is 4, and bits 11 to 10 hold 1 for the rising
+edge. **So the value read out of ST's LL header on Sunday 25 October 2026 is the
+value the hardware holds**, and the figure that was 13 for TIM6 since Wednesday
+7 October 2026 is now 4 for TIM3, confirmed by the part and not by the header alone.
+
+**The timer clock is unchanged at 64 000 000 Hz** with `pclk1` 64 000 000, the
+divider at one and `TIMPRE` clear, which is the same derivation TIM6 reported. The
+first prediction said the cadence must not move, and the clock side of it holds; the
+rate itself is the witness's to measure.
+
+#### What the console cannot say, which is most of what was predicted
+
+**Three of the four predictions are about the pin and the console never observes
+it.** No line in this capture is evidence about an instant: not the spread, not the
+worst case, not whether the two timer builds are indistinguishable. **The witness has
+not run against this image.** Until it does, what is established is that the channel
+is configured, the trigger is TIM3's, and the converter delivered 59 520 samples with
+nothing lost.
+
+**The sample values are the grounded control and they behave.** `mean` runs 2 to 5
+counts, with 5 on the first line only, where a floating input read 3301 to 3857. PC3
+is still tied to CN16's ground, so this is the control reproducing for the fifth
+session rather than a new result.
+
+#### And a figure that had rested on memory for six days now rests on a file
+
+**`calibration took 187 polls`.** All twelve committed captures report 180, and the
+console directory's own README recorded on Monday 19 October 2026 that this volume's
+prose cited a 187 reading which appeared in **none** of them, so that claim rested on
+a session nobody saved. **This capture carries it.**
+
+**It is not an effect of the change and reading it that way would be the error this
+page exists to prevent.** Nothing in the hardware-marker commit touches calibration,
+the converter's kernel clock is the same 16 MHz from the same HCLK over the same
+divider, and the bring-up's own comment says the count is measured and free to move
+between sessions. **A figure that moves when nothing relevant changed is evidence
+about the figure.**
+
+**It also moved a test from a coincidence to a set.** `test_console_captures.py`
+asserted every capture reports 180, which was true of twelve and false of the
+thirteenth, and that assertion was always stronger than the quantity allows. It now
+pins the values that have been seen, so a third value is a deliberate entry with its
+session beside it.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified

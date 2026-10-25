@@ -1106,3 +1106,33 @@ the timer build an hour before that control.
 
 **Nothing in this section has run.** It is written before the first
 hardware-marker capture so that the capture can disagree with it.
+
+
+## The first hardware-marker run, console only, Sunday 25 October 2026
+
+**Appended, not edited.** The timer build was reflashed and read for sixty seconds:
+930 blocks of 64, 59 520 samples, `overruns 0` and `convovr 0` on all 62 report
+lines, and the banner's 15 576 B matches the length of the image the cross build
+wrote.
+
+**Three things are settled and all three are register facts.** The marker channel's
+mode read back 0x30, which is `OC1M` 011 with `CC1S` clear, toggle on an output. Its
+output enable read back 0x01, which is `CC1E` with `CC1P` clear. And the converter's
+configuration register read back 0x80000480, which decodes to `EXTSEL` 4 and `EXTEN`
+1: **the trigger is TIM3's trigger output on the rising edge, confirmed by the part**
+rather than by the header the number was read from.
+
+**Nothing here bears on criteria 2, 3 or 4, and the first is only half answered.**
+Every one of those is about the instants at which conversions happened, and **no
+console line observes an instant**. The timer clock is unchanged at 64 000 000 Hz
+with the same divider and `TIMPRE` clear, which is the clock half of criterion 1; the
+rate itself needs the MCC 118, and the witness has not run against this image.
+
+**So the four predictions published before the build stand as follows.** The cadence
+prediction holds on its clock half and is untested on its measured half. The spread
+prediction, the flat-recording prediction for the transfer-engine build and the
+indistinguishability prediction are **all untested**, because each needs the pin.
+
+**What would be wrong to write here is that the hardware marker works.** The channel
+is configured and the console says so; whether the pin carries 60 000 edges in sixty
+seconds is a different claim and a different instrument.

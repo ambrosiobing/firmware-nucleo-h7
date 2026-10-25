@@ -74,17 +74,38 @@ image size separates them. On Sunday 18 October 2026 this volume recorded that t
 stamp cannot see a change in `startup.c`; this is the stronger version of the same
 fact, and it is the reason `--image-bytes` is a required argument to `scan.py`.
 
-**All twelve report `calibration took 180 polls`**, across four separate days.
-This volume's prose says that count is known to move between sessions, on the strength
-of a 187 reading, and **187 is in none of these captures**. So that claim rests on a
-session whose console was never saved. It is not contradicted here, because a figure
-seen once and not kept is not refuted by twelve later figures agreeing with each other;
-it is simply no longer supported by anything a reader can open.
+**Twelve report `calibration took 180 polls`**, across four separate days, and
+**the thirteenth reports 187**, on Sunday 25 October 2026, the first hardware-marker
+run.
 
-**Six carry a per-line timestamp and four do not.** The six from Friday 9 October
-2026 and Friday 16 October 2026 were taken with a reader that stamps each line using
-the host clock.
-The four from Saturday 17 October 2026 were taken with a one-line reflash-and-console
+**THAT CLOSES A GAP THIS FILE OPENED ON Monday 19 October 2026.** The paragraph here
+said this volume's prose cited a 187 reading, that 187 was in none of the captures,
+and that the claim therefore rested on a session whose console was never saved: not
+refuted, merely unsupported by anything a reader could open. **It is supported now.**
+The figure that had only a memory behind it has a file behind it, and the claim that
+the count moves between sessions is a measurement rather than a recollection.
+
+**What it is not is an effect of the change.** Nothing in the hardware-marker commit
+touches the converter's calibration, the ADC kernel clock is the same 16 MHz from the
+same HCLK over the same divider, and the count is free to move between sessions by
+the bring-up's own account. **A figure that moves when nothing relevant changed is
+evidence about the figure, not about the change.** Reading it the other way would be
+the error `MEASUREMENT.md` exists to prevent.
+
+**And it moved a test from a coincidence to a set.** `test_console_captures.py`
+asserted that every capture reports 180, which was true of twelve and false of the
+thirteenth. The quantity never allowed that assertion: it is measured and the
+converter's bring-up says so. The test now pins the values that have been SEEN, so a
+third value is a deliberate entry with its session beside it.
+
+**Six carry a per-line timestamp and seven do not**, which was "six and four" in
+this file until Sunday 25 October 2026 and had been wrong by two since Monday
+19 October 2026: the count was not updated when the two post-move captures went in.
+It is now checked by counting rather than by recollection. The six from Friday
+9 October 2026 and Friday 16 October 2026 were taken with a reader that stamps each
+line using the host clock.
+The four from Saturday 17 October 2026, the two from Monday 19 October 2026 and the
+one from Sunday 25 October 2026 were taken with a one-line reflash-and-console
 command that does not. This matters for exactly one thing: `MEASUREMENT.md`'s second
 route to criterion 1 measures the mean rate from the host clock and **requires**
 stamped lines. So those four support the bring-up readings, the overrun mode and the
