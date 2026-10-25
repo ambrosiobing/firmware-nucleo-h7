@@ -1431,7 +1431,7 @@ section is a budget of pins and not a record of what is plugged in, and this
 catalogue's own rule is that a photograph belongs in the same hand-over as the first
 run after a physical change. So: an **X-NUCLEO-53L8A1** shield is stacked on the
 NUCLEO-H7A3ZI-Q, covering the Arduino headers, and two jumper wires run to the Morpho
-header near its `COMP` and `GND` legends. The USB lead is on CN1, the ST-LINK port.
+header near its `COMP` and `GND` legends. The USB lead is on CN1, the ST-LINK port. **Two is the count for that day**, before the marker lead went on at CN12 pin 27 on Tuesday 20 October 2026; section 4.4 carries all three leads with both ends of each.
 
 That shield belongs to no project in this volume and is not used by any image here.
 It matters for two reasons, and until Tuesday 20 October 2026 this page recorded
@@ -1519,30 +1519,140 @@ maximum as configured. The self test runs at 1 MHz, comfortably inside it.
 
 ## 4.4 The marker wire to the witness, stated in full
 
-> **Two wires, and the ground goes in first.**
+> **Three leads, and the ground goes in first.** Every end is named by connector, as
+> of Sunday 25 October 2026. Two of the six ends were descriptions until that day.
 >
-> **Wire one, ground, in first, always.** From a **GND** pin on the
-> NUCLEO-H7A3ZI-Q to the **ground terminal** on the MCC 118 DAQ HAT's screw
+> **Wire one, the ground between the two boards, in first, always.** From **CN15** on
+> the NUCLEO-H7A3ZI-Q, a **two-pin header whose both pins are GND**, beside the
+> **black reset button**, to the **ground terminal** on the MCC 118 DAQ HAT's screw
 > terminal block, which is on a **Raspberry Pi 4**.
 >
-> **Wire two, signal.** From **PB4**, the **marker pin and an output from the
-> board**, to **MCC 118 channel 0**, an **input to the HAT**. Since Sunday
-> 25 October 2026 the pin is driven by **TIM3 channel 1** in the two
-> timer-triggered builds and by software in the tick build, which changes nothing
-> about the wire and everything about what the recording means. PB4 is exposed at
-> two places and which one to use depends on the shield:
+> **Wire two, the marker signal.** From **PB4**, the **marker pin and an output from
+> the board**, to **MCC 118 channel 0**, an **input to the HAT**. Since Sunday
+> 25 October 2026 the pin is driven by **TIM3 channel 1** in the two timer-triggered
+> builds and by software in the tick build, which changes nothing about the wire and
+> everything about what the recording means. PB4 is exposed at two places and which
+> one to use depends on the shield:
 >
 > **With the X-NUCLEO-53L8A1 stacked, use CN12 pin 27**, the Morpho position from
-> UM2408 Rev 6 Table 19 page 47. The shield covers CN7, so the Zio position
-> cannot take a jumper.
+> UM2408 Rev 6 Table 19 page 47. The shield covers CN7, so the Zio position cannot
+> take a jumper.
 >
 > **With no shield fitted, CN7 pin 19 is the same net** and is Arduino D25, from
 > UM2408 Table 18 page 44.
 >
-> **As of Tuesday 20 October 2026 the wire is on CN12 pin 27**, stated by Joseph,
-> with the shield stacked. No edge has been observed through it yet.
+> **The wire has been on CN12 pin 27 since Tuesday 20 October 2026**, stated by
+> Joseph, with the shield stacked, **and the path is measured**: 60 185 edges from
+> the timer build and 60 172 from the tick build, both with none missing.
+>
+> **Wire three, the converter's input, tied to ground as a control.** From **PC3** at
+> **CN11 pin 37** to **CN16**, the other **two-pin all-GND header**, beside the
+> **blue user button**. In place since Thursday 8 October 2026, and it is what makes
+> `mean` read 1 to 2 counts where a floating input read 3301 to 3857.
+>
+> **A two-pin header whose both pins are ground needs no pin number**, which is why
+> wires one and three are now as completely specified as CN12 pin 27 with no number
+> given: there is no wrong hole to put the lead in. CN9 and CN11 are the opposite,
+> seventy pins where an off-by-one lands on a different net and reads plausibly,
+> which is why those ends carry numbers.
 
-**BOTH WIRES ARE IN AS OF Tuesday 20 October 2026**, stated by Joseph: the
+### Which GND pin, which is the question this section could not answer
+
+**Two of the three lead ends on this bench were recorded as descriptions rather than
+as numbers**, and Joseph asked which on Sunday 25 October 2026. The signal ends are
+numbered, PB4 at CN12 pin 27 and PC3 at CN11 pin 37. The ground ends read "a pin
+marked GND" and "a GND pin on CN11 beside PC3 at pin 37". **That is the same shape of
+gap as CN7 pin 19 before the shield was noticed**: a position that reads as settled
+and cannot be re-fitted from the page.
+
+**HIS STATEMENT, RECORDED AS GIVEN, Sunday 25 October 2026, and it answers both
+ends at once:** PC3's ground lead is on **CN16's GND, near the blue user button**,
+and the ground going to the MCC 118 is on **CN15's GND, near the black reset
+button**. Those two landmarks use the colours the way UM2408 does, blue for the user
+button and black for reset.
+
+**SO NEITHER GROUND IS ON CN11, AND THIS PAGE SAID IT WAS.** The record read "a GND
+pin on CN11 beside PC3 at pin 37" from Thursday 8 October 2026 onward, which was my
+summary of a lead described as "a pin marked GND" and not a position anybody stated.
+The correction costs nothing in measurement, because every ground on this board is
+one net and the figure that mattered, 1 to 2 counts against 94 to 165 through the
+other board's ground, is unaffected. It costs the page its claim to say where the
+wire is.
+
+**AND UM2408 Rev 6 DOCUMENTS NO CN15 AND NO CN16.** Every connector designation in
+the whole manual was extracted rather than skimmed: CN1, CN2, CN5, CN6, CN7, CN8,
+CN9, CN10, CN11, CN12, CN13 and CN14, with CN13 the user USB socket and CN14 the
+Ethernet jack that only the H745 and H755 boards carry. There is no CN15 or CN16 in
+its text at all.
+
+**That is not evidence against them, and this page already knows why.** Section 7.17
+of the same manual calls CN11 and CN12 "two male pin header footprints", OFF by
+default, on a board whose CN12 took a jumper on Tuesday 20 October 2026. **The manual
+and this board have already disagreed once about what is populated**, so a
+designation the manual omits is a gap in the manual before it is a doubt about the
+board. The silkscreen is the authority for a position here, which is the rule this
+page adopted when PC3's lead moved from CN9 to CN11 in the first place: wire at the
+labelled connector, because counting pins on an unlabelled header is the failure this
+document exists to argue about.
+
+**AND JOSEPH CLOSED THE REST THE SAME DAY: CN15 CARRIES TWO PINS, CN16 CARRIES TWO
+PINS, AND EVERY PIN ON BOTH IS GND.** That finishes the position rather than merely
+improving it. **A two-pin header whose both pins are ground has no wrong pin**, so
+the connector name alone fixes the net, and these two ends are now specified as
+completely as CN12 pin 27 without a number ever being needed. The contrast with the
+signal ends is the lesson: PC3 at CN11 pin 37 and PB4 at CN12 pin 27 are on headers
+of seventy pins where an off-by-one lands on a different net and reads plausibly,
+which is why those two carry numbers and these two do not have to.
+
+**What is left open is a question about the documents and not about the bench.**
+Whether these two headers appear in the MB1363 schematic pack, which this volume has
+never read, and what the manual's reason was for omitting two populated connectors
+from a list of twelve. Neither affects a measurement, and both leads are confirmed by
+the readings they produced.
+
+**The CN11 list below therefore answers a question nobody asked any more.** It stays
+because it is read and sourced, and because the next lead that needs a ground on a
+Morpho header will want it.
+
+**CN11 CARRIES SIX GROUND PINS, and here they are**, from UM2408 Rev 6 Table 19,
+pages 46 and 47, read by the same anchored-column method that settled CN12 pin 27:
+PC3's row prints 37 and 38 in the CN11 number columns, which fixes the mapping before
+anything is read off it.
+
+| Connector | GND pins |
+|---|---|
+| **CN11** | **8, 19, 20, 22, 49, 60** |
+| CN12 | 9, 20, 39, 54, 63 |
+
+**Pins 19, 20 and 22 are a cluster and 49 and 60 are not**, which is the distinctive
+feature a reader can use at the board: three grounds within two positions of each
+other on one header, against two isolated ones further along and one at pin 8.
+
+**AND THE COLOUR NAMES TWO DIFFERENT BUTTONS, which is worth more than the pin
+number.** UM2408 Rev 6 page 28 says it plainly: **B1 user is the BLUE button**,
+connected to PC13 by default, and **B2 reset is the BLACK button**, connected to
+NRST. So "the blue reset button" is two landmarks at once, and they are not in the
+same place on the board. This volume's own console procedure already depends on the
+distinction: the capture procedure says to press the **black RESET** button while the
+reader counts, and pressing the blue one instead runs the user-button path and
+resets nothing.
+
+**What the manual cannot settle is which of the six sits nearest either button.** Its
+pin tables are text and its board layout is an image, so the geometry is not
+extractable from the document; the figure callouts on page 34 are a solder-bridge
+table rather than spatial labels. **So the landmark stands as a landmark** and the
+number is still open. Two ways to close it, both cheap: count the lead's position
+against the silkscreen at the bench once, or photograph that header end so the lead
+can be counted against the printed numbers. Until then this page says what is known
+and does not invent a number, which is the rule that produced the CN12 reading.
+
+**So all three leads are specified end to end, and this section can answer the
+question it is named for without being asked twice.** CN15 to the MCC 118's ground
+terminal, CN16 to PC3 at CN11 pin 37, and CN12 pin 27 to MCC 118 channel 0. Two of
+those three ends were descriptions on Saturday 24 October 2026 and all six are
+positions now.
+
+**THE TWO WITNESS WIRES, ONE AND TWO ABOVE, ARE IN AS OF Tuesday 20 October 2026**, stated by Joseph, with wire three in since Thursday 8 October 2026: the
 ground from a **GND** pin on the NUCLEO-H7A3ZI-Q to the **ground terminal** on the
 MCC 118's screw block, and the signal from **CN12 pin 27** to **channel 0**. The
 ground went in because a signal lead without a reference between the two boards is

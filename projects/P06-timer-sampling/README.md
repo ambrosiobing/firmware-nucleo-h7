@@ -1840,7 +1840,12 @@ published then and not rewritten now: within a few counts of 0 and steady.
 
 **And the intermediate step turned one wire into a measurement nobody asked for.**
 The PC3 lead went first to a ground terminal on the **MCC 118**, which is a ground on
-a different board, and only afterwards to a **GND pin on CN11** beside PC3 at pin 37.
+a different board, and only afterwards to a **ground on the Nucleo itself**. The
+position was recorded here as a GND pin on CN11 beside PC3 at pin 37 and **that was
+my summary rather than a statement**: on Sunday 25 October 2026 Joseph named it as
+**CN16's GND, beside the blue user button**. The three readings below are unaffected,
+because every ground on the board is one net and what the middle row measures is the
+offset to the OTHER board's ground.
 Three points result, all at 16 bits against a 3.3 V reference, so one count is
 50.4 microvolts:
 
@@ -1848,7 +1853,7 @@ Three points result, all at 16 bits against a 3.3 V reference, so one count is
 |---|---|---|---|
 | nothing, floating | 3301 to 3857 | 166 to 194 mV | 76 |
 | a GND terminal on the MCC 118, another board | 94 to 165 | 4.7 to 8.3 mV | 78 |
-| a GND pin on CN11, its own board | 1 to 2 | 0.05 to 0.10 mV | 75 |
+| a GND on its own board, CN16 by his statement of Sunday 25 October 2026 | 1 to 2 | 0.05 to 0.10 mV | 75 |
 
 **The middle row is a reading of the offset between two boards' grounds**, and it was
 obtained with no instrument beyond the converter already under test. Four to eight
