@@ -24,8 +24,7 @@
 #include "acq.h"
 #include "acq_errors.h"
 #include "adc_bringup.h"
-#include "marker.h"
-#include "tim6_bringup.h"
+#include "tim3_bringup.h"
 #include "board.h"
 
 #include "stm32h7xx.h"
@@ -188,8 +187,13 @@ void DMA1_Stream1_IRQHandler(void)
 
 int acq_start(void)
 {
-    marker_init();
-
+    /* NO marker_init() HERE ANY MORE, Sunday 25 October 2026, and in this build
+     * that line was the whole of the marker. It configured the pin and nothing
+     * ever drove it, which is exactly what the control run of Tuesday 20 October
+     * 2026 measured: 5.1 millivolts of swing on a lead that had carried 60 185
+     * edges an hour earlier. The pin is now handed to TIM3 channel 1 by
+     * tim3_bring_up() below, which is what turns this build from one the witness
+     * cannot see into one it can. */
     ready_seq = 0u;
     taken_seq = 0u;
     overruns = 0u;
@@ -227,7 +231,7 @@ int acq_start(void)
     /* The converter first, because its trigger is what the timer exists to make
      * and because the field this file owes it can only be written while no
      * conversion is running. */
-    const int tim_rc = tim6_bring_up(ACQ_RATE_HZ);
+    const int tim_rc = tim3_bring_up(ACQ_RATE_HZ);
     if (tim_rc != 0) {
         return tim_rc;
     }
@@ -235,8 +239,8 @@ int acq_start(void)
     const uint32_t pclk1 = board_pclk1_hz();
 
     const int adc_rc = adc_bring_up(pclk1, apb1_divisor(),
-                                    ADC_EXTSEL_TIM6_TRGO, ADC_EXTEN_RISING,
-                                    "TIM6 TRGO on the rising edge");
+                                    ADC_EXTSEL_TIM3_TRGO, ADC_EXTEN_RISING,
+                                    "TIM3 TRGO on the rising edge");
     if (adc_rc != 0) {
         return adc_rc;
     }
@@ -445,7 +449,7 @@ int acq_start(void)
         return ACQ_ERR_ADC_CHANNEL;
     }
 
-    tim6_start();
+    tim3_start();
     return 0;
 }
 

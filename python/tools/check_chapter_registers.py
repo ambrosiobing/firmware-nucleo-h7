@@ -63,7 +63,7 @@ have no code and chapters describe work that has not started.
 
 And it cannot tell a teaching sketch from a specification. Chapter six numbers its
 stream 0 where the implementation uses stream 1, deliberately, and five of the
-eleven exemptions below exist for that one choice.
+twelve exemptions below exist for that one choice.
 """
 import re
 import sys
@@ -72,8 +72,26 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 # A write is a PERIPH->REG on the left of an assignment, including compound
-# assignment. The trailing [^=] keeps `==` out.
+# assignment, and including one made through an ARRAY MEMBER such as
+# GPIOB->AFR[0]. The trailing [^=] keeps `==` out, and `!=`, `<=` and `>=` stay
+# out with it, because the character in front of the `=` must be one of the
+# compound operators or nothing at all.
+#
+# THE SUBSCRIPT WAS ADDED ON SUNDAY 25 OCTOBER 2026 AND NOTHING HAD SLIPPED
+# THROUGH YET, which is the only reason this is a small change rather than a
+# defect to record. The tree was searched for a register write through an array
+# member BEFORE the pattern was touched, and there was none: no file under
+# projects/*/c or c/*/ writes one. The next commit adds the first, the alternate
+# function register that lets a timer channel drive the marker pin, so the hole
+# was closed in front of the code that would have walked through it rather than
+# after a reader found a register this checker had quietly agreed to ignore.
+#
+# A write of this shape was invisible, not half-seen. The old pattern required
+# the `=` to follow the register name with only whitespace and an optional
+# operator between them, so `AFR[0] = 2u` matched nothing at all and the register
+# did not appear in the output in any form.
 WRITE = re.compile(r"\b([A-Z][A-Za-z0-9_]*)->([A-Z][A-Za-z0-9_]*)"
+                   r"(?:\[[^\]\n]*\])?"
                    r"\s*(?:\||&|\^|\+|-)?=[^=]")
 MENTION = re.compile(r"\b([A-Z][A-Za-z0-9_]*)->([A-Z][A-Za-z0-9_]*)")
 
@@ -96,8 +114,13 @@ ALLOWED = {
     ("P06-timer-sampling", "DMA1_Stream1->PAR"):
         "the chapter's sketch is stream 0; the build uses stream 1",
     # The chapter calls the marker's port MARKER_PORT and the code's macro is
-    # MARKER_GPIO. Since Tuesday 20 October 2026 both configure the same five
-    # registers, so this is a macro name and not a missing write.
+    # MARKER_GPIO. Since Tuesday 20 October 2026 both configure the same
+    # registers, so each of these is a macro name and not a missing write, and
+    # since Sunday 25 October 2026 that includes AFR: both carry a second init
+    # that hands the pin to alternate function 2, which is TIM3 channel 1, so
+    # that the timer drives the marker instead of the software toggle.
+    ("P06-timer-sampling", "MARKER_GPIO->AFR"):
+        "the chapter spells the same port MARKER_PORT",
     ("P06-timer-sampling", "MARKER_GPIO->BSRR"):
         "the chapter spells the same port MARKER_PORT",
     ("P06-timer-sampling", "MARKER_GPIO->MODER"):
@@ -108,12 +131,19 @@ ALLOWED = {
         "the chapter spells the same port MARKER_PORT",
     ("P06-timer-sampling", "MARKER_GPIO->PUPDR"):
         "the chapter spells the same port MARKER_PORT",
-    # tim6_bringup.c writes CR1, PSC, ARR, CNT and EGR in that order and the
+    # tim3_bringup.c writes CR1, PSC, ARR, CNT and EGR in that order and the
     # chapter's sketch omits the counter alone. Its reset value is zero and the
     # sketch runs from reset, so the two reach the same state; the explicit
     # write is there because the bring-up is called again without a reset when
     # a back end restarts.
-    ("P06-timer-sampling", "TIM6->CNT"):
+    #
+    # THE SAME EXEMPTION WAS TIM6->CNT UNTIL Sunday 25 October 2026, when the
+    # trigger moved to TIM3 so that one timer could both start a conversion and
+    # mark it. The reason is unchanged, the register is the same register on a
+    # different timer, and this checker reported the old entry as stale in the
+    # same run that reported the new write as undocumented, which is the pair of
+    # messages an allowlist exists to produce.
+    ("P06-timer-sampling", "TIM3->CNT"):
         "reset value is zero and the chapter's sketch starts from reset",
 }
 

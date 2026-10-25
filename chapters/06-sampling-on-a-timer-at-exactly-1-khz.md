@@ -6,7 +6,7 @@
 > **Key facts**
 >
 > - **Board:** NUCLEO-H7A3ZI-Q, plus a Raspberry Pi 4 carrying an MCC 118 DAQ HAT as the external witness
-> - **Peripherals:** TIM6 as the trigger, ADC1 with hardware trigger, DMA in double-buffer mode, TIM2 and TIM5 as instruments, one free GPIO as the marker
+> - **Peripherals:** TIM3 as the trigger and, through its channel 1, as the driver of the marker pin itself, ADC1 with hardware trigger, DMA in double-buffer mode, TIM2 and TIM5 as instruments, one free GPIO as the marker
 > - **Toolchain:** arm-none-eabi-gcc with CMake as in chapter 1; Python 3 with the HAT library on the Pi
 > - **Operating system:** Bare metal on the board, Raspberry Pi OS on the witness
 > - **Difficulty:** 4 of 5
@@ -64,10 +64,10 @@ The board's side is a chain with no software in it: a timer reaches its reload v
 
 | Peripheral | Mode | Clock source | Pins and function | Interrupt and transfers |
 | --- | --- | --- | --- | --- |
-| TIM6 | Up counter, update event on TRGO | APB1 timer clock | None | No interrupt in the timer build |
+| TIM3 | Up counter, update event on TRGO, channel 1 in toggle output-compare | APB1 timer clock | PB4 as TIM3_CH1 on alternate function 2, which is the marker | No interrupt in any of the three builds |
 | ADC1 | Single channel, hardware trigger on the timer's TRGO | ADC kernel clock, confirm the source in RM0455 | One analogue input, channel confirmed in the datasheet | Transfer request to a DMA stream |
 | DMA1 stream | Double buffer, two memory pointers | Bus clock | None | Half and full transfer interrupts |
-| GPIO marker | Push-pull output, toggled in the sampling interrupt | Peripheral bus | A free Zio pin, item 13 on the confirm list | None |
+| GPIO marker | Alternate function 2 in the two timer-triggered builds, so the timer drives the pin and no software is in the path; a push-pull output toggled in the tick exception in the tick build, where the processor is in the path by design | Peripheral bus | PB4, item 13 on the confirm list, reached at Morpho CN12 pin 27 when a shield covers the Zio position | None |
 | TIM2 | Free running 32-bit, or input capture for the reciprocal counter | APB1 timer clock | Capture pin from the alternate-function table | Capture interrupt, reciprocal build only |
 | TIM5 and TIM7 | External clock mode 2 counting edges, and an up counter as the gate | The signal under test, and the APB1 timer clock | External trigger pin from the alternate-function table | Gate interrupt only |
 | SysTick | 1 kHz reload, the simplest build | Core clock | None | SysTick exception |
@@ -116,7 +116,7 @@ The design has one invariant and it is worth stating before the code. At any ins
 ```text
   board                                                      witness
   +-----------------------------------------------+          +----------------------------+
-  | TIM6 update -> TRGO                            |          | Raspberry Pi 4             |
+  | TIM3 update -> TRGO                            |          | Raspberry Pi 4             |
   |   |                                            |          |   MCC 118 DAQ HAT          |
   |   v                                            |          |   1 channel, 100 kS/s      |
   | ADC1 conversion (no software in the path)      |          |                            |
@@ -133,7 +133,7 @@ The design has one invariant and it is worth stating before the code. At any ins
   |   main loop: feature over the readable half    |          +----------------------------+
   |            |                                   |                       ^
   |            v                                   |   3.3 V marker        |
-  |   GPIO marker toggled in the interrupt --------+-----------------------+
+  |   marker: TIM3_CH1, or GPIO in the tick build--+-----------------------+
   |                                               (220 ohm in series, common ground)
   +-----------------------------------------------+
 ```
@@ -340,6 +340,33 @@ void marker_toggle(void)
     MARKER_PORT->BSRR = level ? (1u << MARKER_PIN)
                               : (1u << (MARKER_PIN + 16));
 }
+
+/* THE SAME PIN, HANDED TO A TIMER CHANNEL, which is what the two
+   timer-triggered builds use instead of the toggle above. The tick build keeps
+   the toggle, because the processor is in the path of its timing by design.
+
+   MODER 10 is alternate-function mode and AFR says WHICH function: four bits
+   per pin, pins 0 to 7 in the low register, and the number for this pin comes
+   from the part's alternate-function table in the datasheet, not from a board
+   manual: 2 is TIM3_CH1 on this one. MODER is written LAST of the five, so the
+   pad never becomes an output driven by a function that has not been selected
+   yet. */
+void marker_init_tim3_ch1(void)
+{
+    RCC->AHB4ENR |= RCC_AHB4ENR_GPIOBEN;
+    (void) RCC->AHB4ENR;
+
+    const uint32_t pos2 = MARKER_PIN * 2u;
+    const uint32_t pos4 = MARKER_PIN * 4u;
+
+    MARKER_PORT->AFR[0]  = (MARKER_PORT->AFR[0] & ~(0xFu << pos4))
+                         | (2u << pos4);     /* alternate function 2 */
+    MARKER_PORT->OTYPER &= ~(1u << MARKER_PIN); /* push-pull */
+    MARKER_PORT->PUPDR  &= ~(3u << pos2);       /* no pull */
+    MARKER_PORT->OSPEEDR |= (3u << pos2);       /* fastest slew, as above */
+    MARKER_PORT->MODER   = (MARKER_PORT->MODER & ~(3u << pos2))
+                         | (2u << pos2);        /* alternate function */
+}
 ```
 
 The waiting loop is the whole lesson. Measure it with the wrapper from step 2 and write the number in the budget table. At 1 kHz it is invisible; the point of measuring it now is that chapter 13 samples faster.
@@ -350,19 +377,48 @@ The waiting loop is the whole lesson. Measure it with the wrapper from step 2 an
 /* acq_timer.c */
 void acq_start(void)
 {
-    RCC->APB1LENR |= RCC_APB1LENR_TIM6EN;
-    TIM6->PSC = 280u - 1u;            /* timer clock 280 MHz -> 1 MHz */
-    TIM6->ARR = 1000u - 1u;           /* 1 MHz -> 1000 Hz, exactly */
-    TIM6->CR2 = (2u << TIM_CR2_MMS_Pos);          /* TRGO on update */
-    TIM6->EGR = TIM_EGR_UG;
+    RCC->APB1LENR |= RCC_APB1LENR_TIM3EN;
+    TIM3->PSC = 280u - 1u;            /* timer clock 280 MHz -> 1 MHz */
+    TIM3->ARR = 1000u - 1u;           /* 1 MHz -> 1000 Hz, exactly */
+    TIM3->CR2 = (2u << TIM_CR2_MMS_Pos);          /* TRGO on update */
+    TIM3->EGR = TIM_EGR_UG;
+
+    /* CHANNEL 1 DRIVES THE MARKER, and this is the reason the timer is TIM3
+       and not a basic timer. Toggle mode flips the pin on each compare match
+       and leaves it there, so the witness sees ONE EDGE PER SAMPLING INSTANT
+       and counts both polarities. A compare value of zero puts the match at
+       the counter's zero, which is where the update event that triggers the
+       conversion is, so the marker edge and the conversion come from one
+       counter and are separated by a fixed number of timer ticks instead of by
+       whatever the processor was doing.
+
+       CC1E IS THE WHOLE OF THE OUTPUT ENABLE on a general-purpose timer. Do
+       not add the BDTR write a TIM1 example needs: the advanced-control timers
+       gate their outputs with MOE and these do not have the bit at all, which
+       is the trap in the other direction and the one that silences a copied
+       example. */
+    TIM3->CCMR1 = (TIM3->CCMR1 & ~(TIM_CCMR1_CC1S | TIM_CCMR1_OC1M
+                                   | TIM_CCMR1_OC1PE))
+                | (3u << TIM_CCMR1_OC1M_Pos);     /* toggle on match */
+    TIM3->CCR1  = 0u;                             /* match at the zero */
+    TIM3->CCER  = (TIM3->CCER & ~TIM_CCER_CC1P) | TIM_CCER_CC1E;
+
+    /* AND THE PAD LAST, once the channel knows what to drive. Alternate
+       function 2 is TIM3_CH1 on this pin; confirm the number in the part's own
+       alternate-function table before copying it. */
+    marker_init_tim3_ch1();
 
     /* The same eight steps, with the trigger passed in rather than written
-       here. The source number is 13 for TIM6 TRGO on THIS part; do not copy
-       it from an H743 project. One function owns that register's fields, so
-       there is exactly one write to CFGR in the whole build. */
+       here. The source number is 4 for TIM3 TRGO on THIS part, and it is 13
+       for TIM6 TRGO, which is what the captures taken before Sunday
+       25 October 2026 hold; do not copy either from an H743 project, and do
+       not expect the reference manual to give you the mapping at all, because
+       it enumerates the field only as Event 0 to Event 31. One function owns
+       that register's fields, so there is exactly one write to CFGR in the
+       whole build. */
     adc_bring_up(board_pclk1_hz(), apb1_divisor(),
-                 ADC_EXTSEL_TIM6_TRGO, ADC_EXTEN_RISING,
-                 "TIM6 TRGO on the rising edge");
+                 ADC_EXTSEL_TIM3_TRGO, ADC_EXTEN_RISING,
+                 "TIM3 TRGO on the rising edge");
 
     /* The overrun interrupt, without which this build cannot report the one
        figure its acceptance criterion asks for. The handler must CLEAR the
@@ -377,13 +433,17 @@ void acq_start(void)
     ADC1->ISR  = ADC_ISR_EOC | ADC_ISR_OVR;
     ADC1->IER |= ADC_IER_OVRIE;
     ADC1->CR  |= ADC_CR_ADSTART;
-    TIM6->CR1  = TIM_CR1_CEN;
+    TIM3->CR1  = TIM_CR1_CEN;         /* and the first marker edge with it */
 }
 ```
 
 **The slew setting is not housekeeping and it is the only place in this volume where it is load-bearing.** The witness interpolates each crossing, so a slow edge widens the uncertainty on every edge time in the run, which is the figure the whole chapter exists to produce. The fastest slew the pin offers costs nothing here because the marker drives a 220 Ω resistor and nothing else.
 
-The marker now moves into the end-of-conversion interrupt, which is one step further from the timer and so one step worse as a witness of the timer. Toggle it in both places under a build switch and let the witness tell you how much that step costs. That comparison is a measurement this book has not seen published for this family.
+**The marker used to move into the end-of-conversion interrupt here, and that paragraph has been replaced by the writes above.** What it said was right as far as it went: an edge in the handler is one step further from the timer and so one step worse as a witness of the timer, and it invited a reader to toggle in both places under a build switch and let the witness say what the step costs. The implementation did exactly that from Wednesday 7 October 2026 and published two runs under it, 3.66 microseconds of spread for this build and 3.59 for the tick build, on a witness whose own floor is about 3.5.
+
+**The reason the invitation is gone is that the comparison it proposed could not be made with this instrument.** The witness samples every 10 microseconds. An interrupt latency on this part is on the order of tens of core cycles, which at 280 MHz is a fraction of a microsecond, so the difference the build switch was meant to expose sits far below the instrument's resolution. **An experiment that cannot resolve the quantity it is about does not become a measurement by being run**, and publishing the two numbers as a comparison of back ends would have attributed to the back ends a difference the instrument could not see. The decision to drive the pin from a timer channel instead was taken on Tuesday 20 October 2026 for that reason, and it is not an improvement in the number: it is a change in what the number is about. The spread is predicted to stay at the instrument's floor.
+
+**What a reader who wants the latency anyway should do**, since the question is a good one: measure it on the board with the cycle counter from step 2, inside the handler, which resolves single cycles and needs no witness at all. The pin is the wrong instrument for it, and this is the general lesson of the chapter pointed back at itself.
 
 **Step 6.** **Build the third acquisition: double-buffered transfer.** The stream controller on this family carries two memory pointers and a bit saying which one it is currently filling. Set both pointers, enable double-buffer mode, and take the transfer interrupts. **Two of the writes below are the ones a reader is most likely to leave out, and either omission alone gives a build whose every register reads back exactly as intended while no sample ever moves**: the converter's data management field, and the multiplexer channel that routes the request.
 
@@ -400,8 +460,8 @@ void acq_start(void)
     /* 0. The same eight steps as the other two builds, with the timer's
           trigger, because nothing below configures the converter itself. */
     adc_bring_up(board_pclk1_hz(), apb1_divisor(),
-                 ADC_EXTSEL_TIM6_TRGO, ADC_EXTEN_RISING,
-                 "TIM6 TRGO on the rising edge");
+                 ADC_EXTSEL_TIM3_TRGO, ADC_EXTEN_RISING,
+                 "TIM3 TRGO on the rising edge");
 
     /* 1. The converter must be told to RAISE a transfer request at all. This
           field is 00 after reset, which is right for the two builds that read
@@ -455,7 +515,7 @@ void acq_start(void)
 
     DMA1_Stream0->CR |= DMA_SxCR_EN;
     ADC1->CR |= ADC_CR_ADSTART;
-    TIM6->CR1 |= TIM_CR1_CEN;
+    TIM3->CR1 |= TIM_CR1_CEN;
 }
 
 /* One flag, and it MUST be cleared as well as counted: counting without
@@ -477,22 +537,49 @@ void DMA1_Stream0_IRQHandler(void)
     /* CT says which pointer the engine is filling NOW, so the other is ready */
     ready_ptr = (DMA1_Stream0->CR & DMA_SxCR_CT) ? buf_a : buf_b;
     ready_seq++;
-    marker_toggle();                  /* read the note below before copying */
+    /* NO MARKER HERE, and read the note below for what stood here instead. */
 }
 ```
 
-**That `marker_toggle()` is one of three options and it is NOT the one chosen.**
-An edge here fires once per 64 samples, so it measures block completions and not
-the instants of individual conversions, which is what the variants table at the
-end of this chapter predicts about this build. **A per-sample edge cannot exist
-in this build at all**: nothing happens in software per sample, which is its
-reason for existing. On Tuesday 20 October 2026 the decision was taken to drive
-the marker from a timer channel in hardware instead, which is the only
-arrangement that measures the predicted quantity, and it cannot be written yet:
-RM0455 section 46.2 page 1754 says TIM6 and TIM7 are basic timers with no capture
-or compare channels and no pin, and TIM6 is what triggers the conversions. The
-line stays in the sketch so this step runs, and the honest reading of it is that
-it measures the block rate, not the sample rate.
+**A `marker_toggle()` stood in that handler, it was one of three options, and it
+was never the right one.** An edge there fires once per 64 samples, so it
+measures block completions and not the instants of individual conversions, which
+is what the variants table at the end of this chapter predicts about this build.
+**A per-sample edge cannot exist in software in this build at all**: nothing
+happens in software per sample, which is its reason for existing. So the three
+options were an edge per block, which measures the wrong thing; no edge at all,
+which the implementation shipped from Friday 16 October 2026 and which measures
+nothing; and a timer channel driving the pin, which measures the right thing.
+
+**The third was chosen on Tuesday 20 October 2026 and could not be written that
+day.** RM0455 Rev 13 section 46.2 page 1754 says TIM6 and TIM7 are basic timers
+with no capture or compare channels and no pin, and TIM6 was what triggered the
+conversions, so the timer in the design could not mark anything. **The gap was a
+missing fact rather than a missing idea**, and two readings closed it: the
+part's alternate-function table gives PB4 as TIM3_CH1 on function 2, and the
+converter's trigger list includes TIM3_TRGO, so one general-purpose timer can
+start the conversion and mark it. The build landed on Sunday 25 October 2026 and
+the writes are in step 5 above; both timer-triggered builds share them.
+
+**What the no-edge version measured is worth keeping, because it was a real
+control.** On Tuesday 20 October 2026 this build was recorded for sixty seconds
+on the same lead that had carried 60 185 edges from the timer build an hour
+earlier, and the analyser refused the capture at a swing of 5.1 millivolts
+against a 100 millivolt floor. Two of the three causes a flat recording can have
+were excluded by the preceding run, the wire and the shared ground, so what was
+left was the claim under test: this build drove no marker. **A flat recording on
+its own would mean a broken bench; a flat recording an hour after a working one,
+from the same bench with a different image, means the image.**
+
+**And one consequence of the hardware marker belongs here rather than in a
+footnote.** Both timer-triggered builds now mark from the same channel of the
+same timer, so their marker signals are identical BY CONSTRUCTION and no witness
+can separate them. That is correct rather than disappointing: with a hardware
+trigger the sampling instants are the timer's, so two builds that share a timer
+share their instants. What still separates them is the counters, blocks delivered
+and overruns of both kinds, which is where the difference between a per-sample
+interrupt and a double-buffer transfer actually lives. A reader who expects the
+marker to rank those two builds is holding the wrong instrument.
 
 **The first and third writes above were missing from this step until Tuesday 20 October 2026**, and the omission is recorded rather than quietly repaired, because it is the most useful thing in the step. As first published it set the pointers, the counter and the peripheral address, assembled a control word with `DBM`, and named the request number only in a comment. Either gap alone is enough: with the data management field at its reset 00 the converter raises no request whatever, so the stream sits enabled and idle, all eight bring-up steps report success, every configuration read-back is correct, and the block counter never moves. **A build that reads back perfectly and transfers nothing is the hardest failure in this chapter to diagnose from the console alone**, which is why those writes are now numbered with the reason beside each one.
 

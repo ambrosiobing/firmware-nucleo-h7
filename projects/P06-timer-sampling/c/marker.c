@@ -43,11 +43,27 @@
  * RCC_TypeDef's offset comments being the H743's: ST's material for the family
  * reads as material for the part until the caption is checked.
  *
- * ONE THING UM2408 DOES NOT SAY, so it is not claimed. Its footnote list gives
- * PB3 as D23/SWO, and says nothing about PB4. Whether PB4 carries a JTAG
- * function by default on this package is a datasheet question this has not read.
- * It does not affect the debugger in use: the ST-Link runs SWD, which needs
- * SWCLK on PA14, SWDIO on PA13 and SWO on PB3, and none of those is PB4.
+ * ONE THING UM2408 DOES NOT SAY, AND THE DATASHEET SINCE HAS. Its footnote list
+ * gives PB3 as D23/SWO and says nothing about PB4, so this file recorded the
+ * JTAG question as unread. It was read on Tuesday 20 October 2026: DS13195 Rev 1
+ * page 66 prints the pin as PB4(NJTRST), which is the function it carries after
+ * reset. It does not affect the debugger in use: the ST-Link runs SWD, which
+ * needs SWCLK on PA14, SWDIO on PA13 and SWO on PB3, and none of those is PB4.
+ * The pin has been driven as a plain output through 60 185 measured edges since,
+ * which is the answer in the other direction.
+ *
+ * AND ITS ALTERNATE FUNCTION 2 IS TIM3_CH1, from DS13195 Rev 1 Table 9 page 70,
+ * read the same day. That is what makes the hardware marker possible at all and
+ * it is the reason this file gained a second init below.
+ *
+ * THE WIRE IS NOT ON CN7 PIN 19 ANY MORE, and this file's table above is the Zio
+ * position rather than the position in use. The X-NUCLEO-53L8A1 is stacked, so
+ * CN7 pin 19 is underneath it and cannot be reached. PB4 is also Morpho CN12
+ * pin 27, from UM2408 Rev 6 Table 19 page 47, and that is where the lead to the
+ * witness sits. The connector positions and the method that resolved them are in
+ * docs/the-board-and-the-wiring.md section 4.4; the port and pin here are
+ * unchanged by any of it, which is the point of recording a port pin rather than
+ * a connector position in code.
  */
 #include <stdint.h>
 
@@ -60,6 +76,12 @@
  * why the citation matters more than the number. */
 #define MARKER_GPIO  GPIOB
 #define MARKER_BIT   4u
+
+/* Alternate function 2 on this pin is TIM3 channel 1, from DS13195 Rev 1
+ * Table 9 page 70, read Tuesday 20 October 2026. The table is the part's own
+ * alternate function mapping, not the board's, so it is a silicon fact and
+ * survives any change of connector or shield. */
+#define MARKER_AF_TIM3_CH1   2u
 #define MARKER_RCC_ENABLE()  do { \
         RCC->AHB4ENR |= RCC_AHB4ENR_GPIOBEN; \
         (void) RCC->AHB4ENR;               /* read back: the write is posted */ \
@@ -79,6 +101,46 @@ void marker_init(void)
     MARKER_GPIO->OSPEEDR |= (3u << pos2);
 
     marker_low();
+}
+
+/* The same pin, handed to TIM3 channel 1. See marker.h for who calls this and
+ * why it is not a back end's job.
+ *
+ * MODER 10 is the alternate function mode, and WHICH alternate function comes
+ * from AFR: PB4 is in the low register, four bits per pin, so the field for pin
+ * 4 starts at bit 16. Alternate function 2 is TIM3_CH1 on this pin, from
+ * DS13195 Rev 1 Table 9 page 70.
+ *
+ * THE OTHER THREE SETTINGS ARE THE SAME THREE marker_init() USES and they are
+ * repeated rather than shared, because the shared version would be a function
+ * that configures a pin for either mode and the one line that differs between
+ * them is the one worth seeing. Push-pull, no pull, and the fastest slew the pin
+ * offers: slew matters here and only here, because the witness interpolates the
+ * crossing, so a slow edge widens the uncertainty on every edge time in a run.
+ *
+ * THE PAD IS SWITCHED LAST BY ITS CALLER, after the channel is configured and
+ * enabled, so the pin is never handed to a peripheral that has not been told
+ * what to drive. */
+void marker_init_tim3_ch1(void)
+{
+    MARKER_RCC_ENABLE();
+
+    const uint32_t pos2 = MARKER_BIT * 2u;
+    const uint32_t pos4 = MARKER_BIT * 4u;
+
+    MARKER_GPIO->AFR[0]  = (MARKER_GPIO->AFR[0] & ~(0xFu << pos4))
+                           | (MARKER_AF_TIM3_CH1 << pos4);
+    MARKER_GPIO->OTYPER &= ~(1u << MARKER_BIT);
+    MARKER_GPIO->PUPDR  &= ~(3u << pos2);
+    MARKER_GPIO->OSPEEDR |= (3u << pos2);
+
+    /* MODER LAST OF THE FIVE, and that ordering is the one thing in this
+     * function that is not a copy. The pin leaves input mode only once the
+     * alternate function number, the drive type, the pull and the slew are all
+     * in place, so there is no window in which the pad is an output driven by an
+     * unselected function. marker_init() has no such ordering question, because
+     * a plain output has nothing to select. */
+    MARKER_GPIO->MODER   = (MARKER_GPIO->MODER & ~(3u << pos2)) | (2u << pos2);
 }
 
 /* Deliberately not inline and deliberately trivial. The cost of the call is

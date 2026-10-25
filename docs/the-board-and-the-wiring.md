@@ -1013,9 +1013,22 @@ same oscillator that defines it, so firmware timing itself would confirm a wrong
 rate exactly as readily as a right one. That is the property from the
 introduction, met again at the last step, and it is why the external witness was
 designed before any of the firmware. The MCC 118 on the Raspberry Pi watching the
-marker on PB4 at CN7 pin 19, which 2.6 sourced from UM2408 Table 18, is the
-measurement. **The wire is not connected**, and until it is, the 1 kHz in the
-project's title is a claim.
+marker on PB4 is the measurement.
+
+**THIS PARAGRAPH SAID THE WIRE WAS NOT CONNECTED UNTIL Sunday 25 October 2026,
+AND IT HAD BEEN CONNECTED SINCE Friday 9 October 2026**, which is the kind of
+staleness this page exists to prevent and is recorded rather than quietly
+corrected. Both witness wires are in, section 4.4 has said so with the date since
+Tuesday 20 October 2026, and the rate has been measured four times. **It also
+named the wrong position**: it said CN7 pin 19, the Zio position, which the
+stacked X-NUCLEO-53L8A1 has covered since before Monday 19 October 2026. The lead
+sits at **CN12 pin 27**, the Morpho position.
+
+**What remains true in it is the argument rather than the status.** A timebase on
+this die cannot settle its own rate, so without the external witness the 1 kHz in
+the project's title would still be a claim. With the witness it is a measurement
+with a tolerance, and the tolerance is the finding: about +2900 to +3100 parts per
+million over three sessions.
 
 **The converted value, and a control that settled it on Thursday 8 October 2026.**
 One jumper wire from PC3 to a pin marked GND, with its threshold published before
@@ -1471,7 +1484,7 @@ one of these is settled and in use.
 | PD8, PD9 | USART3 console |
 | PD12 | LPTIM1_IN1, the counting input |
 | PE13 | TIM1 channel 3, the signal source |
-| PB4 | The marker pin for the witness |
+| PB4 | The marker pin for the witness. **`TIM3_CH1` on alternate function 2** in the timer and transfer-engine builds, so the timer drives the pin; a **plain push-pull output** toggled in software in the tick build, where the processor is in the path by design |
 | PA13, PA14, PB3 | SWDIO, SWCLK, SWO. The debugger |
 
 **What "free" has to mean when you pick the next one.** PB4's labelled function
@@ -1513,7 +1526,10 @@ maximum as configured. The self test runs at 1 MHz, comfortably inside it.
 > terminal block, which is on a **Raspberry Pi 4**.
 >
 > **Wire two, signal.** From **PB4**, the **marker pin and an output from the
-> board**, to **MCC 118 channel 0**, an **input to the HAT**. PB4 is exposed at
+> board**, to **MCC 118 channel 0**, an **input to the HAT**. Since Sunday
+> 25 October 2026 the pin is driven by **TIM3 channel 1** in the two
+> timer-triggered builds and by software in the tick build, which changes nothing
+> about the wire and everything about what the recording means. PB4 is exposed at
 > two places and which one to use depends on the shield:
 >
 > **With the X-NUCLEO-53L8A1 stacked, use CN12 pin 27**, the Morpho position from

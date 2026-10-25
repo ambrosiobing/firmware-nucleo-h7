@@ -1073,3 +1073,36 @@ pin 19, the Zio position, covered by the stacked shield since before Monday
 19 October 2026. A refusal that sends a reader to the wrong place is worse than one
 that names none, so the message now points at the wiring section instead and says
 that an undriven marker is the expected result for this build rather than a defect.
+
+## The instrument changed, Sunday 25 October 2026, and what that does to the numbers above
+
+**Everything above this line that reports a spread or a worst-case interval for
+the timer or the transfer-engine build was measured through a marker toggled in
+software**, in the end-of-conversion handler, which is one step further from the
+timer than the conversion is. The numbers are not withdrawn and nothing about
+them was wrong: they are measurements of the handler's regularity, and the pages
+that published them said so.
+
+**From Sunday 25 October 2026 those two builds mark from TIM3 channel 1**, in
+hardware, with no software in the path. The quantity measured changes from "when
+did the handler run" to "when did the conversion start", and those are different
+quantities. **So the old and new runs do not pool**: a mean taken across both
+would be a mean across two measurands. The tick build is unaffected and its runs
+stand, because the processor is in its path by design and its marker still
+measures what that build is about.
+
+**What carries across unchanged is the cadence.** The rate and its parts per
+million are properties of the timer and its divider chain, not of the marker, so
+the band of about +2900 to +3100 ppm measured over three sessions is the band the
+first hardware-marker run is predicted to land in. A rate outside it would point
+at the prescaler plan rather than at the oscillator.
+
+**And one prediction is new and can fail loudly.** The transfer-engine build was
+flat on Tuesday 20 October 2026 because nothing drove its pin, measured at
+5.1 millivolts of swing against a 100 millivolt floor. With this image it must
+produce about 60 000 edges in sixty seconds. **If it is still flat, the suspect is
+the channel and not the wire**, because the same lead carried 60 185 edges from
+the timer build an hour before that control.
+
+**Nothing in this section has run.** It is written before the first
+hardware-marker capture so that the capture can disagree with it.

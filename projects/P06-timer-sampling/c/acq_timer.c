@@ -1,6 +1,6 @@
 /* acq_timer.c: build 2, the timer starts the conversion in hardware.
  *
- * TIM6 counts up and emits a trigger output on its update event. The converter
+ * TIM3 counts up and emits a trigger output on its update event. The converter
  * is configured to start on that trigger. The processor is not in the path of
  * the timing at all: it learns a sample exists afterwards, from the
  * end-of-conversion interrupt, and by then the instant has already been fixed
@@ -8,20 +8,34 @@
  *
  * The prediction written in docs/measurement.md is that this build and build 3
  * are indistinguishable on the jitter criterion, because in both the sample
- * instant is produced by hardware, and that both beat build 1. Writing that
+ * instant is produced by hardware, and that both improve on build 1. Writing that
  * down in advance is what makes finding otherwise a result.
  *
- * ONE HONEST WEAKNESS. The marker is still toggled in software, in the
- * end-of-conversion handler, so the marker edge carries the interrupt latency
- * even though the sample instant does not. The witness therefore measures the
- * regularity of the handler, not of the conversion. The proper fix is to let a
- * timer channel drive the pin directly so no software is involved, which is
- * the stretch goal at the end of the chapter and is the only way this method
- * can separate the two.
+ * THE HONEST WEAKNESS THAT STOOD HERE IS CLOSED, and it is worth reading what it
+ * said before reading what replaced it. It said the marker was still toggled in
+ * software, in the end-of-conversion handler, so the marker edge carried the
+ * interrupt latency even though the sample instant did not, and that the witness
+ * therefore measured the regularity of the handler rather than of the
+ * conversion. It stood from Wednesday 7 October 2026 to Sunday 25 October 2026
+ * and every published figure of this build was taken under it.
+ *
+ * WHAT CLOSED IT. TIM3 channel 1 drives the marker pin in hardware, so the edge
+ * and the conversion trigger come from one counter and no software sits between
+ * them. The handler no longer touches the pin. Joseph took that decision on
+ * Tuesday 20 October 2026 on the ground that a comparison the instrument cannot
+ * perform should not be published; the build arrived on Sunday 25 October 2026,
+ * once PB4's alternate function and the ADC's trigger list had both been read.
+ *
+ * WHAT IT COSTS, and it is not nothing. This build and the transfer-engine build
+ * now mark from the same channel of the same timer, so their marker signals are
+ * identical by construction and no witness can tell them apart. That is correct
+ * rather than unfortunate: with a hardware trigger the sampling instants ARE the
+ * timer's, so two builds that share a timer share their instants. The difference
+ * between a per-sample interrupt and a double-buffer transfer shows up in the
+ * counters instead, which is where it lives.
  */
 #include "acq.h"
 #include "acq_errors.h"
-#include "marker.h"
 
 #include "adcmath.h"
 #include "cyccnt.h"
@@ -30,7 +44,7 @@
 
 #include <stdio.h>
 #include "adc_bringup.h"
-#include "tim6_bringup.h"
+#include "tim3_bringup.h"
 
 /* Reached the way main.c reaches board_init, by declaration rather than by
  * include, because CMake puts only this project's c/ and c/instr on this
@@ -56,7 +70,7 @@ extern uint32_t board_pclk1_hz(void);
  * needs the same HCLK and a third private copy was the alternative.
  *
  * WHAT STAYS IS WHAT IS ACTUALLY SPECIFIC TO THIS MECHANISM: the ring buffer,
- * the end-of-conversion handler, TIM6 itself, and the order in which the
+ * the end-of-conversion handler, TIM3 itself, and the order in which the
  * converter is armed before the timer starts.
  */
 
@@ -88,9 +102,10 @@ void ADC_IRQHandler(void)
      * and it is the reason this is not simply counted at the end.
      *
      * Clearing is a write of one, and the count is what main reports. NO MARKER
-     * TOGGLE HERE: the marker must carry one edge per CONVERSION and not one per
-     * interrupt, or the witness would measure this handler's entries rather than
-     * the sampling instants, which is the one thing it exists to measure. */
+     * TOGGLE HERE, and since Sunday 25 October 2026 there is none anywhere in
+     * this handler: the marker must carry one edge per CONVERSION and not one
+     * per interrupt, and the only arrangement that guarantees it is a timer
+     * channel driving the pin with no software in the path at all. */
     if ((isr & ADC_ISR_OVR) != 0u) {
         conv_overruns++;
         ADC1->ISR = ADC_ISR_OVR;
@@ -100,7 +115,11 @@ void ADC_IRQHandler(void)
         return;
     }
 
-    marker_toggle();                   /* see the weakness noted above */
+    /* THE MARKER TOGGLE THAT STOOD HERE IS GONE, Sunday 25 October 2026. It was
+     * the first statement in this branch, deliberately, so that the edge carried
+     * as little of the handler's own duration as possible. TIM3 channel 1 now
+     * puts the edge on the pin from the same counter that triggered this
+     * conversion, so nothing this handler does can move it. */
     uint16_t v = (uint16_t) ADC1->DR;  /* reading DR clears the flag */
 
     uint32_t i = widx;
@@ -119,8 +138,11 @@ void ADC_IRQHandler(void)
 
 int acq_start(void)
 {
-    marker_init();
-
+    /* NO marker_init() HERE ANY MORE, Sunday 25 October 2026. The pin is handed
+     * to TIM3 channel 1 by tim3_bring_up() below, in the same function that
+     * configures the channel, because a pad and the channel that drives it are
+     * one mechanism and a caller who configures one and forgets the other gets
+     * perfect read-backs and a flat line on the witness. */
     widx = 0u;
     wbank = 0u;
     ready_seq = 0u;
@@ -135,39 +157,52 @@ int acq_start(void)
      * leave that back end refusing: a known duplication is not a reason to
      * leave code unwritten, and a named one still leaves two copies that drift.
      *
+     * AND IT BECAME TIM3 ON Sunday 25 October 2026, when the marker moved into
+     * hardware. TIM6 is a basic timer with no channel and no pin, RM0455 Rev 13
+     * section 46.2 page 1754, so it can start a conversion and can never mark
+     * one. TIM3 can do both, so one timer carries the cadence and the evidence
+     * of the cadence instead of two carrying one each. tim6_bringup.c went with
+     * the change rather than staying linked and uncalled; see tim3_bringup.h for
+     * what came across with it and what the predictions are.
+     *
      * Every refusal this used to make, it still makes, with the same numbers
-     * from acq_errors.h, because the caller returns them unchanged. The move's
-     * criterion is that this build's console output comes back byte-identical.
+     * from acq_errors.h, because the caller returns them unchanged, and there is
+     * one more: ACQ_ERR_MARKER_CHANNEL when the channel's registers do not take.
      *
      * The timer is left CONFIGURED AND STOPPED. It is started at the end of this
      * function, after the converter is armed, and that ordering is the reason the
      * two halves are separate functions rather than one. */
-    const int tim_rc = tim6_bring_up(ACQ_RATE_HZ);
+    const int tim_rc = tim3_bring_up(ACQ_RATE_HZ);
     if (tim_rc != 0) {
         return tim_rc;
     }
 
     /* The bus clock is still needed HERE, for the converter rather than the
      * timer: its boost setting and its kernel clock are both derived from it.
-     * tim6_bring_up() has already refused if this were zero, so it is read
+     * tim3_bring_up() has already refused if this were zero, so it is read
      * without a second check and the check is not duplicated. */
     const uint32_t pclk1 = board_pclk1_hz();
 
     /* The converter, which is what the trigger above exists to start. It
      * reports each step and refuses at the first input it does not have.
      *
-     * This is attempted BEFORE the timer is enabled, so a refusal leaves TIM6
+     * This is attempted BEFORE the timer is enabled, so a refusal leaves TIM3
      * configured and stopped rather than emitting a trigger output that nothing
      * consumes. That is clock280.c's rule applied here: return without the
-     * irreversible step, so the part is left in a state somebody can read. */
+     * irreversible step, so the part is left in a state somebody can read.
+     *
+     * A refusal here now also leaves the marker pin on a stopped channel, which
+     * is the right state to leave it in: low, driven, and not toggling. A
+     * witness recording through that refusal sees a flat line, which is what a
+     * build that never started should look like. */
     /* THE TRIGGER IS THIS BUILD'S ONE CONTRIBUTION TO THE BRING-UP, passed rather
      * than compiled in so that the tick build can pass a software trigger and the
      * transfer-engine build can pass this same one. The words are passed too,
-     * because a reader holding only the field value 13 cannot tell TIM6 TRGO from
+     * because a reader holding only the field value 4 cannot tell TIM3 TRGO from
      * any other source, and the step report prints them. */
     const int adc_rc = adc_bring_up(pclk1, apb1_divisor(),
-                                    ADC_EXTSEL_TIM6_TRGO, ADC_EXTEN_RISING,
-                                    "TIM6 TRGO on the rising edge");
+                                    ADC_EXTSEL_TIM3_TRGO, ADC_EXTEN_RISING,
+                                    "TIM3 TRGO on the rising edge");
     if (adc_rc != 0) {
         return adc_rc;
     }
@@ -186,7 +221,7 @@ int acq_start(void)
      *
      * AND ADSTART WAS NEVER SET. With EXTEN configured the converter waits for
      * the trigger, but it only waits once it has been started: ADSTART is what
-     * arms it. A TIM6 trigger arriving at an unarmed converter does nothing.
+     * arms it. A TIM3 trigger arriving at an unarmed converter does nothing.
      *
      * The stale flags are cleared first, because ISR is not reset by
      * configuration and a left-over EOC would make the first interrupt report a
@@ -260,7 +295,7 @@ int acq_start(void)
         return ACQ_ERR_ADC_CHANNEL;
     }
 
-    tim6_start();
+    tim3_start();
     return 0;
 }
 

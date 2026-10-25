@@ -7,7 +7,9 @@
  *
  * ONLY THE TRIGGER IS A PARAMETER, because only the trigger differs between the
  * three mechanisms: the timer and transfer-engine builds start a conversion from
- * TIM6's update event and the tick build starts one in software. Everything
+ * TIM3's update event, which was TIM6's until Sunday 25 October 2026 and moved
+ * when the marker moved to a timer channel, and the tick build starts one in
+ * software. Everything
  * else, the regulator, the clock mode, the boost, the calibration, the enable,
  * the channel and its sampling time, is the same converter in all three.
  */
@@ -39,6 +41,49 @@
 #define ADC_EXTEN_RISING         1u
 #define ADC_EXTEN_SOFTWARE       0u
 
+/* AND EXTSEL 4 FOR TIM3 TRGO, read on Sunday 25 October 2026 and the value the
+ * timer and transfer-engine builds now pass, because the marker moved to TIM3
+ * channel 1 and one timer carries both the trigger and the evidence of it.
+ *
+ * THE SOURCE, named exactly, because this number cannot come from the manual.
+ * RM0455 Rev 13 page 1028 enumerates EXTSEL only as "Event 0" to "Event 31" and
+ * names no timer against any of them, so the mapping from a timer to a field
+ * value exists in ST's software and nowhere in the reference manual. The header
+ * is stm32h7xx_ll_adc.h from STMicroelectronics/stm32h7xx-hal-driver, branch
+ * master, file Inc/stm32h7xx_ll_adc.h, line 984:
+ *
+ *   LL_ADC_REG_TRIG_EXT_TIM3_TRGO  (ADC_CFGR_EXTSEL_2 | ...EDGE_DEFAULT)
+ *
+ * EXTSEL_2 alone is bit 2 of the field, so the value is 4.
+ *
+ * AND THE READING IS CROSS-CHECKED AGAINST A NUMBER THIS PROJECT ALREADY HAS ON
+ * THE BOARD, which is what makes the 4 trustworthy rather than merely sourced.
+ * Line 993 of the same table gives TIM6 TRGO as (EXTSEL_3 | EXTSEL_2 | EXTSEL_0),
+ * which is 8 + 4 + 1 and therefore 13: the value above, carried here since
+ * Wednesday 7 October 2026 from a different reading and confirmed by samples
+ * arriving. The same table read the same way reproduces a confirmed number, so
+ * the file and the method are the right ones.
+ *
+ * ONE THING WAS CHECKED BEFORE TRUSTING THE LINE, because this part is the one
+ * the family's material is usually wrong about. The whole trigger block, lines
+ * 976 to 1009, carries no family conditional at all: the only #if inside it are
+ * for TIM23 and TIM24, which this part does not have, and the neighbouring
+ * channel block a few lines above DOES branch on ADC_VER_V5_V90 and on ADC3,
+ * which is how a conditioned table looks when there is one. So this table is
+ * family-wide and these two values are this part's.
+ *
+ * TIM3_CH4 is in the same table at 15, and is not used: the trigger comes from
+ * the update event, so the channels are free and channel 1 drives the pin.
+ *
+ * AND ADC_EXTSEL_TIM6_TRGO ABOVE IS NOW PASSED BY NO BUILD, which is a reason to
+ * explain it rather than to delete it. Every measurement in this project up to
+ * and including Tuesday 20 October 2026 was taken with that value in CFGR: the
+ * twelve console captures, the 390 blocks of Wednesday 7 October 2026, the
+ * 60 185 edges of the timer build and the 120 960 samples of the transfer-engine
+ * build. A reader holding one of those captures needs to know what 13 meant in
+ * it, so the name stays with its citation. */
+#define ADC_EXTSEL_TIM3_TRGO     4u
+
 /* THE SEVEN READ-SET BITS, from stm32h7xx_hal_adc.c line 366 of
  * STM32Cube_FW_H7_V1.13.0, where ST names them ADC_CR_BITS_PROPERTY_RS and
  * states the rule: "writing 0 has no effect on the bit value".
@@ -62,7 +107,9 @@
  * pclk1_hz times divisor gives HCLK, from which the converter's kernel clock is
  * derived. extsel and exten select the trigger. trigger_desc is printed after
  * the trigger step and must name the mechanism in words, because a reader
- * holding only the field value 13 cannot tell TIM6 TRGO from any other source. */
+ * holding only the field value 4 cannot tell TIM3 TRGO from any other source,
+ * and a reader of a capture taken before Sunday 25 October 2026 is holding a 13
+ * for TIM6 TRGO instead. The words are what make the two captures comparable. */
 int adc_bring_up(uint32_t pclk1_hz, uint32_t divisor,
                  uint32_t extsel, uint32_t exten, const char *trigger_desc);
 

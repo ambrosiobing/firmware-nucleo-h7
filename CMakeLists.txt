@@ -386,15 +386,23 @@ foreach(BACKEND systick timer dma)
                 # without anything noticing. One entry here serves all three
                 # targets because this foreach shares its SOURCES list.
                 projects/P06-timer-sampling/c/adc_bringup.c
-                # tim6_bringup.c, added Monday 19 October 2026, for the same
-                # reason and by the same decision: two of the three back ends
-                # need TIM6 at the sampling rate with its trigger output on the
+                # tim3_bringup.c, which was tim6_bringup.c from Monday
+                # 19 October 2026 to Sunday 25 October 2026, for the same reason
+                # and by the same decision: two of the three back ends need a
+                # timer at the sampling rate with its trigger output on the
                 # update event, and the transfer-engine back end could not be
                 # written while that setup was inline in acq_timer.c. The tick
                 # back end links it and calls nothing from it, which costs the
                 # linker one discarded section under --gc-sections and is
                 # simpler than a per-backend SOURCES list for one file.
-                projects/P06-timer-sampling/c/tim6_bringup.c
+                #
+                # THE TIMER CHANGED FROM TIM6 TO TIM3 because the marker moved
+                # into hardware. TIM6 is a basic timer with no channel and no
+                # pin, RM0455 Rev 13 section 46.2 page 1754, so it can start a
+                # conversion and can never mark one; TIM3 can do both, and PB4
+                # is TIM3_CH1 on alternate function 2. One timer now carries the
+                # cadence and the evidence of it.
+                projects/P06-timer-sampling/c/tim3_bringup.c
                 c/instr/cyccnt.c
                 c/instr/freqcount.c
                 c/instr/freqmath.c

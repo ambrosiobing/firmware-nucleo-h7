@@ -61,5 +61,21 @@
                                           * rate being unknown */
 #define ACQ_ERR_DMA_UNCONFIGURED  (-14)  /* dma: the transfer engine is not
                                           * configured, and refusing is correct */
+#define ACQ_ERR_MARKER_CHANNEL    (-15)  /* timer and dma: TIM3's channel 1 did
+                                          * not take the toggle mode or the
+                                          * output enable, so the pin would
+                                          * carry a level and not an edge.
+                                          *
+                                          * SHARED BY TWO OF THE THREE and not
+                                          * by all, which is why it sits in this
+                                          * group: the tick build has no timer
+                                          * channel and keeps its software
+                                          * toggle. Refusing matters more here
+                                          * than it looks, because the failure
+                                          * it catches presents on the witness
+                                          * as a flat recording, which is
+                                          * indistinguishable from a wire off
+                                          * the pin until somebody reads the
+                                          * console. */
 
 #endif /* ACQ_ERRORS_H */

@@ -2099,7 +2099,7 @@ as a flat line on the witness, and the choice is Joseph's:
 comparison actually requires**, and that the first two are ways of saying so with
 different amounts of candour.
 
-#### Joseph took the third option the same day, and it cannot be written yet
+#### Joseph took the third option the same day, and it was written five days later
 
 **Decided Tuesday 20 October 2026, with the reasoning stated rather than the
 choice alone**: do not publish a comparison the instrument cannot perform, and
@@ -2131,12 +2131,14 @@ processor in the path and no second timer slaved to the first.
 
 **That is the arrangement the three-builds table has always needed**, and it needs
 no change of pin: the marker stays on PB4, which is where Joseph's wire already
-sits at CN12 pin 27. What remains is a build, not a question: TIM3 replaces TIM6 as
-the trigger for the timer and transfer-engine builds, `EXTSEL` moves from 13 to the
-value the LL header gives for `TIM3_TRGO`, channel 1 is configured for output
-compare on AF2, and `marker_toggle` leaves the interrupt path for those two builds.
+sits at CN12 pin 27. ~~What remains is a build, not a question~~ **and the build
+landed on Sunday 25 October 2026**: TIM3 replaced TIM6 as the trigger for the
+timer and transfer-engine builds, `EXTSEL` moved from 13 to 4, channel 1 is
+configured for output compare in toggle mode, PB4 is handed to alternate function
+2, and `marker_toggle` has left the interrupt path for those two builds.
 **The tick build keeps its software toggle**, because its whole point is that the
-processor is in the path.
+processor is in the path. The section below says what was written, what was read
+in order to write it, and what it predicts.
 
 **One thing the datasheet added that was not asked for.** PB4 comes out of reset as
 `NJTRST`, JTAG's reset input, which the wiring page now records. Driving it as the
@@ -2412,6 +2414,118 @@ was still programming and the port went with the re-enumeration. The method is
 sound: the same reader took the full output minutes later. A capture of a banner
 with no data is not evidence of anything and does not belong beside the twelve.
 
+### The hardware marker is built, and every number in it was read, Sunday 25 October 2026
+
+**The decision of Tuesday 20 October 2026 is code.** TIM3 replaces TIM6 as the
+conversion trigger in the timer and transfer-engine builds, its channel 1 drives
+PB4 in toggle mode, and no software touches the marker in either build. The tick
+build is untouched and keeps `marker_toggle` in its exception.
+
+**The one number that had to be read, and the reading is cross-checked.** `EXTSEL`
+for `TIM3_TRGO` is **4**, from `LL_ADC_REG_TRIG_EXT_TIM3_TRGO`, which is
+`ADC_CFGR_EXTSEL_2` alone, in `stm32h7xx_ll_adc.h` at line 984 of
+STMicroelectronics/stm32h7xx-hal-driver, branch master. **RM0455 Rev 13 page 1028
+cannot supply this**: it enumerates the field only as "Event 0" to "Event 31" and
+names no timer against any of them, so the mapping lives in ST's software and
+nowhere in the manual. The cross-check is a line nine rows below: TIM6 TRGO is
+`EXTSEL_3 | EXTSEL_2 | EXTSEL_0`, which is 13, **the value this project has had on
+the board since Wednesday 7 October 2026 from an entirely different reading**. The
+same table read the same way reproduces a confirmed number, which is what makes
+the 4 trustworthy rather than merely sourced.
+
+**And the table was checked for a family conditional before it was trusted**,
+because this part is the one ST's family material is usually wrong about. The
+trigger block, lines 976 to 1009, carries no conditional at all: the only `#if`
+inside it are for TIM23 and TIM24, which this part does not have. The channel
+block a few lines above it does branch on `ADC_VER_V5_V90` and on `ADC3`, which is
+what a conditioned table looks like when there is one.
+
+**What the channel costs is four writes**, and they are in the chapter as well as
+in the code: `CCMR1` for the mode, with `CC1S` cleared so the channel is an output
+and `OC1M` set to 011 for toggle; `CCR1` at zero so the match lands at the
+counter's zero, where the update event is; `CCER` with `CC1E` set, which is the
+whole of the output enable on a general-purpose timer; and `AFR[0]` for alternate
+function 2 on PB4. **There is no `BDTR` write and a reader coming from a TIM1
+example will look for one**: the advanced-control timers gate their outputs with
+`MOE` and the general-purpose timers have no such bit, which is the trap in the
+other direction and is recorded in `c/board/stm32h7a3_regs.h`.
+
+**The pad is switched last and `MODER` is written last of its five registers**, so
+the pin never becomes an output driven by a function that has not been selected,
+and with the timer stopped the channel's output sits low, which is the state
+`marker_init()` used to leave it in. The first edge the witness sees is still a
+rising one.
+
+**The refusal path grew by one code.** `ACQ_ERR_MARKER_CHANNEL`, which is -15,
+when `CCMR1` or `CCER` does not read back. That matters more than it looks: the
+failure it catches presents on the witness as a flat recording, which is
+indistinguishable from a wire off the pin until somebody reads the console.
+
+**And one register write in this change was invisible to the repository's own
+checker until the same day.** `python/tools/check_chapter_registers.py` matches a
+register on the left of an assignment and its pattern allowed only whitespace and
+a compound operator between the name and the `=`, so a write through an array
+member, which is exactly what `AFR[0] = ...` is, matched nothing and appeared in
+its output as neither documented nor undocumented. **Nothing had slipped through**,
+and that was checked rather than assumed: the tree held no write of that shape
+when the pattern was widened. The hole was closed in front of the first write that
+would have gone through it, with four tests, one of which exists to keep the wider
+pattern from reporting `==`, `!=`, `<=` and `>=` as writes.
+
+#### What this predicts, written before it has run
+
+1. **The rate must not move.** TIM3 and TIM6 are both on APB1, the derivation is
+   the same function and the prescaler plan is the same arithmetic, so the cadence
+   comes from the same oscillator through the same divider chain. Three sessions
+   have put this part between about +2900 and +3100 ppm. **A rate outside that
+   band means the trigger change did something this page does not describe**, and
+   the first suspect is the prescaler plan rather than the oscillator.
+2. **The spread is predicted NOT to improve visibly, and that is stated now so a
+   floor reading cannot be published as a success.** The software marker gave
+   3.66 microseconds of spread for the timer build and 3.59 for the tick build,
+   against a witness whose own floor is about 3.5 microseconds at a 10 microsecond
+   sample period. Interrupt latency on this part is tens of core cycles, a
+   fraction of a microsecond at 280 MHz, far below what this instrument can
+   resolve. **What the change buys is not a smaller number but a different
+   claim**: the number now describes the sampling instants rather than the
+   handler's entries.
+3. **The transfer-engine build must stop being flat.** Its control run on
+   Tuesday 20 October 2026 refused at 5.1 millivolts of swing because nothing
+   drove the pin. The same run repeated with this image must produce about
+   60 000 edges in sixty seconds, and if it does not, the suspect is the channel
+   rather than the wire, because that same lead carried 60 185 edges from the
+   timer build an hour before the control.
+4. **The two timer builds become indistinguishable on the marker, by construction
+   rather than by measurement.** They drive the same channel of the same timer, so
+   no witness can separate them. That is correct rather than disappointing: with a
+   hardware trigger the sampling instants are the timer's, so two builds sharing a
+   timer share their instants. **What still separates them is the counters**,
+   blocks delivered and overruns of both kinds. A reader who expects the marker to
+   rank those two builds is holding the wrong instrument.
+
+#### What was verified without a compiler, and what still needs one
+
+**Thirteen CMSIS names and two struct layouts were checked against the part's
+device header** before a line was written, on a laptop that must never run a
+compiler: the TIM3 clock enable, `TIMPRE`, `CR1_CEN`, `CR2_MMS` and its position,
+`EGR_UG`, `CCMR1_CC1S`, `CCMR1_OC1M` and its position, `CCMR1_OC1PE`, `CCER_CC1E`,
+`CCER_CC1P`, and `AHB4ENR_GPIOBEN`. `TIM_TypeDef` carries all nine registers this
+code writes and `GPIO_TypeDef` carries `AFR` as a two-element array, which is what
+makes `AFR[0]` the register for pins 0 to 7.
+
+**Two controls, because a check that cannot fail proves nothing.** An invented
+name, `TIM_CCMR1_OC1M_TOGGLE`, returned nothing, so the search could report an
+absence. And five of the thirteen are names this project already compiles on the
+board, so the header read defines what the build sees in every respect that
+matters here. **The copy read was the GitHub mirror and not the pack**, so no line
+numbers from it are quoted: the build uses the same file from
+STM32Cube_FW_H7_V1.13.0 on win11 skyhorizon.
+
+**What still needs a compiler is the compiler**: the host syntax pass in WSL on
+win11 skyhorizon, then the cross build there, in that order, before anything is
+flashed. Nothing in this section is a measurement and nothing in it has touched
+the board.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
@@ -2439,6 +2553,21 @@ with no data is not evidence of anything and does not belong beside the twelve.
    builds**, taken on one wire in one session, which is the first pair of theirs
    that shares a physical path. The finer instrument is untouched: both runs sat
    below half the witness's sample period again.
+
+   **And on Sunday 25 October 2026 the count of runs for two of the three builds
+   went back to zero, which is a cost of the marker change and is stated as one.**
+   Every run of the timer and transfer-engine builds up to that date measured a
+   marker toggled in software, so it measured the end-of-conversion handler's
+   entries; the hardware marker measures the sampling instants. **Those are
+   different quantities, so the runs do not pool**, and a page that averaged them
+   would be averaging two measurements of two things. The tick build's runs stand
+   unaffected, because its marker has not changed and its handler is the thing
+   under test.
+
+   What the old runs still prove is not small: the cadence, which is a property of
+   the timer rather than of the marker, and the wire, which carried 60 185 and
+   60 172 edges. The band of about +2900 to +3100 ppm is therefore still the band
+   the next run is predicted to land in.
 5. ~~**`sampling-dma`**, the last back end with no converter.~~ **Written and
    compiling since Monday 19 October 2026, and it has never run.** Its buffer's
    placement is fixed and confirmed in the map file, its engine, stream, request
@@ -2454,6 +2583,13 @@ with no data is not evidence of anything and does not belong beside the twelve.
    day and would be wrong the moment the run happened. It was wrong within hours,
    which is the shortest-lived claim on this page and the only one that announced
    its own expiry.
+
+   **Its marker became real on Sunday 25 October 2026.** Until then this build
+   configured the pin and drove it nowhere, which the control run of Tuesday
+   20 October 2026 measured at 5.1 millivolts of swing. TIM3 channel 1 now drives
+   it, so for the first time this back end can be put in front of the witness at
+   all. **That is the one prediction of the four that can fail loudly**: a flat
+   recording from this image would mean the channel, not the wire.
 
    Two sentences of this item were removed on Tuesday 20 October 2026 rather than
    struck through, because they were not merely out of date. One said the thing
