@@ -30,6 +30,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -37,14 +38,31 @@
 
 namespace {
 
+// Each value is read as a token and converted with strtod rather than with the
+// stream's own extractor, and that is a correction rather than a preference.
+// `in >> v` on a double CANNOT PARSE "inf" OR "nan" in libstdc++: the first
+// version of this filter used it and exited on exactly the two oracle cases
+// whose values are not finite, a coefficient of infinity and a reference
+// containing a not-a-number. Those two cases are the ones that exercise this
+// project's own finite refusal, so the protocol has to be able to carry a value
+// the implementation is going to reject. strtod accepts them, and is the same
+// function Python's float() is built on, which is what makes the two sides of
+// this protocol agree on what a token means.
 bool read_doubles(std::istringstream &in, std::size_t count,
                   std::vector<double> &out)
 {
     out.clear();
     out.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
-        double v = 0.0;
-        if (!(in >> v)) {
+        std::string token;
+        if (!(in >> token)) {
+            return false;
+        }
+        char *end = nullptr;
+        const double v = std::strtod(token.c_str(), &end);
+        // The whole token must be consumed, so "1.0junk" is refused rather than
+        // silently read as one.
+        if (end == token.c_str() || *end != '\0') {
             return false;
         }
         out.push_back(v);
@@ -266,6 +284,18 @@ int main()
         }
         if (rc != 0) {
             std::printf("BAD_REQUEST\n");
+            return 1;
+        }
+        // A request with anything left over is malformed. Ignoring the
+        // remainder would let a caller send one thing and be answered about
+        // another, which is the shape of failure P12's filter comment is
+        // about: one request quietly turning into something else. It caught a
+        // real one on Monday 26 October 2026, where a test built a
+        // length-mismatch request this protocol cannot express and the extra
+        // value would otherwise have been dropped in silence.
+        std::string leftover;
+        if (in >> leftover) {
+            std::printf("BAD_REQUEST trailing %s\n", leftover.c_str());
             return 1;
         }
     }

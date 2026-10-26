@@ -544,7 +544,22 @@ def test_the_cpp_matches_the_oracle_on_every_cascade_and_conversion():
 def test_the_cpp_matches_the_oracle_on_the_post_shift_and_the_metrics():
     lines = ["P {} {}".format(c["nstage"], nums(c["coeffs"]))
              for c in ORACLE["cases"]]
-    for case in ORACLE["metrics"]:
+    # THE LENGTH-MISMATCH CASE IS NOT SENT, and that is a property of the
+    # protocol rather than an exemption. The A verb carries one count for both
+    # blocks, so a request cannot be a mismatch by the time it arrives: it
+    # would be n got values, n reference values and one token left over, which
+    # the filter now refuses as a malformed request. The C's signature carries
+    # both lengths and does refuse the mismatch, and the oracle case is
+    # asserted against the C and the Python above.
+    sendable = [c for c in ORACLE["metrics"]
+                if len(c["got"]) == len(c["ref"])]
+    unsendable = [c for c in ORACLE["metrics"]
+                  if len(c["got"]) != len(c["ref"])]
+    assert len(unsendable) == 1, (
+        "the set of cases this protocol cannot express has changed, so the "
+        "reasoning above needs rereading rather than this count adjusting")
+    assert unsendable[0].get("error") == "argument", unsendable[0]["why"]
+    for case in sendable:
         lines.append("A {} {} {}".format(len(case["got"]), nums(case["got"]),
                                          nums(case["ref"])))
     answers = cpp(lines)
@@ -555,17 +570,9 @@ def test_the_cpp_matches_the_oracle_on_the_post_shift_and_the_metrics():
         assert rc == 0, case["why"]
         assert answer == "shift={}".format(want), (answer, case["why"])
 
-    for case, answer in zip(ORACLE["metrics"],
-                            answers[len(ORACLE["cases"]):]):
+    assert len(answers) == len(ORACLE["cases"]) + len(sendable)
+    for case, answer in zip(sendable, answers[len(ORACLE["cases"]):]):
         if "error" in case:
-            # A length mismatch cannot reach this filter the way it reaches the
-            # C: the request carries one count for both blocks, so the two
-            # vectors are the same length by construction. The refusal it does
-            # reach is still asserted, and the mismatch case is the one the C
-            # signature now carries and this protocol cannot express.
-            if case["error"] == "argument" and len(case["got"]) != len(case["ref"]):
-                assert answer in ("REFUSED argument", "REFUSED finite"), answer
-                continue
             assert answer == "REFUSED {}".format(case["error"]), (answer,
                                                                   case["why"])
             continue
