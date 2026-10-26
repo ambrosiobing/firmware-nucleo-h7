@@ -591,6 +591,14 @@ def main() -> int:
     shared_lib("fifodecode", [proj("P13", "c") / "fifodecode.c"],
                ["-ffp-contract=off"], includes=[proj("P13", "c")])
 
+    # P14's first code, Monday 26 October 2026: chapter 14's record, read
+    # through the scale codes it carries rather than through constants, plus the
+    # barometric relation and the drain time step 10 says to compute first.
+    # -ffp-contract=off for the reason the guard now enforces.
+    print("P14, the record decoder, the altitude and the drain time:")
+    shared_lib("recdecode", [proj("P14", "c") / "recdecode.c"],
+               ["-ffp-contract=off"], includes=[proj("P14", "c")])
+
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,

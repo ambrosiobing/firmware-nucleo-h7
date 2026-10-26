@@ -1,0 +1,596 @@
+{
+ "schema": 1,
+ "note": "P14's oracle: chapter 14's record header, the conversion of counts to engineering units through the scale codes the record carries, the barometric relation of step 9 and the drain time of step 10. THE SENSITIVITY TABLE IS A STATED TABLE AND NOT A DATASHEET CLAIM: this bench holds neither sensor's datasheet, so the entries are powers of two, which makes every conversion exact in binary and makes each finding about the RATIO between two entries rather than about either value. Header fields and counts are integers and compared exactly; altitudes raise a ratio to a fractional power, which is a library call in both languages, so those are compared to a relative 1e-12 and nothing tighter.",
+ "table": {
+  "lo_mg_per_lsb": [
+   0.0625,
+   0.125,
+   0.25,
+   0.5,
+   0.0
+  ],
+  "hi_mg_per_lsb": [
+   1.0,
+   2.0,
+   4.0,
+   8.0,
+   0.0
+  ],
+  "baro_lsb_per_hpa": [
+   4096.0,
+   2048.0
+  ],
+  "lo_valid": 15,
+  "hi_valid": 15,
+  "baro_valid": 3
+ },
+ "p0_hpa": 1013.25,
+ "headers": [
+  {
+   "why": "a plain record, both channels and a pressure window",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "hdr": {
+    "tick_event": 1000,
+    "n_pre": 64,
+    "n_post": 64,
+    "n_baro": 8,
+    "lo_fs_g": 0,
+    "hi_fs_g": 0,
+    "baro_range": 0,
+    "flags": 0
+   }
+  },
+  {
+   "why": "the widest codes the table defines, and the extended flag",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    3,
+    3,
+    1,
+    2
+   ],
+   "hdr": {
+    "tick_event": 1000,
+    "n_pre": 64,
+    "n_post": 64,
+    "n_baro": 8,
+    "lo_fs_g": 3,
+    "hi_fs_g": 3,
+    "baro_range": 1,
+    "flags": 2
+   }
+  },
+  {
+   "why": "the barometer blanked, which is the one way a pressure count of zero is legitimate",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    4
+   ],
+   "hdr": {
+    "tick_event": 1000,
+    "n_pre": 64,
+    "n_post": 64,
+    "n_baro": 0,
+    "lo_fs_g": 0,
+    "hi_fs_g": 0,
+    "baro_range": 0,
+    "flags": 4
+   }
+  },
+  {
+   "why": "a pre-trigger ring that caught nothing, which is a short window rather than an empty record",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    0,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    0,
+    0,
+    1
+   ],
+   "hdr": {
+    "tick_event": 1000,
+    "n_pre": 0,
+    "n_post": 64,
+    "n_baro": 8,
+    "lo_fs_g": 0,
+    "hi_fs_g": 0,
+    "baro_range": 0,
+    "flags": 1
+   }
+  },
+  {
+   "why": "a buffer shorter than the header",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    0,
+    0
+   ],
+   "error": "argument"
+  },
+  {
+   "why": "an acceleration scale code the format cannot express",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    5,
+    0,
+    0,
+    0
+   ],
+   "error": "fs_code"
+  },
+  {
+   "why": "a barometer range code the format cannot express",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    0,
+    2,
+    0
+   ],
+   "error": "baro"
+  },
+  {
+   "why": "a flag bit step 7 does not define",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    0,
+    0,
+    8
+   ],
+   "error": "flags"
+  },
+  {
+   "why": "a window both shortened and extended, which cannot both be true and which step 7 never says are exclusive",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    0,
+    0,
+    3
+   ],
+   "error": "flags"
+  },
+  {
+   "why": "no acceleration samples at all, which is a header and not a record",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    8,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "error": "counts"
+  },
+  {
+   "why": "no pressure samples and the barometer not blanked",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "error": "counts"
+  }
+ ],
+ "conversions": [
+  {
+   "why": "the fine channel at its finest code, exact in binary",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "counts": 1000,
+   "fine": 1,
+   "mg": 62.5
+  },
+  {
+   "why": "the fine channel at its coarsest defined code",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    3,
+    0,
+    0,
+    0
+   ],
+   "counts": -512,
+   "fine": 1,
+   "mg": -256.0
+  },
+  {
+   "why": "the coarse channel, which is the one that sees the event",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    2,
+    0,
+    0
+   ],
+   "counts": 2048,
+   "fine": 0,
+   "mg": 8192.0
+  },
+  {
+   "why": "a negative count, because an acceleration is signed",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "counts": -32768,
+   "fine": 0,
+   "mg": -32768.0
+  }
+ ],
+ "pressures": [
+  {
+   "why": "the narrow range, 4096 counts to the hectopascal",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "counts": 4149248,
+   "hpa": 1013.0
+  },
+  {
+   "why": "THE WIDE RANGE, which step 6 selects inside the event window",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    0,
+    1,
+    0
+   ],
+   "counts": 2074624,
+   "hpa": 1013.0
+  }
+ ],
+ "conversion_refusals": [
+  {
+   "why": "a code the record can express and the caller's table does not define, refused rather than decoded with whatever is in the slot",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    4,
+    0,
+    0,
+    0
+   ],
+   "error": "fs_code"
+  },
+  {
+   "why": "the same for the coarse channel",
+   "bytes": [
+    232,
+    3,
+    0,
+    0,
+    64,
+    0,
+    64,
+    0,
+    8,
+    0,
+    0,
+    4,
+    0,
+    0
+   ],
+   "error": "fs_code"
+  }
+ ],
+ "altitudes": [
+  {
+   "why": "the reference pressure itself, where the altitude is exactly zero",
+   "p_hpa": 1013.25,
+   "p0_hpa": 1013.25,
+   "m": 0.0
+  },
+  {
+   "why": "ten hectopascals below the reference",
+   "p_hpa": 1003.25,
+   "p0_hpa": 1013.25,
+   "m": 83.59148879585895
+  },
+  {
+   "why": "ten hectopascals above it, so the sign is checked both ways",
+   "p_hpa": 1023.25,
+   "p0_hpa": 1013.25,
+   "m": -82.92614615325141
+  },
+  {
+   "why": "a squeezed bag, one hectopascal",
+   "p_hpa": 1014.25,
+   "p0_hpa": 1013.25,
+   "m": -8.322359094266966
+  },
+  {
+   "why": "THE WEATHER, as the difference between two plausible references for one pressure: this is the error a compiled sea-level constant carries",
+   "p_hpa": 1013.25,
+   "p0_hpa": 1003.25,
+   "m": -83.74941205413613
+  }
+ ],
+ "altitude_refusals": [
+  {
+   "why": "a pressure of zero",
+   "p_hpa": 0.0,
+   "p0_hpa": 1013.25,
+   "error": "pressure"
+  },
+  {
+   "why": "a negative pressure",
+   "p_hpa": -1.0,
+   "p0_hpa": 1013.25,
+   "error": "pressure"
+  },
+  {
+   "why": "a reference of zero, which is the one a missing field would produce",
+   "p_hpa": 1013.25,
+   "p0_hpa": 0.0,
+   "error": "pressure"
+  }
+ ],
+ "resolutions": [
+  {
+   "why": "the narrow range at the reference pressure",
+   "lsb_per_hpa": 4096.0,
+   "p_hpa": 1013.25,
+   "p0_hpa": 1013.25,
+   "m": 0.002032637619895756
+  },
+  {
+   "why": "THE WIDE RANGE at the same pressure, which is the resolution the event window is recorded at",
+   "lsb_per_hpa": 2048.0,
+   "p_hpa": 1013.25,
+   "p0_hpa": 1013.25,
+   "m": 0.004065275239791512
+  },
+  {
+   "why": "the narrow range well away from the reference, where the slope differs",
+   "lsb_per_hpa": 4096.0,
+   "p_hpa": 900.0,
+   "p0_hpa": 1013.25,
+   "m": 0.002237373760153139
+  }
+ ],
+ "drains": [
+  {
+   "why": "STEP 10'S PRINTED FIGURE REPRODUCED: 128 samples of 6 bytes with no overhead, which is the 17.3 ms the chapter states",
+   "samples": 128,
+   "bytes_per_sample": 6,
+   "overhead_bytes": 0,
+   "bus_hz": 400000.0,
+   "ms": 17.28
+  },
+  {
+   "why": "the same transaction with the address and register bytes its own comment names, which is what the sentence describes",
+   "samples": 128,
+   "bytes_per_sample": 6,
+   "overhead_bytes": 2,
+   "bus_hz": 400000.0,
+   "ms": 17.325
+  },
+  {
+   "why": "a watermark of one sample, where the overhead is most of the cost",
+   "samples": 1,
+   "bytes_per_sample": 6,
+   "overhead_bytes": 2,
+   "bus_hz": 400000.0,
+   "ms": 0.18
+  },
+  {
+   "why": "a larger watermark, which is one of the three answers step 10 offers",
+   "samples": 512,
+   "bytes_per_sample": 6,
+   "overhead_bytes": 2,
+   "bus_hz": 400000.0,
+   "ms": 69.165
+  }
+ ],
+ "drain_refusals": [
+  {
+   "why": "no samples",
+   "samples": 0,
+   "bytes_per_sample": 6,
+   "overhead_bytes": 2,
+   "bus_hz": 400000.0,
+   "error": "counts"
+  },
+  {
+   "why": "a sample of no bytes",
+   "samples": 128,
+   "bytes_per_sample": 0,
+   "overhead_bytes": 2,
+   "bus_hz": 400000.0,
+   "error": "counts"
+  },
+  {
+   "why": "a bus that is not running",
+   "samples": 128,
+   "bytes_per_sample": 6,
+   "overhead_bytes": 2,
+   "bus_hz": 0.0,
+   "error": "pressure"
+  }
+ ]
+}
