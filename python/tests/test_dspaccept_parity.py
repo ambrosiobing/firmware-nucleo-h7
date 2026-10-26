@@ -589,13 +589,24 @@ def test_the_cpp_matches_the_oracle_on_the_post_shift_and_the_metrics():
 @pytest.mark.parametrize("case", ORACLE["refusals"],
                          ids=lambda c: c["why"][:46])
 def test_the_cpp_refuses_what_the_other_two_refuse(case):
+    """Each request carries exactly the number of values its count declares.
+
+    Under a counts-first protocol that is what well formed means, and it is not
+    the same as sending the oracle's whole coefficient list: the zero-stage case
+    declares no stages and the oracle still holds five coefficients for it, so
+    sending them makes the request malformed rather than refusable. The filter
+    says so now, which is how this was found, and slicing here is the honest
+    fix: the refusal under test is about the stage count, not about how many
+    numbers follow it.
+    """
     nstage = case.get("nstage", 1)
+    coeffs = case["coeffs"][:nstage * PER]
     if "shift_error" in case:
-        answer = cpp(["P {} {}".format(nstage, nums(case["coeffs"]))])[0]
+        answer = cpp(["P {} {}".format(nstage, nums(coeffs))])[0]
         assert answer == "REFUSED {}".format(case["shift_error"]), answer
         return
     answer = cpp(["Q {} {} {}".format(nstage, case["post_shift"],
-                                      nums(case["coeffs"]))])[0]
+                                      nums(coeffs))])[0]
     if case.get("fits"):
         assert not answer.startswith("REFUSED"), answer
         return
