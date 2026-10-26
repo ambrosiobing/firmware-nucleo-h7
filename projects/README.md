@@ -113,7 +113,7 @@ implementation.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Sixteen of the twenty have code.** 819 checks, of which 370 pass on a laptop with
+**Sixteen of the twenty have code.** 818 checks, of which 369 pass on a laptop with
 no board, no probe, no Raspberry Pi and no compiler; the other 449 need a compiler
 and skip there, each naming the WSL command and the laptop, since Friday
 16 October 2026, when one rule replaced five loaders that failed and the rest that
