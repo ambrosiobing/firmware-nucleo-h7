@@ -33,6 +33,7 @@ it is now in the order the script produces them:
   node_sm_filter          P08's C++ variant
   rxspan.{dll,so}         P04's span arithmetic
   zonetrack.{dll,so}      P15's hysteresis
+  atparse.{dll,so}        P11's classifier, deadline test and backoff
   rate.{dll,so}           P06's rate witness
   rate_filter             P06's C++ variant
   gates.{dll,so}          P12's size and charge gates
@@ -535,6 +536,13 @@ def main() -> int:
     # conditions and step 9 gives the thresholds; the validity filter and the
     # status byte need six constants the chapter gives nowhere, and this project
     # does not invent them.
+    # P11's first code, Monday 26 October 2026: the three pieces of chapter 11
+    # that need no module. The engine, its queue and the hundred injected faults
+    # need the modem and the byte path of chapter 4.
+    print("P11, the line classifier, the wrap-safe deadline and the backoff:")
+    shared_lib("atparse", [proj("P11", "c") / "atparse.c"],
+               includes=[proj("P11", "c")])
+
     print("P15, the hysteresis that stops the status byte chattering:")
     shared_lib("zonetrack", [proj("P15", "c") / "zonetrack.c"],
                includes=[proj("P15", "c")])
