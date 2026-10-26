@@ -105,8 +105,7 @@ macro_rules! cascade {
 
             let mut out = data.to_vec();
             for stage in used.chunks_exact(COEFF_PER_STAGE) {
-                let (b0, b1, b2, a1, a2) =
-                    (stage[0], stage[1], stage[2], stage[3], stage[4]);
+                let (b0, b1, b2, a1, a2) = (stage[0], stage[1], stage[2], stage[3], stage[4]);
                 let mut d1: $t = 0.0;
                 let mut d2: $t = 0.0;
                 for slot in out.iter_mut() {
@@ -320,16 +319,32 @@ mod tests {
     /// The refusals, which are the part a reader checks first.
     #[test]
     fn the_refusals_are_the_cs_refusals() {
-        assert_eq!(biquad_df2t_f64(&[0.5, 0.0, 0.0, 0.0, 0.0], 1, &[]), Err(Error::Argument));
-        assert_eq!(biquad_df2t_f64(&[0.5, 0.0, 0.0, 0.0, 0.0], 0, &[1.0]), Err(Error::Stages));
-        assert_eq!(biquad_df2t_f64(&[0.5, 0.0, 0.0, 0.0, 0.0], 9, &[1.0]), Err(Error::Stages));
-        assert_eq!(q15_coeffs(&[0.5, 0.0, 0.0, 0.0, 0.0], 1, -1), Err(Error::Shift));
-        assert_eq!(q15_coeffs(&[0.5, 0.0, 0.0, 0.0, 0.0], 1, 8), Err(Error::Shift));
-        assert_eq!(q15_coeffs(&[1.0, 2.0, 1.0, 0.5, -0.25], 1, 1), Err(Error::Range));
-        assert_eq!(q15_post_shift(&[200.0, 0.0, 0.0, 0.0, 0.0], 1), Err(Error::Range));
-        assert_eq!(accept_metrics(&[1.0, 2.0], &[0.0, 0.0]), Err(Error::Reference));
-        assert_eq!(accept_metrics(&[1.0], &[1.0, 1.0]), Err(Error::Argument));
-        assert_eq!(accept_metrics(&[1.0, f64::NAN], &[1.0, 1.0]), Err(Error::Finite));
+        // The arrays are named rather than written inline, and that is for the
+        // formatter rather than for the reader: rustfmt keeps a call's
+        // arguments on one line only while they fit fn_call_width, which is 60
+        // by default and not the 100 of max_width. Inline literals pushed
+        // eight of these ten past it, so it split them into five-line blocks
+        // and `cargo fmt --all --check` refused the file. Named arrays leave
+        // every line about fifty characters wide, which is comfortably inside
+        // both limits and therefore has only one formatting.
+        let unit = [0.5_f64, 0.0, 0.0, 0.0, 0.0];
+        let two = [1.0_f64, 2.0, 1.0, 0.5, -0.25];
+        let big = [200.0_f64, 0.0, 0.0, 0.0, 0.0];
+        let one = [1.0_f64];
+        let ones = [1.0_f64, 1.0];
+        let zeros = [0.0_f64, 0.0];
+        let nanny = [1.0_f64, f64::NAN];
+
+        assert_eq!(biquad_df2t_f64(&unit, 1, &[]), Err(Error::Argument));
+        assert_eq!(biquad_df2t_f64(&unit, 0, &one), Err(Error::Stages));
+        assert_eq!(biquad_df2t_f64(&unit, 9, &one), Err(Error::Stages));
+        assert_eq!(q15_coeffs(&unit, 1, -1), Err(Error::Shift));
+        assert_eq!(q15_coeffs(&unit, 1, 8), Err(Error::Shift));
+        assert_eq!(q15_coeffs(&two, 1, 1), Err(Error::Range));
+        assert_eq!(q15_post_shift(&big, 1), Err(Error::Range));
+        assert_eq!(accept_metrics(&ones, &zeros), Err(Error::Reference));
+        assert_eq!(accept_metrics(&one, &ones), Err(Error::Argument));
+        assert_eq!(accept_metrics(&nanny, &ones), Err(Error::Finite));
     }
 
     /// Two identical blocks have no error energy, which is the case chapter 18's

@@ -143,14 +143,13 @@ fn answer(verb: &str, req: &mut Request) -> Option<String> {
         "S" => {
             let nstage = req.count()?;
             let m = req.count()?;
-            let coeffs = req.reals(nstage * COEFF_PER_STAGE)?;
-            let data = req.reals(m)?;
-            Some(
-                match biquad_df2t_f32(&narrow(&coeffs), nstage, &narrow(&data)) {
-                    Ok(out) => reals_line(&widen(&out)),
-                    Err(e) => format!("REFUSED {}", e.name()),
-                },
-            )
+            let coeffs = narrow(&req.reals(nstage * COEFF_PER_STAGE)?);
+            let data = narrow(&req.reals(m)?);
+            let result = biquad_df2t_f32(&coeffs, nstage, &data);
+            Some(match result {
+                Ok(out) => reals_line(&widen(&out)),
+                Err(e) => format!("REFUSED {}", e.name()),
+            })
         }
         "P" => {
             let nstage = req.count()?;
