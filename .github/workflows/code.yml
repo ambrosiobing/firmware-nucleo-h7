@@ -94,6 +94,25 @@ jobs:
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti -ffp-contract=off \
             -Iprojects/P12-energy-regression/cpp \
             -c projects/P12-energy-regression/cpp/gates_filter.cpp -o build-host/werror/p12_cpp.o
+          # The eight host starts of Monday 26 October 2026. Every one of
+          # their c/README.md files already said this workflow "rebuilds the
+          # same sources with warnings as errors" and not one of the eight was
+          # in this list, so eight READMEs claimed a guarantee nothing was
+          # asked to make. Four of the project READMEs said it too.
+          # python/tests/test_werror_covers_what_the_readmes_claim.py refuses
+          # that now, and all eight were confirmed clean under gcc 15.2.0 in
+          # WSL on the win11 skyhorizon demo laptop before being added here.
+          # -ffp-contract=off on the five that compute in floating point, for
+          # the reason build_host.py gives and
+          # python/tests/test_float_builds_disable_contraction.py enforces.
+          gcc -std=c11 -O2 $W -Iprojects/P04-dma-idle-line/c \n            -c projects/P04-dma-idle-line/c/rxspan.c -o build-host/werror/p04_c.o
+          gcc -std=c11 -O2 $W -ffp-contract=off -Iprojects/P07-stop-mode/c \n            -c projects/P07-stop-mode/c/cyclecharge.c -o build-host/werror/p07_c.o
+          gcc -std=c11 -O2 $W -ffp-contract=off -Iprojects/P10-energy-phases/c \n            -c projects/P10-energy-phases/c/phaseledger.c -o build-host/werror/p10_c.o
+          gcc -std=c11 -O2 $W -Iprojects/P11-at-engine/c \n            -c projects/P11-at-engine/c/atparse.c -o build-host/werror/p11_c.o
+          gcc -std=c11 -O2 $W -ffp-contract=off -Iprojects/P13-iks4a1-fifo/c \n            -c projects/P13-iks4a1-fifo/c/fifodecode.c -o build-host/werror/p13_c.o
+          gcc -std=c11 -O2 $W -ffp-contract=off -Iprojects/P14-iks5a1-dual-range/c \n            -c projects/P14-iks5a1-dual-range/c/recdecode.c -o build-host/werror/p14_c.o
+          gcc -std=c11 -O2 $W -Iprojects/P15-time-of-flight/c \n            -c projects/P15-time-of-flight/c/zonetrack.c -o build-host/werror/p15_c.o
+          gcc -std=c11 -O2 $W -ffp-contract=off -Iprojects/P18-transforms-filters/c \n            -c projects/P18-transforms-filters/c/dspaccept.c -o build-host/werror/p18_c.o
 
       - name: P09, the golden vectors
         run: python -m pytest python/tests/test_vectors.py -q
