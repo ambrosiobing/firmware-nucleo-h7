@@ -122,9 +122,18 @@
  * Returns 0, or ACQ_ERR_PCLK1_UNKNOWN when the clock tree was never decoded, or
  * ACQ_ERR_APB1_PRESCALER when the bus prescaler holds a ratio this volume has
  * not sourced, or ACQ_ERR_MARKER_CHANNEL when the channel's own registers did
- * not take. Prints one line naming the timer clock it derived and the three
- * inputs it derived it from, then one line per channel register with its
- * read-back. */
+ * not take, or ACQ_ERR_MARKER_PAD when the pin's mode or alternate function
+ * number did not. Prints one line naming the timer clock it derived and the
+ * three inputs it derived it from, then one line per channel register and one
+ * per pad register, each with its read-back.
+ *
+ * THE TWO PAD LINES WERE ADDED ON Monday 26 October 2026 AND THE FIRST WITNESS
+ * RUN IS WHY. It read 49.98 Hz with 583 millivolts of swing, which is the mains
+ * on an open input, while the console reported the timer running, both channel
+ * registers reading back, the trigger as TIM3's and 59 520 samples delivered.
+ * **Every other configuration register in this build is read back and reported
+ * and those two were the exception**, so the one link in the chain that leaves
+ * the die was the one nothing checked. */
 int tim3_bring_up(uint32_t rate_hz);
 
 /* Start the timer. Call this AFTER the converter is armed, never before: a

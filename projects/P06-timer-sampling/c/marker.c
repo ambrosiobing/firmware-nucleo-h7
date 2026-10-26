@@ -65,7 +65,9 @@
  * unchanged by any of it, which is the point of recording a port pin rather than
  * a connector position in code.
  */
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "marker.h"
 
@@ -121,7 +123,7 @@ void marker_init(void)
  * THE PAD IS SWITCHED LAST BY ITS CALLER, after the channel is configured and
  * enabled, so the pin is never handed to a peripheral that has not been told
  * what to drive. */
-void marker_init_tim3_ch1(void)
+bool marker_init_tim3_ch1(void)
 {
     MARKER_RCC_ENABLE();
 
@@ -141,6 +143,38 @@ void marker_init_tim3_ch1(void)
      * unselected function. marker_init() has no such ordering question, because
      * a plain output has nothing to select. */
     MARKER_GPIO->MODER   = (MARKER_GPIO->MODER & ~(3u << pos2)) | (2u << pos2);
+
+    /* AND NOW READ BOTH BACK, WHICH THIS FUNCTION DID NOT DO UNTIL Monday
+     * 26 October 2026 AND SHOULD HAVE FROM THE START.
+     *
+     * The first witness run against the hardware marker came back at 49.98 Hz
+     * with 583 millivolts of swing, which is the mains on an open input, and the
+     * console could not help: it reported the timer running, the channel's mode
+     * and output enable both reading back, the trigger as TIM3's and 59 520
+     * samples delivered, and said NOTHING about the two registers that decide
+     * whether the channel reaches the pad. Every other configuration register in
+     * this build is read back and reported. These two were the exception, and
+     * they are the last two before the signal leaves the die.
+     *
+     * WHAT IS CHECKED AND WHAT IS NOT. The mode field must hold 10, alternate
+     * function, and the function field must hold 2, TIM3_CH1. Those two decide
+     * whether there is an edge at all. The drive type, the pull and the slew are
+     * written and not reported, because they shape an edge rather than create
+     * one; if a later run needs to argue about edge speed, OSPEEDR joins these
+     * two and the line is cheap. */
+    const bool mode_ok = (MARKER_GPIO->MODER & (3u << pos2)) == (2u << pos2);
+    const bool func_ok = (MARKER_GPIO->AFR[0] & (0xFu << pos4))
+                         == (MARKER_AF_TIM3_CH1 << pos4);
+
+    printf("  marker pad mode            %s  wrote %08lX  read back %08lX\r\n",
+           mode_ok ? "ok     " : "REFUSED",
+           (unsigned long) (2u << pos2), (unsigned long) MARKER_GPIO->MODER);
+    printf("  marker pad function 2      %s  wrote %08lX  read back %08lX\r\n",
+           func_ok ? "ok     " : "REFUSED",
+           (unsigned long) (MARKER_AF_TIM3_CH1 << pos4),
+           (unsigned long) MARKER_GPIO->AFR[0]);
+
+    return mode_ok && func_ok;
 }
 
 /* Deliberately not inline and deliberately trivial. The cost of the call is

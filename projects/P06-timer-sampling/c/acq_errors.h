@@ -77,5 +77,22 @@
                                           * indistinguishable from a wire off
                                           * the pin until somebody reads the
                                           * console. */
+#define ACQ_ERR_MARKER_PAD        (-16)  /* timer and dma: PB4's mode or its
+                                          * alternate function number did not
+                                          * read back, so the channel is
+                                          * configured and cannot reach the pin.
+                                          *
+                                          * ADDED Monday 26 October 2026, after
+                                          * the first witness run against the
+                                          * hardware marker read 49.98 Hz at
+                                          * 583 mV, which is the mains on an open
+                                          * input. The console could not narrow
+                                          * it, because these were the only two
+                                          * configuration registers in the build
+                                          * with no read-back. -15 and -16 are
+                                          * separate on purpose: one says the
+                                          * timer's channel, the other says the
+                                          * pad, and a reader holding the number
+                                          * alone should not have to guess. */
 
 #endif /* ACQ_ERRORS_H */

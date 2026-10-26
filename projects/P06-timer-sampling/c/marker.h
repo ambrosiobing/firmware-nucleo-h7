@@ -3,6 +3,10 @@
 #ifndef MARKER_H
 #define MARKER_H
 
+/* For marker_init_tim3_ch1's return, so this header carries what its own
+ * declarations use and check_c_includes.py stays quiet. */
+#include <stdbool.h>
+
 void marker_init(void);
 void marker_high(void);
 void marker_low(void);
@@ -19,8 +23,16 @@ void marker_low(void);
  *
  * The tick build does not use this. It keeps marker_init() and marker_toggle()
  * below, because the processor is in the path of its timing by design and a
- * marker that left the processor out would measure a cadence it does not have. */
-void marker_init_tim3_ch1(void);
+ * marker that left the processor out would measure a cadence it does not have.
+ *
+ * RETURNS WHETHER THE PAD TOOK, and reports both registers on the console, which
+ * it did not do until Monday 26 October 2026. The first witness run against the
+ * hardware marker read 49.98 Hz at 583 millivolts of swing, the mains on an open
+ * input, and the console could not narrow it: every other configuration register
+ * in this build is read back and printed, and the two that decide whether the
+ * channel reaches the pin were the exception. A false return is
+ * ACQ_ERR_MARKER_PAD at the caller. */
+bool marker_init_tim3_ch1(void);
 
 /* One edge per call, alternating high and low. Every sampling instant puts
  * exactly one edge on the pin, and the witness counts both polarities. A

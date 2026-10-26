@@ -351,7 +351,7 @@ void marker_toggle(void)
    manual: 2 is TIM3_CH1 on this one. MODER is written LAST of the five, so the
    pad never becomes an output driven by a function that has not been selected
    yet. */
-void marker_init_tim3_ch1(void)
+bool marker_init_tim3_ch1(void)
 {
     RCC->AHB4ENR |= RCC_AHB4ENR_GPIOBEN;
     (void) RCC->AHB4ENR;
@@ -366,6 +366,16 @@ void marker_init_tim3_ch1(void)
     MARKER_PORT->OSPEEDR |= (3u << pos2);       /* fastest slew, as above */
     MARKER_PORT->MODER   = (MARKER_PORT->MODER & ~(3u << pos2))
                          | (2u << pos2);        /* alternate function */
+
+    /* AND READ BOTH BACK, which is the only part of this function that earns
+       its place in a chapter about instruments. These two registers decide
+       whether the timer's channel reaches the pin, and nothing downstream can
+       tell you they are wrong: the timer still counts, the converter still
+       samples, every other read-back is still correct, and the fault appears
+       sixty seconds later as a witness recording of the mains. */
+    const bool mode_ok = (MARKER_PORT->MODER & (3u << pos2)) == (2u << pos2);
+    const bool func_ok = (MARKER_PORT->AFR[0] & (0xFu << pos4)) == (2u << pos4);
+    return mode_ok && func_ok;   /* the caller refuses on false */
 }
 ```
 
@@ -406,7 +416,7 @@ void acq_start(void)
     /* AND THE PAD LAST, once the channel knows what to drive. Alternate
        function 2 is TIM3_CH1 on this pin; confirm the number in the part's own
        alternate-function table before copying it. */
-    marker_init_tim3_ch1();
+    if (!marker_init_tim3_ch1()) { return ACQ_ERR_MARKER_PAD; }
 
     /* The same eight steps, with the trigger passed in rather than written
        here. The source number is 4 for TIM3 TRGO on THIS part, and it is 13

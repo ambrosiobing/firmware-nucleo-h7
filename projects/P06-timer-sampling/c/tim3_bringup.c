@@ -215,8 +215,16 @@ int tim3_bring_up(uint32_t rate_hz)
      * the timer still stopped the compare has not matched, the channel's output
      * reference is at its reset level, and the pin sits low: the same state
      * marker_init() left it in by calling marker_low(), so the first edge the
-     * witness sees is still a rising one. */
-    marker_init_tim3_ch1();
+     * witness sees is still a rising one.
+     *
+     * IT REPORTS ITS TWO REGISTERS AND REFUSES, since Monday 26 October 2026.
+     * Before that this call returned nothing and printed nothing, so a build
+     * whose channel was perfect and whose pad was not looked identical on the
+     * console to one that worked, and the difference only appeared sixty seconds
+     * later as 49.98 Hz on the witness, which is the mains. */
+    if (!marker_init_tim3_ch1()) {
+        return ACQ_ERR_MARKER_PAD;
+    }
 
     return 0;
 }
