@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "note": "P04's oracle: the span split of chapter 4 step 5 and the guards of step 7. Every case is independent and starts from fresh statistics, so near_lap is 0 or 1 and peak_advance equals advance. Spans are [offset, length]. A case with an error key expects that refusal and no spans. Hand written, then checked against two invariants that do not come from either implementation: the lengths sum to the advance, and no span reaches past the end.",
+  "cases": [
+    {"why": "nothing new, the common case",
+     "size": 512, "old": 0, "pos": 0, "advance": 0, "near_lap": 0, "spans": []},
+
+    {"why": "one byte, the smallest real delivery",
+     "size": 512, "old": 0, "pos": 1, "advance": 1, "near_lap": 0, "spans": [[0, 1]]},
+
+    {"why": "a hundred bytes in the middle, no wrap",
+     "size": 512, "old": 100, "pos": 200, "advance": 100, "near_lap": 0, "spans": [[100, 100]]},
+
+    {"why": "wrapped, two spans, the tail then the head",
+     "size": 512, "old": 500, "pos": 10, "advance": 22, "near_lap": 0, "spans": [[500, 12], [0, 10]]},
+
+    {"why": "wrapped exactly onto zero, which is ONE span and not two",
+     "size": 512, "old": 500, "pos": 0, "advance": 12, "near_lap": 0, "spans": [[500, 12]]},
+
+    {"why": "half the buffer exactly, which must NOT count as a near lap",
+     "size": 512, "old": 0, "pos": 256, "advance": 256, "near_lap": 0, "spans": [[0, 256]]},
+
+    {"why": "one byte past half, which must count",
+     "size": 512, "old": 0, "pos": 257, "advance": 257, "near_lap": 1, "spans": [[0, 257]]},
+
+    {"why": "the largest advance that is not a lap, one span",
+     "size": 512, "old": 0, "pos": 511, "advance": 511, "near_lap": 1, "spans": [[0, 511]]},
+
+    {"why": "the largest advance across a wrap, two spans",
+     "size": 512, "old": 256, "pos": 255, "advance": 511, "near_lap": 1, "spans": [[256, 256], [0, 255]]},
+
+    {"why": "starting at the last byte, wrapping by one",
+     "size": 512, "old": 511, "pos": 0, "advance": 1, "near_lap": 0, "spans": [[511, 1]]},
+
+    {"why": "the smallest buffer the floor allows, no wrap",
+     "size": 8, "old": 1, "pos": 5, "advance": 4, "near_lap": 0, "spans": [[1, 4]]},
+
+    {"why": "the smallest buffer, wrapped, and five is past half of eight",
+     "size": 8, "old": 6, "pos": 3, "advance": 5, "near_lap": 1, "spans": [[6, 2], [0, 3]]},
+
+    {"why": "a large buffer, no wrap",
+     "size": 4096, "old": 4000, "pos": 4095, "advance": 95, "near_lap": 0, "spans": [[4000, 95]]},
+
+    {"why": "a size that is not a power of two reads plausibly and is refused",
+     "size": 500, "old": 0, "pos": 1, "error": "size"},
+
+    {"why": "a size below the floor, where half a buffer stops meaning anything",
+     "size": 4, "old": 0, "pos": 1, "error": "size"},
+
+    {"why": "zero size",
+     "size": 0, "old": 0, "pos": 0, "error": "size"},
+
+    {"why": "the old position at the end, which is one past the last byte",
+     "size": 512, "old": 512, "pos": 0, "error": "position"},
+
+    {"why": "the new position at the end",
+     "size": 512, "old": 0, "pos": 512, "error": "position"}
+  ]
+}

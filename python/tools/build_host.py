@@ -522,6 +522,16 @@ def main() -> int:
                 proj("P05", "c") / "crc16.c"],
                includes=[proj("P05", "c")])
 
+    # P04's first code, added Monday 26 October 2026. The project had nothing at
+    # all until then and now has the one part of chapter 4 that needs no
+    # hardware: the arithmetic that turns two transfer-counter positions into at
+    # most two spans. The counter read, the three handlers and the cache
+    # invalidate still need the board, and the project's status line says host
+    # rather than board for that reason.
+    print("P04, the span arithmetic of the idle-line receive path:")
+    shared_lib("rxspan", [proj("P04", "c") / "rxspan.c"],
+               includes=[proj("P04", "c")])
+
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
