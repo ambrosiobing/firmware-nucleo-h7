@@ -1,0 +1,641 @@
+{
+ "schema": 1,
+ "note": "P18's oracle: a biquad cascade in double, single and Q15, and the two acceptance metrics of chapter 18. Coefficients are in the library's order b0 b1 b2 a1 a2 per stage with the denominator terms already negated. Cases marked exact are chosen so that every intermediate is representable in all three formats, so no case passes on a tolerance; the test recomputes each of them in exact rational arithmetic with fractions.Fraction, which no implementation uses. Inputs are given as Q15 integers so the same numbers drive all three formats.",
+ "cases": [
+  {
+   "why": "one stage, a pure gain of one half, exact in all three formats",
+   "coeffs": [
+    0.5,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "nstage": 1,
+   "post_shift": 0,
+   "in_q15": [
+    16384,
+    8192,
+    -8192,
+    0,
+    -16384,
+    0
+   ],
+   "out_f64": [
+    0.25,
+    0.125,
+    -0.125,
+    0.0,
+    -0.25,
+    0.0
+   ],
+   "out_f32": [
+    0.25,
+    0.125,
+    -0.125,
+    0.0,
+    -0.25,
+    0.0
+   ],
+   "coeffs_q15": [
+    16384,
+    0,
+    0,
+    0,
+    0
+   ],
+   "out_q15": [
+    8192,
+    4096,
+    -4096,
+    0,
+    -8192,
+    0
+   ],
+   "saturations": 0,
+   "exact": true
+  },
+  {
+   "why": "one pole at one half, an impulse decaying by exact halves",
+   "coeffs": [
+    0.5,
+    0.0,
+    0.0,
+    0.5,
+    0.0
+   ],
+   "nstage": 1,
+   "post_shift": 0,
+   "in_q15": [
+    16384,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "out_f64": [
+    0.25,
+    0.125,
+    0.0625,
+    0.03125,
+    0.015625,
+    0.0078125,
+    0.00390625,
+    0.001953125
+   ],
+   "out_f32": [
+    0.25,
+    0.125,
+    0.0625,
+    0.03125,
+    0.015625,
+    0.0078125,
+    0.00390625,
+    0.001953125
+   ],
+   "coeffs_q15": [
+    16384,
+    0,
+    0,
+    16384,
+    0
+   ],
+   "out_q15": [
+    8192,
+    4096,
+    2048,
+    1024,
+    512,
+    256,
+    128,
+    64
+   ],
+   "saturations": 0,
+   "exact": true
+  },
+  {
+   "why": "the input history matters, b1 and b2 both set",
+   "coeffs": [
+    0.5,
+    0.25,
+    -0.125,
+    0.0,
+    0.0
+   ],
+   "nstage": 1,
+   "post_shift": 0,
+   "in_q15": [
+    16384,
+    -8192,
+    4096,
+    0,
+    2048,
+    0
+   ],
+   "out_f64": [
+    0.25,
+    0.0,
+    -0.0625,
+    0.0625,
+    0.015625,
+    0.015625
+   ],
+   "out_f32": [
+    0.25,
+    0.0,
+    -0.0625,
+    0.0625,
+    0.015625,
+    0.015625
+   ],
+   "coeffs_q15": [
+    16384,
+    8192,
+    -4096,
+    0,
+    0
+   ],
+   "out_q15": [
+    8192,
+    0,
+    -2048,
+    2048,
+    512,
+    512
+   ],
+   "saturations": 0,
+   "exact": true
+  },
+  {
+   "why": "both denominator terms set, a second-order recursion",
+   "coeffs": [
+    0.25,
+    0.0,
+    0.0,
+    0.5,
+    -0.25
+   ],
+   "nstage": 1,
+   "post_shift": 0,
+   "in_q15": [
+    16384,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "out_f64": [
+    0.125,
+    0.0625,
+    0.0,
+    -0.015625,
+    -0.0078125,
+    0.0,
+    0.001953125,
+    0.0009765625
+   ],
+   "out_f32": [
+    0.125,
+    0.0625,
+    0.0,
+    -0.015625,
+    -0.0078125,
+    0.0,
+    0.001953125,
+    0.0009765625
+   ],
+   "coeffs_q15": [
+    8192,
+    0,
+    0,
+    16384,
+    -8192
+   ],
+   "out_q15": [
+    4096,
+    2048,
+    0,
+    -512,
+    -256,
+    0,
+    64,
+    32
+   ],
+   "saturations": 0,
+   "exact": true
+  },
+  {
+   "why": "two stages in cascade, every coefficient a power of two",
+   "coeffs": [
+    0.5,
+    0.0,
+    0.0,
+    0.5,
+    0.0,
+    0.25,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "nstage": 2,
+   "post_shift": 0,
+   "in_q15": [
+    16384,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "out_f64": [
+    0.0625,
+    0.03125,
+    0.015625,
+    0.0078125,
+    0.00390625,
+    0.001953125
+   ],
+   "out_f32": [
+    0.0625,
+    0.03125,
+    0.015625,
+    0.0078125,
+    0.00390625,
+    0.001953125
+   ],
+   "coeffs_q15": [
+    16384,
+    0,
+    0,
+    16384,
+    0,
+    8192,
+    0,
+    0,
+    0,
+    0
+   ],
+   "out_q15": [
+    2048,
+    1024,
+    512,
+    256,
+    128,
+    64
+   ],
+   "saturations": 0,
+   "exact": true
+  },
+  {
+   "why": "a negative sample, because floor and truncate differ there",
+   "coeffs": [
+    0.5,
+    0.0,
+    0.0,
+    0.5,
+    0.0
+   ],
+   "nstage": 1,
+   "post_shift": 0,
+   "in_q15": [
+    -16384,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "out_f64": [
+    -0.25,
+    -0.125,
+    -0.0625,
+    -0.03125,
+    -0.015625,
+    -0.0078125
+   ],
+   "out_f32": [
+    -0.25,
+    -0.125,
+    -0.0625,
+    -0.03125,
+    -0.015625,
+    -0.0078125
+   ],
+   "coeffs_q15": [
+    16384,
+    0,
+    0,
+    16384,
+    0
+   ],
+   "out_q15": [
+    -8192,
+    -4096,
+    -2048,
+    -1024,
+    -512,
+    -256
+   ],
+   "saturations": 0,
+   "exact": true
+  },
+  {
+   "why": "a gain of three at a post shift of two, which saturates Q15 where the float paths simply exceed one",
+   "coeffs": [
+    3.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "nstage": 1,
+   "post_shift": 2,
+   "in_q15": [
+    16384,
+    8192,
+    -16384,
+    4096
+   ],
+   "out_f64": [
+    1.5,
+    0.75,
+    -1.5,
+    0.375
+   ],
+   "out_f32": [
+    1.5,
+    0.75,
+    -1.5,
+    0.375
+   ],
+   "coeffs_q15": [
+    24576,
+    0,
+    0,
+    0,
+    0
+   ],
+   "out_q15": [
+    32767,
+    24576,
+    -32768,
+    12288
+   ],
+   "saturations": 2,
+   "exact": false
+  }
+ ],
+ "metrics": [
+  {
+   "why": "two identical blocks: the error energy is zero, so the ratio the chapter's metric divides by is zero and this reports exact instead",
+   "got": [
+    1.0,
+    -0.5,
+    0.25
+   ],
+   "ref": [
+    1.0,
+    -0.5,
+    0.25
+   ],
+   "rel_rms": 0.0,
+   "exact": 1
+  },
+  {
+   "why": "one sample off by one half against a reference of all ones, where both metrics are exact in binary",
+   "got": [
+    1.0,
+    1.0,
+    1.0,
+    1.5
+   ],
+   "ref": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "rel_rms": 0.25,
+   "snr_db": 12.041199826559248,
+   "exact": 0
+  },
+  {
+   "why": "a reference of silence, refused rather than reported, because an acceptance test against silence is not one",
+   "got": [
+    1.0,
+    2.0
+   ],
+   "ref": [
+    0.0,
+    0.0
+   ],
+   "error": "reference"
+  },
+  {
+   "why": "a diverged path reaching this function is named rather than compared against a tolerance it would fail anyway",
+   "got": [
+    1.0,
+    NaN
+   ],
+   "ref": [
+    1.0,
+    1.0
+   ],
+   "error": "finite"
+  },
+  {
+   "why": "two blocks of different lengths cannot be compared",
+   "got": [
+    1.0
+   ],
+   "ref": [
+    1.0,
+    1.0
+   ],
+   "error": "argument"
+  }
+ ],
+ "refusals": [
+  {
+   "why": "zero stages",
+   "coeffs": [
+    0.5,
+    0,
+    0,
+    0,
+    0
+   ],
+   "nstage": 0,
+   "post_shift": 0,
+   "error": "stages"
+  },
+  {
+   "why": "more stages than the bound allows",
+   "nstage": 9,
+   "coeffs": [
+    0.5,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "post_shift": 0,
+   "error": "stages"
+  },
+  {
+   "why": "a post shift below zero",
+   "coeffs": [
+    0.5,
+    0,
+    0,
+    0,
+    0
+   ],
+   "nstage": 1,
+   "post_shift": -1,
+   "error": "shift"
+  },
+  {
+   "why": "a post shift past the useful range",
+   "coeffs": [
+    0.5,
+    0,
+    0,
+    0,
+    0
+   ],
+   "nstage": 1,
+   "post_shift": 8,
+   "error": "shift"
+  },
+  {
+   "why": "a coefficient of two does not fit Q15 at a shift of one, because one is not representable in 1.15",
+   "coeffs": [
+    1.0,
+    2.0,
+    1.0,
+    0.5,
+    -0.25
+   ],
+   "nstage": 1,
+   "post_shift": 1,
+   "error": "range"
+  },
+  {
+   "why": "the same coefficients fit at a shift of two",
+   "coeffs": [
+    1.0,
+    2.0,
+    1.0,
+    0.5,
+    -0.25
+   ],
+   "nstage": 1,
+   "post_shift": 2,
+   "fits": true
+  },
+  {
+   "why": "a coefficient that is not finite",
+   "coeffs": [
+    0.5,
+    0,
+    0,
+    0,
+    Infinity
+   ],
+   "nstage": 1,
+   "post_shift": 0,
+   "error": "finite"
+  },
+  {
+   "why": "a design needing a shift past the useful range is a design that has not been scaled",
+   "coeffs": [
+    200.0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "nstage": 1,
+   "shift_error": "range"
+  }
+ ],
+ "design": {
+  "why": "chapter 18 step 3: a fourth-order Butterworth low pass at 40 Hz of 1000 Hz as second-order sections, exported in the library's order. The test checks these numbers against the closed-form Butterworth magnitude with the bilinear frequency warp, which needs no design library.",
+  "fs_hz": 1000.0,
+  "fc_hz": 40.0,
+  "order": 4,
+  "nstage": 2,
+  "coeffs": [
+   0.00018321602336960938,
+   0.00036643204673921876,
+   0.00018321602336960938,
+   1.5752399777881516,
+   -0.6263342591591414,
+   1.0,
+   2.0,
+   1.0,
+   1.7688278599237215,
+   -0.8262013329476159
+  ],
+  "signal": "1024 samples, x[i] = 0.5 sin(2 pi 12 i / 1000) + 0.175 sin(2 pi 180 i / 1000), scaled to fit Q15 with headroom and reproducible from this line alone",
+  "n": 1024,
+  "tone_hz": [
+   12.0,
+   180.0
+  ],
+  "tone_amp": [
+   0.5,
+   0.175
+  ],
+  "tol_f32_rel_rms": 1e-05,
+  "tol_q15_snr_db": 55.0
+ }
+}

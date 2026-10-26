@@ -1,13 +1,27 @@
 # P11 in C
 
-**Nothing here yet.** An AT engine that never blocks has not started, and this
-directory exists so the four language routes are visible from the beginning
-rather than arriving one at a time.
+**State: host, since Monday 26 October 2026.** Written on win11 aquamarine,
+which compiles nothing and never will; the first compiler to see it is gcc in
+WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
+`python3 python/tools/build_host.py`, and after that CI, which rebuilds the same
+sources with warnings as errors.
 
-What it will carry. The C implementation of an AT engine that never blocks,
-proven against the same oracle as the other three languages, which this project
-has yet to define.
+| File | What it is |
+|---|---|
+| `atparse.h` | the line classes, the wrap-safe deadline, and the backoff with both of its bounds |
+| `atparse.c` | the classifier, the deadline test and the backoff |
 
-What has to come first is in [../README.md](../README.md). Nothing here is written
-until it can be proven, and an empty source file would be a claim rather than a
-placeholder, which is why there is none.
+**The deadline test is the piece a board could not prove.** Chapter 11 writes it as a signed difference because the obvious comparison is correct for forty-nine days and then is not, and a board would have to run for forty-nine days to show it. A walk across the wrap requires exactly one flip, at the deadline, and a falsifier counts the cases the naive comparison gets wrong.
+
+## What it is proven against
+
+36 oracle cases, 17 for the classifier, 9 for the deadline and 10 for the backoff, plus four property tests, driven through this implementation and its Python twin by
+`python/tests/test_atparse_parity.py`. The C half of that test skips on a laptop
+with no compiler, naming the WSL command, and runs in full in CI.
+
+## What is not here
+
+The engine, its queue, the hundred injected faults and the no-SIM stop. All four need the cellular module, which the inventory does not hold.
+
+[../README.md](../README.md) is the project, its status line and the chapter it
+implements.

@@ -110,6 +110,15 @@ NAMED_AS_ABSENT = {
         "exist because inventing a plausible rate would be the worst outcome",
 }
 
+# What a language README says when its project has not started. A directory that
+# holds code and a README that still carries one of these is the same drift the
+# status line itself was introduced to stop, one level down.
+LANG_README_DENIALS = (
+    "Nothing here yet",
+    "has not started",
+    "an empty source file would be a claim",
+)
+
 problems = []
 
 
@@ -236,6 +245,27 @@ def main():
         if status is None:
             continue
         checked += 1
+
+        # 5. A language directory that holds code must not still say it holds
+        # none. Added Monday 26 October 2026, after five projects were started
+        # on the host in one day and every one of them left its c/README.md and
+        # its python/README.md saying "Nothing here yet" beside the files they
+        # had just gained. Checks 2 and 3 compare the status line against the
+        # source tree and the table, and all five passed: nothing was reading
+        # the language READMEs at all.
+        for lang in LANGS:
+            if status.get(lang, "none") == "none":
+                continue
+            lang_readme = project / lang / "README.md"
+            if not lang_readme.is_file():
+                continue
+            text = lang_readme.read_text(encoding="utf-8")
+            for phrase in LANG_README_DENIALS:
+                if phrase in text:
+                    note(rel + "/" + lang + "/README.md",
+                         "the status line says {} is {}, and this file still "
+                         "says \"{}\"".format(lang, status[lang], phrase))
+                    break
 
         paths = named_paths(project)
         paths_checked += len(paths)

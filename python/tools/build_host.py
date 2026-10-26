@@ -559,6 +559,15 @@ def main() -> int:
     shared_lib("rxspan", [proj("P04", "c") / "rxspan.c"],
                includes=[proj("P04", "c")])
 
+    # P18's first code, Monday 26 October 2026: one cascade in three numeric
+    # formats and the two metrics chapter 18 judges them by. The transform, the
+    # cycle counter and the placement grid need the part; deciding whether a
+    # format can reach the tolerance does not, and that is the chapter's own
+    # stated order of work.
+    print("P18, the cascade in three formats and the acceptance metrics:")
+    shared_lib("dspaccept", [proj("P18", "c") / "dspaccept.c"],
+               includes=[proj("P18", "c")])
+
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,

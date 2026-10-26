@@ -1,13 +1,27 @@
 # P15 in C
 
-**Nothing here yet.** Eight by eight time of flight on the MCU has not started,
-and this directory exists so the four language routes are visible from the
-beginning rather than arriving one at a time.
+**State: host, since Monday 26 October 2026.** Written on win11 aquamarine,
+which compiles nothing and never will; the first compiler to see it is gcc in
+WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
+`python3 python/tools/build_host.py`, and after that CI, which rebuilds the same
+sources with warnings as errors.
 
-What it will carry. The C implementation of eight by eight time of flight on the
-MCU, proven against the same oracle as the other three languages, which this
-project has yet to define.
+| File | What it is |
+|---|---|
+| `zonetrack.h` | four states, six edges, and the thresholds as parameters rather than constants |
+| `zonetrack.c` | the hysteresis, which is the part that stops the status byte changing state every time a person shifts their weight |
 
-What has to come first is in [../README.md](../README.md). Nothing here is written
-until it can be proven, and an empty source file would be a claim rather than a
-placeholder, which is why there is none.
+**The specification came from figure 15.4 rather than from step 9's sketch**, because the figure carries a third threshold at 1500 mm that the sketch omits. The thresholds are parameters because the figure's own note calls them a starting point to be measured.
+
+## What it is proven against
+
+19 oracle cases, plus a 600 frame property that a target oscillating inside the gap moves the state zero times, with its own falsifier showing that the same target with a 1 mm gap chatters, driven through this implementation and its Python twin by
+`python/tests/test_zonetrack_parity.py`. The C half of that test skips on a laptop
+with no compiler, naming the WSL command, and runs in full in CI.
+
+## What is not here
+
+The sensor, the upload of its firmware, the watchdog window and the hour-long run. All of them need the IKS4A1 shield.
+
+[../README.md](../README.md) is the project, its status line and the chapter it
+implements.
