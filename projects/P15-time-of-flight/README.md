@@ -16,7 +16,7 @@ sensor at every power-on and reduces sixty-four zones to one status byte.
 
 | Piece | What proves it |
 |---|---|
-| `c/zonetrack.c`, the four states and their six edges | 19 oracle cases, a 600 frame hysteresis property with its own falsifier, and `-Wconversion -Wsign-conversion -Wpedantic` as errors |
+| `c/zonetrack.c`, the four states and their six edges | 19 oracle cases, a 600 frame hysteresis property with its own falsifier, and `-Wconversion -Wsign-conversion -Wpedantic`, which CI passes over it |
 | `python/zonetrack.py`, the twin | the same 19 cases, and a pairwise comparison with the C |
 | `vectors.json`, the oracle | checked against the figure's edge set before either implementation was allowed to agree with it |
 

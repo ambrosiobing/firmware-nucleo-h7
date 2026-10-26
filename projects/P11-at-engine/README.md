@@ -33,7 +33,7 @@ wrong, so the wrap cases cannot quietly become decoration.
 
 | Piece | What proves it |
 |---|---|
-| `c/atparse.c`, the classifier, the deadline test, the backoff | 36 oracle cases, four property tests, and `-Wconversion -Wsign-conversion -Wpedantic` as errors |
+| `c/atparse.c`, the classifier, the deadline test, the backoff | 36 oracle cases, four property tests, and `-Wconversion -Wsign-conversion -Wpedantic`, which CI passes over it |
 | `python/atparse.py`, the twin | the same cases; the 32 bit wrap is written out because Python has no 32 bit integers |
 | `vectors.json`, the oracle | checked against a modular distance and against the formula longhand, which **found an error in it** |
 

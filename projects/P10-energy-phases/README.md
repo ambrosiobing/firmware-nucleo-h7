@@ -16,7 +16,7 @@ one number.
 
 | Piece | What proves it |
 |---|---|
-| `c/phaseledger.c`, the decode, the integration and the residual | 13 oracle cases, five property tests, and `-Wconversion -Wsign-conversion -Wdouble-promotion -Wpedantic` as errors |
+| `c/phaseledger.c`, the decode, the integration and the residual | 13 oracle cases, five property tests, and `-Wconversion -Wsign-conversion -Wdouble-promotion -Wpedantic`, which CI passes over it |
 | `python/phaseledger.py`, the twin | the same cases, and a pairwise comparison |
 | `vectors.json`, the oracle | **recomputed in exact rational arithmetic**, which neither implementation uses |
 

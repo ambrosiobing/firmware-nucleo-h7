@@ -6,7 +6,7 @@ Status: c=host cpp=none python=host rust=none
 chapter 4 needs no hardware at all: the arithmetic that turns two transfer-counter
 positions into the bytes that are new, as at most two spans neither of which
 crosses the end of the buffer. That part is written, proven against a hand-written
-oracle in two languages, and compiled with warnings as errors in CI.
+oracle in two languages, and compiled under the whole warning set in CI.
 
 **What it is.** The producer becomes a transfer engine and the head comes from the
 transfer counter. The compiler-only barrier of P02 stops being sufficient here.
@@ -15,7 +15,7 @@ transfer counter. The compiler-only barrier of P02 stops being sufficient here.
 
 | Piece | Where | What proves it |
 |---|---|---|
-| `c/rxspan.c`, the span split and the two guards | host and target alike | 18 oracle cases, a 4 096 pair exhaustive walk, and `-Wconversion -Wsign-conversion -Wpedantic` as errors |
+| `c/rxspan.c`, the span split and the two guards | host and target alike | 18 oracle cases, a 4 096 pair exhaustive walk, and `-Wconversion -Wsign-conversion -Wpedantic`, which CI passes over it |
 | `python/rxspan.py`, the twin | host | the same 18 cases, and a pairwise comparison with the C |
 | `vectors.json`, the oracle | the project owns it | checked against invariants that come from neither implementation |
 
