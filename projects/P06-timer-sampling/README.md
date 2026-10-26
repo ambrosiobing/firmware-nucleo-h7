@@ -2635,6 +2635,56 @@ thirteenth, and that assertion was always stronger than the quantity allows. It 
 pins the values that have been seen, so a third value is a deliberate entry with its
 session beside it.
 
+### The first witness run against the hardware marker measured the mains, Monday 26 October 2026
+
+**It is not a timing result and none of its four failed criteria says anything about
+this build.** Sixty seconds through the witness, `5 989 833` samples at 100 kHz, and
+the analyser reported a verdict of FAIL on four of five criteria with 5 987 edges and
+53 856 missing. Read as a measurement of the firmware, that is a disaster. Read as a
+measurement of the bench, it is one number:
+
+    interval mean       10004.30 us
+    swing               0.583 V
+    edges               5987 in 59.898 s
+
+**10 004.30 microseconds between crossings is 99.957 crossings per second, a
+fundamental of 49.98 Hz.** That is the mains frequency to four parts in ten thousand.
+A 583 millivolt swing is a fifth of a logic level and twenty times the HAT's resting
+floor. **A pin driven push-pull cannot be both**, so the input is open: the signal
+lead is off PB4, or out of the CH0 terminal, or the ground lead is out.
+
+**The firmware is excluded by the console, not by assumption.** The same image, in
+the capture committed beside this one, reports 930 blocks of 64 in sixty seconds, the
+marker channel's mode reading back 0x30 and its output enable 0x01, and the
+converter's trigger reading back as TIM3's. The timer runs, the channel is configured
+and the converter samples. **What no console line can say is whether the pad carries
+it**, and that is exactly the gap this run was meant to close.
+
+**And the path was measured working five days earlier.** On Tuesday 20 October 2026
+the same lead carried 60 185 edges from the software-marker image and 60 172 from the
+tick build. So something in the path changed between then and now, across five days
+in which the bench served three volumes and the Raspberry Pi was rebooted and
+reconfigured. **Bench state is not the record**, which this volume has written down
+since Thursday 8 October 2026 and has now paid for a second time.
+
+#### What this says about the instrument, which is the part worth keeping
+
+**The analysers refuse a flat recording and have nothing to say about a plausible
+one at the wrong frequency.** The 100 millivolt floor exists because a flat recording
+thresholded against the HAT's 20.4 millivolt noise once produced 16 063 edges at
+503 Hz, five criteria failing, and sent a reader to the firmware's timing. **This
+recording is the same failure wearing better clothes**: it is periodic, it has a
+clean fundamental, it clears the floor by a factor of six, and it reports four failed
+criteria that all point at the board.
+
+**A refusal that named the mains would have ended this in one line.** The two
+signatures are specific and cheap to test: a fundamental within a per cent or so of
+50 Hz, and a swing between the floor and a fraction of a logic level. Neither can
+occur on a driven marker pin at 1 kHz. **That refusal does not exist yet**, and
+writing it is a four-language change, because the floor it would sit beside is
+carried identically in Python, C, C++ and Rust with a parity capture that all four
+must refuse alike.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified

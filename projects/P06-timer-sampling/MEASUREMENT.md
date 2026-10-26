@@ -1136,3 +1136,35 @@ indistinguishability prediction are **all untested**, because each needs the pin
 **What would be wrong to write here is that the hardware marker works.** The channel
 is configured and the console says so; whether the pin carries 60 000 edges in sixty
 seconds is a different claim and a different instrument.
+
+
+## The first witness run against the hardware marker, and it measured the mains, Monday 26 October 2026
+
+**Appended, not edited, and it is NOT a verdict on criteria 1 to 4.** The run failed
+four of five criteria and every one of those failures is about the bench:
+
+    rate, fitted        99.9591 +/- 0.0001 Hz
+    interval mean       10004.30 us
+    interval spread     204.76 us
+    worst interval      10270.00 us
+    missing edges       53856
+    swing               0.583 V
+    VERDICT: FAIL
+
+**The interval is the diagnosis.** 10 004.30 microseconds between crossings is
+99.957 per second, a fundamental of 49.98 Hz, which is the mains to four parts in ten
+thousand. The swing of 583 millivolts is a fifth of a logic level. **An input driven
+push-pull at 1 kHz cannot produce either figure**, so the input is open and this
+capture is a recording of the room.
+
+**So the criteria are untouched by it.** Criterion 1 for this image is unmeasured;
+criteria 2, 3 and 4 are unmeasured; and the four predictions published before the
+build on Sunday 25 October 2026 remain exactly as they were, all four untested. The
+only claim this capture supports is about the wiring.
+
+**What it does settle is that the console is not sufficient.** The console reports the
+timer running, the channel configured with both registers reading back, the trigger as
+TIM3's and 59 520 samples delivered, and the pin carried none of it to the witness.
+**A configuration read-back is not a measurement of a pad**, which is the same lesson
+as the missing vector and the unwritten data-management field, arriving this time at
+the one place in the chain that leaves the die.
