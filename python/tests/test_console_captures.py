@@ -50,7 +50,23 @@ ACQUISITION = re.compile(r"acquisition\s+(\w+)")
 # evidence. This started as one value each and would have rejected the post-move
 # captures, which is the test being wrong rather than the captures.
 EXPECTED_IMAGE = {"systick": {"14420"},
-                  "timer": {"15220", "15276", "15576", "15876", "15880"}}
+                  "timer": {"15220", "15276", "15576", "15876", "15880"},
+                  "dma": {"16648"}}
+
+# THE BACK END COMES FROM THE FILENAME and the mapping is exhaustive on purpose.
+# This was a two-way choice until Monday 26 October 2026, systick or timer, written
+# when no transfer-engine capture existed; the first one arrived and was classified as
+# a timer capture, which is how a two-way choice fails. A name matching none of the
+# three now fails loudly rather than being filed under the last branch.
+BACK_ENDS = ("systick", "timer", "dma")
+
+
+def back_end_of(path):
+    found = [b for b in BACK_ENDS if b in path.name]
+    assert len(found) == 1, (
+        "%s names %s of the three back ends, so it cannot be classified: %s"
+        % (path.name, len(found), found))
+    return found[0]
 
 
 def captures():
@@ -79,7 +95,7 @@ def test_the_back_end_in_the_name_is_the_back_end_in_the_file(path):
     """A mislabelled capture would otherwise sit here quietly, and the filename is
     what a reader cites."""
     text = text_of(path)
-    named = "systick" if "systick" in path.name else "timer"
+    named = back_end_of(path)
     reported = set(ACQUISITION.findall(text))
     assert reported == {named}, "%s reports %s" % (path.name, sorted(reported))
     sizes = set(IMAGE.findall(text))
@@ -103,15 +119,29 @@ def test_the_captured_image_sizes_are_the_published_ones():
 
 
 @pytest.mark.parametrize("path", captures(), ids=lambda p: p.name)
-def test_the_overrun_mode_line_belongs_to_the_timer_back_end(path):
-    """acq_timer.c prints it; acq_systick.c does not. A systick capture that
-    reported it, or a timer capture that did not, would mean the line moved."""
+def test_the_overrun_mode_line_belongs_to_the_timer_back_end_alone(path):
+    """acq_timer.c prints it and the other two do not, which is now three-way.
+
+    This test said "the timer back end" and meant "not systick", so when the first
+    transfer-engine capture arrived on Monday 26 October 2026 it demanded an overrun
+    mode line from a build that has never printed one. The line is acq_timer.c's
+    alone.
+
+    **AND THAT IS WORTH AN ITEM RATHER THAN A FIX HERE.** The transfer-engine build
+    enables OVRIE, counts the flag and clears it, so the as-found value of OVRMOD
+    matters to it exactly as much as to the timer build: with the field clear an
+    overrun preserves the old sample and discards the new, and a reader of that
+    build's console cannot currently tell which. The line belongs in both and is in
+    one. This test pins what is true today rather than what should be.
+    """
     text = text_of(path)
     found = set(OVRMOD.findall(text))
-    if "systick" in path.name:
-        assert not found, "a systick capture reported the overrun mode: %s" % found
-    else:
+    if back_end_of(path) == "timer":
         assert found == {"0"}, "expected the overrun mode as found 0, got %s" % found
+    else:
+        assert not found, (
+            "a %s capture reported the overrun mode, so the line moved: %s"
+            % (back_end_of(path), found))
 
 
 # Every calibration poll count any committed capture reports, with the reason each

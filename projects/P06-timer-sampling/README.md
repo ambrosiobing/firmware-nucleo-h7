@@ -2828,6 +2828,81 @@ P01's own conclusion that this clock WANDERS rather than settles, 990 ppm inside
 24 second window. The settling claim rests on two captures in one window and this pair
 does not support it.
 
+### All three back ends, one session, one wire, the right instrument, Monday 26 October 2026
+
+**This is the comparison the chapter has existed for since Wednesday 7 October 2026,
+and it is the first time it has been made with a marker that measures the sampling
+instants of the builds that have hardware ones.** Five captures, sixty seconds each,
+one lead at CN12 pin 27, nothing moved between them:
+
+| build | marker | edges | fitted rate | spread | worst interval |
+|---|---|---|---|---|---|
+| tick | software, in the tick exception | 60 189 | 1003.1496 Hz | **3.70 us** | 9.86 us off |
+| timer | TIM3 channel 1 | 60 175 | 1002.9822 Hz | **3.61 us** | 9.83 us off |
+| timer | TIM3 channel 1 | 60 169 | 1002.8923 Hz | **3.55 us** | 9.80 us off |
+| timer | TIM3 channel 1 | 60 178 | 1003.0361 Hz | **3.63 us** | 9.83 us off |
+| transfer engine | TIM3 channel 1 | 60 164 | 1002.7723 Hz | **3.51 us** | 9.78 us off |
+
+**Every one of the five has zero missing edges, passes criteria 2, 3, 4 and 5, and
+fails criterion 1 on the oscillator.** Every one carries the analyser's own note that
+the spread is below half the witness's sample period and therefore instrument-limited.
+
+#### The chapter's prediction is still unresolved, and the way it is unresolved changed
+
+**The chapter predicts the tick build is worst on spread and worst case.** It is now
+the highest of the five at 3.70 microseconds against 3.51 to 3.63, which is the
+predicted direction. **That is not a result and saying so is the point.** The whole
+range is 0.19 microseconds on an instrument whose floor is about 3.5, so the ordering
+is noise.
+
+**What makes that worth writing down is that the sign flipped when the instrument
+changed.** On Tuesday 20 October 2026, with software markers on both builds, the tick
+build measured 3.59 against the timer build's 3.66 and the prediction's sign was
+REVERSED. Today, with hardware markers on the two timer builds, the sign points the
+predicted way. **A difference whose sign reverses when the marker changes is not a
+measurement of the back ends**, and this pair of sessions demonstrates it rather than
+asserting it.
+
+#### The four predictions of Sunday 25 October 2026, all four answered
+
+**ONE, the rate must not move: HELD.** The five readings span 1002.7723 to
+1003.1496 Hz, which is +2772 to +3150 parts per million, and the three timer runs
+alone span 147 ppm within one session. The band I quoted, +2900 to +3100, was too
+narrow and is corrected above.
+
+**TWO, the spread will not improve visibly: HELD, exactly.** 3.51 to 3.70 across
+three back ends and two kinds of marker, all instrument-limited.
+
+**THREE, the transfer-engine build must stop being flat: HELD.** 60 164 edges where
+the same build read 5.1 millivolts on Tuesday 20 October 2026 because it drove
+nothing.
+
+**FOUR, the two timer builds indistinguishable on the marker: HELD.** The
+transfer-engine build's 1002.7723 Hz sits 120 ppm below the timer build's lowest of
+three, where those three span 147 ppm between themselves, and its spread of 3.51
+microseconds sits inside their 3.55 to 3.63. **No systematic difference**, which is
+what sharing a timer channel predicts.
+
+#### One capture was an artefact and it is kept rather than deleted
+
+**The first transfer-engine capture read flat at 20.4 millivolts and said nothing
+about the build.** It was launched against an image whose startup I had not seen: the
+console window before it was twelve seconds long and the banner arrived at the very
+end of it, so the recording began while the board was still programming or resetting.
+The same image, reflashed and confirmed running through its full banner, gave 60 164
+edges twenty minutes later.
+
+**The lesson is one this project already has in another form.** `confirm the source
+reached the board` is a rule here, and the console window is how that is confirmed; a
+window that closes as the banner opens has confirmed nothing. **The capture stays on
+the Pi beside the good one** because `scan.py` refuses to overwrite, which is the
+second time today that refusal has preserved something worth comparing.
+
+**And 20.4 millivolts is itself a signature worth keeping**: it is the HAT's resting
+floor, so it means a pin driven to a constant level or an input held quiet, where the
+470 to 583 millivolts of the earlier failures meant an open input listening to the
+mains. **Two flat lines, two different causes, and the swing tells them apart.**
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified

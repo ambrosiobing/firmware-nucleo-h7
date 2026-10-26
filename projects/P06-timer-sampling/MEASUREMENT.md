@@ -1239,3 +1239,40 @@ look.
 **The run count for this build therefore stands at two**, both with the hardware
 marker, and the page's long-standing open item of three runs per build is one short
 for the timer build and unstarted for the transfer-engine build.
+
+
+## The three-builds comparison, made at last, Monday 26 October 2026
+
+**Appended, not edited. This is the table chapter six exists to produce**, and the
+first version of it in which the two hardware-triggered builds are measured through a
+marker driven by the same counter that triggers their conversions:
+
+    build            marker                 edges    fitted rate     spread    worst
+    tick             software, in the ISR    60189    1003.1496 Hz    3.70 us   9.86 off
+    timer            TIM3 channel 1          60175    1002.9822 Hz    3.61 us   9.83 off
+    timer            TIM3 channel 1          60169    1002.8923 Hz    3.55 us   9.80 off
+    timer            TIM3 channel 1          60178    1003.0361 Hz    3.63 us   9.83 off
+    transfer engine  TIM3 channel 1          60164    1002.7723 Hz    3.51 us   9.78 off
+
+**Five captures, sixty seconds each, one lead, one session, nothing moved between
+them.** Zero missing edges in all five. Criteria 2, 3, 4 and 5 pass in all five.
+Criterion 1 fails in all five, on the oscillator, between +2772 and +3150 parts per
+million.
+
+**THE VERDICT ON THE CHAPTER'S PREDICTION IS UNRESOLVED AND THE SIGN IS NOW THE
+PREDICTED ONE.** The tick build is highest at 3.70 microseconds. The range across all
+five is 0.19 microseconds against an instrument floor of about 3.5, so the ordering is
+noise. **On Tuesday 20 October 2026 the same comparison, with software markers on
+both builds, put the tick build BELOW the timer build and reversed the sign.** A sign
+that reverses when the marker changes is not a property of the back ends, and this is
+now demonstrated across two sessions rather than argued.
+
+**WHAT WOULD SETTLE IT is a finer instrument and nothing else.** Every spread here is
+below half the witness's sample period. The MCC 118 at 100 kS/s cannot separate 3.5
+from 3.7 microseconds, and no number of repeats changes that, which is the honest
+state of criterion 2 and has been since Friday 9 October 2026.
+
+**THE RUN COUNT IS NOW THREE FOR THE TIMER BUILD**, which closes an item open since
+Friday 16 October 2026, **one for the transfer-engine build** with its hardware
+marker, and **one for the tick build** in this session with four earlier ones behind
+it.

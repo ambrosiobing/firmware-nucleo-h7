@@ -61,7 +61,7 @@ target or a dropped source, and the test fails, in CI and in WSL alike. The seco
 half is the one worth having: before it, a renamed library would have turned a
 whole file green in CI by never running it, because the files that skipped did so
 regardless of machine. Three tests pin the rule on a temporary tree. The honest
-figure for win11 aquamarine is now 262 of 471 passing with 209 skipping and none
+figure for win11 aquamarine is now 265 of 474 passing with 209 skipping and none
 failing, and a green run there is still no evidence about the C, C++ or Rust; it
 is evidence that the Python half and every check that needs no compiler hold.
 **The one place the suite runs in full is WSL on win11 skyhorizon**, where every
@@ -257,6 +257,8 @@ until now there was no recorded figure to compare against after touching one.
 | `p06-sampling-timer` | 15 196 B | **15 220 B**, +24 | not rebuilt | **15 276 B**, +56 | **15 576 B**, +300 |
 | `p06-sampling-systick` | 10 232 B | **14 420 B**, +4188: +4164 when it reached the converter later that morning, then +24 | not rebuilt | **14 420 B**, unchanged | **14 420 B**, unchanged again |
 | `p06-sampling-dma` | 10 248 B | not rebuilt | **9992 B**, -256, then **10 076 B**, +84 | **15 812 B**, +5736 | **16 344 B**, +532 against Monday 19 October 2026 and NOT attributable |
+
+**AND THE TRANSFER-ENGINE BUILD IS 16 648 B**, which is +304 on its figure of Monday 19 October 2026: +300 for the pad read-back it shares with the timer build and +4 for the compare value. **It is the first image of that build whose marker the witness has ever seen**, and it produced 60 164 edges in sixty seconds where the same build drove nothing at all on Tuesday 20 October 2026.
 
 **AND 15 880 B LATER THE SAME DAY**, four bytes more, which is the compare value moving off zero: one immediate operand became a division of a variable. That is the image whose marker finally reached the pin, and the four bytes are the whole difference between a silent pin and 60 175 edges in sixty seconds.
 
