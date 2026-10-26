@@ -1168,3 +1168,40 @@ TIM3's and 59 520 samples delivered, and the pin carried none of it to the witne
 **A configuration read-back is not a measurement of a pad**, which is the same lesson
 as the missing vector and the unwritten data-management field, arriving this time at
 the one place in the chain that leaves the die.
+
+
+## The wiring control, Monday 26 October 2026, and it cleared the wiring
+
+**Appended, not edited.** The tick build was flashed onto the same board, with the
+same two leads untouched, and recorded for sixty seconds:
+
+    duration            59.999 s, 60189 edges, both polarities
+    rate, fitted        1003.1496 +/- 0.0001 Hz
+    rate, counted       1003.1622 Hz
+    interval mean       996.85 us
+    interval spread     3.70 us standard deviation
+    worst interval      990.14 us, 9.86 us from nominal
+    missing edges       0
+    note: measured spread is below half the witness sample period, so it is
+          limited by the instrument and not by the board
+
+**Criteria 2, 3, 4 and 5 pass and criterion 1 fails on the oscillator**, at about
++3150 parts per million, which is the same failure this page has recorded four times
+and the same band.
+
+**The capture was taken with `--no-image-identity`**, because its purpose was to
+decide whether a path was open rather than to produce a rate, and `scan.py` records
+the reason in the metadata. The console capture for the same window is committed
+beside it, which `scan.py` names as the only attribution such a capture has: the
+banner reads `acquisition systick` at 14 420 B.
+
+**It is also the third measurement of the tick build and it reproduces.** Friday
+16 October 2026 and Tuesday 20 October 2026 gave 1002.9472 Hz with a spread of
+3.59 microseconds; this gives 1003.1496 Hz with 3.70. The two rates are 202 parts per
+million apart, inside the band this oscillator has shown all month, and both spreads
+sit below half the witness's sample period.
+
+**What it says about the hardware marker is the whole point.** The same instrument,
+on the same wire, minutes apart, saw 60 189 edges from a software marker and 5 996
+crossings of mains pickup from the hardware one. **That is not a measurement of the
+hardware marker's timing; it is a measurement that it does not drive the pin.**

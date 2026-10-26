@@ -186,8 +186,47 @@ int tim3_bring_up(uint32_t rate_hz)
                                    | TIM_CCMR1_OC1PE))
                   | (3u << TIM_CCMR1_OC1M_Pos);
 
-    /* Match at the counter's zero, where the update event is. */
-    TIM3->CCR1 = 0u;
+    /* THE COMPARE VALUE IS HALF THE PERIOD, AND IT WAS ZERO UNTIL Monday
+     * 26 October 2026, WHICH IS WHY THE PIN CARRIED NOTHING.
+     *
+     * What zero was for: the match then sat at the counter's zero, where the
+     * update event and therefore the conversion trigger are, so the marker edge
+     * and the sample it marks were the same instant. That was the whole appeal
+     * and it produced no edges at all.
+     *
+     * THE MEASUREMENT THAT CONDEMNED IT. Sixty seconds through the witness gave
+     * 5 996 crossings at 49.97 Hz with 470 millivolts of swing, which is the
+     * mains on a high-impedance input, while the tick build toggling the SAME
+     * pin through the SAME two leads minutes later gave 60 189 edges at
+     * 1003.1496 Hz with a spread of 3.70 microseconds. Same pin, same wires,
+     * same witness, different driver. And a pad DRIVEN low reads 5.1 millivolts
+     * on this bench, measured on Tuesday 20 October 2026, so 470 millivolts of
+     * pickup says this pad was not driving at all.
+     *
+     * WHAT THE MANUAL DOES AND DOES NOT SAY. RM0455 Rev 13 pages 1646 and 1658:
+     * "0011: Toggle - OC1REF toggles when TIMx_CNT = TIMx_CCR1". Page 1683 gives
+     * the whole recipe, OCxM 011, OCxPE 0, CCxP 0, CCxE 1, which is what this
+     * file writes and what the console reads back, and adds that in output
+     * compare mode the update event has no effect on OCxREF. Page 1684's worked
+     * example writes B201h into CCR1, a value in the middle of the range.
+     * **No exception for a compare value of zero is documented in that
+     * section**, so this is a behaviour of the part rather than a misread.
+     *
+     * WHY HALF THE PERIOD RATHER THAN ONE. A match at 1 would keep the edge
+     * within one timer tick of the trigger, 15.6 nanoseconds at this clock and
+     * three orders below the witness's resolution, which is the better answer IF
+     * the cause is the zero itself. Half the period is as far from the reload
+     * boundary as this counter allows, so a success here isolates the cause where
+     * a success at 1 would leave open whether the match had merely been too near
+     * the reload. **The experiment is worth more than the phase.**
+     *
+     * WHAT IT COSTS, and it costs no criterion. The marker edge now arrives half
+     * a period, 500 microseconds, after the conversion it marks, constant for
+     * every period. **Every interval between edges is unchanged**, so the rate,
+     * the spread and the worst case are untouched; only the absolute phase moves,
+     * and nothing in MEASUREMENT.md measures phase. A reader comparing an edge to
+     * a sampling instant needs to know the offset is there. */
+    TIM3->CCR1 = arr / 2u;
 
     /* The output to the pad, active high. CC1E is the whole of the enable on a
      * general-purpose timer; see the note at the top about the BDTR write that

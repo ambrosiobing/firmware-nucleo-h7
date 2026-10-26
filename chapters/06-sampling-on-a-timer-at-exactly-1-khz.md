@@ -396,11 +396,30 @@ void acq_start(void)
     /* CHANNEL 1 DRIVES THE MARKER, and this is the reason the timer is TIM3
        and not a basic timer. Toggle mode flips the pin on each compare match
        and leaves it there, so the witness sees ONE EDGE PER SAMPLING INSTANT
-       and counts both polarities. A compare value of zero puts the match at
-       the counter's zero, which is where the update event that triggers the
-       conversion is, so the marker edge and the conversion come from one
-       counter and are separated by a fixed number of timer ticks instead of by
-       whatever the processor was doing.
+       and counts both polarities.
+
+       DO NOT PUT THE COMPARE VALUE AT ZERO, which is the mistake this chapter
+       made and the board corrected on Monday 26 October 2026. Zero is the
+       tempting value, because the match would then sit at the counter's zero
+       where the update event and therefore the conversion trigger are, and the
+       edge would mark the instant exactly. IT PRODUCES NO EDGES AT ALL. Sixty
+       seconds of the witness gave 5 996 crossings at 49.97 Hz, which is mains
+       pickup on a high-impedance pin, while the tick build toggling the same
+       pin through the same wires gave 60 189 edges minutes later.
+
+       THE MANUAL DOES NOT DOCUMENT THE EXCEPTION, which is why this paragraph
+       exists. RM0455 Rev 13 pages 1646 and 1658 say only "Toggle: OC1REF
+       toggles when TIMx_CNT = TIMx_CCR1", page 1683 gives the recipe this code
+       follows, and page 1684's worked example writes a mid-range value. Nothing
+       says zero behaves differently. A reader who reasons from the manual alone
+       will write zero, and the pin will be silent while every register reads
+       back correct.
+
+       HALF THE PERIOD IS THE VALUE HERE and it costs a phase offset of half a
+       period, 500 microseconds at 1 kHz, between the marker edge and the
+       conversion it marks. Every INTERVAL between edges is unchanged, so the
+       rate, the spread and the worst case are untouched, and nothing in this
+       chapter measures phase.
 
        CC1E IS THE WHOLE OF THE OUTPUT ENABLE on a general-purpose timer. Do
        not add the BDTR write a TIM1 example needs: the advanced-control timers
@@ -410,7 +429,7 @@ void acq_start(void)
     TIM3->CCMR1 = (TIM3->CCMR1 & ~(TIM_CCMR1_CC1S | TIM_CCMR1_OC1M
                                    | TIM_CCMR1_OC1PE))
                 | (3u << TIM_CCMR1_OC1M_Pos);     /* toggle on match */
-    TIM3->CCR1  = 0u;                             /* match at the zero */
+    TIM3->CCR1  = (1000u - 1u) / 2u;              /* mid-period, NEVER zero */
     TIM3->CCER  = (TIM3->CCER & ~TIM_CCER_CC1P) | TIM_CCER_CC1E;
 
     /* AND THE PAD LAST, once the channel knows what to drive. Alternate

@@ -2711,6 +2711,63 @@ writing it is a four-language change, because the floor it would sit beside is
 carried identically in Python, C, C++ and Rust with a parity capture that all four
 must refuse alike.
 
+### The control cleared the wiring in one run, so the fault is the channel, Monday 26 October 2026
+
+**Same pin, same two leads, same witness, different driver.** The tick build toggles
+PB4 as a plain output in software; the timer build hands the same pin to TIM3
+channel 1. Sixty seconds of each, minutes apart, nothing moved between them:
+
+| driver of PB4 | edges in 60 s | fundamental | swing | spread |
+|---|---|---|---|---|
+| TIM3 channel 1, before reseating | 5 987 | 49.98 Hz | 0.583 V | 204.76 us |
+| TIM3 channel 1, after reseating | 5 996 | 49.97 Hz | 0.470 V | 2528.98 us |
+| **software, in the tick exception** | **60 189** | **501.6 Hz** | logic | **3.70 us** |
+
+**The third row is a working marker and the first two are the room.** 60 189 edges
+with zero missing, a fitted rate of 1003.1496 Hz, a worst interval 9.86 microseconds
+from nominal and a spread the analyser itself calls instrument-limited. Criteria 2, 3,
+4 and 5 all pass; only criterion 1 fails, on the oscillator, at about +3150 parts per
+million.
+
+**So the wiring, the HAT, the CH0 terminal and both leads are cleared by
+measurement.** Not by inspection and not by reseating: the leads were reseated
+between the first two rows and the recording stayed at 50 Hz, which was itself worth
+knowing, because it removed the easiest explanation before the expensive one.
+
+**And the pad is cleared by read-back.** The mode field holds 10 for alternate
+function and the function field holds 2 for TIM3_CH1, both printed by the image that
+produced row two. **Every register from the bus clock to the pad reads back
+correct**, and the pin carries nothing.
+
+#### What is left is the one line in `tim3_bringup.c` that was never sourced
+
+**The compare value is zero**, so the match sits at the counter's zero, where the
+update event is. The file says in its own comment that whether the match at zero and
+the update land on the same cycle is not established and that the measurement does
+not depend on it. **That was the wrong thing to leave unverified**: the question was
+not the phase, it was whether a compare match at zero happens at all.
+
+**The evidence now says it does not.** The channel is in toggle mode, `CC1E` is set,
+the timer is running at 1 kHz by the converter's own sample count, the pad is in
+alternate function 2, and the pin does not move. A compare match that never occurs
+explains every one of those facts together, and nothing else does.
+
+**The change is one line, `CCR1 = ARR / 2`**, which puts the match in the middle of
+the period, as far from the reload boundary as the counter allows. **A success there
+isolates the cause**, where a success at `CCR1 = 1` would leave it open whether the
+match had been too near the reload.
+
+**The cost is a phase offset of half a period and it affects no criterion.** The
+marker edge would arrive 500 microseconds after the conversion it marks, constant for
+every period, so every interval between edges is unchanged and the rate, the spread
+and the worst case are untouched. **A reader comparing a marker edge to a sampling
+instant needs to know the offset exists**, which is why it is written here rather
+than discovered from the code.
+
+**If the mid-period match also produces nothing**, the suspect list moves on to the
+one thing neither the console nor the witness has examined: whether anything else on
+this part drives or holds PB4 while it is in alternate function 2.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified

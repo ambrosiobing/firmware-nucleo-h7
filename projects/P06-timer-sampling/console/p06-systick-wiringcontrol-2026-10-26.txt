@@ -1,0 +1,39 @@
+nucleo-h7a3-sampling
+  acquisition   systick
+  nominal rate  1000 Hz
+  instrument    core cycle counter
+  tick rate     64000000 Hz
+  image         14420 B of flash, the figure the build reports
+  main.c built  Oct  9 2026 09:31:08, which moves only when THIS file recompiles
+  adc control register       as found 20000000  DEEPPWD 1  ADVREGEN 0
+  adc leave deep power-down  ok       wrote 00000000  read back 00000000
+  adc regulator enable       ok       wrote 10000000  read back 10000000
+  adc regulator start-up     ok       wrote 0000000A  read back 10000000
+  adc regulator ready flag   set    isr 00001000  (LDORDY, bit 12)
+  adc clock mode sync /4     ok       wrote 00000003  read back 00030000
+  adc boost mode             ok       wrote 00000001  read back 10000100
+      kernel clock 16000000 Hz from HCLK 64000000 over 4, boost 1
+  adc calibration            ok       wrote 80000000  read back 10000100
+      calibration took 180 polls
+  adc enable, one write      ok       wrote 00000001  read back 00001001
+      ready after 4 polls with NO re-assertion, so the erratum did not bite here
+  adc PC3 to analog          ok       wrote 00000003  read back F3FFFFFF
+  adc preselection           ok       wrote 00002000  read back 00002000
+  adc sampling time          ok       wrote 00000007  read back 00000E00
+  adc sequence of one        ok       wrote 0000000D  read back 00000340
+  adc trigger and 16 bits    ok       wrote 00000000  read back 80000000
+      channel 13 on PC3 at CN9 pin 5, 810.5 cycles, 16 bits,
+      started by software, one conversion per tick
+  converter overrun  NOT WATCHED by this back end, so convovr
+                     reads -1 rather than a zero nobody earned
+seq 15  blocks 15  mean 3  overruns 0  convovr -1
+seq 30  blocks 30  mean 3  overruns 0  convovr -1
+seq 45  blocks 45  mean 3  overruns 0  convovr -1
+seq 60  blocks 60  mean 2  overruns 0  convovr -1
+seq 75  blocks 75  mean 3  overruns 0  convovr -1
+seq 90  blocks 90  mean 4  overruns 0  convovr -1
+seq 105  blocks 105  mean 2  overruns 0  convovr -1
+seq 120  blocks 120  mean 3  overruns 0  convovr -1
+seq 135  blocks 135  mean 3  overruns 0  convovr -1
+seq 150  blocks 150  mean 3  overruns 0  convovr -1
+seq 165  blocks 165  mean 3  overruns 0  convovr -1
