@@ -564,9 +564,17 @@ def main() -> int:
     # cycle counter and the placement grid need the part; deciding whether a
     # format can reach the tolerance does not, and that is the chapter's own
     # stated order of work.
+    # -ffp-contract=off, for the third time in this repository and the first
+    # time it was needed before anybody asked for it. P06 and P12 both carry it
+    # with a comment saying why: at -O2 gcc contracts a multiply and an add into
+    # one fused instruction, the fused result is correctly rounded once where the
+    # separate operations round twice, and a Python twin does not fuse. This
+    # project is denser in floating point than either of those and was registered
+    # without the flag, so its exact cases passed, where no rounding happens at
+    # all, and the 1024-sample design comparison did not.
     print("P18, the cascade in three formats and the acceptance metrics:")
     shared_lib("dspaccept", [proj("P18", "c") / "dspaccept.c"],
-               includes=[proj("P18", "c")])
+               ["-ffp-contract=off"], includes=[proj("P18", "c")])
 
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
