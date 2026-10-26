@@ -1205,3 +1205,37 @@ sit below half the witness's sample period.
 on the same wire, minutes apart, saw 60 189 edges from a software marker and 5 996
 crossings of mains pickup from the hardware one. **That is not a measurement of the
 hardware marker's timing; it is a measurement that it does not drive the pin.**
+
+
+## The hardware marker's first real measurements, Monday 26 October 2026
+
+**Appended, not edited.** Two captures of the image at 15 880 B, the first about two
+minutes after its reflash and the second minutes later:
+
+    duration            59.996 s, 60175 edges     60169 edges
+    rate, fitted        1002.9822 Hz              1002.8923 Hz
+    rate, counted       1002.9771 Hz              1002.8824 Hz
+    interval mean       997.03 us                 997.13 us
+    interval spread     3.61 us                   3.55 us
+    worst interval      990.17 us, 9.83 off       990.20 us, 9.80 off
+    missing edges       0                         0
+
+**Criterion 1 FAILS on both**, at +2982 and +2892 parts per million. **Criteria 2, 3,
+4 and 5 pass on both**, and the analyser notes on both that the spread is below half
+the witness's sample period and therefore instrument-limited.
+
+**What is new is not the numbers, it is what they are of.** Every spread this page has
+published for the timer build measured a marker toggled in software inside the
+end-of-conversion handler. These two measure a pin driven by the same counter that
+triggers the conversion, with no software in the path. **The quantity changed and the
+figure did not**, to within the instrument's resolution: 3.66 microseconds from the
+handler against 3.61 and 3.55 from the timer.
+
+**So the honest statement about the handler is now a measurement rather than a
+concession.** At this instrument's resolution the handler's entry jitter was not the
+dominant term in the published spread, and the way to know that was to remove it and
+look.
+
+**The run count for this build therefore stands at two**, both with the hardware
+marker, and the page's long-standing open item of three runs per build is one short
+for the timer build and unstarted for the transfer-engine build.

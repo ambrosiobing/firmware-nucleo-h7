@@ -2768,6 +2768,66 @@ than discovered from the code.
 one thing neither the console nor the witness has examined: whether anything else on
 this part drives or holds PB4 while it is in alternate function 2.
 
+### The hardware marker measures the sampling instants, twice, Monday 26 October 2026
+
+**Moving the compare value off zero was the whole fault.** Two sixty-second captures
+of the same image, minutes apart, nothing moved between them:
+
+| capture | edges | fitted rate | counted | spread | worst interval | missing |
+|---|---|---|---|---|---|---|
+| taken about 2 minutes after the reflash | **60 175** | 1002.9822 Hz | 1002.9771 | 3.61 us | 9.83 us off | 0 |
+| taken minutes later | **60 169** | 1002.8923 Hz | 1002.8824 | 3.55 us | 9.80 us off | 0 |
+
+**60 000 edges in sixty seconds is one edge per conversion**, which is what the
+analysers have assumed since Friday 9 October 2026 and what the pin has never
+actually delivered from hardware until now. Criteria 2, 3, 4 and 5 pass on both
+captures; criterion 1 fails on the oscillator, as it has in every reading this
+project has taken.
+
+#### The four predictions, answered
+
+**ONE, the rate must not move: HELD, and the band I quoted was too narrow.** I wrote
+"about +2900 to +3100 parts per million" on Sunday 25 October 2026. These two readings
+are **+2982 and +2892**, and the tick build minutes earlier was **+3150**. So two of
+the three sit outside the band I named, while all three sit inside the span this
+project has actually recorded, about **+2818 to +3150** across six readings and three
+sessions. **The prediction holds against the measured span and my summary of that span
+was wrong**, which is worth more than the prediction: a band quoted from memory
+narrowed a 332 ppm spread to 200.
+
+**TWO, the spread will not improve visibly: HELD, exactly.** The software marker gave
+3.66 microseconds on this build and 3.70 on the tick build; the hardware marker gives
+3.61 and 3.55. **All four are at the instrument's floor of about 3.5 microseconds**,
+and the analyser says so itself in both captures: the measured spread is below half
+the witness's sample period, so it is limited by the instrument and not by the board.
+**The change bought a different claim, not a smaller number**, which is what was
+written before the run.
+
+**THREE, the transfer-engine build must stop being flat: STILL UNTESTED.** That build
+has not been rebuilt or run since the compare value changed.
+
+**FOUR, the two timer builds indistinguishable on the marker: STILL UNTESTED**, for
+the same reason.
+
+#### What this changes about what the volume can say
+
+**The timer build's published spread now describes the sampling instants.** Every
+earlier figure for it described the end-of-conversion handler's entries, because the
+marker was toggled in software inside that handler. The quantity has changed and the
+number has not, to within the instrument's resolution, which is the result rather
+than a disappointment: **the handler's jitter was never the dominant term at this
+resolution, and now there is a measurement rather than an assumption.**
+
+**And the two captures differ by 90 ppm in the direction the settling record does not
+predict.** The earlier one, about two minutes after the reflash, reads +2982; the
+later one reads +2892. Friday 16 October 2026's finding was that this oscillator runs
+about 100 ppm LOW in the first minute and is flat by minute six, so a later capture
+should read higher or the same. **This pair reads lower.** Two readings cannot
+establish a direction and no claim is made here; what they are consistent with is
+P01's own conclusion that this clock WANDERS rather than settles, 990 ppm inside one
+24 second window. The settling claim rests on two captures in one window and this pair
+does not support it.
+
 ### What is next, in the order that makes each claim true
 
 1. ~~A build stamp in the banner.~~ **Done Friday 9 October 2026 and verified
