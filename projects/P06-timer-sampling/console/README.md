@@ -85,12 +85,19 @@ refuted, merely unsupported by anything a reader could open. **It is supported n
 The figure that had only a memory behind it has a file behind it, and the claim that
 the count moves between sessions is a measurement rather than a recollection.
 
-**What it is not is an effect of the change.** Nothing in the hardware-marker commit
-touches the converter's calibration, the ADC kernel clock is the same 16 MHz from the
-same HCLK over the same divider, and the count is free to move between sessions by
-the bring-up's own account. **A figure that moves when nothing relevant changed is
-evidence about the figure, not about the change.** Reading it the other way would be
-the error `MEASUREMENT.md` exists to prevent.
+**THIS FILE SAID IT WAS NOT AN EFFECT OF THE CHANGE AND THAT IS WITHDRAWN, Monday
+26 October 2026.** The second TIM3 image reported 187 as well, so the tally is **two
+of two images carrying the TIM3 marker at 187 and twelve of twelve without it at
+180**, across four days and three images on the old side. The split falls on the
+change, not on the session.
+
+**The count is a software loop, which is why this is plausible rather than
+coincidental.** It counts iterations spent waiting for `ADCAL` to clear, so it
+measures the loop's own speed against a fixed hardware interval, and code placed in
+front of it moves alignment, flash prefetch and caching. 3.9 per cent is the size of
+such an effect. **No mechanism is claimed**: one correlation with a plausible cause
+is not a measurement of it, and the experiment that would settle it is to move the
+code layout without touching the converter and see which the count follows.
 
 **And it moved a test from a coincidence to a set.** `test_console_captures.py`
 asserted that every capture reports 180, which was true of twelve and false of the

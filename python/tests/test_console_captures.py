@@ -49,7 +49,8 @@ ACQUISITION = re.compile(r"acquisition\s+(\w+)")
 # hardware marker on TIM3 of Sunday 25 October 2026, and captures of all three are
 # evidence. This started as one value each and would have rejected the post-move
 # captures, which is the test being wrong rather than the captures.
-EXPECTED_IMAGE = {"systick": {"14420"}, "timer": {"15220", "15276", "15576"}}
+EXPECTED_IMAGE = {"systick": {"14420"},
+                  "timer": {"15220", "15276", "15576", "15876"}}
 
 
 def captures():

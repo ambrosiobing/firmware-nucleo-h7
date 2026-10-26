@@ -2622,12 +2622,38 @@ console directory's own README recorded on Monday 19 October 2026 that this volu
 prose cited a 187 reading which appeared in **none** of them, so that claim rested on
 a session nobody saved. **This capture carries it.**
 
-**It is not an effect of the change and reading it that way would be the error this
-page exists to prevent.** Nothing in the hardware-marker commit touches calibration,
-the converter's kernel clock is the same 16 MHz from the same HCLK over the same
-divider, and the bring-up's own comment says the count is measured and free to move
-between sessions. **A figure that moves when nothing relevant changed is evidence
-about the figure.**
+**I WROTE THAT THIS WAS NOT AN EFFECT OF THE CHANGE AND I WITHDRAW IT, Monday
+26 October 2026, on the second reading of the same figure.** What that paragraph
+said was that nothing in the hardware-marker commit touches calibration, that the
+kernel clock is the same 16 MHz from the same HCLK over the same divider, and that
+the count is free to move between sessions by the bring-up's own account, so a
+figure that moves when nothing relevant changed is evidence about the figure. The
+first two clauses are still true. **The conclusion was not supported and is now
+contradicted by the arithmetic.**
+
+**Two images carry the TIM3 marker and both report 187. Twelve images without it
+report 180.** That is 2 of 2 against 12 of 12, and the split falls exactly on the
+change rather than on the session: the two 187 readings are from different images,
+15 576 B and 15 876 B, taken either side of midnight, and the twelve 180 readings
+span four separate days from Friday 9 October 2026 to Monday 19 October 2026 and
+three different images including the tick build.
+
+**And there is a mechanism available, which is what makes the withdrawal necessary
+rather than merely cautious.** The poll count is not a property of the converter: it
+counts iterations of a software loop that waits for `ADCAL` to clear, so it measures
+**how fast that loop runs** against a hardware interval that is fixed. Anything that
+moves the loop's instruction timing moves the count, and the TIM3 commits put new
+code and new strings in front of it, which changes alignment, flash prefetch and
+cache behaviour. 187 against 180 is 3.9 per cent, which is the size of such an
+effect.
+
+**What is NOT claimed is that this is the mechanism.** One correlation with a
+plausible cause is not a measurement of that cause, and the experiment that would
+settle it is cheap and has not been run: build the TIM3 image with the two pad
+`printf` calls removed and nothing else changed, or pad the earlier image's code
+until its layout moves, and see whether the count follows the layout or the
+peripheral. **What stands is that the figure correlates perfectly with the change
+and that my sentence saying otherwise was wrong.**
 
 **It also moved a test from a coincidence to a set.** `test_console_captures.py`
 asserted every capture reports 180, which was true of twelve and false of the
