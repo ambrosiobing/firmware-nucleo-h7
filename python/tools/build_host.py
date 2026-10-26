@@ -582,6 +582,18 @@ def main() -> int:
     shared_lib("dspaccept", [proj("P18", "c") / "dspaccept.c"],
                ["-ffp-contract=off"], includes=[proj("P18", "c")])
 
+    # P18's C++ variant, Monday 26 October 2026. One function template at
+    # double and at float where the C carries two forty-line copies, which is
+    # the one place in this project where the language says something about the
+    # problem. -ffp-contract=off for the same reason the C has it.
+    print("P18, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         "-ffp-contract=off", *STATIC,
+         "-I", proj("P18", "cpp"),
+         proj("P18", "cpp") / "dspaccept_filter.cpp",
+         "-o", BUILD / ("dspaccept_filter" + exe)],
+        "dspaccept_filter")
+
     # P13's first code, Monday 26 October 2026: the decode of a drained buffer,
     # the drop count recovered from the tag counter and the fill-to-drain ratio.
     # -ffp-contract=off because the ratio is floating point and is compared

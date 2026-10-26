@@ -39,7 +39,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (BUILD, DSP_CPP_FILTER, require_artefact,  # noqa: E501
+                      run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P18-transforms-filters"
@@ -483,3 +484,141 @@ def test_the_post_shift_bound_is_the_one_the_header_states():
     rc, _ = c_post_shift([2.0 ** (Q15_MAX_POST_SHIFT + 1), 0.0, 0.0, 0.0, 0.0],
                          1)
     assert rc == ERRORS["range"]
+
+
+# ---------------------------------------------------------------------------
+# The C++ variant, driven as a filter over the same oracle. One process for the
+# whole run rather than one per request, which is conftest's rule and the reason
+# it exists: a hundred launches would measure the operating system.
+
+
+def nums(values):
+    """Request formatting that round-trips: repr is the shortest exact form."""
+    return " ".join(repr(float(v)) for v in values)
+
+
+def ints(values):
+    return " ".join(str(int(v)) for v in values)
+
+
+def cpp(lines, required=False):
+    return run_filter(DSP_CPP_FILTER, lines, required=required)
+
+
+def floats_of(answer):
+    return [float(t) for t in answer.split()]
+
+
+def test_the_cpp_matches_the_oracle_on_every_cascade_and_conversion():
+    """Four requests per case: the double path, the single path, the Q15
+    conversion and the Q15 run. Every one is compared exactly, because the
+    oracle's exact cases need no rounding and the seventh case is integer
+    arithmetic and a saturation count."""
+    lines = []
+    for case in ORACLE["cases"]:
+        data = [q / 32768.0 for q in case["in_q15"]]
+        n = case["nstage"]
+        lines.append("D {} {} {} {}".format(n, len(data), nums(case["coeffs"]),
+                                            nums(data)))
+        lines.append("S {} {} {} {}".format(n, len(data), nums(case["coeffs"]),
+                                            nums(data)))
+        lines.append("Q {} {} {}".format(n, case["post_shift"],
+                                         nums(case["coeffs"])))
+        lines.append("R {} {} {} {} {}".format(n, case["post_shift"],
+                                               len(case["in_q15"]),
+                                               ints(case["coeffs_q15"]),
+                                               ints(case["in_q15"])))
+    answers = cpp(lines)
+    assert len(answers) == 4 * len(ORACLE["cases"])
+
+    for i, case in enumerate(ORACLE["cases"]):
+        f64, f32, conv, run = answers[4 * i:4 * i + 4]
+        assert floats_of(f64) == case["out_f64"], ("f64", case["why"])
+        assert floats_of(f32) == case["out_f32"], ("f32", case["why"])
+        assert [int(t) for t in conv.split()] == case["coeffs_q15"], case["why"]
+        head, *rest = run.split()
+        assert head == "sat={}".format(case["saturations"]), (head, case["why"])
+        assert [int(t) for t in rest] == case["out_q15"], case["why"]
+
+
+def test_the_cpp_matches_the_oracle_on_the_post_shift_and_the_metrics():
+    lines = ["P {} {}".format(c["nstage"], nums(c["coeffs"]))
+             for c in ORACLE["cases"]]
+    for case in ORACLE["metrics"]:
+        lines.append("A {} {} {}".format(len(case["got"]), nums(case["got"]),
+                                         nums(case["ref"])))
+    answers = cpp(lines)
+
+    cascades = answers[:len(ORACLE["cases"])]
+    for case, answer in zip(ORACLE["cases"], cascades):
+        rc, want = py_post_shift(case["coeffs"], case["nstage"])
+        assert rc == 0, case["why"]
+        assert answer == "shift={}".format(want), (answer, case["why"])
+
+    for case, answer in zip(ORACLE["metrics"],
+                            answers[len(ORACLE["cases"]):]):
+        if "error" in case:
+            # A length mismatch cannot reach this filter the way it reaches the
+            # C: the request carries one count for both blocks, so the two
+            # vectors are the same length by construction. The refusal it does
+            # reach is still asserted, and the mismatch case is the one the C
+            # signature now carries and this protocol cannot express.
+            if case["error"] == "argument" and len(case["got"]) != len(case["ref"]):
+                assert answer in ("REFUSED argument", "REFUSED finite"), answer
+                continue
+            assert answer == "REFUSED {}".format(case["error"]), (answer,
+                                                                  case["why"])
+            continue
+        fields = dict(t.split("=", 1) for t in answer.split())
+        assert float(fields["rel_rms"]) == case["rel_rms"], case["why"]
+        assert int(fields["exact"]) == case["exact"], case["why"]
+        if case["exact"]:
+            assert math.isinf(float(fields["snr_db"])), case["why"]
+        else:
+            assert float(fields["snr_db"]) == pytest.approx(case["snr_db"],
+                                                            abs=1e-12)
+
+
+@pytest.mark.parametrize("case", ORACLE["refusals"],
+                         ids=lambda c: c["why"][:46])
+def test_the_cpp_refuses_what_the_other_two_refuse(case):
+    nstage = case.get("nstage", 1)
+    if "shift_error" in case:
+        answer = cpp(["P {} {}".format(nstage, nums(case["coeffs"]))])[0]
+        assert answer == "REFUSED {}".format(case["shift_error"]), answer
+        return
+    answer = cpp(["Q {} {} {}".format(nstage, case["post_shift"],
+                                      nums(case["coeffs"]))])[0]
+    if case.get("fits"):
+        assert not answer.startswith("REFUSED"), answer
+        return
+    assert answer == "REFUSED {}".format(case["error"]), answer
+
+
+def test_all_three_implementations_agree_on_the_design_case():
+    """The 1024 sample design vector through C, Python and C++.
+
+    This is also the one request in the suite long enough to have broken P08's
+    fixed-buffer filter: about twenty five thousand characters on one line.
+    """
+    x = design_input()
+    n = D["nstage"]
+    lines = ["D {} {} {} {}".format(n, len(x), nums(D["coeffs"]), nums(x)),
+             "S {} {} {} {}".format(n, len(x), nums(D["coeffs"]), nums(x))]
+    answers = cpp(lines)
+    f64 = floats_of(answers[0])
+    f32 = floats_of(answers[1])
+
+    rc, ref_py = py_cascade(D["coeffs"], n, x)
+    assert rc == 0
+    rc, single_py = py_cascade(D["coeffs"], n, x, single=True)
+    assert rc == 0
+    assert f64 == ref_py, "the C++ and Python double cascades disagree"
+    assert f32 == single_py, "the C++ and Python single cascades disagree"
+
+    rc, met = py_metrics(f32, f64)
+    assert rc == 0
+    assert met["rel_rms"] <= D["tol_f32_rel_rms"], met["rel_rms"]
+    print("\n  C++ over the design vector: float32 against its own double "
+          "reference, rel RMS {:.3e}, and both cascades bit for bit equal to "
+          "the Python".format(met["rel_rms"]))

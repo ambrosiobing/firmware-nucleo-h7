@@ -57,6 +57,7 @@ RATE_RUST_FILTER = ROOT / "target" / "release" / executable_name("p06-filter")
 GATES_CPP_FILTER = BUILD / executable_name("gates_filter")
 GATES_RUST_FILTER = ROOT / "target" / "release" / executable_name("p12-filter")
 CLOCK_CPP_FILTER = BUILD / executable_name("clocktree_filter")
+DSP_CPP_FILTER = BUILD / executable_name("dspaccept_filter")
 CLOCK_RUST_FILTER = ROOT / "target" / "release" / executable_name("p01-filter")
 
 
@@ -239,6 +240,7 @@ FILTER_BUILD_COMMAND = {
     GATES_CPP_FILTER: BUILD_HOST_CMD,
     GATES_RUST_FILTER: "cargo build --release --workspace",
     CLOCK_CPP_FILTER: BUILD_HOST_CMD,
+    DSP_CPP_FILTER: BUILD_HOST_CMD,
     CLOCK_RUST_FILTER: "cargo build --release --workspace",
 }
 
