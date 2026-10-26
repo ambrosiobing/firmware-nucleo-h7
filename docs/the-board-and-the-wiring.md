@@ -1556,6 +1556,56 @@ maximum as configured. The self test runs at 1 MHz, comfortably inside it.
 > seventy pins where an off-by-one lands on a different net and reads plausibly,
 > which is why those ends carry numbers.
 
+### The bench as it stands, photographed Monday 26 October 2026
+
+![The two boards and the three leads, nothing powered](photos/bench-2026-10-26-leads.jpg)
+
+**What this photograph establishes.** The MCC 118 is seated on the Raspberry Pi 4's
+forty-pin header, which is the only connection between them: no wire runs from the
+HAT to the Pi, because a HAT does not need one. The X-NUCLEO-53L8A1 is stacked on the
+NUCLEO-H7A3ZI-Q's Arduino headers, covering them, which is why both signal leads sit
+on Morpho positions. The micro-USB lead is on CN1, the ST-LINK port. **Three jumper
+leads are fitted, and two of them span the gap between the boards while the third has
+both ends on the Nucleo.**
+
+**That topology is checkable from the picture and it matches the record**, which is
+the only thing a photograph of this bench has ever been able to confirm about the
+wiring: wire one and wire two cross between the boards, and wire three is a jumper
+from PC3 to a ground on the Nucleo's own connectors. **The pin positions are not
+checkable and are not claimed.** A photograph is not a pinout, which this page has
+said since Monday 19 October 2026.
+
+**What makes these pictures worth publishing now rather than then** is that the
+positions they cannot show are no longer only stated. The lead on PB4 carried 60 164
+to 60 189 edges through five captures on Monday 26 October 2026, across all three
+back ends, so the pin named in the table is the pin measured.
+
+![Powered, with the indicators lit](photos/bench-2026-10-26-powered-1.jpg)
+
+![Powered, a second framing](photos/bench-2026-10-26-powered-2.jpg)
+
+**The two powered pictures differ from the first only in that indicators are lit**,
+green on the Nucleo and red on the MCC 118. That was established by counting bright
+green pixels rather than by eye: zero in the first picture, thirty-six and forty-three
+in the other two. **A count of red pixels would not have separated them**, because the
+orange jumper lead trips the same threshold, which is worth recording as the reason
+the green count was used.
+
+**What the red indicator on the HAT means is not claimed.** That board's user guide is
+still unread on this bench, which is also why its input range and its external trigger
+remain open questions in this section.
+
+**Three things about the files themselves**, since this is the first time this
+repository has carried a raster image. They are photographs and not figures: the
+hundred and one figures are SVG under `figures/`, built by `mdbuild.py` from TikZ
+sources that are never published, and mixing primary-source photographs into a
+build-output directory would make both harder to reason about. Every Exif field was
+removed and the rotation applied to the pixels first, because all three were stored
+landscape with an orientation tag and stripping the tag alone would have published
+them sideways. **There was no GPS data in any of them**, checked rather than assumed.
+And they were downscaled to 8.1 per cent of their original 6.9 megabytes, because a
+text repository that doubles in size for three pictures has paid too much for them.
+
 ### Which GND pin, which is the question this section could not answer
 
 **Two of the three lead ends on this bench were recorded as descriptions rather than

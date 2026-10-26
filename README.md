@@ -4,6 +4,16 @@ Twenty self-contained firmware projects on one board that is already on the
 bench, with three sensor shields, one power instrument, one data acquisition hat
 and a drawer of cables. Nothing here needs to be bought.
 
+![The NUCLEO-H7A3ZI-Q with its shield stacked, beside a Raspberry Pi 4 carrying an MCC 118 DAQ HAT, three jumper leads between them](docs/photos/bench-2026-10-26-powered-1.jpg)
+
+*The bench on Monday 26 October 2026. The board under test is on the right with an
+X-NUCLEO-53L8A1 stacked on its Arduino headers; the external witness is on the left,
+an MCC 118 on a Raspberry Pi 4. Three jumper leads: a ground between the boards, the
+marker pin to the HAT's channel 0, and the converter's input tied to a ground on the
+Nucleo itself. Both ends of all three are named in
+[the wiring page](docs/the-board-and-the-wiring.md), and the marker lead carried
+60 164 to 60 189 edges in five sixty-second captures that day.*
+
 **20 chapters, 101 figures.** Each chapter stands on its own: it names its prior
 art and what it takes from it, configures its peripherals, states a memory and
 timing budget, and ends in a number. Each has a project beside it that is the

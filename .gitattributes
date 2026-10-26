@@ -10,3 +10,9 @@
 # Binary formats, never diff or merge these as text
 *.pdf  binary
 *.png  binary
+# *.jpg added Monday 26 October 2026 with the first photographs this repository
+# has carried. png was already here and jpg was not, which would have left git
+# free to treat a photograph as text: that means line-ending normalisation on
+# checkout, which corrupts the file.
+*.jpg  binary
+*.jpeg binary
