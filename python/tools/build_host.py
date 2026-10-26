@@ -582,6 +582,15 @@ def main() -> int:
     shared_lib("dspaccept", [proj("P18", "c") / "dspaccept.c"],
                ["-ffp-contract=off"], includes=[proj("P18", "c")])
 
+    # P13's first code, Monday 26 October 2026: the decode of a drained buffer,
+    # the drop count recovered from the tag counter and the fill-to-drain ratio.
+    # -ffp-contract=off because the ratio is floating point and is compared
+    # against a twin, which is now a rule rather than a habit:
+    # python/tests/test_float_builds_disable_contraction.py enforces it.
+    print("P13, the buffer decode, the drop count and the watermark sizing:")
+    shared_lib("fifodecode", [proj("P13", "c") / "fifodecode.c"],
+               ["-ffp-contract=off"], includes=[proj("P13", "c")])
+
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,

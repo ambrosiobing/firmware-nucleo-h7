@@ -1,0 +1,706 @@
+{
+ "schema": 1,
+ "note": "P13's oracle: the buffer decode of chapter 13 step 6, the drop count of step 7 and the fill-to-drain ratio of step 8. Every decode expectation is integer arithmetic, written by hand from the field layout and checked against the implementation before being emitted, so no decode case passes on a tolerance. The field positions are a stated layout and not a claim about the part: the chapter gives only the word shape, a tag byte and six data bytes, and sends the tag format to each sensor's datasheet. Every finding here holds for any counter field narrower than a byte. The budget cases are floating point and are compared to a relative 1e-12.",
+ "cases": [
+  {
+   "why": "one word of a known tag, and the first word establishes the sequence rather than being measured against a zero nobody wrote",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "first_bytes": [
+    8
+   ],
+   "words": 1,
+   "unknown_tag": 0,
+   "drops": 0,
+   "gaps": 0,
+   "per_tag": {
+    "1": 1
+   }
+  },
+  {
+   "why": "eight clean slots, the counter wrapping twice, no drops",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "first_bytes": [
+    8,
+    18,
+    12,
+    22,
+    8,
+    18,
+    12,
+    22
+   ],
+   "words": 8,
+   "unknown_tag": 0,
+   "drops": 0,
+   "gaps": 0,
+   "per_tag": {
+    "1": 4,
+    "2": 4
+   }
+  },
+  {
+   "why": "one slot lost in the middle, which is one drop",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "first_bytes": [
+    8,
+    18,
+    14
+   ],
+   "words": 3,
+   "unknown_tag": 0,
+   "drops": 1,
+   "gaps": 1,
+   "per_tag": {
+    "1": 2,
+    "2": 1
+   }
+  },
+  {
+   "why": "THE DROP THAT CROSSES THE FIELD'S WRAP: expecting 3 and seeing 0 is one lost slot, and the chapter's byte-wide subtraction calls it 253",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "first_bytes": [
+    8,
+    18,
+    12,
+    16
+   ],
+   "words": 4,
+   "unknown_tag": 0,
+   "drops": 1,
+   "gaps": 1,
+   "per_tag": {
+    "1": 2,
+    "2": 2
+   }
+  },
+  {
+   "why": "THE FIRST DRAIN BEGINNING AT COUNTER THREE, which is ordinary because the buffer has been batching since it was configured, and which the chapter's version opens by calling three drops",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "first_bytes": [
+    14,
+    16,
+    10,
+    20
+   ],
+   "words": 4,
+   "unknown_tag": 0,
+   "drops": 0,
+   "gaps": 0,
+   "per_tag": {
+    "1": 2,
+    "2": 2
+   }
+  },
+  {
+   "why": "a tag nobody batched is counted and not decoded, because a word from an unexpected source is a finding",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "first_bytes": [
+    8,
+    42,
+    20
+   ],
+   "words": 3,
+   "unknown_tag": 1,
+   "drops": 0,
+   "gaps": 0,
+   "per_tag": {
+    "1": 1,
+    "2": 1
+   }
+  },
+  {
+   "why": "two separate gaps, so the count of gaps and the sum of them differ",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "first_bytes": [
+    8,
+    20,
+    14,
+    18
+   ],
+   "words": 4,
+   "unknown_tag": 0,
+   "drops": 2,
+   "gaps": 2,
+   "per_tag": {
+    "1": 2,
+    "2": 2
+   }
+  },
+  {
+   "why": "A COUNTER THAT APPEARS TO GO BACKWARDS is a gap too, and a large one: from 2 to 1 in a four-value field is three advances of which two are lost, so this is four drops across three gaps and not two of each, which is what the first hand-written version of this case said",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "first_bytes": [
+    8,
+    20,
+    10,
+    22
+   ],
+   "words": 4,
+   "unknown_tag": 0,
+   "drops": 4,
+   "gaps": 3,
+   "per_tag": {
+    "1": 2,
+    "2": 2
+   }
+  },
+  {
+   "why": "no words at all is a decode of nothing rather than a refusal, because a level register of zero is an ordinary reading",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "first_bytes": [],
+   "words": 0,
+   "unknown_tag": 0,
+   "drops": 0,
+   "gaps": 0,
+   "per_tag": {}
+  }
+ ],
+ "gaps": [
+  {
+   "expect": 0,
+   "cnt": 0,
+   "cnt_bits": 1,
+   "gap": 0,
+   "chapter": 0
+  },
+  {
+   "expect": 0,
+   "cnt": 1,
+   "cnt_bits": 1,
+   "gap": 1,
+   "chapter": 1
+  },
+  {
+   "expect": 1,
+   "cnt": 0,
+   "cnt_bits": 1,
+   "gap": 1,
+   "chapter": 255
+  },
+  {
+   "expect": 0,
+   "cnt": 0,
+   "cnt_bits": 1,
+   "gap": 0,
+   "chapter": 0
+  },
+  {
+   "expect": 1,
+   "cnt": 0,
+   "cnt_bits": 1,
+   "gap": 1,
+   "chapter": 255
+  },
+  {
+   "expect": 0,
+   "cnt": 0,
+   "cnt_bits": 2,
+   "gap": 0,
+   "chapter": 0
+  },
+  {
+   "expect": 0,
+   "cnt": 1,
+   "cnt_bits": 2,
+   "gap": 1,
+   "chapter": 1
+  },
+  {
+   "expect": 3,
+   "cnt": 0,
+   "cnt_bits": 2,
+   "gap": 1,
+   "chapter": 253
+  },
+  {
+   "expect": 2,
+   "cnt": 0,
+   "cnt_bits": 2,
+   "gap": 2,
+   "chapter": 254
+  },
+  {
+   "expect": 1,
+   "cnt": 0,
+   "cnt_bits": 2,
+   "gap": 3,
+   "chapter": 255
+  },
+  {
+   "expect": 0,
+   "cnt": 0,
+   "cnt_bits": 3,
+   "gap": 0,
+   "chapter": 0
+  },
+  {
+   "expect": 0,
+   "cnt": 1,
+   "cnt_bits": 3,
+   "gap": 1,
+   "chapter": 1
+  },
+  {
+   "expect": 7,
+   "cnt": 0,
+   "cnt_bits": 3,
+   "gap": 1,
+   "chapter": 249
+  },
+  {
+   "expect": 6,
+   "cnt": 0,
+   "cnt_bits": 3,
+   "gap": 2,
+   "chapter": 250
+  },
+  {
+   "expect": 1,
+   "cnt": 0,
+   "cnt_bits": 3,
+   "gap": 7,
+   "chapter": 255
+  },
+  {
+   "expect": 0,
+   "cnt": 0,
+   "cnt_bits": 4,
+   "gap": 0,
+   "chapter": 0
+  },
+  {
+   "expect": 0,
+   "cnt": 1,
+   "cnt_bits": 4,
+   "gap": 1,
+   "chapter": 1
+  },
+  {
+   "expect": 15,
+   "cnt": 0,
+   "cnt_bits": 4,
+   "gap": 1,
+   "chapter": 241
+  },
+  {
+   "expect": 14,
+   "cnt": 0,
+   "cnt_bits": 4,
+   "gap": 2,
+   "chapter": 242
+  },
+  {
+   "expect": 1,
+   "cnt": 0,
+   "cnt_bits": 4,
+   "gap": 15,
+   "chapter": 255
+  },
+  {
+   "expect": 0,
+   "cnt": 0,
+   "cnt_bits": 8,
+   "gap": 0,
+   "chapter": 0
+  },
+  {
+   "expect": 0,
+   "cnt": 1,
+   "cnt_bits": 8,
+   "gap": 1,
+   "chapter": 1
+  },
+  {
+   "expect": 255,
+   "cnt": 0,
+   "cnt_bits": 8,
+   "gap": 1,
+   "chapter": 1
+  },
+  {
+   "expect": 254,
+   "cnt": 0,
+   "cnt_bits": 8,
+   "gap": 2,
+   "chapter": 2
+  },
+  {
+   "expect": 1,
+   "cnt": 0,
+   "cnt_bits": 8,
+   "gap": 255,
+   "chapter": 255
+  }
+ ],
+ "refusals": [
+  {
+   "why": "a word of zero bytes",
+   "fmt": {
+    "word_bytes": 0,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "error": "format"
+  },
+  {
+   "why": "a word longer than the bound",
+   "fmt": {
+    "word_bytes": 17,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "error": "format"
+  },
+  {
+   "why": "a counter of zero bits",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 0,
+    "known_tags": 6
+   },
+   "error": "format"
+  },
+  {
+   "why": "a counter wider than a byte",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 9,
+    "known_tags": 6
+   },
+   "error": "format"
+  },
+  {
+   "why": "a tag shift leaving more tag values than the table holds, refused rather than truncated, because truncating would merge two sources",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 2,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "error": "format"
+  },
+  {
+   "why": "more words than the landing buffer can hold, refused rather than clamped, because a level register driving a read past the end of a buffer is the fault the clamp in step 6 exists to prevent",
+   "fmt": {
+    "word_bytes": 7,
+    "tag_shift": 3,
+    "cnt_shift": 1,
+    "cnt_bits": 2,
+    "known_tags": 6
+   },
+   "words": 1025,
+   "error": "words"
+  }
+ ],
+ "budgets": [
+  {
+   "why": "CHAPTER 13'S OWN NUMBERS: step 4 batches the accelerometer and the gyroscope at 104 Hz each, step 6 decodes both tags, and step 8 prints fill 1230 ms, which is 128 / 104. Two sources fill it at 208 entries a second, so the fill time is half what is printed and the safety ratio is optimistic by the number of batched sources",
+   "spec": {
+    "watermark_words": 128,
+    "sources": 2,
+    "word_bytes": 7,
+    "cnt_bits": 2,
+    "batch_hz": [
+     104.0,
+     104.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bus_hz": 400000.0,
+    "decode_us_per_word": 0.0
+   },
+   "entries_per_s": 208.0,
+   "fill_ms": 615.3846153846154,
+   "chapter_fill_ms": 1230.7692307692307,
+   "drain_us": 20210.0,
+   "ratio": 30.449510904731092,
+   "ratio_ok": 1,
+   "undetectable_gap": 4
+  },
+  {
+   "why": "one source only, where the chapter's form and this one agree exactly",
+   "spec": {
+    "watermark_words": 128,
+    "sources": 1,
+    "word_bytes": 7,
+    "cnt_bits": 2,
+    "batch_hz": [
+     104.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bus_hz": 400000.0,
+    "decode_us_per_word": 0.0
+   },
+   "entries_per_s": 104.0,
+   "fill_ms": 1230.7692307692307,
+   "chapter_fill_ms": 1230.7692307692307,
+   "drain_us": 20210.0,
+   "ratio": 60.899021809462184,
+   "ratio_ok": 1,
+   "undetectable_gap": 4
+  },
+  {
+   "why": "four sources at different rates, where the chapter's form is wrong by the ratio of the sum to the first rather than by a count",
+   "spec": {
+    "watermark_words": 128,
+    "sources": 4,
+    "word_bytes": 7,
+    "cnt_bits": 2,
+    "batch_hz": [
+     104.0,
+     104.0,
+     52.0,
+     26.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bus_hz": 400000.0,
+    "decode_us_per_word": 0.0
+   },
+   "entries_per_s": 286.0,
+   "fill_ms": 447.5524475524476,
+   "chapter_fill_ms": 1230.7692307692307,
+   "drain_us": 20210.0,
+   "ratio": 22.145098839804433,
+   "ratio_ok": 1,
+   "undetectable_gap": 4
+  },
+  {
+   "why": "a decode cost that dominates the transaction, which is what step 8 says to measure with the cycle counter rather than assume",
+   "spec": {
+    "watermark_words": 128,
+    "sources": 2,
+    "word_bytes": 7,
+    "cnt_bits": 2,
+    "batch_hz": [
+     104.0,
+     104.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bus_hz": 400000.0,
+    "decode_us_per_word": 40.0
+   },
+   "entries_per_s": 208.0,
+   "fill_ms": 615.3846153846154,
+   "chapter_fill_ms": 1230.7692307692307,
+   "drain_us": 25330.0,
+   "ratio": 24.294694646056666,
+   "ratio_ok": 1,
+   "undetectable_gap": 4
+  }
+ ],
+ "budget_refusals": [
+  {
+   "why": "no batched sources",
+   "spec": {
+    "watermark_words": 128,
+    "sources": 0,
+    "word_bytes": 7,
+    "cnt_bits": 2,
+    "batch_hz": [
+     104.0,
+     104.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bus_hz": 400000.0,
+    "decode_us_per_word": 0.0
+   },
+   "error": "sources"
+  },
+  {
+   "why": "more sources than the bound",
+   "spec": {
+    "watermark_words": 128,
+    "sources": 9,
+    "word_bytes": 7,
+    "cnt_bits": 2,
+    "batch_hz": [
+     104.0,
+     104.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bus_hz": 400000.0,
+    "decode_us_per_word": 0.0
+   },
+   "error": "sources"
+  },
+  {
+   "why": "a batching rate of zero, which would divide by nothing",
+   "spec": {
+    "watermark_words": 128,
+    "sources": 2,
+    "word_bytes": 7,
+    "cnt_bits": 2,
+    "batch_hz": [
+     104.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bus_hz": 400000.0,
+    "decode_us_per_word": 0.0
+   },
+   "error": "rate"
+  },
+  {
+   "why": "a bus rate of zero",
+   "spec": {
+    "watermark_words": 128,
+    "sources": 2,
+    "word_bytes": 7,
+    "cnt_bits": 2,
+    "batch_hz": [
+     104.0,
+     104.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bus_hz": 0.0,
+    "decode_us_per_word": 0.0
+   },
+   "error": "rate"
+  },
+  {
+   "why": "a watermark of zero words",
+   "spec": {
+    "watermark_words": 0,
+    "sources": 2,
+    "word_bytes": 7,
+    "cnt_bits": 2,
+    "batch_hz": [
+     104.0,
+     104.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bus_hz": 400000.0,
+    "decode_us_per_word": 0.0
+   },
+   "error": "words"
+  },
+  {
+   "why": "a negative decode cost",
+   "spec": {
+    "watermark_words": 128,
+    "sources": 2,
+    "word_bytes": 7,
+    "cnt_bits": 2,
+    "batch_hz": [
+     104.0,
+     104.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bus_hz": 400000.0,
+    "decode_us_per_word": -1.0
+   },
+   "error": "rate"
+  }
+ ]
+}
