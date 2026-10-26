@@ -22,6 +22,7 @@ members = [
     "projects/P08-node-state-machine/rust",
     "projects/P09-payload-codec/rust",
     "projects/P12-energy-regression/rust",
+    "projects/P18-transforms-filters/rust",
 ]
 
 # One target directory for the whole workspace, at this level, which is why

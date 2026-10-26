@@ -1,0 +1,34 @@
+[package]
+name = "p18-dspaccept"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P18's biquad cascade in three numeric formats and chapter 18's two acceptance metrics, against the same oracle as the C, C++ and Python"
+license = "MIT"
+publish = false
+
+# No dependencies, by the rule the other three implementations follow, and here
+# that rule costs something worth recording. There is no trait in the standard
+# library that f32 and f64 share for multiply and add, so a cascade generic over
+# the width needs either num-traits or a locally defined trait. One macro_rules!
+# body produces both functions instead, which is one source of truth like the
+# C++ template and a different route to it. src/lib.rs says so at the macro.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p18_dspaccept"
+path = "src/lib.rs"
+
+# The filter speaks the same protocol as ../cpp/dspaccept_filter.cpp, so one
+# parity test drives both with the same code. Six verbs, counts before data.
+[[bin]]
+name = "p18-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.

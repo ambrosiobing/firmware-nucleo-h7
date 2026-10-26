@@ -39,8 +39,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, DSP_CPP_FILTER, require_artefact,  # noqa: E501
-                      run_filter, shared_library_name)
+from conftest import (BUILD, DSP_CPP_FILTER, DSP_RUST_FILTER,  # noqa: E501
+                      require_artefact, run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P18-transforms-filters"
@@ -501,15 +501,25 @@ def ints(values):
     return " ".join(str(int(v)) for v in values)
 
 
-def cpp(lines, required=False):
-    return run_filter(DSP_CPP_FILTER, lines, required=required)
+# The C++ and the Rust speak one protocol, so every test below runs over both.
+# The ids are the language, so a failure names which one disagreed.
+FILTERS = [(DSP_CPP_FILTER, "cpp"), (DSP_RUST_FILTER, "rust")]
+FILTER_IDS = [name for _, name in FILTERS]
+FILTER_PATHS = [path for path, _ in FILTERS]
+
+
+def via_filter(lines, path, required=False):
+    """One process for the whole run, which is conftest's rule and why it
+    exists: a request per process would measure the operating system."""
+    return run_filter(path, lines, required=required)
 
 
 def floats_of(answer):
     return [float(t) for t in answer.split()]
 
 
-def test_the_cpp_matches_the_oracle_on_every_cascade_and_conversion():
+@pytest.mark.parametrize("path", FILTER_PATHS, ids=FILTER_IDS)
+def test_each_filter_matches_the_oracle_on_every_cascade_and_conversion(path):
     """Four requests per case: the double path, the single path, the Q15
     conversion and the Q15 run. Every one is compared exactly, because the
     oracle's exact cases need no rounding and the seventh case is integer
@@ -528,7 +538,7 @@ def test_the_cpp_matches_the_oracle_on_every_cascade_and_conversion():
                                                len(case["in_q15"]),
                                                ints(case["coeffs_q15"]),
                                                ints(case["in_q15"])))
-    answers = cpp(lines)
+    answers = via_filter(lines, path)
     assert len(answers) == 4 * len(ORACLE["cases"])
 
     for i, case in enumerate(ORACLE["cases"]):
@@ -541,7 +551,8 @@ def test_the_cpp_matches_the_oracle_on_every_cascade_and_conversion():
         assert [int(t) for t in rest] == case["out_q15"], case["why"]
 
 
-def test_the_cpp_matches_the_oracle_on_the_post_shift_and_the_metrics():
+@pytest.mark.parametrize("path", FILTER_PATHS, ids=FILTER_IDS)
+def test_each_filter_matches_the_oracle_on_the_post_shift_and_the_metrics(path):
     lines = ["P {} {}".format(c["nstage"], nums(c["coeffs"]))
              for c in ORACLE["cases"]]
     # THE LENGTH-MISMATCH CASE IS NOT SENT, and that is a property of the
@@ -562,7 +573,7 @@ def test_the_cpp_matches_the_oracle_on_the_post_shift_and_the_metrics():
     for case in sendable:
         lines.append("A {} {} {}".format(len(case["got"]), nums(case["got"]),
                                          nums(case["ref"])))
-    answers = cpp(lines)
+    answers = via_filter(lines, path)
 
     cascades = answers[:len(ORACLE["cases"])]
     for case, answer in zip(ORACLE["cases"], cascades):
@@ -586,9 +597,10 @@ def test_the_cpp_matches_the_oracle_on_the_post_shift_and_the_metrics():
                                                             abs=1e-12)
 
 
+@pytest.mark.parametrize("path", FILTER_PATHS, ids=FILTER_IDS)
 @pytest.mark.parametrize("case", ORACLE["refusals"],
                          ids=lambda c: c["why"][:46])
-def test_the_cpp_refuses_what_the_other_two_refuse(case):
+def test_each_filter_refuses_what_the_library_refuses(case, path):
     """Each request carries exactly the number of values its count declares.
 
     Under a counts-first protocol that is what well formed means, and it is not
@@ -602,18 +614,19 @@ def test_the_cpp_refuses_what_the_other_two_refuse(case):
     nstage = case.get("nstage", 1)
     coeffs = case["coeffs"][:nstage * PER]
     if "shift_error" in case:
-        answer = cpp(["P {} {}".format(nstage, nums(coeffs))])[0]
+        answer = via_filter(["P {} {}".format(nstage, nums(coeffs))], path)[0]
         assert answer == "REFUSED {}".format(case["shift_error"]), answer
         return
-    answer = cpp(["Q {} {} {}".format(nstage, case["post_shift"],
-                                      nums(coeffs))])[0]
+    answer = via_filter(["Q {} {} {}".format(nstage, case["post_shift"],
+                                             nums(coeffs))], path)[0]
     if case.get("fits"):
         assert not answer.startswith("REFUSED"), answer
         return
     assert answer == "REFUSED {}".format(case["error"]), answer
 
 
-def test_all_three_implementations_agree_on_the_design_case():
+@pytest.mark.parametrize("path", FILTER_PATHS, ids=FILTER_IDS)
+def test_every_implementation_agrees_on_the_design_case(path):
     """The 1024 sample design vector through C, Python and C++.
 
     This is also the one request in the suite long enough to have broken P08's
@@ -623,7 +636,7 @@ def test_all_three_implementations_agree_on_the_design_case():
     n = D["nstage"]
     lines = ["D {} {} {} {}".format(n, len(x), nums(D["coeffs"]), nums(x)),
              "S {} {} {} {}".format(n, len(x), nums(D["coeffs"]), nums(x))]
-    answers = cpp(lines)
+    answers = via_filter(lines, path)
     f64 = floats_of(answers[0])
     f32 = floats_of(answers[1])
 

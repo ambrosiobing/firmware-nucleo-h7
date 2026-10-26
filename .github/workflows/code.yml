@@ -238,6 +238,12 @@ jobs:
       # crate, which is a cost of the language in the direction people do not
       # usually expect.
       #
+      # p18-dspaccept is absent for the same reason, added Monday
+      # 26 October 2026: its acceptance metrics need sqrt and log10. Two crates
+      # now say it, which makes it a property of the language on this part
+      # rather than an anecdote about one file, and its C cross-compiles
+      # unchanged exactly as rate.c does.
+      #
       # p12-gates IS here, and it came within one call of P06's fate. Its charge
       # gate reconciles a reported total against the sum of its phases, and the
       # obvious spelling of that needs f64::abs, which is in std for the same

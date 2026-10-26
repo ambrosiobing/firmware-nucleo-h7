@@ -1,6 +1,6 @@
 # P18: Transforms and filters with a numerical acceptance test
 
-Status: c=host cpp=host python=host rust=none
+Status: c=host cpp=host python=host rust=host
 
 **Started on the host, Monday 26 October 2026.** One biquad cascade in double,
 in single and in Q15, over the same coefficients and the same input, plus the two
@@ -21,6 +21,7 @@ stated tolerance, with cycles per transform reported and the cache state named.
 | `c/dspaccept.c`, three formats of one cascade and both metrics | 7 oracle cases, 5 metric cases, 8 refusals, and `-Wconversion -Wsign-conversion -Wdouble-promotion -Wpedantic` |
 | `python/dspaccept.py`, the twin, standard library only | the same cases, and a pairwise comparison on the real design |
 | `cpp/dspaccept.hpp`, one template at double and at float | the same cases through a filter, and the design vector three ways |
+| `rust/src/lib.rs`, one macro body at both widths | the same cases through the same protocol, plus four unit tests |
 | `vectors.json`, the oracle | **recomputed in exact rational arithmetic inside the test, on every run** |
 
 **Six of the seven cascade cases are exact in all three formats at once.** Their
