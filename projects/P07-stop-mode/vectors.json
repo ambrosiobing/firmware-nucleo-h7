@@ -1,0 +1,547 @@
+{
+ "schema": 1,
+ "note": "P07's oracle: the cycle segmentation of chapter 7 step 8, the report step 8 defines, and the battery arithmetic of step 10. Traces are stored as a recipe and built by the test with the same ten lines for both implementations, because a recipe is checkable and a thousand numbers are not. Every current is a power of two and the sample rate is 1024 Hz, so every charge is exact in binary and no case passes on a tolerance. The cell and the sleep current in the lifetime cases are ASSUMPTIONS, named as such, and the energy per cycle is the only measurement-shaped number there.",
+ "traces": [
+  {
+   "why": "eleven marker pulses after a low lead: ten complete cycles, each a flat 128 microamps over sixteen samples at 1024 Hz, which is exactly 2 microcoulombs",
+   "spec": {
+    "period": 16,
+    "high": 4,
+    "pulses": 11,
+    "current_per_cycle": [
+     128.0
+    ],
+    "lead_low": 8
+   },
+   "fs_hz": 1024.0,
+   "cycle_bit": 0,
+   "count": 10,
+   "charges_uc": [
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  {
+   "why": "THE CHAPTER'S OWN STEP 9 CONSTRUCTION: ten marker pulses with the trace beginning while the marker is already high, so the first cycle has no rising edge in front of it. Ten pulses bound EIGHT complete cycles, and step 9 asserts nine",
+   "spec": {
+    "period": 16,
+    "high": 4,
+    "pulses": 10,
+    "current_per_cycle": [
+     128.0
+    ]
+   },
+   "fs_hz": 1024.0,
+   "cycle_bit": 0,
+   "count": 8,
+   "charges_uc": [
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  {
+   "why": "four different currents in rotation, so the spread is not zero and the median is not the mean",
+   "spec": {
+    "period": 16,
+    "high": 4,
+    "pulses": 12,
+    "lead_low": 8,
+    "current_per_cycle": [
+     128.0,
+     256.0,
+     64.0,
+     512.0
+    ]
+   },
+   "fs_hz": 1024.0,
+   "cycle_bit": 0,
+   "count": 11,
+   "charges_uc": [
+    2.0,
+    4.0,
+    1.0,
+    8.0,
+    2.0,
+    4.0,
+    1.0,
+    8.0,
+    2.0,
+    4.0,
+    1.0
+   ]
+  },
+  {
+   "why": "ONE SAMPLE OF 4096 MICROAMPS AT INDEX 23, the last low sample before a rise and therefore still inside the first cycle. The chapter's window starts at the rise index rather than one past it, so it attributes this sample to the SECOND cycle",
+   "spec": {
+    "period": 16,
+    "high": 4,
+    "pulses": 11,
+    "current_per_cycle": [
+     128.0
+    ],
+    "lead_low": 8,
+    "override": {
+     "23": 4096.0
+    }
+   },
+   "fs_hz": 1024.0,
+   "cycle_bit": 0,
+   "count": 10,
+   "charges_uc": [
+    5.875,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  {
+   "why": "a marker that never rises: no complete cycle, which is a count of zero rather than a refusal",
+   "spec": {
+    "period": 16,
+    "high": 0,
+    "pulses": 11,
+    "current_per_cycle": [
+     128.0
+    ]
+   },
+   "fs_hz": 1024.0,
+   "cycle_bit": 0,
+   "count": 0,
+   "charges_uc": []
+  }
+ ],
+ "trace_refusals": [
+  {
+   "why": "no samples",
+   "n": 0,
+   "fs_hz": 1024.0,
+   "cycle_bit": 0,
+   "error": "argument"
+  },
+  {
+   "why": "a sample rate of zero",
+   "n": 16,
+   "fs_hz": 0.0,
+   "cycle_bit": 0,
+   "error": "rate"
+  },
+  {
+   "why": "a negative sample rate",
+   "n": 16,
+   "fs_hz": -1024.0,
+   "cycle_bit": 0,
+   "error": "rate"
+  },
+  {
+   "why": "a marker bit outside a byte",
+   "n": 16,
+   "fs_hz": 1024.0,
+   "cycle_bit": 8,
+   "error": "bit"
+  }
+ ],
+ "reports": [
+  {
+   "why": "ten identical cycles: the spread is exactly zero, which is the result a duty-cycled design wants",
+   "charges_uc": [
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ],
+   "volts": 3.3,
+   "min_cycles": 10,
+   "cycles": 10,
+   "median_uc": 2.0,
+   "min_uc": 2.0,
+   "max_uc": 2.0,
+   "spread_pct": 0.0,
+   "energy_median_uj": 6.6
+  },
+  {
+   "why": "ten cycles with one outlier, where the median holds and the spread does not",
+   "charges_uc": [
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    4.0
+   ],
+   "volts": 3.3,
+   "min_cycles": 10,
+   "cycles": 10,
+   "median_uc": 2.0,
+   "min_uc": 2.0,
+   "max_uc": 4.0,
+   "spread_pct": 100.0,
+   "energy_median_uj": 6.6
+  },
+  {
+   "why": "an even count, so the median is the mean of the two middle values, which is what the chapter's library does",
+   "charges_uc": [
+    1.0,
+    2.0,
+    4.0,
+    8.0,
+    16.0,
+    32.0,
+    64.0,
+    128.0,
+    256.0,
+    512.0
+   ],
+   "volts": 3.0,
+   "min_cycles": 10,
+   "cycles": 10,
+   "median_uc": 24.0,
+   "min_uc": 1.0,
+   "max_uc": 512.0,
+   "spread_pct": 2129.1666666666665,
+   "energy_median_uj": 72.0
+  },
+  {
+   "why": "eleven cycles, an odd count, so the median is a value that occurs",
+   "charges_uc": [
+    1.0,
+    2.0,
+    4.0,
+    8.0,
+    16.0,
+    32.0,
+    64.0,
+    128.0,
+    256.0,
+    512.0,
+    1024.0
+   ],
+   "volts": 3.0,
+   "min_cycles": 10,
+   "cycles": 11,
+   "median_uc": 32.0,
+   "min_uc": 1.0,
+   "max_uc": 1024.0,
+   "spread_pct": 3196.875,
+   "energy_median_uj": 96.0
+  },
+  {
+   "why": "ten cycles that drew nothing at all, where the spread has no denominator and is reported as zero rather than as a division",
+   "charges_uc": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "volts": 3.3,
+   "min_cycles": 10,
+   "cycles": 10,
+   "median_uc": 0.0,
+   "min_uc": 0.0,
+   "max_uc": 0.0,
+   "spread_pct": 0.0,
+   "energy_median_uj": 0.0
+  }
+ ],
+ "report_refusals": [
+  {
+   "why": "nine cycles against the chapter's own floor of ten, refused because reporting a median and a spread over fewer is a number that looks like the one step 8 asks for and is not",
+   "charges_uc": [
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ],
+   "volts": 3.3,
+   "min_cycles": 10,
+   "error": "cycles"
+  },
+  {
+   "why": "no cycles at all",
+   "charges_uc": [],
+   "volts": 3.3,
+   "min_cycles": 10,
+   "error": "cycles"
+  },
+  {
+   "why": "a supply of zero volts",
+   "charges_uc": [
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ],
+   "volts": 0.0,
+   "min_cycles": 10,
+   "error": "supply"
+  },
+  {
+   "why": "more cycles than the bound holds",
+   "charges_uc": [
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ],
+   "volts": 3.3,
+   "min_cycles": 10,
+   "error": "room"
+  }
+ ],
+ "lifetimes": [
+  {
+   "why": "cycling for every second of the day, where the two forms must agree because there is no uncovered time to disagree about",
+   "spec": {
+    "energy_per_cycle_uj": 330.0,
+    "cycles_per_day": 86400.0,
+    "cycle_period_s": 1.0,
+    "sleep_ua": 2.0,
+    "sleep_volts": 3.3,
+    "cell_mah": 225.0,
+    "cell_volts": 3.0
+   },
+   "cell_j": 2430.0,
+   "covered_s": 86400.0,
+   "uncovered_s": 0.0,
+   "cycle_j_per_day": 28.512,
+   "uncovered_j_per_day": 0.0,
+   "days": 85.22727272727272,
+   "days_chapter": 85.22727272727272,
+   "covers_the_day": 1
+  },
+  {
+   "why": "1440 cycles of one second a day, one a minute: 1440 seconds covered of 86400",
+   "spec": {
+    "energy_per_cycle_uj": 330.0,
+    "cycles_per_day": 1440.0,
+    "cycle_period_s": 1.0,
+    "sleep_ua": 2.0,
+    "sleep_volts": 3.3,
+    "cell_mah": 225.0,
+    "cell_volts": 3.0
+   },
+   "cell_j": 2430.0,
+   "covered_s": 1440.0,
+   "uncovered_s": 84960.0,
+   "cycle_j_per_day": 0.4752,
+   "uncovered_j_per_day": 0.5607359999999999,
+   "days": 2345.7047539616347,
+   "days_chapter": 5113.636363636364,
+   "covers_the_day": 0
+  },
+  {
+   "why": "ONE HUNDRED CYCLES A DAY, which covers 100 seconds of 86400 and leaves the other 86300 costing nothing at all in step 10's form",
+   "spec": {
+    "energy_per_cycle_uj": 330.0,
+    "cycles_per_day": 100.0,
+    "cycle_period_s": 1.0,
+    "sleep_ua": 2.0,
+    "sleep_volts": 3.3,
+    "cell_mah": 225.0,
+    "cell_volts": 3.0
+   },
+   "cell_j": 2430.0,
+   "covered_s": 100.0,
+   "uncovered_s": 86300.0,
+   "cycle_j_per_day": 0.033,
+   "uncovered_j_per_day": 0.56958,
+   "days": 4032.659563875336,
+   "days_chapter": 73636.36363636363,
+   "covers_the_day": 0
+  },
+  {
+   "why": "the same hundred cycles with no sleep current assumed, which is the only assumption under which step 10's form is right",
+   "spec": {
+    "energy_per_cycle_uj": 330.0,
+    "cycles_per_day": 100.0,
+    "cycle_period_s": 1.0,
+    "sleep_ua": 0.0,
+    "sleep_volts": 3.3,
+    "cell_mah": 225.0,
+    "cell_volts": 3.0
+   },
+   "cell_j": 2430.0,
+   "covered_s": 100.0,
+   "uncovered_s": 86300.0,
+   "cycle_j_per_day": 0.033,
+   "uncovered_j_per_day": 0.0,
+   "days": 73636.36363636363,
+   "days_chapter": 73636.36363636363,
+   "covers_the_day": 0
+  }
+ ],
+ "lifetime_refusals": [
+  {
+   "why": "more cycling than there is day for, refused rather than reported",
+   "spec": {
+    "energy_per_cycle_uj": 330.0,
+    "cycles_per_day": 86401.0,
+    "cycle_period_s": 1.0,
+    "sleep_ua": 2.0,
+    "sleep_volts": 3.3,
+    "cell_mah": 225.0,
+    "cell_volts": 3.0
+   },
+   "error": "day"
+  },
+  {
+   "why": "an energy per cycle of zero",
+   "spec": {
+    "energy_per_cycle_uj": 0.0,
+    "cycles_per_day": 86400.0,
+    "cycle_period_s": 1.0,
+    "sleep_ua": 2.0,
+    "sleep_volts": 3.3,
+    "cell_mah": 225.0,
+    "cell_volts": 3.0
+   },
+   "error": "supply"
+  },
+  {
+   "why": "a cell of no capacity",
+   "spec": {
+    "energy_per_cycle_uj": 330.0,
+    "cycles_per_day": 86400.0,
+    "cycle_period_s": 1.0,
+    "sleep_ua": 2.0,
+    "sleep_volts": 3.3,
+    "cell_mah": 0.0,
+    "cell_volts": 3.0
+   },
+   "error": "supply"
+  },
+  {
+   "why": "a negative sleep current",
+   "spec": {
+    "energy_per_cycle_uj": 330.0,
+    "cycles_per_day": 86400.0,
+    "cycle_period_s": 1.0,
+    "sleep_ua": -1.0,
+    "sleep_volts": 3.3,
+    "cell_mah": 225.0,
+    "cell_volts": 3.0
+   },
+   "error": "supply"
+  },
+  {
+   "why": "a cycle period of zero",
+   "spec": {
+    "energy_per_cycle_uj": 330.0,
+    "cycles_per_day": 86400.0,
+    "cycle_period_s": 0.0,
+    "sleep_ua": 2.0,
+    "sleep_volts": 3.3,
+    "cell_mah": 225.0,
+    "cell_volts": 3.0
+   },
+   "error": "supply"
+  }
+ ]
+}

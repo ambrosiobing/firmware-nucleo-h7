@@ -599,6 +599,14 @@ def main() -> int:
     shared_lib("recdecode", [proj("P14", "c") / "recdecode.c"],
                ["-ffp-contract=off"], includes=[proj("P14", "c")])
 
+    # P07's first code, Monday 26 October 2026, and chapter 7 step 9 asked for
+    # it in these words: the segmentation is the fragile part, so it is tested
+    # on the host against a trace whose answer is known by construction, in
+    # continuous integration, with no instrument attached.
+    print("P07, the cycle segmentation, the spread and the battery sum:")
+    shared_lib("cyclecharge", [proj("P07", "c") / "cyclecharge.c"],
+               ["-ffp-contract=off"], includes=[proj("P07", "c")])
+
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
