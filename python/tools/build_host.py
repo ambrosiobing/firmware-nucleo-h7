@@ -31,6 +31,8 @@ it is now in the order the script produces them:
   frame_filter            P05's C++ variant
   node_sm.{dll,so}        P08's state machine, linking P09's codec
   node_sm_filter          P08's C++ variant
+  rxspan.{dll,so}         P04's span arithmetic
+  zonetrack.{dll,so}      P15's hysteresis
   rate.{dll,so}           P06's rate witness
   rate_filter             P06's C++ variant
   gates.{dll,so}          P12's size and charge gates
@@ -528,6 +530,15 @@ def main() -> int:
     # most two spans. The counter read, the three handlers and the cache
     # invalidate still need the board, and the project's status line says host
     # rather than board for that reason.
+    # P15's first code, Monday 26 October 2026, and scoped to what the chapter
+    # actually specifies. Figure 15.4 draws the four states with their
+    # conditions and step 9 gives the thresholds; the validity filter and the
+    # status byte need six constants the chapter gives nowhere, and this project
+    # does not invent them.
+    print("P15, the hysteresis that stops the status byte chattering:")
+    shared_lib("zonetrack", [proj("P15", "c") / "zonetrack.c"],
+               includes=[proj("P15", "c")])
+
     print("P04, the span arithmetic of the idle-line receive path:")
     shared_lib("rxspan", [proj("P04", "c") / "rxspan.c"],
                includes=[proj("P04", "c")])

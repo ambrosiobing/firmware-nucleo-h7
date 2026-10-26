@@ -113,8 +113,8 @@ implementation.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Nine of the twenty have code.** 513 checks, of which 283 pass on a laptop with
-no board, no probe, no Raspberry Pi and no compiler; the other 230 need a compiler
+**Ten of the twenty have code.** 555 checks, of which 302 pass on a laptop with
+no board, no probe, no Raspberry Pi and no compiler; the other 253 need a compiler
 and skip there, each naming the WSL command and the laptop, since Friday
 16 October 2026, when one rule replaced five loaders that failed and the rest that
 skipped: a missing artefact skips where no `build-host` exists and fails where one
@@ -172,7 +172,7 @@ header named a path the file had never had.
 | [P12](P12-energy-regression/) | Energy as a regression test, and the rig | both gates written and proven: a five percent charge regression turns the build red with nobody at the bench. The hardware job is not built. Four implementations of both gates, **proven equivalent on Sunday 4 October 2026** over twenty eight cases, eleven for the size gate and seventeen for the charge gate, reaching every refusal and every failure the protocol defines. This is the seventh project with four languages and the only one where the **Python** is the reference rather than the C, because the gate that actually runs is the Python one. Two findings came out of it. The Rust crate is `no_std` only because its one piece of floating-point maths can be spelled without `f64::abs`, which lives in std for the same reason `f64::sqrt` does, so P06 and P12 are now two data points on the same question rather than one anecdote. And the C is the only one of the four that could compile for the target, which costs it about sixty lines of fixed buffers, bounds checks and an insertion sort that the other three do not have |
 | [P13](P13-iks4a1-fifo/) | The IKS4A1: FIFO, watermark, interrupt | not started. Needs the shield |
 | [P14](P14-iks5a1-dual-range/) | The IKS5A1: low and high g at once | not started. Needs the shield |
-| [P15](P15-time-of-flight/) | Eight by eight time of flight on the MCU | not started. Needs the shield |
+| [P15](P15-time-of-flight/) | Eight by eight time of flight on the MCU | **host only** since Monday 26 October 2026, and scoped to what the chapter specifies: the hysteresis, which is the part that stops the status byte changing state every time a person shifts their weight. Four states and six edges, **19 oracle cases in C and Python**, plus a 600 frame property that a target oscillating inside the 800 to 950 mm gap moves the state zero times, with its own falsifier showing that the same target with a 1 mm gap chatters. **The specification came from figure 15.4 rather than from step 9's sketch**, because the figure carries a third threshold at 1500 mm that the sketch omits. The thresholds are parameters, since the figure's note calls them a starting point to be measured rather than constants to be trusted. **The validity filter, the reduction and the status byte are deliberately absent**: they need five constants the chapter defines nowhere, and inventing them would be fiction. The upload, the watchdog window and the hour-long run all still need the shield |
 | [P16](P16-classifier-placement/) | Where the classifier runs: sensor, MCU or host | not started. Needs the shield and a Raspberry Pi |
 | [P17](P17-hal-against-registers/) | The same driver twice | not started. Needs a running target to measure |
 | [P18](P18-transforms-filters/) | Transforms with a numerical acceptance test | not started. The host reference could be written now; the board half cannot |

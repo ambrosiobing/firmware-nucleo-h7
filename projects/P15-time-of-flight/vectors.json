@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "note": "P15's oracle: the hysteresis of chapter 15 figure 15.4. Each case feeds a sequence of nearest-valid distances in millimetres and states the state after every frame, by name. NO_TARGET is written as 65535. The default policy is the chapter's: far 1500, enter 800, leave 950, three of five. Cases that name a policy override it. Hand written from the figure's four edges and the two the figure does not draw, then checked against properties that come from neither implementation.",
+  "default_policy": {"far_mm": 1500, "enter_mm": 800, "leave_mm": 950,
+                     "confirm_n": 3, "confirm_m": 5},
+  "cases": [
+    {"why": "nothing in range, nothing happens",
+     "distances": [65535, 2000, 1500, 1501],
+     "states": ["clear", "clear", "clear", "clear"]},
+
+    {"why": "crossing 1500 enters approaching at once, with no confirmation",
+     "distances": [1499],
+     "states": ["approaching"]},
+
+    {"why": "three of five under 800 confirms present, and not before",
+     "distances": [1000, 700, 700, 900, 700],
+     "states": ["approaching", "approaching", "approaching", "approaching", "present"]},
+
+    {"why": "two under 800 out of five is not enough, however close",
+     "distances": [1000, 700, 700, 900, 900, 900],
+     "states": ["approaching", "approaching", "approaching", "approaching", "approaching", "approaching"]},
+
+    {"why": "three consecutive under 800 confirms on the third",
+     "distances": [1200, 500, 500, 500],
+     "states": ["approaching", "approaching", "approaching", "present"]},
+
+    {"why": "present does not leave on one frame over 950, which is the whole point",
+     "distances": [1200, 500, 500, 500, 1000, 1000],
+     "states": ["approaching", "approaching", "approaching", "present", "present", "present"]},
+
+    {"why": "three over 950 leaves, and the window was cleared on entry to present",
+     "distances": [1200, 500, 500, 500, 1000, 1000, 1000],
+     "states": ["approaching", "approaching", "approaching", "present", "present", "present", "leaving"]},
+
+    {"why": "a target that comes back while leaving is present again at once",
+     "distances": [1200, 500, 500, 500, 1000, 1000, 1000, 700],
+     "states": ["approaching", "approaching", "approaching", "present", "present", "present", "leaving", "present"]},
+
+    {"why": "leaving returns to clear only past 1500",
+     "distances": [1200, 500, 500, 500, 1000, 1000, 1000, 1400, 1501],
+     "states": ["approaching", "approaching", "approaching", "present", "present", "present", "leaving", "leaving", "clear"]},
+
+    {"why": "approaching returns to clear if the target leaves range unconfirmed",
+     "distances": [1200, 700, 1600],
+     "states": ["approaching", "approaching", "clear"]},
+
+    {"why": "sitting exactly on 800 is NOT under it, so it never confirms",
+     "distances": [1200, 800, 800, 800, 800, 800],
+     "states": ["approaching", "approaching", "approaching", "approaching", "approaching", "approaching"]},
+
+    {"why": "sitting exactly on 950 is NOT over it, so present stays",
+     "distances": [1200, 500, 500, 500, 950, 950, 950],
+     "states": ["approaching", "approaching", "approaching", "present", "present", "present", "present"]},
+
+    {"why": "a target hovering between the two thresholds never changes state, which is the hysteresis doing its job",
+     "distances": [1200, 500, 500, 500, 900, 850, 900, 850, 900, 850],
+     "states": ["approaching", "approaching", "approaching", "present", "present", "present", "present", "present", "present", "present"]},
+
+    {"why": "one of one confirmation makes the inner edges immediate",
+     "policy": {"far_mm": 1500, "enter_mm": 800, "leave_mm": 950,
+                "confirm_n": 1, "confirm_m": 1},
+     "distances": [1200, 700, 1000],
+     "states": ["approaching", "present", "leaving"]},
+
+    {"why": "leave below enter has no hysteresis and is refused",
+     "policy": {"far_mm": 1500, "enter_mm": 950, "leave_mm": 800,
+                "confirm_n": 3, "confirm_m": 5},
+     "distances": [1000], "error": "policy"},
+
+    {"why": "far below leave is refused",
+     "policy": {"far_mm": 900, "enter_mm": 800, "leave_mm": 950,
+                "confirm_n": 3, "confirm_m": 5},
+     "distances": [1000], "error": "policy"},
+
+    {"why": "needing more agreeing frames than the window holds is refused",
+     "policy": {"far_mm": 1500, "enter_mm": 800, "leave_mm": 950,
+                "confirm_n": 6, "confirm_m": 5},
+     "distances": [1000], "error": "policy"},
+
+    {"why": "a window of zero is refused",
+     "policy": {"far_mm": 1500, "enter_mm": 800, "leave_mm": 950,
+                "confirm_n": 1, "confirm_m": 0},
+     "distances": [1000], "error": "policy"},
+
+    {"why": "a window above the maximum the bitmask holds is refused",
+     "policy": {"far_mm": 1500, "enter_mm": 800, "leave_mm": 950,
+                "confirm_n": 3, "confirm_m": 17},
+     "distances": [1000], "error": "policy"}
+  ]
+}
