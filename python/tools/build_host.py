@@ -34,6 +34,7 @@ it is now in the order the script produces them:
   rxspan.{dll,so}         P04's span arithmetic
   zonetrack.{dll,so}      P15's hysteresis
   atparse.{dll,so}        P11's classifier, deadline test and backoff
+  phaseledger.{dll,so}    P10's per-phase charge ledger
   rate.{dll,so}           P06's rate witness
   rate_filter             P06's C++ variant
   gates.{dll,so}          P12's size and charge gates
@@ -539,6 +540,13 @@ def main() -> int:
     # P11's first code, Monday 26 October 2026: the three pieces of chapter 11
     # that need no module. The engine, its queue and the hundred injected faults
     # need the modem and the byte path of chapter 4.
+    # P10's first code, Monday 26 October 2026: the arithmetic that turns a
+    # current trace and a marker code per sample into charge per phase. The
+    # marker pins, the single store and the power profiler are board work.
+    print("P10, the per-phase charge ledger and its residual:")
+    shared_lib("phaseledger", [proj("P10", "c") / "phaseledger.c"],
+               includes=[proj("P10", "c")])
+
     print("P11, the line classifier, the wrap-safe deadline and the backoff:")
     shared_lib("atparse", [proj("P11", "c") / "atparse.c"],
                includes=[proj("P11", "c")])

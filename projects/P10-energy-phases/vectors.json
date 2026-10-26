@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "note": "P10's oracle: per-phase charge from a current trace and a marker code per sample. Currents are amperes, dt is seconds, charges are coulombs. Every case is chosen so the charge is exact in binary floating point: currents are sums of powers of two and dt is 2^-10 seconds, so no case depends on a tolerance to pass. The chapter's codes are 0 sleep, 1 wake, 2 sense, 3 compute, 4 send and 7 fault.",
+  "dt_s": 0.0009765625,
+  "cases": [
+    {"why": "one phase, one sample, the smallest ledger there is",
+     "current_a": [0.5], "codes": [0], "min_samples": 1,
+     "per_code": {"0": 0.00048828125}, "total": 0.00048828125,
+     "residual": 0.0, "runs": 1, "rejected": 0, "rejected_samples": 0},
+
+    {"why": "four phases of two samples each, the shape of a duty cycle",
+     "current_a": [0.25, 0.25, 1.0, 1.0, 2.0, 2.0, 0.5, 0.5],
+     "codes": [0, 0, 1, 1, 3, 3, 4, 4], "min_samples": 1,
+     "per_code": {"0": 0.00048828125, "1": 0.001953125, "3": 0.00390625, "4": 0.0009765625},
+     "total": 0.00732421875, "residual": 0.0,
+     "runs": 4, "rejected": 0, "rejected_samples": 0},
+
+    {"why": "the same phase twice, separated, accumulates into one code",
+     "current_a": [1.0, 1.0, 2.0, 1.0, 1.0],
+     "codes": [0, 0, 1, 0, 0], "min_samples": 1,
+     "per_code": {"0": 0.00390625, "1": 0.001953125},
+     "total": 0.005859375, "residual": 0.0,
+     "runs": 3, "rejected": 0, "rejected_samples": 0},
+
+    {"why": "a single-sample run rejected at a floor of two, and the residual is NOT zero because its charge is in the total and not in the split",
+     "current_a": [1.0, 1.0, 8.0, 1.0, 1.0],
+     "codes": [0, 0, 1, 0, 0], "min_samples": 2,
+     "per_code": {"0": 0.00390625}, "total": 0.01171875,
+     "split": 0.00390625, "residual": 0.6666666666666666,
+     "runs": 2, "rejected": 1, "rejected_samples": 1},
+
+    {"why": "the same trace at a floor of one keeps everything and the residual returns to zero, which is the pair that shows the floor is what moves it",
+     "current_a": [1.0, 1.0, 8.0, 1.0, 1.0],
+     "codes": [0, 0, 1, 0, 0], "min_samples": 1,
+     "per_code": {"0": 0.00390625, "1": 0.0078125},
+     "total": 0.01171875, "residual": 0.0,
+     "runs": 3, "rejected": 0, "rejected_samples": 0},
+
+    {"why": "the fault code is carried rather than refused, because a trace containing one is a finding",
+     "current_a": [1.0, 1.0, 1.0, 1.0],
+     "codes": [3, 3, 7, 7], "min_samples": 1,
+     "per_code": {"3": 0.001953125, "7": 0.001953125},
+     "total": 0.00390625, "residual": 0.0,
+     "runs": 2, "rejected": 0, "rejected_samples": 0},
+
+    {"why": "an unused code, five, is carried for the same reason",
+     "current_a": [2.0, 2.0], "codes": [5, 5], "min_samples": 1,
+     "per_code": {"5": 0.00390625}, "total": 0.00390625,
+     "residual": 0.0, "runs": 1, "rejected": 0, "rejected_samples": 0},
+
+    {"why": "a zero trace, where the residual cannot be formed and is reported as one rather than as a division",
+     "current_a": [0.0, 0.0], "codes": [0, 0], "min_samples": 1,
+     "per_code": {}, "total": 0.0, "residual": 1.0,
+     "runs": 1, "rejected": 0, "rejected_samples": 0},
+
+    {"why": "no samples at all is refused",
+     "current_a": [], "codes": [], "min_samples": 1, "error": "argument"},
+
+    {"why": "a sample interval of zero is refused rather than producing a ledger of zeros",
+     "current_a": [1.0], "codes": [0], "min_samples": 1, "dt_s": 0.0,
+     "error": "interval"},
+
+    {"why": "a negative sample interval is refused",
+     "current_a": [1.0], "codes": [0], "min_samples": 1, "dt_s": -0.001,
+     "error": "interval"},
+
+    {"why": "a floor of zero samples is refused, since every run is at least one",
+     "current_a": [1.0], "codes": [0], "min_samples": 0, "error": "floor"},
+
+    {"why": "a marker code above seven cannot come from three pins and is refused",
+     "current_a": [1.0], "codes": [8], "min_samples": 1, "error": "code"}
+  ]
+}
