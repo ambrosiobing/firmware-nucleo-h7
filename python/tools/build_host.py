@@ -543,9 +543,15 @@ def main() -> int:
     # P10's first code, Monday 26 October 2026: the arithmetic that turns a
     # current trace and a marker code per sample into charge per phase. The
     # marker pins, the single store and the power profiler are board work.
+    # -ffp-contract=off, added Monday 26 October 2026 after P18 was registered
+    # without it and turned the code workflow red. This library escaped the same
+    # failure only because every case in its oracle is exact in binary, so no
+    # rounding happens and there is nothing for a fused multiply-add to round
+    # differently. That is one inexact case away from the same red, and the
+    # charge ledger's two routes to a total are exactly the pattern gcc fuses.
     print("P10, the per-phase charge ledger and its residual:")
     shared_lib("phaseledger", [proj("P10", "c") / "phaseledger.c"],
-               includes=[proj("P10", "c")])
+               ["-ffp-contract=off"], includes=[proj("P10", "c")])
 
     print("P11, the line classifier, the wrap-safe deadline and the backoff:")
     shared_lib("atparse", [proj("P11", "c") / "atparse.c"],

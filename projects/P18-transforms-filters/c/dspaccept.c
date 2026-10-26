@@ -251,12 +251,19 @@ int biquad_df1_q15(const int16_t *coeffs, uint32_t nstage, int32_t post_shift,
     return 0;
 }
 
-int accept_metrics(const double *got, const double *ref, uint32_t n,
-                   accept_t *out)
+int accept_metrics(const double *got, uint32_t n_got,
+                   const double *ref, uint32_t n_ref, accept_t *out)
 {
-    if (got == NULL || ref == NULL || out == NULL || n == 0u) {
+    if (got == NULL || ref == NULL || out == NULL || n_got == 0u) {
         return DSP_ERR_ARGUMENT;
     }
+    if (n_got != n_ref) {
+        /* Not a verdict on the measurement but a fault in the call. Comparing
+         * the first n_ref of one block against another is how a truncated
+         * capture becomes a passing acceptance test. */
+        return DSP_ERR_ARGUMENT;
+    }
+    const uint32_t n = n_got;
     for (uint32_t i = 0u; i < n; i++) {
         if (!isfinite(got[i]) || !isfinite(ref[i])) {
             /* A diverged fixed-point cascade or a reference with a hole in it is

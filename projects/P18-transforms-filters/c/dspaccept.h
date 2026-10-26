@@ -113,8 +113,16 @@ int biquad_df1_q15(const int16_t *coeffs, uint32_t nstage, int32_t post_shift,
                    uint32_t *saturations);
 
 /* Both metrics in one pass, over double precision inputs so a caller converts
- * once and compares once. */
-int accept_metrics(const double *got, const double *ref, uint32_t n,
-                   accept_t *out);
+ * once and compares once.
+ *
+ * BOTH LENGTHS ARE ARGUMENTS, and that is deliberate rather than conventional.
+ * The library's own routines take one length and trust the caller, and an
+ * earlier version of this one did too. It was wrong here: comparing two blocks
+ * of different lengths against the shorter of them returns a plausible number
+ * rather than an error, which is the exact failure chapter 18 opens by naming,
+ * and the Python twin could refuse it where this could not. A mismatch is a
+ * fault in the call and is refused as one. */
+int accept_metrics(const double *got, uint32_t n_got,
+                   const double *ref, uint32_t n_ref, accept_t *out);
 
 #endif /* DSPACCEPT_H */

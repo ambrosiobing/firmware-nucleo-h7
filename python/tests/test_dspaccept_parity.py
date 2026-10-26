@@ -93,8 +93,8 @@ def c_lib():
                                      i16, ctypes.c_uint32,
                                      ctypes.POINTER(ctypes.c_uint32)]
         d.accept_metrics.restype = ctypes.c_int
-        d.accept_metrics.argtypes = [dbl, dbl, ctypes.c_uint32,
-                                     ctypes.POINTER(CAccept)]
+        d.accept_metrics.argtypes = [dbl, ctypes.c_uint32, dbl,
+                                     ctypes.c_uint32, ctypes.POINTER(CAccept)]
         _LIB = d
     return _LIB
 
@@ -145,10 +145,18 @@ def c_q15_run(coeffs_q15, nstage, post_shift, data_q15):
 
 
 def c_accept(got, ref):
+    """Both lengths are passed, so a mismatch reaches the C as a mismatch.
+
+    An earlier version of this helper passed len(got) as the single length the
+    C then had, which made one oracle case unanswerable: the C read the first
+    len(got) of ref and returned a verdict where the Python refused. The C now
+    takes both lengths. That was found by running the suite on the one machine
+    that has a compiler, because the whole C half skips on the authoring laptop.
+    """
     out = CAccept()
-    rc = c_lib().accept_metrics(arr(ctypes.c_double, got),
-                               arr(ctypes.c_double, ref), len(got),
-                               ctypes.byref(out))
+    rc = c_lib().accept_metrics(arr(ctypes.c_double, got), len(got),
+                                arr(ctypes.c_double, ref), len(ref),
+                                ctypes.byref(out))
     return rc, out
 
 
