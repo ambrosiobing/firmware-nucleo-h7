@@ -219,7 +219,7 @@ P01, P02, P09 and, since Wednesday 7 October 2026, P06's timer back end. The
 other twelve carry a README naming what they are, what they need on the bench,
 and that they have not started.
 
-**The suite is 745 checks. On the authoring laptop 360 pass and 385 skip for want
+**The suite is 745 checks. On the authoring laptop 361 pass and 384 skip for want
 of a compiler, each skip naming the WSL command, and none fail.** Until Friday
 9 October 2026 that laptop reported 204 passing against shared libraries a
 forbidden compiler had built on Thursday 2 October 2026, and for the week after

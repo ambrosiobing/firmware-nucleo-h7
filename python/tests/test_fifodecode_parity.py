@@ -340,36 +340,56 @@ def test_step_seven_fabricates_drops_on_the_first_drain():
               (case["first_bytes"][0] >> fmt["cnt_shift"]) & mask, theirs))
 
 
-def test_a_gap_of_exactly_the_counters_modulus_is_invisible_to_both():
+def test_a_gap_of_exactly_the_counters_modulus_leaves_identical_bytes():
     """The third finding, and it is a bound rather than a defect.
 
-    With an n-bit counter a loss of exactly 2^n slots reads as no loss, in any
-    implementation, because the counter has returned to where it was expected.
-    Two buffers that differ by exactly one wrap of lost slots are identical
-    here, which is why fifo_budget reports the bound beside the number.
+    After a word carrying counter c the next is expected at c + 1, so losing k
+    slots makes the next observed counter c + 1 + k and the gap is k in the
+    field's modulus. A loss of exactly the modulus therefore gives zero, and the
+    surviving words are BYTE FOR BYTE what they would have been with no loss at
+    all. No implementation can tell those two buffers apart, which is why
+    fifo_budget reports the bound beside the drop count.
+
+    Driven through the twin rather than the library so it runs on the authoring
+    laptop too, where the whole C half skips; the C's own gap arithmetic is
+    covered at this boundary by the gap table above.
+
+    The first version of this test built the lost case one slot short, giving
+    two words with the same counter value, which is a gap of the modulus minus
+    one and is detected. It failed on the laptop that has a compiler, before the
+    branch reached main.
     """
     fmt = ORACLE["cases"][1]["fmt"]
     modulus = 1 << fmt["cnt_bits"]
-    base = clean_run(fmt, 4)
-    # The same two surviving slots, with and without a whole wrap lost between.
-    kept = [base[0], base[1]]
-    rc_a, a = c_decode(fmt, kept)
-    rc_b, b = c_decode(fmt, [base[0], base[1]])
-    assert (rc_a, rc_b) == (0, 0)
-    assert a.drops == b.drops == 0
+    mask = modulus - 1
 
-    # Now lose exactly one modulus of slots between two words.
-    lost = [base[0], base[(0 + modulus) % len(base)]]
-    rc, c = c_decode(fmt, lost)
-    assert rc == 0
-    assert c.drops == 0, (
-        "a loss of exactly {} slots was detected, which would make this bound "
-        "unnecessary".format(modulus))
+    def word_at(slot):
+        return (1 << fmt["tag_shift"]) | ((slot & mask) << fmt["cnt_shift"])
+
+    clean = [word_at(0), word_at(1)]
+    lost_one_wrap = [word_at(0), word_at(1 + modulus)]
+    assert clean == lost_one_wrap, (
+        "losing exactly one wrap changed the bytes, so the counter can see it "
+        "and this bound would be unnecessary")
+
+    for words in (clean, lost_one_wrap):
+        state = new_state()
+        assert py_decode(fmt, buffer_of(fmt, words), len(words), state) == 0
+        assert state["drops"] == 0, state["drops"]
+
+    # The control, one slot fewer: a loss of modulus minus one IS detected, so
+    # the blind spot is exactly one width wide and not a general blindness.
+    state = new_state()
+    short = [word_at(0), word_at(modulus)]
+    assert py_decode(fmt, buffer_of(fmt, short), len(short), state) == 0
+    assert state["drops"] == modulus - 1, state["drops"]
+
     rc, out = py_budget(ORACLE["budgets"][0]["spec"])
     assert rc == 0 and out["undetectable_gap"] == modulus
-    print("\n  a loss of exactly {} slots is indistinguishable from none with a "
-          "{}-bit counter, and fifo_budget reports that bound"
-          .format(modulus, fmt["cnt_bits"]))
+    print("\n  with a {}-bit counter a loss of exactly {} slots leaves the "
+          "same bytes as no loss at all, while {} slots is reported as {}; "
+          "fifo_budget carries the bound".format(fmt["cnt_bits"], modulus,
+                                                 modulus - 1, modulus - 1))
 
 
 def test_the_fill_time_divides_by_one_rate_where_the_buffer_holds_several():
