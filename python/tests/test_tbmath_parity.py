@@ -41,8 +41,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, TB_RUST_FILTER, require_artefact,  # noqa: E501
-                      run_filter, shared_library_name)
+from conftest import (BUILD, TB_CPP_FILTER, TB_RUST_FILTER,  # noqa: E501
+                      require_artefact, run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P17-hal-against-registers"
@@ -302,8 +302,16 @@ def test_a_first_run_is_not_assumed_to_be_the_slowest():
 # run, which is conftest's rule.
 
 
-def rust(lines):
-    return run_filter(TB_RUST_FILTER, lines)
+# The C++ and the Rust speak one protocol, so the test below runs over both and
+# the language is in the test id, which is what names the one that disagreed.
+FILTERS = [(TB_CPP_FILTER, "cpp"), (TB_RUST_FILTER, "rust")]
+FILTER_PATHS = [path for path, _ in FILTERS]
+FILTER_IDS = [name for _, name in FILTERS]
+
+
+def via_filter(lines, path):
+    """One process for the whole run, which is conftest's rule."""
+    return run_filter(path, lines)
 
 
 def field_of(answer, name):
@@ -311,7 +319,8 @@ def field_of(answer, name):
     return int(fields[name])
 
 
-def test_the_rust_answers_every_case_as_the_oracle_says():
+@pytest.mark.parametrize("path", FILTER_PATHS, ids=FILTER_IDS)
+def test_each_filter_answers_every_case_as_the_oracle_says(path):
     """One process, every case of all four kinds, in the oracle's order."""
     lines = []
     for case in ORACLE["elapsed"] + ORACLE["elapsed_refusals"]:
@@ -326,7 +335,7 @@ def test_the_rust_answers_every_case_as_the_oracle_says():
         lines.append("R {} {}".format(len(case["samples"]),
                                       " ".join(str(v) for v in
                                                case["samples"])).strip())
-    answers = rust(lines)
+    answers = via_filter(lines, path)
     assert len(answers) == len(lines)
 
     at = 0

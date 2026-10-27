@@ -638,6 +638,14 @@ def main() -> int:
     shared_lib("tbmath", [proj("P17", "c") / "tbmath.c"],
                ["-ffp-contract=off"], includes=[proj("P17", "c")])
 
+    print("P17, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         "-ffp-contract=off", *STATIC,
+         "-I", proj("P17", "cpp"),
+         proj("P17", "cpp") / "tbmath_filter.cpp",
+         "-o", BUILD / ("tbmath_filter" + exe)],
+        "tbmath_filter")
+
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
