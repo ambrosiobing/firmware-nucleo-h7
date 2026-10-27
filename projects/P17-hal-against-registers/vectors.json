@@ -132,6 +132,18 @@
    "error": "rate"
   },
   {
+   "why": "AN INFINITE TICK FREQUENCY, which an earlier !(hz > 0.0) accepted and which gives a wrap period of zero nanoseconds: a plausible number from an impossible input",
+   "hz": Infinity,
+   "width_bits": 32,
+   "error": "rate"
+  },
+  {
+   "why": "a tick frequency that is not a number, which the obvious rewrite to hz <= 0.0 would have accepted",
+   "hz": NaN,
+   "width_bits": 32,
+   "error": "rate"
+  },
+  {
    "why": "a width of zero bits",
    "hz": 280000000.0,
    "width_bits": 0,

@@ -5,6 +5,7 @@
  */
 #include "tbmath.h"
 
+#include <math.h>
 #include <stddef.h>
 
 static uint32_t mask_of(uint32_t width_bits)
@@ -54,7 +55,15 @@ int tb_wrap_ns(double hz, uint32_t width_bits, uint64_t *out)
     if (width_bits == 0u || width_bits > 32u) {
         return TB_ERR_WIDTH;
     }
-    if (!(hz > 0.0)) {
+    /* A frequency that is not finite is refused as well as one at or below
+     * zero. An earlier version wrote this as !(hz > 0.0), which refuses a
+     * not-a-number and ACCEPTS an infinity, and an infinite tick rate gives a
+     * wrap period of zero nanoseconds: a plausible number from an impossible
+     * input, which is what this project refuses everywhere else. Found on
+     * Tuesday 27 October 2026 because clippy rejected the negated comparison
+     * in the Rust twin and the obvious rewrite there, hz <= 0.0, would have
+     * accepted a not-a-number. All three implementations now refuse both. */
+    if (!isfinite(hz) || hz <= 0.0) {
         return TB_ERR_RATE;
     }
     /* The count of ticks in one wrap is two to the width, which is one more

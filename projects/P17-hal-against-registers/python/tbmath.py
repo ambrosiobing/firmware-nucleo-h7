@@ -18,6 +18,8 @@ findings, written as printed. Neither is used above them:
 """
 from __future__ import annotations
 
+import math
+
 TB_MAX_SAMPLES = 256
 TB_COUNTS_UP = 0
 TB_COUNTS_DOWN = 1
@@ -57,7 +59,10 @@ def wrap_ns(hz, width_bits):
     """The wrap period in nanoseconds, from the tick frequency and the width."""
     if width_bits == 0 or width_bits > 32:
         return ERR_WIDTH, None
-    if not hz > 0.0:
+    # Not finite is refused as well as at or below zero: an infinite tick rate
+    # gives a wrap period of zero nanoseconds, which is a plausible number from
+    # an impossible input. The C says the same at the same line.
+    if not math.isfinite(hz) or hz <= 0.0:
         return ERR_RATE, None
     ticks = 1 << width_bits
     ns = float(ticks) * 1.0e9 / hz

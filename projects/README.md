@@ -113,8 +113,8 @@ implementation.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eighteen of the twenty have code.** 903 checks, of which 382 pass on a laptop with
-no board, no probe, no Raspberry Pi and no compiler; the other 521 need a compiler
+**Eighteen of the twenty have code.** 905 checks, of which 382 pass on a laptop with
+no board, no probe, no Raspberry Pi and no compiler; the other 523 need a compiler
 and skip there, each naming the WSL command and the laptop, since Friday
 16 October 2026, when one rule replaced five loaders that failed and the rest that
 skipped: a missing artefact skips where no `build-host` exists and fails where one

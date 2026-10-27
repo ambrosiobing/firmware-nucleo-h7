@@ -22,7 +22,8 @@ language**:
 | | An interval of 5 ticks against a calibrated cost of 10 |
 |---|---|
 | C, every build | 4294967291 ticks, silently |
-| Rust under `cargo test` or any debug build | **panics**, "attempt to subtract with overflow" |
+| Rust, operands the compiler can see | **does not compile**: `arithmetic_overflow` is denied by default |
+| Rust, operands hidden from the optimiser, debug or test | **panics**, "attempt to subtract with overflow" |
 | Rust in this workspace's release profile | 4294967291 ticks, silently |
 
 Cargo's dev profile takes `overflow-checks` from `debug-assertions`, which is on,

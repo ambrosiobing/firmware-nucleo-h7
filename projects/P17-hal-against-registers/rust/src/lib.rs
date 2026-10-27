@@ -15,10 +15,18 @@
 //! error. The same expression in Rust behaves differently, and the difference is
 //! narrower than the usual claim about this language:
 //!
-//! * **Under `cargo test` and in any debug build it panics**, with "attempt to
-//!   subtract with overflow". Cargo's dev profile sets `overflow-checks` from
+//! * **With operands the compiler can see, it does not compile at all.** rustc
+//!   denies `arithmetic_overflow` by default, so `5_u32 - 10_u32` is a build
+//!   error: "attempt to compute `5_u32 - 10_u32`, which would overflow". That
+//!   tier was found by this crate's own first version failing to build on
+//!   Tuesday 27 October 2026, where the claim written here had been a run-time
+//!   panic.
+//! * **With the operands hidden from the optimiser, it panics** under
+//!   `cargo test` and in any debug build, with "attempt to subtract with
+//!   overflow". Cargo's dev profile takes `overflow-checks` from
 //!   `debug-assertions`, which is on, and this workspace does not override it.
-//!   A test below asserts that panic rather than describing it.
+//!   A test below uses `core::hint::black_box` to reach that case, which is the
+//!   only honest way to assert it.
 //! * **In the release profile this workspace builds, it wraps**, exactly as the
 //!   C does, because `overflow-checks` defaults to off there and the manifest
 //!   does not turn it on. A second test shows the wrapped value through
@@ -120,7 +128,13 @@ pub fn wrap_ns(hz: f64, width_bits: u32) -> Result<u64, Error> {
     if width_bits == 0 || width_bits > 32 {
         return Err(Error::Width);
     }
-    if !(hz > 0.0) {
+    // Not finite as well as at or below zero. Written this way round because
+    // clippy refuses a negated comparison on a partially ordered type, and the
+    // obvious rewrite, hz <= 0.0, would accept a not-a-number. Checking
+    // is_finite first makes the comparison safe and also refuses an infinity,
+    // which the earlier !(hz > 0.0) accepted and which yields a wrap period of
+    // zero nanoseconds. The C and the Python were corrected to match.
+    if !hz.is_finite() || hz <= 0.0 {
         return Err(Error::Rate);
     }
     let ticks = 1_u64 << width_bits;
@@ -201,16 +215,20 @@ mod tests {
 
     /// The defect as the chapter writes it, in the profile `cargo test` uses.
     ///
-    /// Cargo's dev profile sets overflow-checks from debug-assertions, which is
-    /// on, and this workspace does not override it. So the plain subtraction
-    /// panics here. It does NOT panic in this workspace's release profile,
-    /// where overflow-checks is off, and the test below shows what it produces
-    /// there.
+    /// `black_box` is load bearing. The first version of this test wrote the
+    /// two values as plain locals, and rustc refused to compile the crate:
+    /// `arithmetic_overflow` is denied by default and both operands were
+    /// visible to it. So the compiler catches the literal form outright, and
+    /// only a value it cannot fold reaches the run-time check this test is
+    /// about. Cargo's dev profile takes overflow-checks from debug-assertions,
+    /// which is on, and this workspace does not override it, so the
+    /// subtraction panics here. It does NOT panic in this workspace's release
+    /// profile, and the test below shows what it produces there.
     #[test]
     #[should_panic(expected = "attempt to subtract with overflow")]
     fn the_plain_subtraction_panics_under_test() {
-        let raw: u32 = 5;
-        let overhead: u32 = 10;
+        let raw = core::hint::black_box(5_u32);
+        let overhead = core::hint::black_box(10_u32);
         let _ = raw - overhead;
     }
 
