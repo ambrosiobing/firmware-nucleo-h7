@@ -619,6 +619,13 @@ def main() -> int:
     shared_lib("cyclecharge", [proj("P07", "c") / "cyclecharge.c"],
                ["-ffp-contract=off"], includes=[proj("P07", "c")])
 
+    # P16's first code, Tuesday 27 October 2026, and it is chapter 16's
+    # criterion 1: the equivalence gate step 4 says to build before any leg.
+    # Integer arithmetic throughout, so no contraction flag applies.
+    print("P16, the window features and the bounded tree, which are the gate:")
+    shared_lib("features", [proj("P16", "c") / "features.c"],
+               includes=[proj("P16", "c")])
+
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
