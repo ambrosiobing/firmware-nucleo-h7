@@ -17,8 +17,8 @@ in the sensor, on the microcontroller and on the host.
 
 | Piece | What proves it |
 |---|---|
-| `c/features.c`, the three pinned feature groups and the bounded tree | 6 feature cases, 4 shape refusals, 5 tree cases, 6 tree refusals |
-| `python/features.py`, the twin, standard library only | the same cases, and the rounding the chapter permits kept unused |
+| `c/winfeat.c`, the three pinned feature groups and the bounded tree | 6 feature cases, 4 shape refusals, 5 tree cases, 6 tree refusals |
+| `python/winfeat.py`, the twin, standard library only | the same cases, and the rounding the chapter permits kept unused |
 | `vectors.json`, the oracle | **compared exactly, with no tolerance anywhere**, because criterion 1 is identity and not closeness |
 
 **One window is 128 samples of three axes**, which is step 3's definition, about
@@ -45,7 +45,7 @@ printed definition, they differ by one least significant bit, and criterion 1
 compares for equality. **So two implementations each obeying the chapter can fail
 its own gate.** Every rounding here is therefore stated: the mean and the root
 mean square both truncate toward negative infinity, and the alternative is
-carried unused in `python/features.py` so a test runs it rather than describing
+carried unused in `python/winfeat.py` so a test runs it rather than describing
 it.
 
 The truncation shows at both ends of the format. A window holding the extremes,

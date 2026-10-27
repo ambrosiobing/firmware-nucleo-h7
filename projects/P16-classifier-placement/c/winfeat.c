@@ -1,10 +1,10 @@
-/* features.c: the three pinned feature groups and the bounded tree walk.
+/* winfeat.c: the three pinned feature groups and the bounded tree walk.
  *
  * Every rounding here truncates toward negative infinity and the header says
  * why: step 4's gate demands equality between three implementations, and a
  * rounding the definition leaves open is a disagreement the gate will find.
  */
-#include "features.h"
+#include "winfeat.h"
 
 #include <stddef.h>
 

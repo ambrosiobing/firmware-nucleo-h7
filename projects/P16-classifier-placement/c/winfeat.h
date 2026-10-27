@@ -1,4 +1,14 @@
-/* features.h: chapter 16's window features and its bounded tree, in Q15.
+/* winfeat.h: chapter 16's window features and its bounded tree, in Q15.
+ *
+ * THE NAME IS winfeat AND NOT features, AND THAT IS A COMPILER FACT RATHER THAN
+ * A PREFERENCE. glibc ships its own <features.h>, which its <stdint.h> reaches
+ * through bits/libc-header-start.h, and a -I directory holding a file of that
+ * name shadows it. The build then fails inside glibc with "missing binary
+ * operator before token '('", because __GLIBC_USE is never defined and glibc's
+ * own #if lines are left with a macro that expanded to nothing. It cannot
+ * happen on Windows, which has no glibc features.h, so the authoring laptop
+ * could not have seen it; the branch run on the laptop that has a compiler did,
+ * on Tuesday 27 October 2026, before main saw any of it.
  *
  * WHAT THIS IS, AND IT IS CRITERION 1. Chapter 16's first acceptance criterion
  * is "the equivalence gate passes: all three implementations produce identical
@@ -49,8 +59,8 @@
  * measured number in this project, and the features here have been computed only
  * on synthetic windows.
  */
-#ifndef FEATURES_H
-#define FEATURES_H
+#ifndef WINFEAT_H
+#define WINFEAT_H
 
 #include <stdint.h>
 
@@ -107,4 +117,4 @@ int feat_vector(const feat_t *in, int16_t *out, uint32_t count);
 int feat_classify(const feat_node_t *nodes, uint32_t count, uint32_t depth_max,
                   const int16_t *features, uint32_t nfeat, uint8_t *out);
 
-#endif /* FEATURES_H */
+#endif /* WINFEAT_H */

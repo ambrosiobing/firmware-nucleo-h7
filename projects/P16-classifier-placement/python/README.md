@@ -1,13 +1,13 @@
 # P16 in Python
 
 **State: host, since Tuesday 27 October 2026.** The twin of
-[`../c/features.c`](../c/features.c), and together they are chapter 16's
+[`../c/winfeat.c`](../c/winfeat.c), and together they are chapter 16's
 criterion 1: the equivalence gate step 4 says to build before any leg. Standard
 library only.
 
 | File | What it is |
 |---|---|
-| `features.py` | the twin, and the rounding the chapter permits carried unused |
+| `winfeat.py` | the twin, and the rounding the chapter permits carried unused |
 
 **`math.isqrt` here, a bit-by-bit descent in the C.** Two different algorithms
 for the same floored quantity, which is what makes the gate worth running: two
@@ -25,7 +25,7 @@ printed definition can fail the chapter's own gate.
 
 6 feature cases, 4 shape refusals, 5 tree cases and 6 tree refusals, driven
 through this implementation and the C by
-`python/tests/test_features_parity.py`. This half runs everywhere, including on a
+`python/tests/test_winfeat_parity.py`. This half runs everywhere, including on a
 laptop with no compiler, which is why the findings are demonstrated through it.
 
 ## What is not here

@@ -43,7 +43,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P16-classifier-placement"
 sys.path.insert(0, str(PROJECT / "python"))
 
-from features import (ERRORS, FEAT_AXES, FEAT_COUNT,  # noqa: E402
+from winfeat import (ERRORS, FEAT_AXES, FEAT_COUNT,  # noqa: E402
                       chapter_mean_nearest, classify as py_classify,
                       vector as py_vector, window as py_window)
 
@@ -73,7 +73,7 @@ def build(spec):
 
 
 class CFeat(ctypes.Structure):
-    """Must match feat_t in c/features.h, field for field."""
+    """Must match feat_t in c/winfeat.h, field for field."""
 
     _fields_ = [("mean", ctypes.c_int16 * FEAT_AXES),
                 ("rms", ctypes.c_int16 * FEAT_AXES),
@@ -94,7 +94,7 @@ _LIB = None
 def c_lib():
     global _LIB
     if _LIB is None:
-        path = BUILD / shared_library_name("features")
+        path = BUILD / shared_library_name("winfeat")
         require_artefact(path)
         d = ctypes.CDLL(str(path))
         i16 = ctypes.POINTER(ctypes.c_int16)

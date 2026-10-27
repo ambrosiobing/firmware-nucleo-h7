@@ -8,8 +8,8 @@ source with the whole warning set.
 
 | File | What it is |
 |---|---|
-| `features.h` | the window definition, the three findings at length, the six refusals |
-| `features.c` | the three pinned feature groups and the bounded tree walk |
+| `winfeat.h` | the window definition, the three findings at length, the six refusals |
+| `winfeat.c` | the three pinned feature groups and the bounded tree walk |
 
 **Why the integer square root is written out.** A floating-point `sqrt` followed
 by a cast would agree with the Python almost always, and almost always is what an
@@ -32,7 +32,7 @@ two definitions.
 
 6 feature cases, 4 shape refusals, 5 tree cases and 6 tree refusals, driven
 through this implementation and its Python twin by
-`python/tests/test_features_parity.py`, every one compared exactly. The C half
+`python/tests/test_winfeat_parity.py`, every one compared exactly. The C half
 skips on a laptop with no compiler, naming the WSL command, and runs in full in
 CI.
 

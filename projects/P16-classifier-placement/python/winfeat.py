@@ -1,4 +1,4 @@
-"""P16's window features and bounded tree in Python, the twin of c/features.c.
+"""P16's window features and bounded tree in Python, the twin of c/winfeat.c.
 
 Chapter 16's criterion 1 is an equivalence gate: all implementations produce
 identical features and identical classes, and the build fails if they do not.

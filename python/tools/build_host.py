@@ -622,8 +622,11 @@ def main() -> int:
     # P16's first code, Tuesday 27 October 2026, and it is chapter 16's
     # criterion 1: the equivalence gate step 4 says to build before any leg.
     # Integer arithmetic throughout, so no contraction flag applies.
+    # The stem is winfeat and not features: glibc ships its own <features.h>,
+    # reached from <stdint.h>, and a -I directory holding that name shadows it,
+    # which fails inside glibc rather than in this file.
     print("P16, the window features and the bounded tree, which are the gate:")
-    shared_lib("features", [proj("P16", "c") / "features.c"],
+    shared_lib("winfeat", [proj("P16", "c") / "winfeat.c"],
                includes=[proj("P16", "c")])
 
     print("P08, the C++ variant as a filter driven by the tests:")
