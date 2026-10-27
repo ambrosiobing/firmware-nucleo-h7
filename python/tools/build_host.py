@@ -629,6 +629,15 @@ def main() -> int:
     shared_lib("winfeat", [proj("P16", "c") / "winfeat.c"],
                includes=[proj("P16", "c")])
 
+    # P17's first code, Tuesday 27 October 2026: the timebase arithmetic, which
+    # is the part of chapter 17 that needs no peripheral. Named tbmath to match
+    # c/instr/freqmath.c and its siblings, the arithmetic split out of a file
+    # that touches registers so it can be tested on a host.
+    # -ffp-contract=off because the wrap period divides by a frequency.
+    print("P17, the elapsed ticks, the wrap periods and the report:")
+    shared_lib("tbmath", [proj("P17", "c") / "tbmath.c"],
+               ["-ffp-contract=off"], includes=[proj("P17", "c")])
+
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
