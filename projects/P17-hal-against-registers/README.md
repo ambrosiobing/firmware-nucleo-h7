@@ -1,6 +1,6 @@
 # P17: The same driver twice
 
-Status: c=host cpp=none python=host rust=none
+Status: c=host cpp=none python=host rust=host
 
 **Started on the host, Tuesday 27 October 2026.** Chapter 17's criterion 1
 compares four implementations of one bus read, and that needs the peripheral and
@@ -28,6 +28,7 @@ with every condition attached.
 |---|---|
 | `c/tbmath.c`, elapsed ticks, wrap periods, the subtraction, the report | 6 elapsed cases, 3 wrap periods, 2 subtractions, 4 reports, 13 refusals |
 | `python/tbmath.py`, the twin, standard library only | the same cases, and both of the chapter's printed forms kept unused |
+| `rust/src/lib.rs`, no_std, and the one language where the defect is noisy | the same cases through a filter, plus seven unit tests |
 | `vectors.json`, the oracle | integers throughout, **compared exactly** |
 
 The name follows `c/instr/freqmath.c` and its siblings: arithmetic split out of a

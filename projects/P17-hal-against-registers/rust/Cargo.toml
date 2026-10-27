@@ -1,0 +1,32 @@
+[package]
+name = "p17-tbmath"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P17's timebase arithmetic: elapsed ticks across a wrap in either direction, the wrap period, the instrument subtraction and the report, against the same oracle as the C and the Python"
+license = "MIT"
+publish = false
+
+# No dependencies, and unlike P06's and P18's crates this one is no_std. The
+# wrap period divides by a frequency and f64 division is in core; sqrt and log10
+# are not, which is what made those two std. The library is no_std and the
+# filter binary beside it is not, because it reads stdin.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p17_tbmath"
+path = "src/lib.rs"
+
+# The filter speaks four verbs, counts before data, and the parity test drives
+# it beside the C and the Python.
+[[bin]]
+name = "p17-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.

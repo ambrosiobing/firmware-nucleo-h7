@@ -41,7 +41,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (BUILD, TB_RUST_FILTER, require_artefact,  # noqa: E501
+                      run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P17-hal-against-registers"
@@ -294,3 +295,70 @@ def test_a_first_run_is_not_assumed_to_be_the_slowest():
     print("\n  a first run of {} against a median of {} over {} warm runs: the "
           "two are reported apart and neither is assumed larger"
           .format(got["first"], got["median"], got["count"]))
+
+
+# ---------------------------------------------------------------------------
+# The Rust, driven as a filter over the same oracle. One process for the whole
+# run, which is conftest's rule.
+
+
+def rust(lines):
+    return run_filter(TB_RUST_FILTER, lines)
+
+
+def field_of(answer, name):
+    fields = dict(t.split("=", 1) for t in answer.split())
+    return int(fields[name])
+
+
+def test_the_rust_answers_every_case_as_the_oracle_says():
+    """One process, every case of all four kinds, in the oracle's order."""
+    lines = []
+    for case in ORACLE["elapsed"] + ORACLE["elapsed_refusals"]:
+        lines.append("E {} {} {} {}".format(case["start"], case["end"],
+                                            case["width_bits"],
+                                            case["counts_down"]))
+    for case in ORACLE["wraps"] + ORACLE["wrap_refusals"]:
+        lines.append("W {!r} {}".format(case["hz"], case["width_bits"]))
+    for case in ORACLE["subtractions"] + ORACLE["subtraction_refusals"]:
+        lines.append("S {} {}".format(case["raw"], case["overhead"]))
+    for case in ORACLE["reports"] + ORACLE["report_refusals"]:
+        lines.append("R {} {}".format(len(case["samples"]),
+                                      " ".join(str(v) for v in
+                                               case["samples"])).strip())
+    answers = rust(lines)
+    assert len(answers) == len(lines)
+
+    at = 0
+    for case in ORACLE["elapsed"]:
+        assert field_of(answers[at], "ticks") == case["ticks"], case["why"]
+        at += 1
+    for case in ORACLE["elapsed_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    for case in ORACLE["wraps"]:
+        assert field_of(answers[at], "ns") == case["ns"], case["why"]
+        at += 1
+    for case in ORACLE["wrap_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    for case in ORACLE["subtractions"]:
+        assert field_of(answers[at], "ticks") == case["ticks"], case["why"]
+        at += 1
+    for case in ORACLE["subtraction_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    for case in ORACLE["reports"]:
+        for key in ("first", "median", "smallest", "largest", "count"):
+            assert field_of(answers[at], key) == case[key], (key, case["why"])
+        at += 1
+    for case in ORACLE["report_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    assert at == len(lines)
+    print("\n  the Rust answered all {} cases, including {} refusals"
+          .format(len(lines),
+                  len(ORACLE["elapsed_refusals"])
+                  + len(ORACLE["wrap_refusals"])
+                  + len(ORACLE["subtraction_refusals"])
+                  + len(ORACLE["report_refusals"])))
