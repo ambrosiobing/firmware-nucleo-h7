@@ -59,7 +59,15 @@ def window(samples, n, axes):
         # Python's // already floors toward negative infinity, which is the
         # direction the C spells out by hand.
         mean.append(total >> 7)
-        rms.append(math.isqrt(squares >> 7))
+
+        # Saturated, which it was not until the Rust twin compared the three on
+        # Tuesday 27 October 2026. On a window of negative full scale the root
+        # is exactly 32768 and Q15 stops one short of it: this returned 32768,
+        # which is not a Q15 value, and the C's cast returned negative 32768.
+        # A wrapped root mean square reads as a quiet window, the same reason
+        # peak to peak below saturates.
+        root = math.isqrt(squares >> 7)
+        rms.append(32767 if root > 32767 else root)
         span = max(column) - min(column)
         p2p.append(32767 if span > 32767 else span)
 

@@ -22,6 +22,7 @@ members = [
     "projects/P08-node-state-machine/rust",
     "projects/P09-payload-codec/rust",
     "projects/P12-energy-regression/rust",
+    "projects/P16-classifier-placement/rust",
     "projects/P17-hal-against-registers/rust",
     "projects/P18-transforms-filters/rust",
 ]

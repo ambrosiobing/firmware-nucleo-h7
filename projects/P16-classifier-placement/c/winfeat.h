@@ -53,6 +53,19 @@
  * control deadline rather than a wrong answer. The walk here takes the depth as
  * an argument and refuses when it is exceeded.
  *
+ * FINDING FOUR: THE SATURATION ARGUMENT WAS APPLIED TO ONE FEATURE AND NOT THE
+ * OTHER, AND THE GATE FOUND IT ONLY WHEN A THIRD LANGUAGE WAS WRITTEN. Peak to
+ * peak saturates here because a wrapped value "would read as a quiet window,
+ * which is the most misleading answer available here", which is the sentence
+ * below. The root mean square is also Q15, can also exceed it, and did not
+ * saturate: on a window with every sample at negative full scale the mean of the
+ * squares is 1073741824 and its root is exactly 32768, one above what Q15 holds.
+ * This file cast that to int16_t and produced negative 32768; the Python twin
+ * returned 32768, which is not a Q15 value at all. No oracle case reached the
+ * corner, so criterion 1 had never compared the two there. The Rust twin, on
+ * Tuesday 27 October 2026, was the implementation that put a case on it. All
+ * three now saturate at 32767 and the oracle carries that window.
+ *
  * WHAT IS NOT HERE. The dataset and its protocol, the three legs, the in-sensor
  * program, the neural comparison, and every latency, memory and charge number.
  * Those need the IKS4A1 shield, a Raspberry Pi and the PPK2. There is no

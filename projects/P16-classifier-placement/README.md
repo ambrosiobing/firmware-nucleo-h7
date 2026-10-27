@@ -1,6 +1,6 @@
 # P16: Where the classifier runs, sensor, MCU or host
 
-Status: c=host cpp=none python=host rust=none
+Status: c=host cpp=none python=host rust=host
 
 **Started on the host, Tuesday 27 October 2026, and it is criterion 1.** Chapter
 16's first acceptance criterion is the equivalence gate: "all three
@@ -10,6 +10,15 @@ gate before any leg, "because doing it later never works because by then each
 implementation has its own quiet assumption". Two of the three implementations
 exist, the gate runs in the build, and none of it needed the shield.
 
+**The chapter's three implementations are the three placements**, in the sensor,
+on the microcontroller and on the host, and only the host one exists. What runs
+today is the same gate over the host implementation written three times, in C, in
+Python and, since Tuesday 27 October 2026, in Rust, which is this repository's
+four-language rule rather than the chapter's. It is a weaker gate than the one
+criterion 1 asks for and a real one: **the third language found a corner where
+the first two disagreed**, which is the section below on the root mean square,
+and the placement gate inherits the arithmetic already pinned by it.
+
 **What it is.** The same classifier in three places, measured on one protocol:
 in the sensor, on the microcontroller and on the host.
 
@@ -17,18 +26,50 @@ in the sensor, on the microcontroller and on the host.
 
 | Piece | What proves it |
 |---|---|
-| `c/winfeat.c`, the three pinned feature groups and the bounded tree | 6 feature cases, 4 shape refusals, 5 tree cases, 6 tree refusals |
+| `c/winfeat.c`, the three pinned feature groups and the bounded tree | 7 feature cases, 4 shape refusals, 5 tree cases, 6 tree refusals |
 | `python/winfeat.py`, the twin, standard library only | the same cases, and the rounding the chapter permits kept unused |
+| `rust/src/lib.rs`, `no_std`, and `rust/src/main.rs`, the filter | the same cases through a two verb protocol, and seven unit tests |
 | `vectors.json`, the oracle | **compared exactly, with no tolerance anywhere**, because criterion 1 is identity and not closeness |
 
 **One window is 128 samples of three axes**, which is step 3's definition, about
 1.23 seconds at 104 Hz, and features are Q15 because that is what the most
 constrained of the three implementations can produce.
 
-**The two implementations reach the integer square root by different routes**,
-`math.isqrt` in the Python and a bit-by-bit descent in the C. That is deliberate:
-two transcriptions of one algorithm would mostly prove the transcription was
-faithful, where two algorithms agreeing on every case is what the gate is for.
+**The three implementations reach the integer square root by three different
+routes**, a bit-by-bit descent in the C, `math.isqrt` in the Python and
+`u64::isqrt` in the Rust. That is deliberate: three transcriptions of one
+algorithm would mostly prove the transcription was faithful, where three
+algorithms agreeing on every case is what the gate is for. It is also what found
+the defect below. The Rust crate declares a minimum Rust version of 1.84 where
+the other ten in the workspace declare 1.75, because `isqrt` stabilised there,
+and [rust/README.md](rust/README.md) says why that was preferred to a fourth
+hand-rolled descent.
+
+## The root mean square did not saturate, and peak to peak did
+
+**This is what the gate is for, and it was found by writing the third
+implementation rather than by reading either of the first two.** Both quantities
+are Q15 and both can exceed what Q15 holds. The C header's sentence for peak to
+peak is that a wrapped value "would read as a quiet window, which is the most
+misleading answer available here". The same sentence applies to the root mean
+square, and it had not been applied.
+
+On a window with every sample at negative full scale the mean of the squares is
+1073741824 and its root is exactly 32768, one above what Q15 holds:
+
+| The root mean square of a window of negative full scale | |
+|---|---|
+| C, before Tuesday 27 October 2026 | **negative 32768**, from the cast to `int16_t` |
+| Python, before Tuesday 27 October 2026 | **32768**, which is not a Q15 value at all |
+| all three, since Tuesday 27 October 2026 | **32767**, saturated, as peak to peak already was |
+
+The two had never been compared there because **no oracle case reached the
+corner**. The oracle now carries that window as its seventh feature case, all
+three implementations saturate, and the test prints the unsaturated root beside
+the saturated one so it shows what was saturated rather than only the result.
+
+The mean of the same window needs no saturation: it is exactly negative 32768,
+which Q15 holds.
 
 ## The definition names the quantity and not the algorithm
 

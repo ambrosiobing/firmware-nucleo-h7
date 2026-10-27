@@ -85,9 +85,21 @@ int feat_window(const int16_t *samples, uint32_t n, uint32_t axes,
         out->mean[a] = (int16_t) floor_div_pow2(sum, 7u);
 
         /* The mean of the squares, floored, then its integer square root, also
-         * floored. Two truncations, both named. */
+         * floored, then saturated. Two truncations and one saturation, all
+         * three named.
+         *
+         * THE SATURATION WAS MISSING UNTIL THE THIRD IMPLEMENTATION COMPARED
+         * THE OTHER TWO, on Tuesday 27 October 2026. On a window with every
+         * sample at negative full scale the mean of the squares is 1073741824
+         * and its root is exactly 32768, which Q15 stops one short of. This
+         * cast produced negative 32768 and the Python returned 32768, which is
+         * not a Q15 value at all, and no oracle case had reached the corner. A
+         * wrapped root mean square reads as a quiet window, which is the same
+         * reason peak to peak below saturates; the argument had been applied
+         * there and not here. */
         const uint64_t mean_square = squares >> 7u;
-        out->rms[a] = (int16_t) isqrt_floor(mean_square);
+        const uint32_t root = isqrt_floor(mean_square);
+        out->rms[a] = (root > 32767u) ? (int16_t) 32767 : (int16_t) root;
 
         /* Peak to peak can reach 65535, which Q15 cannot hold, so it saturates
          * and the README says so. A wrapped peak to peak would read as a quiet

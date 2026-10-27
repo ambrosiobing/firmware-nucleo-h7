@@ -1,18 +1,22 @@
-"""P16's window features and bounded tree, in C and Python, against one oracle.
+"""P16's window features and bounded tree, in C, Python and Rust, against one oracle.
 
 **This file is chapter 16's criterion 1.** That criterion is "the equivalence
 gate passes: all three implementations produce identical features and identical
 classes on every window of the held-out set. The build fails if it does not", and
 step 4 says to build the gate before any leg, "because doing it later never works
-because by then each implementation has its own quiet assumption". Two of the
-three implementations exist, the in-sensor one needs the shield, and the gate is
-here and runs in the build.
+because by then each implementation has its own quiet assumption".
+
+**The chapter's three implementations are the three placements**, in the sensor,
+on the microcontroller and on the host, and only the host one exists. What runs
+here is that one written in three languages, compared the way the placement gate
+will be, and none of it needed the shield.
 
 **Everything is compared exactly.** The criterion is identity, not closeness, so
 there is no tolerance anywhere in this file. All of it is integer arithmetic in
-Q15, and the two implementations reach the integer square root by different
-routes, `math.isqrt` in the Python and a bit-by-bit descent in the C, which is
-what makes the comparison worth running.
+Q15, and the three implementations reach the integer square root by three
+different routes, a bit-by-bit descent in the C, `math.isqrt` in the Python and
+`u64::isqrt` in the Rust, which is what makes the comparison worth running and is
+what found the saturation defect recorded at the bottom of this file.
 
 **The windows are a recipe rather than a list.** A full window is 384 integers;
 six of them would be two thousand numbers nobody reads. The oracle stores the
@@ -37,7 +41,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (BUILD, FEAT_RUST_FILTER, require_artefact,
+                      run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P16-classifier-placement"
@@ -236,3 +241,108 @@ def test_the_depth_bound_is_what_makes_the_latency_bounded():
     assert rc == 0 and got == 1
     print("\n  a tree whose children point back at their parent is refused at "
          "the depth bound; the same tree with a leaf returns class 1")
+
+
+def test_the_root_mean_square_saturates_and_the_gate_found_that():
+    """The corner the third implementation found, run through the twin.
+
+    Every sample at negative full scale: the mean of the squares is 1073741824
+    and its root is exactly 32768, one above what Q15 holds. Until Tuesday 27
+    October 2026 the C cast that root to int16_t and produced negative 32768
+    while the Python returned 32768, which is not a Q15 value at all, and no
+    oracle case reached the corner, so criterion 1's gate had never compared the
+    two there. All three implementations now saturate at 32767, which is what
+    peak to peak already did and for the same stated reason.
+    """
+    import math
+    case = next(c for c in ORACLE["cases"] if "SATURATES" in c["why"])
+    samples = build(case["spec"])
+    rc, got = py_window(samples, N, FEAT_AXES)
+    assert rc == 0
+    column = [samples[i * FEAT_AXES] for i in range(N)]
+    unsaturated = math.isqrt(sum(v * v for v in column) >> 7)
+    assert unsaturated == 32768, (
+        "the root no longer exceeds Q15 on this window, so it no longer "
+        "demonstrates the finding and a different window is needed")
+    assert got["rms"][0] == 32767 == case["rms"][0]
+    assert got["mean"][0] == -32768, "the mean itself is exactly representable"
+    print("\n  every sample at negative full scale: the root of the mean of "
+          "the squares is {} and Q15 holds {}, so it saturates; the mean of "
+          "the same window is {} and needs no saturation"
+          .format(unsaturated, got["rms"][0], got["mean"][0]))
+
+
+# ---------------------------------------------------------------------------
+# The Rust, driven as a filter over the same oracle. One process for the whole
+# run, which is conftest's rule.
+#
+# Two verbs, counts before data:
+#
+#     F <n> <axes> <n*axes samples>
+#     C <nodes> <depth_max> <nfeat> <5 values per node> <nfeat features>
+#
+# An F request is 386 tokens, which is why the filter reads whole lines.
+
+
+def feature_request(spec):
+    samples = build(spec)
+    return "F {} {} {}".format(spec["n"], spec["axes"],
+                               " ".join(str(v) for v in samples)).strip()
+
+
+def tree_request(tree, depth_max, features):
+    out = ["C", str(len(tree)), str(depth_max), str(len(features))]
+    for node in tree:
+        out += [str(node["feature"]), str(node["leaf"]),
+                str(node["threshold"]), str(node["left"]), str(node["right"])]
+    out += [str(v) for v in features]
+    return " ".join(out)
+
+
+def fields_of(answer):
+    out = {}
+    for token in answer.split():
+        key, value = token.split("=", 1)
+        out[key] = [int(v) for v in value.split(",")]
+    return out
+
+
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    """One process, every case of all four kinds, in the oracle's order."""
+    require_artefact(FEAT_RUST_FILTER,
+                     "cargo build --release --workspace")
+    lines = []
+    for case in ORACLE["cases"]:
+        lines.append(feature_request(case["spec"]))
+    for case in ORACLE["shape_refusals"]:
+        spec = {"kind": "constant", "n": case["n"], "axes": case["axes"],
+                "const": [0] * max(case["axes"], 1)}
+        lines.append(feature_request(spec))
+    for case in ORACLE["trees"] + ORACLE["tree_refusals"]:
+        lines.append(tree_request(case["tree"], case["depth_max"],
+                                  case["features"]))
+    answers = run_filter(FEAT_RUST_FILTER, lines)
+    assert len(answers) == len(lines)
+
+    at = 0
+    for case in ORACLE["cases"]:
+        got = fields_of(answers[at])
+        for key in ("mean", "rms", "p2p"):
+            assert got[key] == case[key], (key, case["why"])
+        assert got["vector"] == case["vector"], case["why"]
+        at += 1
+    for case in ORACLE["shape_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    for case in ORACLE["trees"]:
+        assert answers[at] == "class={}".format(case["klass"]), case["why"]
+        at += 1
+    for case in ORACLE["tree_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    assert at == len(lines)
+    print("\n  the Rust answered all {} requests, {} windows and {} trees, "
+          "including {} refusals"
+          .format(len(lines), len(ORACLE["cases"]) + len(ORACLE["shape_refusals"]),
+                  len(ORACLE["trees"]) + len(ORACLE["tree_refusals"]),
+                  len(ORACLE["shape_refusals"]) + len(ORACLE["tree_refusals"])))

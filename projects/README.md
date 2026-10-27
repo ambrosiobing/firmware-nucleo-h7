@@ -47,12 +47,14 @@ doubles and because a path is how the real witness receives one.
 No filter parses its project's oracle, so that stays in the one file no generator
 has ever touched, and `run_filter` in `conftest.py` drives all of them.
 
-**Seven projects have a parity test so far**, P09, P05, P08, P02, P03, P06 and
-P12, and all seven read four languages agreeing as of Sunday 4 October 2026, in
-WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, with nothing skipped
-and nothing failed. On win11 aquamarine the same suite reports 110 passed and 16
-skipped, because compiling there is forbidden, and each skip names the command
-and the laptop.
+**Eighteen projects have a parity test as of Tuesday 27 October 2026**, and the
+first seven of them, P09, P05, P08, P02, P03, P06 and P12, read four languages
+agreeing on Sunday 4 October 2026, in WSL on the win11 skyhorizon demo laptop,
+bing@JPTOUPM678, with nothing skipped and nothing failed. The later eleven carry
+two, three or four languages each, and each project's own status line says
+which. On win11 aquamarine those seven reported 110 passed and 16
+skipped on the same day, because compiling there is forbidden, and each skip
+names the command and the laptop.
 
 P06's is the only one compared **numerically** rather than exactly. Its witness is
 floating point, and the contraction of a multiply and an add into one fused
@@ -113,8 +115,8 @@ implementation.
 Chapter NN of the book is the written design for project PNN. Start from
 [the contents](../CONTENTS.md).
 
-**Eighteen of the twenty have code.** 906 checks, of which 382 pass on a laptop with
-no board, no probe, no Raspberry Pi and no compiler; the other 524 need a compiler
+**Eighteen of the twenty have code.** 910 checks, of which 384 pass on a laptop with
+no board, no probe, no Raspberry Pi and no compiler; the other 526 need a compiler
 and skip there, each naming the WSL command and the laptop, since Friday
 16 October 2026, when one rule replaced five loaders that failed and the rest that
 skipped: a missing artefact skips where no `build-host` exists and fails where one

@@ -1,0 +1,38 @@
+[package]
+name = "p16-winfeat"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.84"
+description = "P16's window features in Q15 and its bounded tree walk, against the same oracle as the C and the Python"
+license = "MIT"
+publish = false
+
+# THIS CRATE DECLARES 1.84 WHERE THE OTHER TEN IN THIS WORKSPACE DECLARE 1.75,
+# and the reason is one function. `u64::isqrt` stabilised in 1.84, and the
+# floored integer square root is the one place in this project with real room
+# for two implementations to disagree, so the three take three routes: a
+# bit-by-bit descent in the C, `math.isqrt` in the Python, the standard
+# library's here. Hand-rolling a fourth descent would have made this a
+# transcription of the C and would have put an unverified algorithm into the
+# function criterion 1's gate most depends on. The pinned toolchain is 1.99.0,
+# so nothing is blocked; what it costs is one crate out of step, written down
+# here rather than left for a reader to find.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p16_winfeat"
+path = "src/lib.rs"
+
+# The filter speaks two verbs, counts before data, and the parity test drives it
+# over the same oracle the C and the Python answer to.
+[[bin]]
+name = "p16-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.

@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "note": "P16's oracle: chapter 16's window features and its bounded tree, which together are criterion 1, the equivalence gate step 4 says to build before any leg. Everything here is integer arithmetic in Q15 and compared exactly, because the criterion is identity and not closeness. Windows are stored as a recipe and built by the test, since a full window is 384 integers. EVERY ROUNDING IS PINNED and the chapter's definition does not pin it: the mean and the root mean square both truncate toward negative infinity, and one case exists to show that a mean rounded to the nearest value would fail the gate. The four band energies of step 3 are absent, because a quantity named as coming from an unspecified transform cannot enter an exact gate.",
+ "note": "P16's oracle: chapter 16's window features and its bounded tree, which together are criterion 1, the equivalence gate step 4 says to build before any leg. Everything here is integer arithmetic in Q15 and compared exactly, because the criterion is identity and not closeness. Windows are stored as a recipe and built by the test, since a full window is 384 integers. EVERY ROUNDING IS PINNED and the chapter's definition does not pin it: the mean and the root mean square both truncate toward negative infinity, and one case exists to show that a mean rounded to the nearest value would fail the gate. THE ROOT MEAN SQUARE SATURATES AT 32767 and so does peak to peak, because Q15 holds neither at full scale and a wrapped value reads as a quiet window. The four band energies of step 3 are absent, because a quantity named as coming from an unspecified transform cannot enter an exact gate.",
  "win_n": 128,
  "axes": 3,
  "feat_count": 9,
@@ -252,6 +252,45 @@
     0,
     0,
     127,
+    0,
+    0
+   ]
+  },
+  {
+   "why": "THE ROOT MEAN SQUARE SATURATES: every sample at negative full scale gives a mean of squares of 1073741824 whose root is exactly 32768, one above what Q15 holds. The C cast it to negative 32768 and the Python returned 32768 until the Rust twin compared the three on Tuesday 27 October 2026, and no case had reached the corner",
+   "spec": {
+    "kind": "constant",
+    "n": 128,
+    "axes": 3,
+    "const": [
+     -32768,
+     -32768,
+     -32768
+    ]
+   },
+   "mean": [
+    -32768,
+    -32768,
+    -32768
+   ],
+   "rms": [
+    32767,
+    32767,
+    32767
+   ],
+   "p2p": [
+    0,
+    0,
+    0
+   ],
+   "vector": [
+    -32768,
+    -32768,
+    -32768,
+    32767,
+    32767,
+    32767,
+    0,
     0,
     0
    ]
