@@ -646,6 +646,15 @@ def main() -> int:
          "-o", BUILD / ("tbmath_filter" + exe)],
         "tbmath_filter")
 
+    # P20's first code, Tuesday 27 October 2026, and it is the part of chapter
+    # 20 that decides the chapter without a kernel: the latency histogram, the
+    # percentile ranks and the verdict against table 20.4's three budget rows.
+    # Integer arithmetic throughout, so no contraction flag applies. The ranks
+    # are 64-bit on purpose and the header says why.
+    print("P20, the latency histogram, its percentiles and the budget verdict:")
+    shared_lib("latstat", [proj("P20", "c") / "latstat.c"],
+               includes=[proj("P20", "c")])
+
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,

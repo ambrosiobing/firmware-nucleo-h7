@@ -1,0 +1,304 @@
+{
+ "schema": 1,
+ "note": "P20's oracle: chapter 20's latency histogram, its percentiles and the verdict against table 20.4, which is what decides the chapter's acceptance. Integer arithmetic throughout and compared exactly. Runs are stored as cycle counts with a repeat so a thousand releases are two numbers; the two largest histograms are stored as bins directly, because four thousand million samples cannot be taken one at a time. THE RANK DEFINITION IS PINNED, since the chapter states none: a percentile is the sample of rank ceil(p times n), counting from one. THERE ARE THREE VERDICTS AND NOT TWO, because a percentile from a histogram is a bin one microsecond wide and table 20.4's rows are whole microseconds, so a bin sitting on its budget decides nothing. No number here was measured; the budgets are quoted from table 20.4, written before any run.",
+ "bins": 1024,
+ "budget": {
+  "median_us": 100,
+  "p999_us": 250,
+  "max_us": 1000
+ },
+ "cycles_per_us": 280,
+ "runs": [
+  {
+   "why": "every release at 50 microseconds, which meets all three rows with room to spare",
+   "cycles_per_us": 280,
+   "samples": [
+    [
+     14000,
+     1000
+    ]
+   ],
+   "report": {
+    "median_us": 50,
+    "p999_us": 50,
+    "median_resolved": 1,
+    "p999_resolved": 1,
+    "max_us": 50,
+    "over": 0,
+    "count": 1000
+   },
+   "verdict": {
+    "median": 0,
+    "p999": 0,
+    "max": 0
+   }
+  },
+  {
+   "why": "THE MEDIAN LANDS EXACTLY ON ITS BUDGET AND CANNOT BE DECIDED: bin 100 holds the true values from 100 up to just under 101, and the budget is 100, so part of the bin meets it and part does not",
+   "cycles_per_us": 280,
+   "samples": [
+    [
+     28000,
+     1000
+    ]
+   ],
+   "report": {
+    "median_us": 100,
+    "p999_us": 100,
+    "median_resolved": 1,
+    "p999_resolved": 1,
+    "max_us": 100,
+    "over": 0,
+    "count": 1000
+   },
+   "verdict": {
+    "median": 2,
+    "p999": 0,
+    "max": 0
+   }
+  },
+  {
+   "why": "THE TRUNCATION MAKES THIS RUN INDISTINGUISHABLE FROM THE ONE ABOVE: 28252 cycles at 280 per microsecond is 100.9 microseconds and is recorded as 100, so a two-way verdict would pass a run whose every sample exceeds the budget",
+   "cycles_per_us": 280,
+   "samples": [
+    [
+     28252,
+     1000
+    ]
+   ],
+   "report": {
+    "median_us": 100,
+    "p999_us": 100,
+    "median_resolved": 1,
+    "p999_resolved": 1,
+    "max_us": 100,
+    "over": 0,
+    "count": 1000
+   },
+   "verdict": {
+    "median": 2,
+    "p999": 0,
+    "max": 0
+   }
+  },
+  {
+   "why": "one release of 2000 microseconds in a thousand: the 99.9th percentile is still answerable and the maximum row fails, which is why the two are reported apart",
+   "cycles_per_us": 280,
+   "samples": [
+    [
+     14000,
+     999
+    ],
+    [
+     560000,
+     1
+    ]
+   ],
+   "report": {
+    "median_us": 50,
+    "p999_us": 50,
+    "median_resolved": 1,
+    "p999_resolved": 1,
+    "max_us": 2000,
+    "over": 1,
+    "count": 1000
+   },
+   "verdict": {
+    "median": 0,
+    "p999": 0,
+    "max": 1
+   }
+  },
+  {
+   "why": "THE 99.9TH PERCENTILE'S RANK FALLS INSIDE THE OVERFLOW AND IS UNRESOLVED: two releases of 2000 microseconds in a thousand put rank 999 past every bin, and the top bin, 1023, would be a wrong answer nothing downstream could detect",
+   "cycles_per_us": 280,
+   "samples": [
+    [
+     14000,
+     998
+    ],
+    [
+     560000,
+     2
+    ]
+   ],
+   "report": {
+    "median_us": 50,
+    "p999_us": 0,
+    "median_resolved": 1,
+    "p999_resolved": 0,
+    "max_us": 2000,
+    "over": 2,
+    "count": 1000
+   },
+   "verdict": {
+    "median": 0,
+    "p999": 1,
+    "max": 1
+   }
+  },
+  {
+   "why": "a single release, where both ranks are one",
+   "cycles_per_us": 280,
+   "samples": [
+    [
+     1960,
+     1
+    ]
+   ],
+   "report": {
+    "median_us": 7,
+    "p999_us": 7,
+    "median_resolved": 1,
+    "p999_resolved": 1,
+    "max_us": 7,
+    "over": 0,
+    "count": 1
+   },
+   "verdict": {
+    "median": 0,
+    "p999": 0,
+    "max": 0
+   }
+  }
+ ],
+ "built": [
+  {
+   "why": "THE RANK ARITHMETIC OVERFLOWS A 32-BIT PRODUCT: at a count of four thousand million, 999 times the count is 3996000000000, and rank 3996000000 lands in bin 900; a 32-bit product wraps and reports bin 50 instead, which is the whole reason the C computes it in 64 bits",
+   "spec": {
+    "bins": {
+     "50": 3000000000,
+     "900": 1000000000
+    },
+    "over": 0,
+    "max_us": 900,
+    "count": 4000000000
+   },
+   "report": {
+    "median_us": 50,
+    "p999_us": 900,
+    "median_resolved": 1,
+    "p999_resolved": 1,
+    "max_us": 900,
+    "over": 0,
+    "count": 4000000000
+   },
+   "verdict": {
+    "median": 0,
+    "p999": 1,
+    "max": 0
+   }
+  },
+  {
+   "why": "every sample in the overflow bin, where neither percentile is answerable and all three rows fail",
+   "spec": {
+    "bins": {},
+    "over": 10,
+    "max_us": 5000,
+    "count": 10
+   },
+   "report": {
+    "median_us": 0,
+    "p999_us": 0,
+    "median_resolved": 0,
+    "p999_resolved": 0,
+    "max_us": 5000,
+    "over": 10,
+    "count": 10
+   },
+   "verdict": {
+    "median": 1,
+    "p999": 1,
+    "max": 1
+   }
+  }
+ ],
+ "record_refusals": [
+  {
+   "why": "zero cycles per microsecond, which would divide by zero",
+   "cycles": 1000,
+   "cycles_per_us": 0,
+   "count_before": 0,
+   "error": "rate"
+  },
+  {
+   "why": "a sample counter already at its maximum, where one more would wrap it and every percentile below it would be wrong",
+   "cycles": 1000,
+   "cycles_per_us": 280,
+   "count_before": 4294967295,
+   "error": "full"
+  }
+ ],
+ "report_refusals": [
+  {
+   "why": "no samples at all, where a report of zero microseconds would read as the fastest run ever measured",
+   "spec": {
+    "bins": {},
+    "over": 0,
+    "max_us": 0,
+    "count": 0
+   },
+   "error": "empty"
+  },
+  {
+   "why": "a count that disagrees with the bins plus the overflow, so the ranks point at the wrong samples and nothing in the output would show it",
+   "spec": {
+    "bins": {
+     "50": 10
+    },
+    "over": 0,
+    "max_us": 50,
+    "count": 11
+   },
+   "error": "count"
+  }
+ ],
+ "stacks": [
+  {
+   "why": "exactly eighty percent of the budget used, which the rule allows: 819 of 1024, where 819 times 5 is 4095 and 1024 times 4 is 4096",
+   "budget": 1024,
+   "free": 205,
+   "used": 819,
+   "permil": 799,
+   "within": 1
+  },
+  {
+   "why": "one byte past eighty percent, which the rule refuses: 820 times 5 is 4100 and 1024 times 4 is 4096",
+   "budget": 1024,
+   "free": 204,
+   "used": 820,
+   "permil": 800,
+   "within": 0
+  },
+  {
+   "why": "a task that has never used a byte of its stack",
+   "budget": 4096,
+   "free": 4096,
+   "used": 0,
+   "permil": 0,
+   "within": 1
+  },
+  {
+   "why": "a task that has used all of it, which is the figure criterion 6 exists to catch",
+   "budget": 512,
+   "free": 0,
+   "used": 512,
+   "permil": 1000,
+   "within": 0
+  }
+ ],
+ "stack_refusals": [
+  {
+   "why": "a budget of zero, which has no percentage",
+   "budget": 0,
+   "free": 0,
+   "error": "stack"
+  },
+  {
+   "why": "more free space than the whole budget, which means the budget and the kernel's figure came from different tasks",
+   "budget": 1024,
+   "free": 2048,
+   "error": "stack"
+  }
+ ]
+}

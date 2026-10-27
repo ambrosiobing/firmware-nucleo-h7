@@ -24,7 +24,7 @@ code for the same subject.
 [![firmware](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml/badge.svg)](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml)
 
 **What those three check, and what a green badge does not mean.** `book` is the
-prose, the figures and the links. `code` is the host suite, 910 checks on a runner
+prose, the figures and the links. `code` is the host suite, 942 checks on a runner
 with no board. `firmware` cross-compiles for the target. None of the three can see
 the board, so none of them can turn red when a measurement is wrong. Which
 projects have actually run on hardware, which only link, and which are host only
@@ -212,14 +212,20 @@ Chapter NN is the written design for project PNN.
 | `requirements-hardware.txt` | what only matters when something is plugged in; the suite and the runner never install it |
 | `build-host/` | code build output, ignored, deliberately not `build/` so the two cannot delete each other's work |
 
-Eight of the twenty have code: P01, P02, P03, P05, P06, P08, P09 and P12. Those
-eight are every project whose host half can be written without the board, which
-is why they were finished first. Four of them have since run on the hardware:
-P01, P02, P09 and, since Wednesday 7 October 2026, P06's timer back end. The
-other twelve carry a README naming what they are, what they need on the bench,
-and that they have not started.
+**All twenty have code, since Tuesday 27 October 2026**, when P20 was the last
+one to start. The order was not arbitrary: every project has a deciding piece of
+arithmetic that can be written and proven without the board, and that piece is
+what each one started with.
 
-**The suite is 910 checks. On the authoring laptop 384 pass and 526 skip for want
+Five have run on the hardware: P01, P02, P09, P06's timer back end since
+Wednesday 7 October 2026, and P19's instruction-cache half. Ten carry all four
+languages: P01, P02, P03, P05, P06, P08, P09, P12, P17 and P18. Every project's
+own status line says which languages it has and whether each one has reached the
+board, `python python/tools/check_status.py` checks those lines against the table
+in `projects/README.md`, and **no directory anywhere holds an empty source
+file**, because an empty file is a claim.
+
+**The suite is 942 checks. On the authoring laptop 398 pass and 544 skip for want
 of a compiler, each skip naming the WSL command, and none fail.** Until Friday
 9 October 2026 that laptop reported 204 passing against shared libraries a
 forbidden compiler had built on Thursday 2 October 2026, and for the week after
