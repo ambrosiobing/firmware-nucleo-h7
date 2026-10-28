@@ -1,0 +1,31 @@
+[package]
+name = "p20-latstat"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P20's latency histogram, its percentile ranks, the verdict against table 20.4 and the stack arithmetic, against the same oracle as the C and the Python"
+license = "MIT"
+publish = false
+
+# No dependencies, and no_std like P17's crate: every quantity here is an
+# integer, so nothing needs a platform. P06's and P18's crates are std because
+# sqrt and log10 are; this one divides and compares and nothing else.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p20_latstat"
+path = "src/lib.rs"
+
+# The filter speaks four verbs, counts before data, and the parity test drives
+# it over the same oracle the C and the Python answer to.
+[[bin]]
+name = "p20-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.

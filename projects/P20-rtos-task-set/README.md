@@ -1,6 +1,6 @@
 # P20: Three jobs at once: the node as an RTOS application
 
-Status: c=host cpp=none python=host rust=none
+Status: c=host cpp=none python=host rust=host
 
 **Started on the host, Tuesday 27 October 2026, and it is the part of chapter 20
 that decides the chapter without a kernel.** Criterion 3 is that "a million
@@ -21,6 +21,7 @@ latency distribution over a million events against a deadline stated in advance.
 |---|---|
 | `c/latstat.c`, the histogram, the ranks, the verdict and the stack arithmetic | 6 recorded runs, 2 built histograms, 4 refusals, 4 stack rows, 2 stack refusals |
 | `python/latstat.py`, the twin, standard library only | the same cases, and the two readings the chapter's wording invites kept unused |
+| `rust/src/lib.rs`, `no_std`, and `rust/src/main.rs`, the filter | the same cases through a four verb protocol, and six unit tests |
 | `vectors.json`, the oracle | **compared exactly, with no tolerance anywhere**, because all of it is integer |
 
 **The instrument is step 5's**, unchanged: 1024 bins, one microsecond per bin, a
@@ -112,6 +113,22 @@ rather than clamped, because it means the two numbers came from different tasks.
 
 The eighty percent rule is a comparison and not a division, so it is exact at
 the boundary: 819 bytes of 1024 is allowed and 820 is refused.
+
+## The same defect behaves differently in Rust, which is the second instance
+
+Finding four is a 32-bit product wrapping. The C wraps silently in every build.
+The Rust panics under test and wraps in this workspace's release profile,
+because cargo's dev profile takes `overflow-checks` from `debug-assertions`
+while the root manifest's release profile does not set it. **So the claim is
+that Rust's checks would have caught this during development and not in the
+field**, which is smaller than "this cannot happen in Rust" and is what the two
+profiles support.
+
+**P17 found the same shape on Tuesday 27 October 2026** for its subtraction. One
+instance was an anecdote about a profile and two make it a property of the
+toolchain. In both cases the fix was available in every language and the C took
+it: the product is 64-bit in all three implementations here.
+[rust/README.md](rust/README.md) has the table.
 
 ## What is not here
 

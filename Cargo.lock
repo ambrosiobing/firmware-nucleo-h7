@@ -48,3 +48,7 @@ version = "0.1.0"
 [[package]]
 name = "p18-dspaccept"
 version = "0.1.0"
+
+[[package]]
+name = "p20-latstat"
+version = "0.1.0"

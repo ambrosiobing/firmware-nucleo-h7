@@ -63,6 +63,7 @@ TB_RUST_FILTER = ROOT / "target" / "release" / executable_name("p17-filter")
 DSP_RUST_FILTER = ROOT / "target" / "release" / executable_name("p18-filter")
 CLOCK_RUST_FILTER = ROOT / "target" / "release" / executable_name("p01-filter")
 FEAT_CPP_FILTER = BUILD / executable_name("winfeat_filter")
+LAT_RUST_FILTER = ROOT / "target" / "release" / executable_name("p20-filter")
 FEAT_RUST_FILTER = ROOT / "target" / "release" / executable_name("p16-filter")
 
 
@@ -251,6 +252,7 @@ FILTER_BUILD_COMMAND = {
     DSP_RUST_FILTER: "cargo build --release --workspace",
     CLOCK_RUST_FILTER: "cargo build --release --workspace",
     FEAT_CPP_FILTER: BUILD_HOST_CMD,
+    LAT_RUST_FILTER: "cargo build --release --workspace",
     FEAT_RUST_FILTER: "cargo build --release --workspace",
 }
 

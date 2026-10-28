@@ -1,4 +1,4 @@
-"""P20's latency histogram, percentiles and budget verdict, in C and Python.
+"""P20's latency histogram, percentiles and budget verdict, in three languages.
 
 **This file is what decides chapter 20 without a kernel.** The chapter's third
 and fourth acceptance criteria are that a million release events are recorded
@@ -14,6 +14,11 @@ tolerance anywhere in this file.
 two numbers rather than a thousand, and the two largest histograms are stored
 as bins directly, because four thousand million samples cannot be taken one at
 a time in a test.
+
+**The Rust is driven as a filter over the same oracle**, four verbs on stdin,
+and it is the implementation where finding four behaves differently: a 32-bit
+rank product wraps silently in the C in every build, panics in Rust under test
+and wraps in this workspace's release profile. Its crate README has the table.
 
 **The findings are about the chapter's wording and not about either
 implementation.** A percentile read from a histogram is a bin one microsecond
@@ -31,7 +36,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (BUILD, LAT_RUST_FILTER, require_artefact, run_filter,
+                      shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P20-rtos-task-set"
@@ -450,3 +456,93 @@ def test_the_counter_refuses_rather_than_wrapping():
     assert h["count"] == UINT32_MAX
     print("\n  a counter at {} refuses the next sample and leaves the "
           "histogram untouched; one below it accepts".format(UINT32_MAX))
+
+
+# ---------------------------------------------------------------------------
+# The Rust, driven as a filter over the same oracle. One process for the whole
+# run, which is conftest's rule.
+#
+# Four verbs, counts before data, and samples run-length encoded because the
+# chapter's run is a million releases:
+#
+#     R <cycles_per_us> <npairs> <cycles repeat>*npairs
+#     B <over> <max_us> <count> <npairs> <bin count>*npairs
+#     D <count_before> <cycles> <cycles_per_us>
+#     S <budget> <free>
+
+# The answer names the report's fields without the unit suffix the structs
+# carry, so one map keeps the two spellings from drifting apart.
+ANSWER_TO_REPORT = {"median": "median_us", "p999": "p999_us",
+                    "median_resolved": "median_resolved",
+                    "p999_resolved": "p999_resolved", "max": "max_us",
+                    "over": "over", "count": "count"}
+ANSWER_TO_VERDICT = {"vmedian": "median", "vp999": "p999", "vmax": "max"}
+
+
+def run_request(case):
+    pairs = " ".join("{} {}".format(c, r) for c, r in case["samples"])
+    return "R {} {} {}".format(case["cycles_per_us"], len(case["samples"]),
+                               pairs)
+
+
+def built_request(spec):
+    bins = sorted((int(k), v) for k, v in spec["bins"].items())
+    body = " ".join("{} {}".format(k, v) for k, v in bins)
+    return "B {} {} {} {} {}".format(spec["over"], spec["max_us"],
+                                     spec["count"], len(bins), body).strip()
+
+
+def fields_of(answer):
+    out = {}
+    for token in answer.split():
+        key, value = token.split("=", 1)
+        out[key] = int(value)
+    return out
+
+
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    """One process, every case of all six kinds, in the oracle's order."""
+    require_artefact(LAT_RUST_FILTER, "cargo build --release --workspace")
+    lines = []
+    for case in ORACLE["runs"]:
+        lines.append(run_request(case))
+    for case in ORACLE["built"]:
+        lines.append(built_request(case["spec"]))
+    for case in ORACLE["record_refusals"]:
+        lines.append("D {} {} {}".format(case["count_before"], case["cycles"],
+                                         case["cycles_per_us"]))
+    for case in ORACLE["report_refusals"]:
+        lines.append(built_request(case["spec"]))
+    for case in ORACLE["stacks"] + ORACLE["stack_refusals"]:
+        lines.append("S {} {}".format(case["budget"], case["free"]))
+
+    answers = run_filter(LAT_RUST_FILTER, lines)
+    assert len(answers) == len(lines)
+
+    at = 0
+    for case in ORACLE["runs"] + ORACLE["built"]:
+        got = fields_of(answers[at])
+        for key, oracle_key in ANSWER_TO_REPORT.items():
+            assert got[key] == case["report"][oracle_key], (key, case["why"])
+        for key, oracle_key in ANSWER_TO_VERDICT.items():
+            assert got[key] == case["verdict"][oracle_key], (key, case["why"])
+        at += 1
+    for case in ORACLE["record_refusals"] + ORACLE["report_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    for case in ORACLE["stacks"]:
+        got = fields_of(answers[at])
+        assert got == {"used": case["used"], "permil": case["permil"],
+                       "within": case["within"]}, case["why"]
+        at += 1
+    for case in ORACLE["stack_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    assert at == len(lines)
+    print("\n  the Rust answered all {} requests: {} runs, {} built "
+          "histograms, {} stacks and {} refusals"
+          .format(len(lines), len(ORACLE["runs"]), len(ORACLE["built"]),
+                  len(ORACLE["stacks"]),
+                  len(ORACLE["record_refusals"])
+                  + len(ORACLE["report_refusals"])
+                  + len(ORACLE["stack_refusals"])))
