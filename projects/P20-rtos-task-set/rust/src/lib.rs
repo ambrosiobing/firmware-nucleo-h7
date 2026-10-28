@@ -237,8 +237,8 @@ impl Hist {
         // The count is checked against the histogram rather than trusted. One
         // that did not come from record gives ranks pointing at the wrong
         // samples, and nothing in the output would show it.
-        let total: u64 = self.bins.iter().map(|n| u64::from(*n)).sum::<u64>()
-            + u64::from(self.over);
+        let total: u64 =
+            self.bins.iter().map(|n| u64::from(*n)).sum::<u64>() + u64::from(self.over);
         if total != u64::from(self.count) {
             return Err(Error::Count);
         }
