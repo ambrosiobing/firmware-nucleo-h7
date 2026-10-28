@@ -1,4 +1,4 @@
-"""P20's latency histogram, percentiles and budget verdict, in three languages.
+"""P20's latency histogram, percentiles and budget verdict, in four languages.
 
 **This file is what decides chapter 20 without a kernel.** The chapter's third
 and fourth acceptance criteria are that a million release events are recorded
@@ -15,10 +15,13 @@ two numbers rather than a thousand, and the two largest histograms are stored
 as bins directly, because four thousand million samples cannot be taken one at
 a time in a test.
 
-**The Rust is driven as a filter over the same oracle**, four verbs on stdin,
-and it is the implementation where finding four behaves differently: a 32-bit
-rank product wraps silently in the C in every build, panics in Rust under test
-and wraps in this workspace's release profile. Its crate README has the table.
+**The C++ and the Rust are driven as filters over the same oracle**, four verbs
+on stdin, one test over both. The Rust is where finding four behaves
+differently, a 32-bit rank product wrapping silently in the C in every build,
+panicking in Rust under test and wrapping in this workspace's release profile.
+The C++ is where finding three becomes a type rather than a convention, each
+percentile being a `std::optional` that cannot be read without the question
+being answered. Both language READMEs carry their own table.
 
 **The findings are about the chapter's wording and not about either
 implementation.** A percentile read from a histogram is a bin one microsecond
@@ -36,7 +39,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, LAT_RUST_FILTER, require_artefact, run_filter,
+from conftest import (BUILD, BUILD_HOST_CMD, LAT_CPP_FILTER,
+                      LAT_RUST_FILTER, require_artefact, run_filter,
                       shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -500,9 +504,18 @@ def fields_of(answer):
     return out
 
 
-def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+# The C++ and the Rust speak one protocol, so the test below runs over both and
+# the language is in the test id, which is what names the one that disagreed.
+FILTERS = [(LAT_CPP_FILTER, "cpp", BUILD_HOST_CMD),
+           (LAT_RUST_FILTER, "rust", "cargo build --release --workspace")]
+FILTER_ARGS = [(path, command) for path, _, command in FILTERS]
+FILTER_IDS = [name for _, name, _ in FILTERS]
+
+
+@pytest.mark.parametrize("path,command", FILTER_ARGS, ids=FILTER_IDS)
+def test_each_filter_answers_every_case_as_the_oracle_says(path, command):
     """One process, every case of all six kinds, in the oracle's order."""
-    require_artefact(LAT_RUST_FILTER, "cargo build --release --workspace")
+    require_artefact(path, command)
     lines = []
     for case in ORACLE["runs"]:
         lines.append(run_request(case))
@@ -516,7 +529,7 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
     for case in ORACLE["stacks"] + ORACLE["stack_refusals"]:
         lines.append("S {} {}".format(case["budget"], case["free"]))
 
-    answers = run_filter(LAT_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
 
     at = 0
@@ -539,7 +552,7 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
         assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
         at += 1
     assert at == len(lines)
-    print("\n  the Rust answered all {} requests: {} runs, {} built "
+    print("\n  the filter answered all {} requests: {} runs, {} built "
           "histograms, {} stacks and {} refusals"
           .format(len(lines), len(ORACLE["runs"]), len(ORACLE["built"]),
                   len(ORACLE["stacks"]),

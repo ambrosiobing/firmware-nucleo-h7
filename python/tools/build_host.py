@@ -675,6 +675,18 @@ def main() -> int:
     shared_lib("latstat", [proj("P20", "c") / "latstat.c"],
                includes=[proj("P20", "c")])
 
+    # P20's C++ variant, Wednesday 28 October 2026. No contraction flag: every
+    # quantity in this project is an integer, and the guard in
+    # test_float_builds_disable_contraction.py now reads the header as well as
+    # the source, so it agrees rather than merely not noticing.
+    print("P20, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         *STATIC,
+         "-I", proj("P20", "cpp"),
+         proj("P20", "cpp") / "latstat_filter.cpp",
+         "-o", BUILD / ("latstat_filter" + exe)],
+        "latstat_filter")
+
     print("P08, the C++ variant as a filter driven by the tests:")
     run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,

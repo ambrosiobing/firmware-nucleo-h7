@@ -1,6 +1,6 @@
 # P20: Three jobs at once: the node as an RTOS application
 
-Status: c=host cpp=none python=host rust=host
+Status: c=host cpp=host python=host rust=host
 
 **Started on the host, Tuesday 27 October 2026, and it is the part of chapter 20
 that decides the chapter without a kernel.** Criterion 3 is that "a million
@@ -22,6 +22,7 @@ latency distribution over a million events against a deadline stated in advance.
 | `c/latstat.c`, the histogram, the ranks, the verdict and the stack arithmetic | 7 recorded runs, 2 built histograms, 4 refusals, 4 stack rows, 2 stack refusals |
 | `python/latstat.py`, the twin, standard library only | the same cases, and the two readings the chapter's wording invites kept unused |
 | `rust/src/lib.rs`, `no_std`, and `rust/src/main.rs`, the filter | the same cases through a four verb protocol, and six unit tests |
+| `cpp/latstat.hpp`, header only, and `cpp/latstat_filter.cpp` | the same cases through the same protocol, with each percentile a `std::optional` |
 | `vectors.json`, the oracle | **compared exactly, with no tolerance anywhere**, because all of it is integer |
 
 **The instrument is step 5's**, unchanged: 1024 bins, one microsecond per bin, a
@@ -137,6 +138,22 @@ test prints what the wrapped form returned.
 That is the second time this volume's equivalence gate has been extended by a
 corner a third implementation turned up rather than by the gate failing, after
 P16's root mean square on Tuesday 27 October 2026.
+
+## And finding three is a type in the C++ rather than a convention
+
+Finding three says a percentile whose rank falls inside the overflow count has
+no bin, and that reporting the top bin for it is the one wrong answer nothing
+downstream can detect. The C carries that as two fields, `median_us` and
+`median_resolved`, **which can disagree and which a reader can take in the wrong
+order**: the value sitting in an unresolved percentile is zero, and zero
+microseconds reads as the fastest run ever measured.
+
+In the C++ each percentile is a `std::optional`, so the value cannot be reached
+without the question being answered. That is not a better algorithm and not
+fewer lines; it moves the risk on the one finding where a silent wrong answer
+was the risk from the reader's discipline to the type. It is given up at the
+filter, where the protocol needs the C's two flat fields, which is the honest
+place to lose it. [cpp/README.md](cpp/README.md) has the detail.
 
 ## The same defect behaves differently in Rust, which is the second instance
 
