@@ -671,6 +671,14 @@ def main() -> int:
     # percentile ranks and the verdict against table 20.4's three budget rows.
     # Integer arithmetic throughout, so no contraction flag applies. The ranks
     # are 64-bit on purpose and the header says why.
+    # P19's first host code, Wednesday 28 October 2026, and the first thing in
+    # that project that can be compared against anything: criteria 4 and 5 are
+    # the alignment arithmetic, which needs no transfer engine and no RM0455.
+    # Integer arithmetic throughout, so no contraction flag applies.
+    print("P19, the maintenance range, criterion 4 and the region encoding:")
+    shared_lib("mpualign", [proj("P19", "c") / "mpualign.c"],
+               includes=[proj("P19", "c")])
+
     print("P20, the latency histogram, its percentiles and the budget verdict:")
     shared_lib("latstat", [proj("P20", "c") / "latstat.c"],
                includes=[proj("P20", "c")])

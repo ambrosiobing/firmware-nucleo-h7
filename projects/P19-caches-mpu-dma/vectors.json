@@ -1,0 +1,199 @@
+{
+ "schema": 1,
+ "note": "P19's alignment arithmetic: chapter 19's criteria 4 and 5, which are the half of that chapter needing no transfer engine and no RM0455. Every quantity is an unsigned integer and every case is compared exactly. THE CACHE LINE OF 32 BYTES IS MEASURED AND NOT QUOTED, by this project's own placement run on the board on Saturday 3 October 2026, and it is still a parameter of every function. The refusals that matter are the end address that cannot be expressed one past the top of the address space, and the region base that is aligned to the cache line but not to its own size.",
+ "line": 32,
+ "ranges": [
+  {
+   "why": "aligned and a whole number of lines, which is what criterion 4 asks for",
+   "addr": 603979776,
+   "len": 64,
+   "line": 32,
+   "base": 603979776,
+   "end": 603979840,
+   "bytes": 64,
+   "lines": 2,
+   "head_shared": 0,
+   "tail_shared": 0
+  },
+  {
+   "why": "ALIGNED BUT NOT A MULTIPLE, so the TAIL line is shared and an invalidate would discard whatever follows the buffer. Criterion 4's second half is what this case is about",
+   "addr": 603979776,
+   "len": 40,
+   "line": 32,
+   "base": 603979776,
+   "end": 603979840,
+   "bytes": 64,
+   "lines": 2,
+   "head_shared": 0,
+   "tail_shared": 1
+  },
+  {
+   "why": "NEITHER ALIGNED NOR A MULTIPLE, so BOTH end lines are shared and the two halves of criterion 4 fix different ends",
+   "addr": 603979792,
+   "len": 32,
+   "line": 32,
+   "base": 603979776,
+   "end": 603979840,
+   "bytes": 64,
+   "lines": 2,
+   "head_shared": 1,
+   "tail_shared": 1
+  },
+  {
+   "why": "a single byte, which still costs a whole line at each end",
+   "addr": 603979777,
+   "len": 1,
+   "line": 32,
+   "base": 603979776,
+   "end": 603979808,
+   "bytes": 32,
+   "lines": 1,
+   "head_shared": 1,
+   "tail_shared": 1
+  },
+  {
+   "why": "the largest buffer this signature can express at the top of the address space: one line further and the aligned end would need 2 to the 32nd",
+   "addr": 4294967040,
+   "len": 224,
+   "line": 32,
+   "base": 4294967040,
+   "end": 4294967264,
+   "bytes": 224,
+   "lines": 7,
+   "head_shared": 0,
+   "tail_shared": 0
+  },
+  {
+   "why": "a 64 byte line, because the line length is a parameter and not the measured 32 of this part",
+   "addr": 603979792,
+   "len": 64,
+   "line": 64,
+   "base": 603979776,
+   "end": 603979904,
+   "bytes": 128,
+   "lines": 2,
+   "head_shared": 1,
+   "tail_shared": 1
+  }
+ ],
+ "range_refusals": [
+  {
+   "why": "a line length of zero",
+   "addr": 603979776,
+   "len": 32,
+   "line": 0,
+   "error": "line"
+  },
+  {
+   "why": "a line length that is not a power of two, which would make the rounding meaningless",
+   "addr": 603979776,
+   "len": 32,
+   "line": 48,
+   "error": "line"
+  },
+  {
+   "why": "a buffer of no bytes",
+   "addr": 603979776,
+   "len": 0,
+   "line": 32,
+   "error": "length"
+  },
+  {
+   "why": "A BUFFER ENDING EXACTLY AT THE TOP OF THE ADDRESS SPACE, where one past the last address needs 2 to the 32nd and a uint32_t has only zero to offer; zero would make a loop from base to end run no times and maintain nothing",
+   "addr": 4294967040,
+   "len": 256,
+   "line": 32,
+   "error": "wrap"
+  },
+  {
+   "why": "a single byte at the very top, whose aligned end crosses the boundary even though the unrounded end does not",
+   "addr": 4294967295,
+   "len": 1,
+   "line": 32,
+   "error": "wrap"
+  },
+  {
+   "why": "an end address genuinely past 32 bits",
+   "addr": 4294967280,
+   "len": 32,
+   "line": 32,
+   "error": "wrap"
+  }
+ ],
+ "buffers": [
+  {
+   "why": "criterion 4 satisfied, both halves",
+   "addr": 603979776,
+   "len": 64,
+   "line": 32,
+   "error": null
+  },
+  {
+   "why": "criterion 4 satisfied at a line that is not the whole buffer",
+   "addr": 603979808,
+   "len": 32,
+   "line": 32,
+   "error": null
+  },
+  {
+   "why": "ALIGNED AND NOT A MULTIPLE, which a reader checking only the alignment would pass",
+   "addr": 603979776,
+   "len": 40,
+   "line": 32,
+   "error": "align"
+  },
+  {
+   "why": "a multiple and not aligned",
+   "addr": 603979792,
+   "len": 32,
+   "line": 32,
+   "error": "align"
+  }
+ ],
+ "regions": [
+  {
+   "why": "the smallest region ARMv7-M allows, which encodes as 4",
+   "base": 603979776,
+   "size": 32,
+   "size_field": 4
+  },
+  {
+   "why": "a 4096 byte region on a 4096 byte boundary",
+   "base": 603983872,
+   "size": 4096,
+   "size_field": 11
+  },
+  {
+   "why": "the largest region this signature can express, 2 to the 31st",
+   "base": 2147483648,
+   "size": 2147483648,
+   "size_field": 30
+  }
+ ],
+ "region_refusals": [
+  {
+   "why": "A 4096 BYTE REGION AT A 32 BYTE ALIGNED BASE, which satisfies criterion 4 exactly and fails criterion 5, because an ARMv7-M region must start on a multiple of its OWN size. The two criteria are independent and this is the case that shows it",
+   "base": 603980032,
+   "size": 4096,
+   "error": "align"
+  },
+  {
+   "why": "a region below the 32 byte minimum",
+   "base": 603979776,
+   "size": 16,
+   "error": "size"
+  },
+  {
+   "why": "a size that is not a power of two",
+   "base": 603979776,
+   "size": 48,
+   "error": "size"
+  },
+  {
+   "why": "a size of zero",
+   "base": 603979776,
+   "size": 0,
+   "error": "size"
+  }
+ ]
+}
