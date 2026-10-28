@@ -160,6 +160,34 @@
     "p999": 0,
     "max": 0
    }
+  },
+  {
+   "why": "THE MAXIMUM AT THE TOP OF A 32-BIT MICROSECOND FIGURE, where bin plus one wrapped to zero and reported the worst run this instrument can record as meeting the 1 ms budget. The twin computes in arbitrary precision and said fail, so the two disagreed and no case reached it. Found by clippy on the Rust twin on Wednesday 28 October 2026",
+   "cycles_per_us": 1,
+   "samples": [
+    [
+     50,
+     9
+    ],
+    [
+     4294967295,
+     1
+    ]
+   ],
+   "report": {
+    "median_us": 50,
+    "p999_us": 0,
+    "median_resolved": 1,
+    "p999_resolved": 0,
+    "max_us": 4294967295,
+    "over": 1,
+    "count": 10
+   },
+   "verdict": {
+    "median": 0,
+    "p999": 1,
+    "max": 1
+   }
   }
  ],
  "built": [

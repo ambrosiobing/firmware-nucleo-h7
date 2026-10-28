@@ -12,9 +12,14 @@ warnings as errors, and the tests.
 | `src/main.rs` | four verbs on stdin, so one parity test drives this beside the C and the Python |
 | `Cargo.toml` | no dependencies, and why this crate is `no_std` where two others are not |
 
-The five findings this project exists for are written out in
-[../c/latstat.h](../c/latstat.h) and are not repeated here. One of them behaves
-differently in this language, and that is what this page is about.
+The findings this project exists for are written out in
+[../c/latstat.h](../c/latstat.h) and are not repeated here. Two of them belong
+to this page: finding four behaves differently in this language, and **finding
+six was found by clippy on this crate**, where `bin + 1 <= budget` is rejected
+as `int_plus_one`. That expression wrapped for a maximum of 4294967295
+microseconds and returned a pass for the worst run the instrument can record,
+while the Python twin returned a fail; all three now use a strict comparison and
+the oracle carries the run.
 
 ## Finding four is the one the language changes
 

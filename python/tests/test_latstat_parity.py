@@ -546,3 +546,38 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
                   len(ORACLE["record_refusals"])
                   + len(ORACLE["report_refusals"])
                   + len(ORACLE["stack_refusals"])))
+
+
+def test_the_verdict_at_the_top_of_a_32_bit_microsecond_figure():
+    """The sixth finding, and clippy on the Rust twin is what found it.
+
+    `decide_bin` asked whether the whole bin was below its budget, and wrote
+    that as "bin plus one at or below the budget". That is the same thing in
+    arithmetic and not the same thing in a `uint32_t`: the MAXIMUM reaches that
+    function unbounded by the bin count, `lat_record` produces 4294967295
+    microseconds from a cycle count of 4294967295 at one cycle per microsecond,
+    and the sum then wrapped to zero and returned PASS for the worst run this
+    instrument can record.
+
+    The twin computes in arbitrary precision and returned FAIL, so the two
+    implementations disagreed and no oracle case had reached the corner. All
+    three now use a strict comparison, which cannot wrap, and the oracle
+    carries the run.
+    """
+    case = next(c for c in ORACLE["runs"] if "TOP OF A 32-BIT" in c["why"])
+    rc, rep = py_report(py_record_run(case))
+    assert rc == 0
+    assert rep["max_us"] == UINT32_MAX
+    rc, ver = py_verdict(rep, BUDGET)
+    assert rc == 0 and ver["max"] == LAT_FAIL
+
+    # What the wrapped form returned, in the C's arithmetic, so the test shows
+    # the defect rather than describing it.
+    wrapped = (rep["max_us"] + 1) & UINT32_MAX
+    assert wrapped == 0
+    assert wrapped <= BUDGET["max_us"], (
+        "bin plus one no longer wraps below the budget, so this case no "
+        "longer demonstrates the finding")
+    print("\n  a maximum of {} microseconds against a budget of {}: the "
+          "verdict is fail, where bin plus one wrapped to {} and returned a "
+          "pass".format(rep["max_us"], BUDGET["max_us"], wrapped))

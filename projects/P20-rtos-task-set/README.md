@@ -19,7 +19,7 @@ latency distribution over a million events against a deadline stated in advance.
 
 | Piece | What proves it |
 |---|---|
-| `c/latstat.c`, the histogram, the ranks, the verdict and the stack arithmetic | 6 recorded runs, 2 built histograms, 4 refusals, 4 stack rows, 2 stack refusals |
+| `c/latstat.c`, the histogram, the ranks, the verdict and the stack arithmetic | 7 recorded runs, 2 built histograms, 4 refusals, 4 stack rows, 2 stack refusals |
 | `python/latstat.py`, the twin, standard library only | the same cases, and the two readings the chapter's wording invites kept unused |
 | `rust/src/lib.rs`, `no_std`, and `rust/src/main.rs`, the filter | the same cases through a four verb protocol, and six unit tests |
 | `vectors.json`, the oracle | **compared exactly, with no tolerance anywhere**, because all of it is integer |
@@ -113,6 +113,30 @@ rather than clamped, because it means the two numbers came from different tasks.
 
 The eighty percent rule is a comparison and not a division, so it is exact at
 the boundary: 819 bytes of 1024 is allowed and 820 is refused.
+
+## And clippy found a sixth finding, which the gate had not reached
+
+Finding one says a pass needs the whole bin below its budget. That was written
+as "bin plus one at or below the budget", which is the same thing in arithmetic
+and **not** the same thing in a `uint32_t`. The maximum passes through that
+comparison unbounded by the bin count, and `lat_record` produces 4294967295
+microseconds from a cycle count of 4294967295 at one cycle per microsecond:
+
+| A maximum of 4294967295 microseconds against the 1 ms budget | |
+|---|---|
+| C, before Wednesday 28 October 2026 | the sum wrapped to 0, which is at or below 1000, so **PASS** |
+| Python, before Wednesday 28 October 2026 | arbitrary precision, so **FAIL** |
+| all three, since Wednesday 28 October 2026 | a strict comparison, which cannot wrap, so **FAIL** |
+
+**So the worst run this instrument can record was reported as meeting the
+budget**, the two implementations disagreed about it, and no oracle case had
+reached the corner. It was found by clippy on the Rust twin, which rejects
+`bin + 1 <= budget` as `int_plus_one`. The oracle now carries that run and a
+test prints what the wrapped form returned.
+
+That is the second time this volume's equivalence gate has been extended by a
+corner a third implementation turned up rather than by the gate failing, after
+P16's root mean square on Tuesday 27 October 2026.
 
 ## The same defect behaves differently in Rust, which is the second instance
 

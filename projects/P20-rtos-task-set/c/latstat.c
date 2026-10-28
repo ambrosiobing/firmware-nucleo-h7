@@ -111,7 +111,16 @@ int lat_report(const lat_hist_t *h, lat_report_t *out)
  * one, so only a bin entirely on one side of the budget decides anything. */
 static uint8_t decide_bin(uint32_t bin, uint32_t budget)
 {
-    if (bin + 1u <= budget) {
+    /* A STRICT COMPARISON AND NOT bin + 1u <= budget, WHICH WRAPPED. The two
+     * are the same in arithmetic and not the same in a uint32_t: the maximum
+     * reaches this function unbounded by the bin count, lat_record can produce
+     * 4294967295 microseconds from a cycle count of 4294967295 at one cycle
+     * per microsecond, and bin + 1u then wrapped to zero and returned PASS for
+     * the worst run this instrument can record. The twin computes in arbitrary
+     * precision and returned FAIL, so the two disagreed and no oracle case had
+     * reached the corner. Found by clippy on the Rust twin, which rejects the
+     * same expression as int_plus_one, on Wednesday 28 October 2026. */
+    if (bin < budget) {
         return (uint8_t) LAT_PASS;
     }
     if (bin > budget) {

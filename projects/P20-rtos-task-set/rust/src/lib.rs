@@ -263,7 +263,12 @@ impl Hist {
 /// Finding one: bin k covers the true values from k up to just under k plus
 /// one, so only a bin entirely on one side of the budget decides anything.
 fn decide_bin(bin: u32, budget: u32) -> Verdict {
-    if bin + 1 <= budget {
+    // A strict comparison, which clippy's int_plus_one asked for and which was
+    // a real defect rather than a style point: the maximum reaches this
+    // function unbounded by the bin count, and `bin + 1` on a maximum of
+    // 4294967295 wrapped to zero in the C and returned a pass for the worst
+    // run this instrument can record.
+    if bin < budget {
         return Verdict::Pass;
     }
     if bin > budget {

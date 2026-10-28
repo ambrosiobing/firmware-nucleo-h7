@@ -135,8 +135,17 @@ def report(hist):
 
 
 def _decide_bin(bin_us, budget):
-    """Bin k covers the true values from k up to just under k plus one."""
-    if bin_us + 1 <= budget:
+    """Bin k covers the true values from k up to just under k plus one.
+
+    Written as a strict comparison and not as "bin plus one at or below the
+    budget", which is the same thing in this language and NOT the same thing in
+    the C. There the sum is a uint32_t, the maximum passes through here
+    unbounded by the bin count, and a maximum of 4294967295 microseconds made
+    that sum wrap to zero and reported the worst possible run as a PASS. Found
+    by clippy on the Rust twin on Wednesday 28 October 2026, where the same
+    expression is also a rejected lint.
+    """
+    if bin_us < budget:
         return LAT_PASS
     if bin_us > budget:
         return LAT_FAIL

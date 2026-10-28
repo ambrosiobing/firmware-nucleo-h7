@@ -64,6 +64,20 @@
  * the budget is refused rather than clamped, because it means the two numbers
  * came from different tasks.
  *
+ * FINDING SIX: THE VERDICT'S OWN COMPARISON WRAPPED, AND IT TURNED THE WORST
+ * POSSIBLE RUN INTO A PASS. Finding one says a pass needs the whole bin below
+ * the budget, and that was written as "bin plus one at or below the budget",
+ * which is the same thing in arithmetic and not the same thing in a uint32_t.
+ * The MAXIMUM passes through that comparison unbounded by the bin count, and
+ * lat_record produces 4294967295 microseconds from a cycle count of 4294967295
+ * at one cycle per microsecond. The sum then wrapped to zero, compared at or
+ * below the 1 ms budget, and returned PASS. The twin computes in arbitrary
+ * precision and returned FAIL, so the two disagreed and no oracle case had
+ * reached the corner. All three implementations now use a strict comparison,
+ * which cannot wrap, and the oracle carries the run. It was found by clippy on
+ * the Rust twin, on Wednesday 28 October 2026, which rejects the expression as
+ * int_plus_one for exactly this reason.
+ *
  * WHAT IS NOT HERE. FreeRTOS, the four tasks, the notification and semaphore
  * wakes, the mutex, the supervisor and its watchdog, every latency figure,
  * every stack high-water figure and the processor load. Those need the board,
