@@ -1,6 +1,6 @@
 # P16: Where the classifier runs, sensor, MCU or host
 
-Status: c=host cpp=none python=host rust=host
+Status: c=host cpp=host python=host rust=host
 
 **Started on the host, Tuesday 27 October 2026, and it is criterion 1.** Chapter
 16's first acceptance criterion is the equivalence gate: "all three
@@ -29,18 +29,29 @@ in the sensor, on the microcontroller and on the host.
 | `c/winfeat.c`, the three pinned feature groups and the bounded tree | 7 feature cases, 4 shape refusals, 5 tree cases, 6 tree refusals |
 | `python/winfeat.py`, the twin, standard library only | the same cases, and the rounding the chapter permits kept unused |
 | `rust/src/lib.rs`, `no_std`, and `rust/src/main.rs`, the filter | the same cases through a two verb protocol, and seven unit tests |
+| `cpp/winfeat.hpp`, header only, and `cpp/winfeat_filter.cpp` | the same cases through the same protocol, and a fourth route to the integer square root |
 | `vectors.json`, the oracle | **compared exactly, with no tolerance anywhere**, because criterion 1 is identity and not closeness |
 
 **One window is 128 samples of three axes**, which is step 3's definition, about
 1.23 seconds at 104 Hz, and features are Q15 because that is what the most
 constrained of the three implementations can produce.
 
-**The three implementations reach the integer square root by three different
-routes**, a bit-by-bit descent in the C, `math.isqrt` in the Python and
-`u64::isqrt` in the Rust. That is deliberate: three transcriptions of one
-algorithm would mostly prove the transcription was faithful, where three
-algorithms agreeing on every case is what the gate is for. It is also what found
-the defect below. The Rust crate declares a minimum Rust version of 1.84 where
+**The four implementations reach the integer square root by four different
+routes**, a bit-by-bit descent in the C, `math.isqrt` in the Python,
+`u64::isqrt` in the Rust and a corrected `std::sqrt` in the C++. That is
+deliberate: four transcriptions of one algorithm would mostly prove the
+transcription was faithful, where four algorithms agreeing on every case is what
+the gate is for. It is also what found the defect below.
+
+**And the C++ route corrects the C header's reason for refusing it.** The C
+writes its descent by hand because "a float sqrt followed by a cast would agree
+almost always, and almost always is what an exact gate exists to refuse". True
+of a function typed `uint64_t`, and not true of this window: across 98303
+adversarial inputs up to two to the thirtieth the uncorrected cast was exact
+every time, and the smallest input where it fails is 67108865 squared less one,
+eleven binary orders of magnitude above anything here. The refusal is justified
+by the type and not by the inputs, and
+[cpp/README.md](cpp/README.md) has the measurement. The Rust crate declares a minimum Rust version of 1.84 where
 the other ten in the workspace declare 1.75, because `isqrt` stabilised there,
 and [rust/README.md](rust/README.md) says why that was preferred to a fourth
 hand-rolled descent.

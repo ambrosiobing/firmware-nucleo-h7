@@ -15,10 +15,20 @@ third instance still reached main. That is what makes this a rule rather than a
 habit worth remembering: nothing on the authoring laptop can compile, so the flag
 cannot be exercised there, and a comment in two other projects is not a check.
 
-**What it cannot do.** It reads the registration and the source, so it sees a
-spelling rather than a semantics: a file that computes in floating point through a
-typedef this does not know about would pass. It also says nothing about the Rust
-and the C++ halves beyond the C++ filter builds spelled in the same script.
+**It read the source and not the source's includes, until Wednesday 28 October
+2026.** P16's C++ filter is the first header-only library registered here: the
+`.cpp` file names no floating point at all and every `double` in it lives in
+`winfeat.hpp`, which this test never opened. So the flag it needs could not have
+been required by the check written to require it, and the gap was found by
+writing the file rather than by the check. It now follows a local include, one
+level, from the directory of the named source, which is the only shape a
+first-party include takes in this tree.
+
+**What it still cannot do.** It reads a spelling rather than a semantics: a file
+computing in floating point through a typedef this does not know about would
+pass, and so would one whose floating point sits two includes deep. It also says
+nothing about the Rust half, and nothing about the C++ halves beyond the filter
+builds spelled in this one script.
 """
 from __future__ import annotations
 
@@ -77,6 +87,29 @@ def resolve(name: str):
     return hits[0] if len(hits) == 1 else None
 
 
+INCLUDE = re.compile(r'#\s*include\s*"([^"]+)"')
+
+
+def computes_in_floating_point(path: Path):
+    """The named source, or a header it includes from its own directory.
+
+    Returns the path whose text names a floating point type, or None. One level
+    of include and no further: that is the depth this tree actually uses, and a
+    deeper walk would be a claim about a shape no file here has.
+    """
+    text = strip_comments(path.read_text(encoding="utf-8", errors="replace"))
+    if FLOAT_TYPE.search(text):
+        return path
+    for name in INCLUDE.findall(text):
+        beside = path.parent / name
+        if not beside.is_file():
+            continue
+        if FLOAT_TYPE.search(strip_comments(
+                beside.read_text(encoding="utf-8", errors="replace"))):
+            return beside
+    return None
+
+
 def test_every_floating_point_host_build_turns_contraction_off():
     text = BUILD_HOST.read_text(encoding="utf-8")
     checked = 0
@@ -92,10 +125,13 @@ def test_every_floating_point_host_build_turns_contraction_off():
             if path is None or not path.is_file():
                 continue
             checked += 1
-            if not FLOAT_TYPE.search(strip_comments(
-                    path.read_text(encoding="utf-8", errors="replace"))):
+            # The source, or a header beside it, which is how P16's C++ filter
+            # reaches a double without naming one.
+            where = computes_in_floating_point(path)
+            if where is None:
                 continue
-            floating.append(name)
+            floating.append(name if where == path
+                            else "{} (through {})".format(name, where.name))
             if FLAG not in span:
                 problems.append(name)
 

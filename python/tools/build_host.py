@@ -629,6 +629,26 @@ def main() -> int:
     shared_lib("winfeat", [proj("P16", "c") / "winfeat.c"],
                includes=[proj("P16", "c")])
 
+    # P16's C++ variant, Wednesday 28 October 2026, and it is the fourth
+    # independent route to the floored integer square root: a corrected sqrt,
+    # where the C descends bit by bit, the Python calls math.isqrt and the Rust
+    # calls u64::isqrt. Criterion 1 is worth running in proportion to how
+    # independently its implementations were written, and it has already paid
+    # once.
+    # -ffp-contract=off because that sqrt computes in floating point. NOTE THAT
+    # THE GUARD IN test_float_builds_disable_contraction.py COULD NOT HAVE
+    # REQUIRED THIS FLAG when the file was written: it reads the source named
+    # here for the words float and double, and here they are in winfeat.hpp,
+    # which it did not open. The guard now follows a local include, and that
+    # gap is written up in the test.
+    print("P16, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         "-ffp-contract=off", *STATIC,
+         "-I", proj("P16", "cpp"),
+         proj("P16", "cpp") / "winfeat_filter.cpp",
+         "-o", BUILD / ("winfeat_filter" + exe)],
+        "winfeat_filter")
+
     # P17's first code, Tuesday 27 October 2026: the timebase arithmetic, which
     # is the part of chapter 17 that needs no peripheral. Named tbmath to match
     # c/instr/freqmath.c and its siblings, the arithmetic split out of a file

@@ -1,4 +1,4 @@
-"""P16's window features and bounded tree, in C, Python and Rust, against one oracle.
+"""P16's window features and bounded tree, in four languages, against one oracle.
 
 **This file is chapter 16's criterion 1.** That criterion is "the equivalence
 gate passes: all three implementations produce identical features and identical
@@ -8,15 +8,16 @@ because by then each implementation has its own quiet assumption".
 
 **The chapter's three implementations are the three placements**, in the sensor,
 on the microcontroller and on the host, and only the host one exists. What runs
-here is that one written in three languages, compared the way the placement gate
+here is that one written in four languages, compared the way the placement gate
 will be, and none of it needed the shield.
 
 **Everything is compared exactly.** The criterion is identity, not closeness, so
 there is no tolerance anywhere in this file. All of it is integer arithmetic in
-Q15, and the three implementations reach the integer square root by three
-different routes, a bit-by-bit descent in the C, `math.isqrt` in the Python and
-`u64::isqrt` in the Rust, which is what makes the comparison worth running and is
-what found the saturation defect recorded at the bottom of this file.
+Q15, and the four implementations reach the integer square root by four
+different routes, a bit-by-bit descent in the C, `math.isqrt` in the Python,
+`u64::isqrt` in the Rust and a corrected `std::sqrt` in the C++, which is what
+makes the comparison worth running and is what found the saturation defect
+recorded further down this file.
 
 **The windows are a recipe rather than a list.** A full window is 384 integers;
 six of them would be two thousand numbers nobody reads. The oracle stores the
@@ -36,13 +37,15 @@ from __future__ import annotations
 
 import ctypes
 import json
+import math
 import sys
 from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, FEAT_RUST_FILTER, require_artefact,
-                      run_filter, shared_library_name)
+from conftest import (BUILD, BUILD_HOST_CMD, FEAT_CPP_FILTER,
+                      FEAT_RUST_FILTER, require_artefact, run_filter,
+                      shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P16-classifier-placement"
@@ -254,7 +257,6 @@ def test_the_root_mean_square_saturates_and_the_gate_found_that():
     two there. All three implementations now saturate at 32767, which is what
     peak to peak already did and for the same stated reason.
     """
-    import math
     case = next(c for c in ORACLE["cases"] if "SATURATES" in c["why"])
     samples = build(case["spec"])
     rc, got = py_window(samples, N, FEAT_AXES)
@@ -307,10 +309,18 @@ def fields_of(answer):
     return out
 
 
-def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+# The C++ and the Rust speak one protocol, so the test below runs over both and
+# the language is in the test id, which is what names the one that disagreed.
+FILTERS = [(FEAT_CPP_FILTER, "cpp", BUILD_HOST_CMD),
+           (FEAT_RUST_FILTER, "rust", "cargo build --release --workspace")]
+FILTER_ARGS = [(path, command) for path, _, command in FILTERS]
+FILTER_IDS = [name for _, name, _ in FILTERS]
+
+
+@pytest.mark.parametrize("path,command", FILTER_ARGS, ids=FILTER_IDS)
+def test_each_filter_answers_every_case_as_the_oracle_says(path, command):
     """One process, every case of all four kinds, in the oracle's order."""
-    require_artefact(FEAT_RUST_FILTER,
-                     "cargo build --release --workspace")
+    require_artefact(path, command)
     lines = []
     for case in ORACLE["cases"]:
         lines.append(feature_request(case["spec"]))
@@ -321,7 +331,7 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
     for case in ORACLE["trees"] + ORACLE["tree_refusals"]:
         lines.append(tree_request(case["tree"], case["depth_max"],
                                   case["features"]))
-    answers = run_filter(FEAT_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
 
     at = 0
@@ -341,8 +351,102 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
         assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
         at += 1
     assert at == len(lines)
-    print("\n  the Rust answered all {} requests, {} windows and {} trees, "
+    print("\n  the filter answered all {} requests, {} windows and {} trees, "
           "including {} refusals"
           .format(len(lines), len(ORACLE["cases"]) + len(ORACLE["shape_refusals"]),
                   len(ORACLE["trees"]) + len(ORACLE["tree_refusals"]),
                   len(ORACLE["shape_refusals"]) + len(ORACLE["tree_refusals"])))
+
+
+# ---------------------------------------------------------------------------
+# The C++ reaches the floored integer square root a fourth way, and this is the
+# claim its header makes, run rather than asserted. Through a replica of that
+# algorithm in Python, so it runs on the authoring laptop where nothing
+# compiles.
+
+
+def cpp_isqrt(v):
+    """The C++ algorithm from cpp/winfeat.hpp, with the loop counts.
+
+    Returns (root, downward corrections, upward corrections). Python's
+    math.sqrt is the same IEEE double square root the C++ calls.
+    """
+    if v == 0:
+        return 0, 0, 0
+    r = int(math.sqrt(float(v)))
+    if r > 0xFFFFFFFF:
+        r = 0xFFFFFFFF
+    down = up = 0
+    while r > 0 and r * r > v:
+        r -= 1
+        down += 1
+    while r < 0xFFFFFFFF and (r + 1) * (r + 1) <= v:
+        r += 1
+        up += 1
+    return r, down, up
+
+
+def test_the_cpp_route_needs_no_correction_anywhere_in_this_projects_range():
+    """The finding in cpp/winfeat.hpp, and it corrects the C header's reason.
+
+    `c/winfeat.c` writes its root as a bit-by-bit descent because "a float sqrt
+    followed by a cast would agree almost always, and almost always is what an
+    exact gate exists to refuse". That is right about a function typed uint64_t
+    and it is not right about this window's arithmetic: the mean of the squares
+    cannot exceed two to the thirtieth, and over every adversarial input in
+    that range the uncorrected cast is already exact. So the C++ corrects a
+    root that never needs correcting here, and the refusal in the C header is
+    justified by the type rather than by the inputs.
+    """
+    top = 1 << 30
+    cases = {0, 1, 2, 3, top - 1, top}
+    for k in range(0, 32769):
+        for v in (k * k - 1, k * k, k * k + 1):
+            if 0 <= v <= top:
+                cases.add(v)
+    corrected = []
+    for v in cases:
+        got, down, up = cpp_isqrt(v)
+        assert got == math.isqrt(v), (v, got)
+        if down or up:
+            corrected.append(v)
+    assert not corrected, (
+        "the corrected sqrt now needs its correction inside this project's "
+        "range, so the header's finding has stopped being true: {}"
+        .format(corrected[:4]))
+    print("\n  {} adversarial inputs up to 2**30, every one exact, and the "
+          "uncorrected cast needed no correction on any of them"
+          .format(len(cases)))
+
+
+def test_the_correction_is_not_dead_code_outside_that_range():
+    """The control, so the loops are shown to be reachable rather than assumed.
+
+    The shape that defeats a sqrt and a cast is v equal to k squared less one,
+    where the true root sits a hair below a whole number and the double rounds
+    up to it. That needs the hair to be narrower than half a unit of least
+    precision, which first happens at k equal to two to the twenty-sixth. The
+    smallest such input is named here, eleven binary orders of magnitude above
+    anything this project produces.
+    """
+    k = (1 << 26) + 1
+    v = k * k - 1
+    assert v == 4503599761588224, "the named smallest failing input moved"
+    uncorrected = int(math.sqrt(float(v)))
+    corrected, down, up = cpp_isqrt(v)
+    assert uncorrected == k, "the cast no longer rounds up here"
+    assert corrected == math.isqrt(v) == k - 1
+    assert down == 1 and up == 0
+
+    # And the clamp, which is the other reachable branch: the sqrt of the
+    # largest uint64_t rounds up to two to the thirty-second, and without the
+    # clamp the second loop's product wraps to zero and walks upward for ever.
+    big = (1 << 64) - 1
+    assert int(math.sqrt(float(big))) == 1 << 32
+    clamped, down, up = cpp_isqrt(big)
+    assert clamped == math.isqrt(big) == 0xFFFFFFFF
+    assert down == 0 and up == 0
+    print("\n  {} is {} squared less one: the cast gives {} and the answer is "
+          "{}, corrected downward once; and at the top of a 64-bit input the "
+          "cast gives {} where the answer is {}, which the clamp holds"
+          .format(v, k, uncorrected, corrected, 1 << 32, clamped))
