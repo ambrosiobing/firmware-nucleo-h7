@@ -102,19 +102,25 @@ or `stack`, and a request with anything left over is refused.
 
 ## What is not here
 
-Not the board, and not FreeRTOS. This crate is `no_std` and builds for the host
-only, because `code.yml`'s cross step names its no_std crates one by one and
-this crate is not among them. `p16-winfeat`, `p17-tbmath` and `p04-rxspan` are
-in the same position.
+Not the board, and not FreeRTOS, in the sense that nothing here has run on it.
+**This crate does compile for the board's target**, since Thursday 29 October
+2026, along with the other five that were missing from `code.yml`'s cross step:
+`p01-clocktree`, absent since Sunday 4 October 2026, `p04-rxspan`,
+`p07-cyclecharge`, `p16-winfeat` and `p17-tbmath`.
 
-**"Which only the runner can answer" was the wording here until Thursday 29
-October 2026, and it conflated two things.** The runner answers for its image
-and its toolchain; the step's script is a cargo command naming a target that
-`rust-toolchain.toml` installs on the laptop with a compiler too, so the script
-can be run there with `python3 python/tools/run_workflow_step.py`. That tool was
-written after a literal backslash-n in a workflow script cost a red commit on
-Monday 26 October 2026 and three days of diagnosing a compiler that was never
-the cause. There is no measured number in this
-project: the budgets are quoted from table 20.4, which was written before any
-measurement, and this is the arithmetic that will judge the figures when they
-arrive.
+**Six of twelve were absent under a step called "Every no_std library", and
+this page recorded that as a property of the step rather than a gap in it.** The
+reason given was that only the runner could answer a workflow change, which
+conflated the runner's image and toolchain, genuinely its own, with the step's
+script, which is a cargo command naming a target `rust-toolchain.toml` installs
+on the laptop with a compiler too.
+`python/tools/run_workflow_step.py` runs those bytes there, and
+`python/tests/test_workflow_scripts_are_runnable.py` compares the step's list
+against the crates, so "every" is now checked. Both were written after a literal
+backslash-n in a workflow script cost a red commit on Monday 26 October 2026 and
+three days of diagnosing a compiler that was never the cause.
+
+Compiling for the target is not running on it. There is no measured number in
+this project: the budgets are quoted from table 20.4, which was written before
+any measurement, and this is the arithmetic that will judge the figures when
+they arrive.

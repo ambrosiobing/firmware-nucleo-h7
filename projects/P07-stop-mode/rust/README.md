@@ -107,3 +107,9 @@ The PPK2, the trace it records, and every measured charge figure. Those need the
 probe and the board. There is no measured number in this crate: the battery
 arithmetic takes every assumption as an argument, which is the chapter's own
 framing, and only `energy_per_cycle_uj` is ever a measurement.
+
+**It does compile for the board's target**, since Thursday 29 October 2026, when
+`code.yml`'s cross step was given the six `no_std` crates it was missing. That
+is worth one line here because this crate computes in `f64` and the target has
+no double precision unit, so those operations are emulated rather than absent,
+and the build either accepts that or it does not. Compiling is not running.

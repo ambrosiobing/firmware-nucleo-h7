@@ -107,18 +107,23 @@ request into several and answered twenty requests with twenty five answers.
 
 ## What is not here
 
-Not the board. This crate is `no_std` and builds for the host only, because
-`code.yml`'s cross step names its no_std crates one by one and this crate is not
-among them. The same is true of `p17-tbmath`, written the same day, and of
-`p20-latstat` and `p04-rxspan` since.
+Not the board, in the sense that nothing here has run on it. **This crate does
+compile for the board's target**, since Thursday 29 October 2026: `code.yml`'s
+cross step builds every `no_std` library for `thumbv7em-none-eabihf` and this
+one is in the list, with `p04-rxspan`, `p07-cyclecharge`, `p17-tbmath`,
+`p20-latstat` and `p01-clocktree`, which had been absent since Sunday 4 October
+2026.
 
-**That sentence used to end "which is answered by the runner and not by this
-laptop", and on Thursday 29 October 2026 that turned out to be two claims rather
-than one.** The runner answers for its image and its toolchain. The step's
-SCRIPT is a cargo command, and the target it names is in
-`rust-toolchain.toml`, which the laptop with a compiler also installs, so the
-script can be run there: `python3 python/tools/run_workflow_step.py` exists for
-exactly that, and it was written after a literal backslash-n in a workflow
-script cost a red commit and three days of a wrong diagnosis. Neither has a measured
-number on the board, and the project README says what that waits on: the IKS4A1
-shield, a Raspberry Pi and the PPK2.
+**Those six were missing under a step called "Every no_std library", and this
+page said so as though it were a property of the step rather than a gap in it.**
+The reason for leaving them out was recorded as "answered by the runner and not
+by this laptop", which conflated two things: the runner answers for its image
+and its toolchain, while the step's SCRIPT is a cargo command naming a target
+`rust-toolchain.toml` installs on the laptop with a compiler as well.
+`python/tools/run_workflow_step.py` runs those bytes there, and
+`python/tests/test_workflow_scripts_are_runnable.py` now compares the step's
+list against the crates, so the word "every" is checked rather than claimed.
+
+Compiling for the target is not running on it. There is no measured number from
+this crate on the board, and the project README says what that waits on: the
+IKS4A1 shield, a Raspberry Pi and the PPK2.

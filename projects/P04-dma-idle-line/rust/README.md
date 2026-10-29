@@ -104,3 +104,8 @@ The counter read itself, the three interrupt handlers that all call one
 function, and the cache invalidate that the canonical reference leaves out.
 Those are chapter 4's remaining work and need the board. There is no measured
 number in this crate.
+
+**It does compile for the board's target**, since Thursday 29 October 2026, when
+`code.yml`'s cross step was given the six `no_std` crates it was missing under a
+name that said every. Compiling for `thumbv7em-none-eabihf` is not running on
+the board, and it is the half that can be checked without one.

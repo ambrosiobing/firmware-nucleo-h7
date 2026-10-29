@@ -253,7 +253,23 @@ jobs:
       # allocator; a binary would, and nothing here has one.
       - name: Every no_std library compiles for the board's target
         run: |
-          cargo build --release --target thumbv7em-none-eabihf --lib             -p p02-ring -p p03-attribute -p p05-frame -p p08-node-sm -p p09-payload -p p12-gates
+          # SIX CRATES WERE ABSENT FROM THIS STEP WHILE ITS NAME SAID EVERY, and
+          # the oldest of them, p01-clocktree, since Sunday 4 October 2026. The
+          # six in the list before Thursday 29 October 2026 all write
+          # #![cfg_attr(not(test), no_std)]; the six added write #![no_std]
+          # outright, and a grep for the conditional form is what hid them.
+          #
+          # ONE LINE, SINGLE SPACED, WITH NO CONTINUATION. The line this
+          # replaces carried thirteen spaces mid-command where a continuation
+          # had been flattened by a tool layer, which was harmless only because
+          # spaces separate words. The same flattening put a literal backslash-n
+          # into eight lines of the step above on Monday 26 October 2026 and
+          # turned main red, and that is not harmless, so this step now avoids
+          # the construct entirely. python/tests/test_workflow_scripts_are_runnable.py
+          # refuses the shape, and python/tools/run_workflow_step.py runs these
+          # bytes on the laptop with a compiler, which is how the twelve below
+          # were checked before this reached main.
+          cargo build --release --target thumbv7em-none-eabihf --lib -p p01-clocktree -p p02-ring -p p03-attribute -p p04-rxspan -p p05-frame -p p07-cyclecharge -p p08-node-sm -p p09-payload -p p12-gates -p p16-winfeat -p p17-tbmath -p p20-latstat
 
       - uses: actions/setup-python@v5
         with:
