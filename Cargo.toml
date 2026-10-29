@@ -17,6 +17,7 @@ members = [
     "projects/P01-toolchain-first-light/rust",
     "projects/P02-ring-buffer/rust",
     "projects/P03-interrupt-receive/rust",
+    "projects/P04-dma-idle-line/rust",
     "projects/P05-framing-crc/rust",
     "projects/P06-timer-sampling/rust",
     "projects/P08-node-state-machine/rust",

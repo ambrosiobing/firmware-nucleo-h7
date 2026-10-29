@@ -33,7 +33,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (BUILD, SPAN_RUST_FILTER, require_artefact,
+                      run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P04-dma-idle-line"
@@ -209,3 +210,55 @@ def test_no_span_ever_crosses_the_end_of_the_buffer():
             checked += 1
     assert checked == size * size
     print("\n  {} position pairs, no span past the end, no byte lost".format(checked))
+
+
+# ---------------------------------------------------------------------------
+# The Rust, driven as a filter over the same oracle. One process for the whole
+# run, which is conftest's rule.
+#
+# One verb, because this project is one function, and each request runs on
+# fresh statistics, which is how the oracle states its cases:
+#
+#     N <size> <old_pos> <pos>
+
+
+def fields_of(answer):
+    out = {}
+    for token in answer.split():
+        key, value = token.split("=", 1)
+        out[key] = int(value)
+    return out
+
+
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    """One process, every case in the oracle's order, refusals included."""
+    require_artefact(SPAN_RUST_FILTER, "cargo build --release --workspace")
+    lines = ["N {} {} {}".format(c["size"], c["old"], c["pos"])
+             for c in ORACLE["cases"]]
+    answers = run_filter(SPAN_RUST_FILTER, lines)
+    assert len(answers) == len(lines)
+
+    delivered = 0
+    for case, answer in zip(ORACLE["cases"], answers):
+        if "error" in case:
+            assert answer == "REFUSED {}".format(case["error"]), case["why"]
+            continue
+        got = fields_of(answer)
+        spans = case["spans"]
+        assert got["spans"] == len(spans), case["why"]
+        for i, (off, length) in enumerate(spans):
+            assert got["off{}".format(i)] == off, (i, case["why"])
+            assert got["len{}".format(i)] == length, (i, case["why"])
+        # A span index the case does not have must not be answered at all,
+        # which is what the Rust's sum type makes impossible to get wrong and
+        # the C's count beside an array does not.
+        assert "off{}".format(len(spans)) not in got, case["why"]
+        assert got["peak"] == case["advance"], case["why"]
+        assert got["near_lap"] == case["near_lap"], case["why"]
+        assert got["calls"] == 1, case["why"]
+        assert got["deliveries"] == len(spans), case["why"]
+        delivered += len(spans)
+
+    refusals = sum(1 for c in ORACLE["cases"] if "error" in c)
+    print("\n  the Rust answered all {} cases, {} of them refusals, handing "
+          "out {} spans in total".format(len(lines), refusals, delivered))

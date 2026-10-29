@@ -1,0 +1,31 @@
+[package]
+name = "p04-rxspan"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P04's span arithmetic: which bytes a circular buffer gained between two reads of the transfer counter, as at most two spans, against the same oracle as the C and the Python"
+license = "MIT"
+publish = false
+
+# No dependencies, and no_std: every quantity is a fixed-width integer, so
+# nothing here needs a platform. P06's and P18's crates are std because sqrt
+# and log10 are; this one masks and compares.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p04_rxspan"
+path = "src/lib.rs"
+
+# The filter speaks one verb, because this project is one function, and the
+# parity test drives it over the same oracle the C and the Python answer to.
+[[bin]]
+name = "p04-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.
