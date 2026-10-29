@@ -41,6 +41,7 @@ it is now in the order the script produces them:
   dspaccept.{dll,so}      P18's cascade in three formats and its two metrics
   dspaccept_filter        P18's C++ variant
   fifodecode.{dll,so}     P13's buffer decode, drop count and watermark
+  fifodecode_filter       P13's C++ variant
   recdecode.{dll,so}      P14's record decoder, altitude and drain time
   cyclecharge.{dll,so}    P07's cycle segmentation, spread and battery sum
   cyclecharge_filter      P07's C++ variant
@@ -666,6 +667,20 @@ def main() -> int:
     print("P13, the buffer decode, the drop count and the watermark sizing:")
     shared_lib("fifodecode", [proj("P13", "c") / "fifodecode.c"],
                ["-ffp-contract=off"], includes=[proj("P13", "c")])
+
+    # P13's C++ variant, Thursday 29 October 2026, which completes that project
+    # to four languages. std::optional carries finding two and a sized vector
+    # replaces the pointer and count, so both of P11's answers appear at once.
+    # -ffp-contract=off because the drain time is a multiply followed by an add,
+    # which is the shape gcc fuses at -O2, and the guard requires the flag by
+    # reading the header as well as this source.
+    print("P13, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         "-ffp-contract=off", *STATIC,
+         "-I", proj("P13", "cpp"),
+         proj("P13", "cpp") / "fifodecode_filter.cpp",
+         "-o", BUILD / ("fifodecode_filter" + exe)],
+        "fifodecode_filter")
 
     # P14's first code, Monday 26 October 2026: chapter 14's record, read
     # through the scale codes it carries rather than through constants, plus the

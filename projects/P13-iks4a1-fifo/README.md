@@ -1,6 +1,6 @@
 # P13: The IKS4A1, FIFO, watermark, interrupt
 
-Status: c=host cpp=none python=host rust=host
+Status: c=host cpp=host python=host rust=host
 
 **Started on the host, Monday 26 October 2026.** Three pieces of chapter 13 are
 arithmetic on a block of bytes and need no shield: the bounded decode of a
@@ -19,6 +19,7 @@ sensor's own FIFO watermark interrupt.
 | `c/fifodecode.c`, the decode, the gap and the ratio | 9 decode cases, 25 gap rows, 6 refusals, 4 budgets, 6 budget refusals |
 | `python/fifodecode.py`, the twin, standard library only | the same cases, and both of the chapter's sketches kept unused |
 | `rust/src/lib.rs`, `no_std` with `f64`, and `rust/src/main.rs`, the filter | the same cases through a three verb protocol, six unit tests, and finding two carried by `Option<u8>` rather than by a flag beside a counter |
+| `cpp/fifodecode.hpp` and `cpp/fifodecode_filter.cpp` | the same cases through the same three verb protocol, with `std::optional` carrying finding two and a sized vector replacing the pointer and count |
 | `vectors.json`, the oracle | **integer expectations written by hand from the field layout**, each one checked against the implementation before it was emitted |
 
 **The decode expectations are exact, because they are counts.** Nothing in them

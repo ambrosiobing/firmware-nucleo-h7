@@ -43,7 +43,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, FIFO_RUST_FILTER, require_artefact, run_filter,
+from conftest import (BUILD, BUILD_HOST_CMD, FIFO_CPP_FILTER,
+                      FIFO_RUST_FILTER, require_artefact, run_filter,
                       shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -573,11 +574,18 @@ def test_every_request_says_what_its_case_says_without_running_anything():
           "field read back and compared with its case".format(len(lines)))
 
 
-def test_the_rust_filter_answers_every_case_as_the_oracle_says():
-    """One process, the five sections in the oracle's order."""
-    require_artefact(FIFO_RUST_FILTER, "cargo build --release --workspace")
+def check_the_filter_against_the_oracle(path, command, label):
+    """One process, the five sections in the oracle's order.
+
+    One function for both filters, because the C++ and the Rust speak one
+    protocol by design and a second copy of this loop would be two places for
+    a comparison to weaken. They print different text for one double, the
+    shortest round-tripping form against %.17g, so every figure below is
+    compared as a number.
+    """
+    require_artefact(path, command)
     lines = all_requests()
-    answers = run_filter(FIFO_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
 
     at = 0
@@ -633,13 +641,22 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
 
     assert at == len(answers)
     assert refused == len(ORACLE["refusals"]) + len(ORACLE["budget_refusals"])
-    print(NEWLINE + "  the Rust answered all {} requests, {} gap rows, {} "
+    print(NEWLINE + "  the {} answered all {} requests, {} gap rows, {} "
           "decodes, {} budgets and {} refusals"
-          .format(len(answers), len(ORACLE["gaps"]), len(ORACLE["cases"]),
-                  len(ORACLE["budgets"]), refused))
+          .format(label, len(answers), len(ORACLE["gaps"]),
+                  len(ORACLE["cases"]), len(ORACLE["budgets"]), refused))
 
 
-def test_the_rust_carries_the_chapters_two_sketches_being_wrong():
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(
+        FIFO_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(FIFO_CPP_FILTER, BUILD_HOST_CMD, "C++")
+
+
+def check_the_chapters_two_sketches_through_the_filter(path, command, label):
     """Not a parity check: the two findings, through the filter.
 
     Finding one is that the chapter's subtraction is in the wrong modulus, and
@@ -647,13 +664,13 @@ def test_the_rust_carries_the_chapters_two_sketches_being_wrong():
     holds several. Both are asserted here against the filter's own answers, so
     the Rust is held to the corrections rather than only to agreement.
     """
-    require_artefact(FIFO_RUST_FILTER, "cargo build --release --workspace")
+    require_artefact(path, command)
     narrow = {"expect": 3, "cnt": 0, "cnt_bits": 2}
     wide = {"expect": 3, "cnt": 0, "cnt_bits": 8}
     case = next(c for c in ORACLE["budgets"] if c["spec"]["sources"] == 2)
     lines = [gap_request(narrow), gap_request(wide),
              budget_request(case["spec"])]
-    answers = run_filter(FIFO_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
 
     assert answers[0] == "gap=1", (
         "a two-bit counter expecting 3 and seeing 0 has advanced by one")
@@ -664,8 +681,18 @@ def test_the_rust_carries_the_chapters_two_sketches_being_wrong():
     fill = float(got["fill"])
     printed = float(got["chapter"])
     assert printed == pytest.approx(fill * case["spec"]["sources"], rel=1e-12)
-    print(NEWLINE + "  finding one through the filter: gap 1 in two bits "
-          "against the chapter's 253 in eight")
-    print("  finding four through the filter: the buffer fills in {:.2f} ms "
+    print(NEWLINE + "  finding one through the {}: gap 1 in two bits "
+          "against the chapter's 253 in eight".format(label))
+    print("  finding four through the {}: the buffer fills in {:.2f} ms "
           "where step 8 prints {:.2f} ms, for {} batched sources"
-          .format(fill, printed, case["spec"]["sources"]))
+          .format(label, fill, printed, case["spec"]["sources"]))
+
+
+def test_the_rust_carries_the_chapters_two_sketches_being_wrong():
+    check_the_chapters_two_sketches_through_the_filter(
+        FIFO_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_carries_the_chapters_two_sketches_being_wrong():
+    check_the_chapters_two_sketches_through_the_filter(FIFO_CPP_FILTER,
+                                                       BUILD_HOST_CMD, "C++")
