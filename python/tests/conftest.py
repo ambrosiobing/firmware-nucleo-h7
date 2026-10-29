@@ -53,6 +53,7 @@ RING_RUST_FILTER = ROOT / "target" / "release" / executable_name("p02-filter")
 ATTR_CPP_FILTER = BUILD / executable_name("attribute_filter")
 ATTR_RUST_FILTER = ROOT / "target" / "release" / executable_name("p03-filter")
 SPAN_CPP_FILTER = BUILD / executable_name("rxspan_filter")
+CYC_CPP_FILTER = BUILD / executable_name("cyclecharge_filter")
 CYC_RUST_FILTER = ROOT / "target" / "release" / executable_name("p07-filter")
 SPAN_RUST_FILTER = ROOT / "target" / "release" / executable_name("p04-filter")
 RATE_CPP_FILTER = BUILD / executable_name("rate_filter")
@@ -246,6 +247,7 @@ FILTER_BUILD_COMMAND = {
     ATTR_CPP_FILTER: BUILD_HOST_CMD,
     ATTR_RUST_FILTER: "cargo build --release --workspace",
     SPAN_CPP_FILTER: BUILD_HOST_CMD,
+    CYC_CPP_FILTER: BUILD_HOST_CMD,
     CYC_RUST_FILTER: "cargo build --release --workspace",
     SPAN_RUST_FILTER: "cargo build --release --workspace",
     RATE_CPP_FILTER: BUILD_HOST_CMD,

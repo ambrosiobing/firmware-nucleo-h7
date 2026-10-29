@@ -637,6 +637,20 @@ def main() -> int:
     # The stem is winfeat and not features: glibc ships its own <features.h>,
     # reached from <stdint.h>, and a -I directory holding that name shadows it,
     # which fails inside glibc rather than in this file.
+    # P07's C++ variant, Thursday 29 October 2026. -ffp-contract=off because
+    # this project compares double with == and no tolerance, and gcc at -O2
+    # fuses a multiply and an add unless told not to. The guard in
+    # test_float_builds_disable_contraction.py reads the header as well as the
+    # source since Wednesday 28 October 2026, so it requires this flag rather
+    # than merely not noticing its absence.
+    print("P07, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         "-ffp-contract=off", *STATIC,
+         "-I", proj("P07", "cpp"),
+         proj("P07", "cpp") / "cyclecharge_filter.cpp",
+         "-o", BUILD / ("cyclecharge_filter" + exe)],
+        "cyclecharge_filter")
+
     print("P16, the window features and the bounded tree, which are the gate:")
     shared_lib("winfeat", [proj("P16", "c") / "winfeat.c"],
                includes=[proj("P16", "c")])

@@ -1,4 +1,4 @@
-"""P07's cycle segmentation and battery arithmetic, in C and Python.
+"""P07's cycle segmentation and battery arithmetic, in four languages.
 
 **Chapter 7 asked for this file in these words.** Step 9: "Test the analysis on a
 synthetic trace. The segmentation is the fragile part, so it is tested on the
@@ -40,8 +40,9 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, CYC_RUST_FILTER, require_artefact,
-                      run_filter, shared_library_name)
+from conftest import (BUILD, BUILD_HOST_CMD, CYC_CPP_FILTER,
+                      CYC_RUST_FILTER, require_artefact, run_filter,
+                      shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P07-stop-mode"
@@ -488,9 +489,18 @@ def test_the_requests_round_trip_every_float_without_running_anything():
           .format(len(lines), floats))
 
 
-def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+# The C++ and the Rust speak one protocol, so the test below runs over both and
+# the language is in the test id, which is what names the one that disagreed.
+FILTERS = [(CYC_CPP_FILTER, "cpp", BUILD_HOST_CMD),
+           (CYC_RUST_FILTER, "rust", "cargo build --release --workspace")]
+FILTER_ARGS = [(path, command) for path, _, command in FILTERS]
+FILTER_IDS = [name for _, name, _ in FILTERS]
+
+
+@pytest.mark.parametrize("path,command", FILTER_ARGS, ids=FILTER_IDS)
+def test_each_filter_answers_every_case_as_the_oracle_says(path, command):
     """One process, every case of all six kinds, in the oracle's order."""
-    require_artefact(CYC_RUST_FILTER, "cargo build --release --workspace")
+    require_artefact(path, command)
     lines = []
     for case in ORACLE["traces"]:
         current, digital = build(case["spec"])
@@ -505,7 +515,7 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
     for case in ORACLE["lifetimes"] + ORACLE["lifetime_refusals"]:
         lines.append(lifetime_request(case["spec"]))
 
-    answers = run_filter(CYC_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
 
     at = 0
@@ -545,7 +555,7 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
 
     refusals = (len(ORACLE["trace_refusals"]) + len(ORACLE["report_refusals"])
                 + len(ORACLE["lifetime_refusals"]))
-    print(NEWLINE + "  the Rust answered all {} requests exactly, {} traces, "
+    print(NEWLINE + "  the filter answered all {} requests exactly, {} traces, "
           "{} reports, {} lifetimes and {} refusals, every float compared "
           "with no tolerance"
           .format(len(lines), len(ORACLE["traces"]), len(ORACLE["reports"]),
