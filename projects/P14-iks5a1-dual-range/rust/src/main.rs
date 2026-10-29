@@ -134,8 +134,7 @@ fn do_header(req: &mut Request) -> Option<String> {
         Err(text) => text,
         Ok(h) => format!(
             "tick={} pre={} post={} baro={} lo={} hi={} range={} flags={}",
-            h.tick_event, h.n_pre, h.n_post, h.n_baro, h.lo_fs_g, h.hi_fs_g,
-            h.baro_range, h.flags
+            h.tick_event, h.n_pre, h.n_post, h.n_baro, h.lo_fs_g, h.hi_fs_g, h.baro_range, h.flags
         ),
     })
 }

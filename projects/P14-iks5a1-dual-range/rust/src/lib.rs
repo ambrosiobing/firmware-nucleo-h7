@@ -213,16 +213,18 @@ pub fn scales(hdr: &Header, table: &Table) -> Result<Scales, Error> {
 /// Counts to milli-g through the scale the record names. `fine` selects the fine
 /// channel, because both are running the whole time and a record carries samples
 /// from each.
-pub fn counts_to_mg(hdr: &Header, table: &Table, counts: i16,
-                    fine: bool) -> Result<f64, Error> {
+pub fn counts_to_mg(hdr: &Header, table: &Table, counts: i16, fine: bool) -> Result<f64, Error> {
     let s = scales(hdr, table)?;
-    let per_lsb = if fine { s.lo_mg_per_lsb } else { s.hi_mg_per_lsb };
+    let per_lsb = if fine {
+        s.lo_mg_per_lsb
+    } else {
+        s.hi_mg_per_lsb
+    };
     Ok(f64::from(counts) * per_lsb)
 }
 
 /// Counts to hectopascals through the range the record names.
-pub fn counts_to_hpa(hdr: &Header, table: &Table,
-                     counts: i32) -> Result<f64, Error> {
+pub fn counts_to_hpa(hdr: &Header, table: &Table, counts: i32) -> Result<f64, Error> {
     let s = scales(hdr, table)?;
     Ok(f64::from(counts) / s.baro_lsb_per_hpa)
 }
@@ -239,8 +241,7 @@ pub fn altitude_m(p_hpa: f64, p0_hpa: f64) -> Result<f64, Error> {
 
 /// Metres per least significant bit of pressure at a stated pressure, which is
 /// what finding one is about.
-pub fn altitude_resolution_m(lsb_per_hpa: f64, p_hpa: f64,
-                             p0_hpa: f64) -> Result<f64, Error> {
+pub fn altitude_resolution_m(lsb_per_hpa: f64, p_hpa: f64, p0_hpa: f64) -> Result<f64, Error> {
     if not_above_zero(lsb_per_hpa) || not_above_zero(p_hpa) || not_above_zero(p0_hpa) {
         return Err(Error::Pressure);
     }
@@ -255,8 +256,12 @@ pub fn altitude_resolution_m(lsb_per_hpa: f64, p_hpa: f64,
 /// Step 10's drain time. `overhead_bytes` is the address and register cost the
 /// chapter's comment names and its sum omits: pass 0 to reproduce the printed
 /// figure and 2 for the transaction the comment describes.
-pub fn drain_ms(samples: u32, bytes_per_sample: u32, overhead_bytes: u32,
-                bus_hz: f64) -> Result<f64, Error> {
+pub fn drain_ms(
+    samples: u32,
+    bytes_per_sample: u32,
+    overhead_bytes: u32,
+    bus_hz: f64,
+) -> Result<f64, Error> {
     if samples == 0 || bytes_per_sample == 0 {
         return Err(Error::Counts);
     }
@@ -320,10 +325,9 @@ mod tests {
     #[test]
     fn a_code_the_table_does_not_define_is_refused_and_not_read_as_zero() {
         let mut b = bytes();
-        b[10] = 4;  // the format can express it; the table's valid bit is clear
+        b[10] = 4; // the format can express it; the table's valid bit is clear
         let hdr = parse_header(&b).expect("the format accepts code four");
-        assert_eq!(counts_to_mg(&hdr, &table(), 1000, true),
-                   Err(Error::FsCode));
+        assert_eq!(counts_to_mg(&hdr, &table(), 1000, true), Err(Error::FsCode));
     }
 
     #[test]
@@ -372,7 +376,9 @@ mod tests {
         assert_eq!(drain_ms(0, 6, 0, 400000.0), Err(Error::Counts));
         assert_eq!(drain_ms(128, 0, 0, 400000.0), Err(Error::Counts));
         assert_eq!(drain_ms(128, 6, 0, 0.0), Err(Error::Pressure));
-        assert_eq!(altitude_resolution_m(0.0, 1013.25, 1013.25),
-                   Err(Error::Pressure));
+        assert_eq!(
+            altitude_resolution_m(0.0, 1013.25, 1013.25),
+            Err(Error::Pressure)
+        );
     }
 }
