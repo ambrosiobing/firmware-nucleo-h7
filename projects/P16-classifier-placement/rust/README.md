@@ -108,8 +108,17 @@ request into several and answered twenty requests with twenty five answers.
 ## What is not here
 
 Not the board. This crate is `no_std` and builds for the host only, because
-`code.yml`'s cross step names its no_std crates one by one and that step is a
-workflow change, which is answered by the runner and not by this laptop. The
-same is true of `p17-tbmath`, written the same day. Neither has a measured
+`code.yml`'s cross step names its no_std crates one by one and this crate is not
+among them. The same is true of `p17-tbmath`, written the same day, and of
+`p20-latstat` and `p04-rxspan` since.
+
+**That sentence used to end "which is answered by the runner and not by this
+laptop", and on Thursday 29 October 2026 that turned out to be two claims rather
+than one.** The runner answers for its image and its toolchain. The step's
+SCRIPT is a cargo command, and the target it names is in
+`rust-toolchain.toml`, which the laptop with a compiler also installs, so the
+script can be run there: `python3 python/tools/run_workflow_step.py` exists for
+exactly that, and it was written after a literal backslash-n in a workflow
+script cost a red commit and three days of a wrong diagnosis. Neither has a measured
 number on the board, and the project README says what that waits on: the IKS4A1
 shield, a Raspberry Pi and the PPK2.
