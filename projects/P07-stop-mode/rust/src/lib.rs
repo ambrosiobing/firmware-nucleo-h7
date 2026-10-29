@@ -202,10 +202,15 @@ pub fn per_cycle_charge(
                 return Err(Error::Room);
             }
             // Accumulated and THEN divided, which is the grouping the exact
-            // comparison depends on.
+            // comparison depends on. Iterated over the slice rather than over
+            // a range of indices, which clippy asks for as needless_range_loop
+            // and which costs nothing here: a slice range yields its elements
+            // in index order, so the ADDITION ORDER is the C's, and with f64
+            // compared by == that order is part of the answer rather than a
+            // detail of the loop.
             let mut sum = 0.0f64;
-            for k in previous_start..i {
-                sum += current_ua[k];
+            for v in &current_ua[previous_start..i] {
+                sum += *v;
             }
             out_uc[count] = sum / fs_hz;
             count += 1;
@@ -305,10 +310,14 @@ mod tests {
         // cycle, so it is incomplete and unreported. Finding one.
         let mut amps = [0.0f64; 64];
         let mut bits = [0u8; 64];
-        for i in 0..64 {
-            amps[i] = 128.0;
+        // Zipped and enumerated rather than indexed by a range. The range form
+        // uses `i` for arithmetic as well as indexing, which should exempt it
+        // from needless_range_loop, and clippy has corrected two of my guesses
+        // today already, so the shape with no question about it wins.
+        for (i, (a, b)) in amps.iter_mut().zip(bits.iter_mut()).enumerate() {
+            *a = 128.0;
             // high for the first 4 of every 16, starting high at zero
-            bits[i] = if (i % 16) < 4 { 1 } else { 0 };
+            *b = if (i % 16) < 4 { 1 } else { 0 };
         }
         let mut out = [0.0f64; MAX_CYCLES];
         let count = per_cycle_charge(&amps, &bits, 1024.0, 0, &mut out).unwrap();
