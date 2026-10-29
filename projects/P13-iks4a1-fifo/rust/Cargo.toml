@@ -1,0 +1,33 @@
+[package]
+name = "p13-fifodecode"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P13's buffer decode, its drop count in the counter's own modulus and its fill-to-drain ratio, against the same oracle as the C and the Python"
+license = "MIT"
+publish = false
+
+# No dependencies, and the library is no_std. The decode is integer arithmetic
+# and the budget is f64 addition, multiplication, division and comparison, all
+# of which are core; sqrt, log10 and abs are the operations that send a crate to
+# std, and none of them appears here. The filter binary beside it is not no_std,
+# because it reads stdin.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p13_fifodecode"
+path = "src/lib.rs"
+
+# The filter speaks three verbs, one per piece of the chapter that needs no
+# shield, and the parity test drives it beside the C and the Python.
+[[bin]]
+name = "p13-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.

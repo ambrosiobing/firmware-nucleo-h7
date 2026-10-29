@@ -43,7 +43,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (BUILD, FIFO_RUST_FILTER, require_artefact, run_filter,
+                      shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P13-iks4a1-fifo"
@@ -430,3 +431,240 @@ def test_one_source_is_the_case_where_the_chapter_is_right():
         "the source count")
     print("\n  control: with one batched source the two forms are identical at "
           "{:.2f} ms".format(out["fill_ms"]))
+
+
+# ---------------------------------------------------------------------------
+# The Rust, driven as a filter over the same oracle. One process for the whole
+# run, which is conftest's rule.
+#
+# Three verbs, one per piece of the chapter that needs no shield:
+#
+#     G <expect> <cnt> <cnt_bits>
+#     D <word_bytes> <tag_shift> <cnt_shift> <cnt_bits> <known_tags>
+#       <words> <n> <first byte>*n
+#     B <watermark> <sources> <word_bytes> <cnt_bits> <bus_hz> <decode_us>
+#       <rate>*8
+#
+# THE WORD COUNT AND THE NUMBER OF SUPPLIED BYTES ARE SEPARATE TOKENS, and one
+# oracle case is the whole reason: "more words than the landing buffer can hold"
+# passes a level of 1025 with no bytes at all, because that refusal is decided
+# before anything is read. A protocol deriving the level from the bytes could
+# not carry that case.
+#
+# THE FILTER PADS THE BLOCK ITSELF, exactly as buffer_of does on this side: one
+# tag byte per word followed by word_bytes - 1 zeros. The data bytes are read by
+# none of this arithmetic, and sending them would make a 1024-word request seven
+# thousand tokens long.
+#
+# ALL THIRTY-TWO TAG COUNTS COME BACK as one comma separated token, so this test
+# asserts the zeros as well as the counts the oracle states.
+
+NEWLINE = chr(10)
+TAG_VALUES = 32
+
+
+def gap_request(row):
+    return "G {} {} {}".format(row["expect"], row["cnt"], row["cnt_bits"])
+
+
+def decode_request(fmt, first_bytes, words):
+    parts = ["D", str(fmt["word_bytes"]), str(fmt["tag_shift"]),
+             str(fmt["cnt_shift"]), str(fmt["cnt_bits"]),
+             str(fmt["known_tags"]), str(words), str(len(first_bytes))]
+    parts += [str(b) for b in first_bytes]
+    return " ".join(parts)
+
+
+def budget_request(spec):
+    parts = ["B", str(spec["watermark_words"]), str(spec["sources"]),
+             str(spec["word_bytes"]), str(spec["cnt_bits"]),
+             repr(float(spec["bus_hz"])),
+             repr(float(spec["decode_us_per_word"]))]
+    rates = list(spec["batch_hz"]) + [0.0] * MAX_SOURCES
+    parts += [repr(float(r)) for r in rates[:MAX_SOURCES]]
+    return " ".join(parts)
+
+
+def all_requests():
+    """Every request, in the order the answers are read back.
+
+    Built where a test with no cargo can reach them, because the filter test
+    SKIPS where there is no cargo and a skipped body never runs at all.
+    """
+    lines = [gap_request(r) for r in ORACLE["gaps"]]
+    lines += [decode_request(c["fmt"], c["first_bytes"],
+                             len(c["first_bytes"])) for c in ORACLE["cases"]]
+    lines += [decode_request(c["fmt"], [], c.get("words", 0))
+              for c in ORACLE["refusals"]]
+    lines += [budget_request(c["spec"]) for c in ORACLE["budgets"]]
+    lines += [budget_request(c["spec"]) for c in ORACLE["budget_refusals"]]
+    return lines
+
+
+def fields_of(answer):
+    out = {}
+    for token in answer.split():
+        key, value = token.split("=", 1)
+        out[key] = value
+    return out
+
+
+def test_every_request_says_what_its_case_says_without_running_anything():
+    """Runs everywhere, including where no filter exists, on purpose.
+
+    It reads each request back apart and compares it with the case rather than
+    checking that it is well formed, which is the distinction P10's version of
+    this file got wrong on Thursday 29 October 2026: a wrong value is as well
+    formed as a right one.
+    """
+    lines = all_requests()
+    at = 0
+    for row in ORACLE["gaps"]:
+        t = lines[at].split()
+        assert t[0] == "G"
+        assert [int(x) for x in t[1:]] == [row["expect"], row["cnt"],
+                                           row["cnt_bits"]], row
+        at += 1
+
+    for case in ORACLE["cases"]:
+        t = lines[at].split()
+        fmt = case["fmt"]
+        assert t[0] == "D", case["why"]
+        assert int(t[1]) == fmt["word_bytes"], case["why"]
+        assert int(t[2]) == fmt["tag_shift"], case["why"]
+        assert int(t[3]) == fmt["cnt_shift"], case["why"]
+        assert int(t[4]) == fmt["cnt_bits"], case["why"]
+        assert int(t[5]) == fmt["known_tags"], case["why"]
+        assert int(t[6]) == len(case["first_bytes"]), case["why"]
+        assert int(t[7]) == len(case["first_bytes"]), case["why"]
+        assert [int(x) for x in t[8:]] == case["first_bytes"], case["why"]
+        at += 1
+
+    carried = 0
+    for case in ORACLE["refusals"]:
+        t = lines[at].split()
+        assert t[0] == "D", case["why"]
+        assert int(t[6]) == case.get("words", 0), case["why"]
+        assert int(t[7]) == 0, case["why"]
+        if case.get("words", 0) > 1024:
+            carried += 1
+        at += 1
+    assert carried == 1, (
+        "the refusal for a level above the bound is the one case whose word "
+        "count cannot come from the bytes, and {} of them were built"
+        .format(carried))
+
+    for case in ORACLE["budgets"] + ORACLE["budget_refusals"]:
+        t = lines[at].split()
+        spec = case["spec"]
+        assert t[0] == "B", case["why"]
+        assert int(t[1]) == spec["watermark_words"], case["why"]
+        assert int(t[2]) == spec["sources"], case["why"]
+        assert int(t[3]) == spec["word_bytes"], case["why"]
+        assert int(t[4]) == spec["cnt_bits"], case["why"]
+        assert float(t[5]) == spec["bus_hz"], case["why"]
+        assert float(t[6]) == spec["decode_us_per_word"], case["why"]
+        rates = [float(x) for x in t[7:15]]
+        assert rates == list(spec["batch_hz"])[:MAX_SOURCES], case["why"]
+        assert len(t) == 15, case["why"]
+        at += 1
+
+    assert at == len(lines)
+    print(NEWLINE + "  {} requests built with no filter and no compiler, every "
+          "field read back and compared with its case".format(len(lines)))
+
+
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    """One process, the five sections in the oracle's order."""
+    require_artefact(FIFO_RUST_FILTER, "cargo build --release --workspace")
+    lines = all_requests()
+    answers = run_filter(FIFO_RUST_FILTER, lines)
+    assert len(answers) == len(lines)
+
+    at = 0
+    for row in ORACLE["gaps"]:
+        assert answers[at] == "gap={}".format(row["gap"]), row
+        at += 1
+
+    for case in ORACLE["cases"]:
+        got = fields_of(answers[at])
+        assert int(got["words"]) == case["words"], case["why"]
+        assert int(got["unknown"]) == case["unknown_tag"], case["why"]
+        assert int(got["drops"]) == case["drops"], case["why"]
+        assert int(got["gaps"]) == case["gaps"], case["why"]
+        tags = [int(x) for x in got["tags"].split(",")]
+        assert len(tags) == TAG_VALUES, case["why"]
+        for t, n in enumerate(tags):
+            want = case["per_tag"].get(str(t), 0)
+            assert n == want, (t, case["why"])
+        at += 1
+
+    refused = 0
+    for case in ORACLE["refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        refused += 1
+        at += 1
+
+    for case in ORACLE["budgets"]:
+        got = fields_of(answers[at])
+        # The budget figures are floating point and the oracle compares them to
+        # a relative 1e-12, which is this project's own stated tolerance.
+        assert float(got["entries"]) == pytest.approx(case["entries_per_s"],
+                                                      rel=1e-12), case["why"]
+        assert float(got["fill"]) == pytest.approx(case["fill_ms"],
+                                                   rel=1e-12), case["why"]
+        assert float(got["chapter"]) == pytest.approx(case["chapter_fill_ms"],
+                                                      rel=1e-12), case["why"]
+        assert float(got["drain"]) == pytest.approx(case["drain_us"],
+                                                    rel=1e-12), case["why"]
+        assert float(got["ratio"]) == pytest.approx(case["ratio"],
+                                                    rel=1e-12), case["why"]
+        # These two are integers and are compared exactly: the undetectable gap
+        # is finding three and the flag is the verdict.
+        assert int(got["gap"]) == case["undetectable_gap"], case["why"]
+        assert int(got["ok"]) == case["ratio_ok"], case["why"]
+        at += 1
+
+    for case in ORACLE["budget_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        refused += 1
+        at += 1
+
+    assert at == len(answers)
+    assert refused == len(ORACLE["refusals"]) + len(ORACLE["budget_refusals"])
+    print(NEWLINE + "  the Rust answered all {} requests, {} gap rows, {} "
+          "decodes, {} budgets and {} refusals"
+          .format(len(answers), len(ORACLE["gaps"]), len(ORACLE["cases"]),
+                  len(ORACLE["budgets"]), refused))
+
+
+def test_the_rust_carries_the_chapters_two_sketches_being_wrong():
+    """Not a parity check: the two findings, through the filter.
+
+    Finding one is that the chapter's subtraction is in the wrong modulus, and
+    finding four is that its fill time divides by one rate where the buffer
+    holds several. Both are asserted here against the filter's own answers, so
+    the Rust is held to the corrections rather than only to agreement.
+    """
+    require_artefact(FIFO_RUST_FILTER, "cargo build --release --workspace")
+    narrow = {"expect": 3, "cnt": 0, "cnt_bits": 2}
+    wide = {"expect": 3, "cnt": 0, "cnt_bits": 8}
+    case = next(c for c in ORACLE["budgets"] if c["spec"]["sources"] == 2)
+    lines = [gap_request(narrow), gap_request(wide),
+             budget_request(case["spec"])]
+    answers = run_filter(FIFO_RUST_FILTER, lines)
+
+    assert answers[0] == "gap=1", (
+        "a two-bit counter expecting 3 and seeing 0 has advanced by one")
+    assert answers[1] == "gap=253", (
+        "the same values in the byte's modulus are the chapter's 253, which is "
+        "why a wrong modulus hides behind the widest counter")
+    got = fields_of(answers[2])
+    fill = float(got["fill"])
+    printed = float(got["chapter"])
+    assert printed == pytest.approx(fill * case["spec"]["sources"], rel=1e-12)
+    print(NEWLINE + "  finding one through the filter: gap 1 in two bits "
+          "against the chapter's 253 in eight")
+    print("  finding four through the filter: the buffer fills in {:.2f} ms "
+          "where step 8 prints {:.2f} ms, for {} batched sources"
+          .format(fill, printed, case["spec"]["sources"]))

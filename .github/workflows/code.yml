@@ -269,7 +269,7 @@ jobs:
           # refuses the shape, and python/tools/run_workflow_step.py runs these
           # bytes on the laptop with a compiler, which is how the twelve below
           # were checked before this reached main.
-          cargo build --release --target thumbv7em-none-eabihf --lib -p p01-clocktree -p p02-ring -p p03-attribute -p p04-rxspan -p p05-frame -p p07-cyclecharge -p p08-node-sm -p p09-payload -p p10-phaseledger -p p11-atparse -p p12-gates -p p16-winfeat -p p17-tbmath -p p20-latstat
+          cargo build --release --target thumbv7em-none-eabihf --lib -p p01-clocktree -p p02-ring -p p03-attribute -p p04-rxspan -p p05-frame -p p07-cyclecharge -p p08-node-sm -p p09-payload -p p10-phaseledger -p p11-atparse -p p12-gates -p p13-fifodecode -p p16-winfeat -p p17-tbmath -p p20-latstat
 
       - uses: actions/setup-python@v5
         with:

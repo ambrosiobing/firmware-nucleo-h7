@@ -56,6 +56,7 @@ SPAN_CPP_FILTER = BUILD / executable_name("rxspan_filter")
 CYC_CPP_FILTER = BUILD / executable_name("cyclecharge_filter")
 PHASE_CPP_FILTER = BUILD / executable_name("phaseledger_filter")
 AT_CPP_FILTER = BUILD / executable_name("atparse_filter")
+FIFO_RUST_FILTER = ROOT / "target" / "release" / executable_name("p13-filter")
 AT_RUST_FILTER = ROOT / "target" / "release" / executable_name("p11-filter")
 PHASE_RUST_FILTER = ROOT / "target" / "release" / executable_name("p10-filter")
 CYC_RUST_FILTER = ROOT / "target" / "release" / executable_name("p07-filter")
@@ -254,6 +255,7 @@ FILTER_BUILD_COMMAND = {
     CYC_CPP_FILTER: BUILD_HOST_CMD,
     PHASE_CPP_FILTER: BUILD_HOST_CMD,
     AT_CPP_FILTER: BUILD_HOST_CMD,
+    FIFO_RUST_FILTER: "cargo build --release --workspace",
     AT_RUST_FILTER: "cargo build --release --workspace",
     PHASE_RUST_FILTER: "cargo build --release --workspace",
     CYC_RUST_FILTER: "cargo build --release --workspace",
