@@ -43,7 +43,7 @@
 use std::io::{self, Read, Write};
 use std::process::ExitCode;
 
-use p13_fifodecode::{budget, cnt_gap, decode, Format, Spec, State, MAX_SOURCES, TAG_VALUES};
+use p13_fifodecode::{budget, cnt_gap, decode, Format, Spec, State, MAX_SOURCES};
 
 /// One request, already split into tokens, consumed left to right.
 struct Request<'a> {

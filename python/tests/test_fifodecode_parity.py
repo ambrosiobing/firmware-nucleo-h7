@@ -460,7 +460,6 @@ def test_one_source_is_the_case_where_the_chapter_is_right():
 # asserts the zeros as well as the counts the oracle states.
 
 NEWLINE = chr(10)
-TAG_VALUES = 32
 
 
 def gap_request(row):
@@ -593,7 +592,9 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
         assert int(got["drops"]) == case["drops"], case["why"]
         assert int(got["gaps"]) == case["gaps"], case["why"]
         tags = [int(x) for x in got["tags"].split(",")]
-        assert len(tags) == TAG_VALUES, case["why"]
+        # FIFO_TAG_VALUES and not a second 32 written here: the bound comes
+        # from the implementation, which is where it can change.
+        assert len(tags) == FIFO_TAG_VALUES, case["why"]
         for t, n in enumerate(tags):
             want = case["per_tag"].get(str(t), 0)
             assert n == want, (t, case["why"])
