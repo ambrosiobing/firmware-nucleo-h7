@@ -412,10 +412,13 @@ mod tests {
 
         let mut spec = spec_of();
         spec.sources = 0;
-        assert_eq!(budget(&spec), Err(Error::Sources));
+        // unwrap_err and not a comparison against Err(..): that would ask
+        // Budget to be PartialEq, and deriving it on a struct of six f64
+        // fields would offer an exact comparison this project does not want.
+        assert_eq!(budget(&spec).unwrap_err(), Error::Sources);
         let mut spec = spec_of();
         spec.bus_hz = 0.0;
-        assert_eq!(budget(&spec), Err(Error::Rate));
+        assert_eq!(budget(&spec).unwrap_err(), Error::Rate);
     }
 
     #[test]
