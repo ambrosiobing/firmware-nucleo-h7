@@ -230,16 +230,44 @@ def fields_of(answer):
     return out
 
 
+def requests_for(oracle_cases):
+    """The filter requests, built where a test with no compiler can reach them.
+
+    This is a separate function because the test below skips on win11
+    aquamarine, where there is no cargo, and a SKIPPED test body is never
+    executed at all: the first version of this file referred to a module level
+    name this file does not define, which the skip hid completely and the
+    laptop with a compiler found. Anything that can be checked without the
+    artefact is now checked without it.
+    """
+    return ["N {} {} {}".format(c["size"], c["old"], c["pos"])
+            for c in oracle_cases]
+
+
+def test_the_requests_are_well_formed_without_running_anything():
+    """Runs everywhere, including where no filter exists, on purpose."""
+    oracle_cases = cases()
+    lines = requests_for(oracle_cases)
+    assert len(lines) == len(oracle_cases)
+    for line, case in zip(lines, oracle_cases):
+        parts = line.split()
+        assert parts[0] == "N" and len(parts) == 4, case["why"]
+        want = [case["size"], case["old"], case["pos"]]
+        assert [int(p) for p in parts[1:]] == want, case["why"]
+    print("\n  {} requests built and checked with no filter and no "
+          "compiler".format(len(lines)))
+
+
 def test_the_rust_filter_answers_every_case_as_the_oracle_says():
     """One process, every case in the oracle's order, refusals included."""
     require_artefact(SPAN_RUST_FILTER, "cargo build --release --workspace")
-    lines = ["N {} {} {}".format(c["size"], c["old"], c["pos"])
-             for c in ORACLE["cases"]]
+    oracle_cases = cases()
+    lines = requests_for(oracle_cases)
     answers = run_filter(SPAN_RUST_FILTER, lines)
     assert len(answers) == len(lines)
 
     delivered = 0
-    for case, answer in zip(ORACLE["cases"], answers):
+    for case, answer in zip(oracle_cases, answers):
         if "error" in case:
             assert answer == "REFUSED {}".format(case["error"]), case["why"]
             continue
@@ -259,6 +287,6 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
         assert got["deliveries"] == len(spans), case["why"]
         delivered += len(spans)
 
-    refusals = sum(1 for c in ORACLE["cases"] if "error" in c)
+    refusals = sum(1 for c in oracle_cases if "error" in c)
     print("\n  the Rust answered all {} cases, {} of them refusals, handing "
           "out {} spans in total".format(len(lines), refusals, delivered))
