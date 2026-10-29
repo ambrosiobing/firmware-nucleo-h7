@@ -28,8 +28,9 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, PHASE_RUST_FILTER, require_artefact,
-                      run_filter, shared_library_name)
+from conftest import (BUILD, BUILD_HOST_CMD, PHASE_CPP_FILTER,
+                      PHASE_RUST_FILTER, require_artefact, run_filter,
+                      shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P10-energy-phases"
@@ -301,11 +302,18 @@ def test_the_requests_round_trip_every_float_without_running_anything():
           .format(len(lines), floats))
 
 
-def test_the_rust_filter_answers_every_case_as_the_oracle_says():
-    """One process, every case in the oracle's order, refusals included."""
-    require_artefact(PHASE_RUST_FILTER, "cargo build --release --workspace")
+def check_the_filter_against_the_oracle(path, command, label):
+    """One process, every case in the oracle's order, refusals included.
+
+    One function for both filters, because the C++ and the Rust speak one
+    protocol by design and a second copy of this loop would be two places for
+    a comparison to weaken. They print different TEXT for one value, {:?} in
+    the Rust and %.17g in the C++, so every field below is compared as a
+    number and never as a string.
+    """
+    require_artefact(path, command)
     lines = all_ledger_requests()
-    answers = run_filter(PHASE_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
 
     refusals = 0
@@ -328,10 +336,21 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
                                                               case["why"])
         # The residual is the one figure the C and the Python compare with a
         # tolerance, because it is a quotient rather than a sum of powers of
-        # two, so the Rust is held to the same bound rather than a tighter one.
+        # two, so both filters are held to that same bound and not a tighter
+        # one.
         assert float(got["residual"]) == pytest.approx(case["residual"],
                                                        abs=1e-15), case["why"]
     assert refusals == sum(1 for c in ORACLE["cases"] if "error" in c)
-    print(NEWLINE + "  the Rust answered all {} cases, {} of them refusals, "
+    print(NEWLINE + "  the {} answered all {} cases, {} of them refusals, "
           "with total and all eight per-code charges compared exactly"
-          .format(len(lines), refusals))
+          .format(label, len(lines), refusals))
+
+
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(
+        PHASE_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(PHASE_CPP_FILTER, BUILD_HOST_CMD,
+                                        "C++")

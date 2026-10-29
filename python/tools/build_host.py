@@ -33,8 +33,23 @@ it is now in the order the script produces them:
   node_sm_filter          P08's C++ variant
   rxspan.{dll,so}         P04's span arithmetic
   zonetrack.{dll,so}      P15's hysteresis
+  rxspan_filter           P04's C++ variant
   atparse.{dll,so}        P11's classifier, deadline test and backoff
   phaseledger.{dll,so}    P10's per-phase charge ledger
+  phaseledger_filter      P10's C++ variant
+  dspaccept.{dll,so}      P18's cascade in three formats and its two metrics
+  dspaccept_filter        P18's C++ variant
+  fifodecode.{dll,so}     P13's buffer decode, drop count and watermark
+  recdecode.{dll,so}      P14's record decoder, altitude and drain time
+  cyclecharge.{dll,so}    P07's cycle segmentation, spread and battery sum
+  cyclecharge_filter      P07's C++ variant
+  winfeat.{dll,so}        P16's window features and bounded tree
+  winfeat_filter          P16's C++ variant
+  tbmath.{dll,so}         P17's elapsed ticks, wrap periods and report
+  tbmath_filter           P17's C++ variant
+  mpualign.{dll,so}       P19's maintenance range and region encoding
+  latstat.{dll,so}        P20's latency histogram, percentiles and verdict
+  latstat_filter          P20's C++ variant
   rate.{dll,so}           P06's rate witness
   rate_filter             P06's C++ variant
   gates.{dll,so}          P12's size and charge gates
@@ -49,6 +64,14 @@ it is now in the order the script produces them:
 
 The Rust filters are not here: cargo builds those, and conftest.py looks for
 them under target/release.
+
+THAT LIST IS A CHECKED CLAIM SINCE THURSDAY 29 OCTOBER 2026 and was wrong until
+that day: it named twenty-two of the thirty-seven targets below, missing eight
+shared libraries and six C++ filters added between Monday 26 and Wednesday 28
+October 2026. Nothing compared the two, which is the same defect the cross step
+in code.yml had for twenty-five days, so the remedy is the same one:
+python/tests/test_build_host_lists_what_it_builds.py reads the calls in this
+file and requires each target to appear in this docstring.
 """
 from __future__ import annotations
 
@@ -552,6 +575,21 @@ def main() -> int:
     print("P10, the per-phase charge ledger and its residual:")
     shared_lib("phaseledger", [proj("P10", "c") / "phaseledger.c"],
                ["-ffp-contract=off"], includes=[proj("P10", "c")])
+
+    # P10's C++ variant, Thursday 29 October 2026, and it completes the fourth
+    # language for this project. std::variant turns the C header's prose promise
+    # ("Returns 0, or one of the refusals above having written nothing") into
+    # the type of the answer, which is P04's answer a second time.
+    # -ffp-contract=off because the comparison is exact and the two routes to a
+    # total are the shape gcc fuses at -O2; the guard requires it by reading the
+    # header as well as this source.
+    print("P10, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         "-ffp-contract=off", *STATIC,
+         "-I", proj("P10", "cpp"),
+         proj("P10", "cpp") / "phaseledger_filter.cpp",
+         "-o", BUILD / ("phaseledger_filter" + exe)],
+        "phaseledger_filter")
 
     print("P11, the line classifier, the wrap-safe deadline and the backoff:")
     shared_lib("atparse", [proj("P11", "c") / "atparse.c"],

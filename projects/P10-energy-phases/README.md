@@ -1,6 +1,6 @@
 # P10: Where the energy goes, wake, sense, compute, send
 
-Status: c=host cpp=none python=host rust=host
+Status: c=host cpp=host python=host rust=host
 
 **Started on the host, Monday 26 October 2026.** A current trace plus a marker
 code per sample go in; the charge drawn during each phase comes out, with the
@@ -19,6 +19,7 @@ one number.
 | `c/phaseledger.c`, the decode, the integration and the residual | 13 oracle cases, five property tests, and `-Wconversion -Wsign-conversion -Wdouble-promotion -Wpedantic`, which CI passes over it |
 | `python/phaseledger.py`, the twin | the same cases, and a pairwise comparison |
 | `rust/src/lib.rs`, `no_std` with `f64`, and `rust/src/main.rs`, the filter | the same cases through a one verb protocol, and six unit tests |
+| `cpp/phaseledger.hpp` and `cpp/phaseledger_filter.cpp` | the same cases through the same one verb protocol, the answer a `std::variant` |
 | `vectors.json`, the oracle | **recomputed in exact rational arithmetic**, which neither implementation uses |
 
 **Every current in the oracle is a sum of powers of two and dt is 2^-10 seconds**,
