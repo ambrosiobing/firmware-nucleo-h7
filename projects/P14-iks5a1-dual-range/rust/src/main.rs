@@ -3,10 +3,10 @@
 //! Six verbs, one per function the oracle exercises:
 //!
 //! ```text
-//! H <14 bytes>                       -> tick=.. pre=.. post=.. baro=..
+//! H <n> <byte>*n                     -> tick=.. pre=.. post=.. baro=..
 //!                                       lo=.. hi=.. range=.. flags=..
-//! M <14 bytes> <table> <counts> <fine>   -> mg=..
-//! P <14 bytes> <table> <counts>          -> hpa=..
+//! M <n> <byte>*n <table> <counts> <fine>   -> mg=..
+//! P <n> <byte>*n <table> <counts>          -> hpa=..
 //! A <p_hpa> <p0_hpa>                     -> m=..
 //! R <lsb_per_hpa> <p_hpa> <p0_hpa>       -> m=..
 //! D <samples> <bytes_per_sample> <overhead> <bus_hz>  -> ms=..
@@ -14,6 +14,15 @@
 //!
 //! and any of them can answer `REFUSED <name>` with one of the six names the C
 //! uses.
+//!
+//! THE BYTE COUNT TRAVELS WITH THE BYTES, and one oracle case is the whole
+//! reason: "a buffer shorter than the header" is THIRTEEN bytes, and its point
+//! is that the parse refuses before reading a field. This protocol carried
+//! exactly fourteen until Thursday 29 October 2026, when the laptop with cargo
+//! answered BAD_REQUEST for that case: the filter could not carry it, and a
+//! filter that cannot carry a case cannot test it. That rule is written in
+//! P13's own filter two projects away, in the same words, about a different
+//! parameter.
 //!
 //! `<table>` IS FIFTEEN TOKENS AND TRAVELS IN EVERY REQUEST THAT NEEDS IT: five
 //! fine sensitivities, five coarse ones, two barometer sensitivities, then the
@@ -79,10 +88,19 @@ impl<'a> Request<'a> {
         self.token()?.parse::<f64>().ok()
     }
 
-    /// The fourteen header bytes.
+    fn usize(&mut self) -> Option<usize> {
+        self.token()?.parse::<usize>().ok()
+    }
+
+    /// A count and then that many header bytes, which is how a buffer shorter
+    /// than the header crosses the protocol.
     fn header_bytes(&mut self) -> Option<Vec<u8>> {
-        let mut out = Vec::with_capacity(rec::HDR_BYTES);
-        for _ in 0..rec::HDR_BYTES {
+        let want = self.usize()?;
+        if want > 4 * rec::HDR_BYTES {
+            return None;
+        }
+        let mut out = Vec::with_capacity(want);
+        for _ in 0..want {
             out.push(self.u8()?);
         }
         Some(out)
