@@ -41,8 +41,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, REC_RUST_FILTER, require_artefact, run_filter,
-                      shared_library_name)
+from conftest import (BUILD, BUILD_HOST_CMD, REC_CPP_FILTER, REC_RUST_FILTER,
+                      require_artefact, run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P14-iks5a1-dual-range"
@@ -539,11 +539,18 @@ def test_every_request_says_what_its_case_says_without_running_anything():
           "field read back and compared with its case".format(len(lines)))
 
 
-def test_the_rust_filter_answers_every_case_as_the_oracle_says():
-    """One process, the nine sections in the oracle's order."""
-    require_artefact(REC_RUST_FILTER, "cargo build --release --workspace")
+def check_the_filter_against_the_oracle(path, command, label):
+    """One process, the nine sections in the oracle's order.
+
+    One function for both filters, because the C++ and the Rust speak one
+    protocol by design and a second copy of this loop would be two places for
+    a comparison to weaken. They print different text for one double, the
+    shortest round-tripping form against %.17g, so every figure is compared as
+    a number.
+    """
+    require_artefact(path, command)
     lines = all_requests()
-    answers = run_filter(REC_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
 
     at = 0
@@ -615,12 +622,21 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
                          + len(ORACLE["altitude_refusals"])
                          + len(ORACLE["drain_refusals"]))
     assert refused == expected_refusals, (refused, expected_refusals)
-    print(NEWLINE + "  the Rust answered all {} requests across six verbs, {} "
+    print(NEWLINE + "  the {} answered all {} requests across six verbs, {} "
           "of them refusals, with the conversions compared exactly and the "
-          "altitudes to a relative 1e-12".format(len(answers), refused))
+          "altitudes to a relative 1e-12".format(label, len(answers), refused))
 
 
-def test_the_rust_carries_finding_one_through_the_filter():
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(
+        REC_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(REC_CPP_FILTER, BUILD_HOST_CMD, "C++")
+
+
+def check_finding_one_through_the_filter(path, command, label):
     """Not a parity check: the event window's cost, through the filter.
 
     Finding one is that step 6 selects the WIDE barometer scale inside an event
@@ -628,18 +644,27 @@ def test_the_rust_carries_finding_one_through_the_filter():
     the recorder exists to capture. The ratio is asserted here against the
     filter's own answers rather than described.
     """
-    require_artefact(REC_RUST_FILTER, "cargo build --release --workspace")
+    require_artefact(path, command)
     narrow = float(TABLE["baro_lsb_per_hpa"][0])
     wide = float(TABLE["baro_lsb_per_hpa"][1])
     lines = ["R {!r} {!r} {!r}".format(narrow, P0, P0),
              "R {!r} {!r} {!r}".format(wide, P0, P0)]
-    answers = run_filter(REC_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     fine = float(fields_of(answers[0])["m"])
     coarse = float(fields_of(answers[1])["m"])
     assert coarse > fine, "the wide range resolves altitude less finely"
     # Exactly the ratio of the two sensitivities, because the pressure is the
     # same in both calls and the table is powers of two.
     assert coarse / fine == pytest.approx(narrow / wide, rel=1e-12)
-    print(NEWLINE + "  finding one through the filter: {:.4f} m per bit on the "
+    print(NEWLINE + "  finding one through the {}: {:.4f} m per bit on the "
           "narrow range against {:.4f} m on the wide, a ratio of {:.1f}"
-          .format(fine, coarse, coarse / fine))
+          .format(label, fine, coarse, coarse / fine))
+
+
+def test_the_rust_carries_finding_one_through_the_filter():
+    check_finding_one_through_the_filter(
+        REC_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_carries_finding_one_through_the_filter():
+    check_finding_one_through_the_filter(REC_CPP_FILTER, BUILD_HOST_CMD, "C++")

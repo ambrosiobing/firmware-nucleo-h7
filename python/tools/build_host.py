@@ -43,6 +43,7 @@ it is now in the order the script produces them:
   fifodecode.{dll,so}     P13's buffer decode, drop count and watermark
   fifodecode_filter       P13's C++ variant
   recdecode.{dll,so}      P14's record decoder, altitude and drain time
+  recdecode_filter        P14's C++ variant
   cyclecharge.{dll,so}    P07's cycle segmentation, spread and battery sum
   cyclecharge_filter      P07's C++ variant
   winfeat.{dll,so}        P16's window features and bounded tree
@@ -689,6 +690,20 @@ def main() -> int:
     print("P14, the record decoder, the altitude and the drain time:")
     shared_lib("recdecode", [proj("P14", "c") / "recdecode.c"],
                ["-ffp-contract=off"], includes=[proj("P14", "c")])
+
+    # P14's C++ variant, Thursday 29 October 2026, which completes that project
+    # to four languages. std::optional for the six refusals and a sized vector
+    # for the record bytes, so a buffer shorter than the header is a refusal
+    # rather than a read past the end. -ffp-contract=off because the drain time
+    # is a multiply followed by an add, and the guard requires the flag by
+    # reading the header as well as this source.
+    print("P14, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         "-ffp-contract=off", *STATIC,
+         "-I", proj("P14", "cpp"),
+         proj("P14", "cpp") / "recdecode_filter.cpp",
+         "-o", BUILD / ("recdecode_filter" + exe)],
+        "recdecode_filter")
 
     # P07's first code, Monday 26 October 2026, and chapter 7 step 9 asked for
     # it in these words: the segmentation is the fragile part, so it is tested
