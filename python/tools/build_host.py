@@ -35,6 +35,7 @@ it is now in the order the script produces them:
   zonetrack.{dll,so}      P15's hysteresis
   rxspan_filter           P04's C++ variant
   atparse.{dll,so}        P11's classifier, deadline test and backoff
+  atparse_filter          P11's C++ variant
   phaseledger.{dll,so}    P10's per-phase charge ledger
   phaseledger_filter      P10's C++ variant
   dspaccept.{dll,so}      P18's cascade in three formats and its two metrics
@@ -594,6 +595,19 @@ def main() -> int:
     print("P11, the line classifier, the wrap-safe deadline and the backoff:")
     shared_lib("atparse", [proj("P11", "c") / "atparse.c"],
                includes=[proj("P11", "c")])
+
+    # P11's C++ variant, Thursday 29 October 2026, which completes that project
+    # to four languages. Two C conventions become types: std::optional for the
+    # 0xFFFFFFFF sentinel, which is a legal delay, and a sized table of
+    # string_view for the null terminated array of prefixes. Integer arithmetic
+    # throughout, so no contraction flag applies.
+    print("P11, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         *STATIC,
+         "-I", proj("P11", "cpp"),
+         proj("P11", "cpp") / "atparse_filter.cpp",
+         "-o", BUILD / ("atparse_filter" + exe)],
+        "atparse_filter")
 
     print("P15, the hysteresis that stops the status byte chattering:")
     shared_lib("zonetrack", [proj("P15", "c") / "zonetrack.c"],

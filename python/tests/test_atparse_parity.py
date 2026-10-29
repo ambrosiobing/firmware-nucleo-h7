@@ -30,8 +30,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (AT_RUST_FILTER, BUILD, require_artefact, run_filter,
-                      shared_library_name)
+from conftest import (AT_CPP_FILTER, AT_RUST_FILTER, BUILD, BUILD_HOST_CMD,
+                      require_artefact, run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P11-at-engine"
@@ -334,12 +334,17 @@ def test_every_request_says_what_its_case_says_without_running_anything():
           "line included".format(len(lines)))
 
 
-def test_the_rust_filter_answers_every_case_as_the_oracle_says():
-    """One process, the three sections in the oracle's order."""
-    require_artefact(AT_RUST_FILTER, "cargo build --release --workspace")
+def check_the_filter_against_the_oracle(path, command, label):
+    """One process, the three sections in the oracle's order.
+
+    One function for both filters, because the C++ and the Rust speak one
+    protocol by design and a second copy of this loop would be two places for
+    a comparison to weaken.
+    """
+    require_artefact(path, command)
     urcs = ORACLE["urcs"]
     lines = all_requests(urcs)
-    answers = run_filter(AT_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
 
     at = 0
@@ -364,22 +369,32 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
         "three of the backoff cases are refusals, a base of zero, a cap below "
         "the base and a cap above half the range, and {} were seen"
         .format(refusals))
-    print(NEWLINE + "  the Rust answered all {} cases, {} classify, {} "
+    print(NEWLINE + "  the {} answered all {} cases, {} classify, {} "
           "deadline and {} backoff of which {} refused"
-          .format(len(answers), len(ORACLE["classify"]), len(ORACLE["due"]),
-                  len(ORACLE["backoff"]), refusals))
+          .format(label, len(answers), len(ORACLE["classify"]),
+                  len(ORACLE["due"]), len(ORACLE["backoff"]), refusals))
 
 
-def test_the_rust_filter_reads_an_empty_table_as_an_engine_with_no_table():
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(
+        AT_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(AT_CPP_FILTER, BUILD_HOST_CMD, "C++")
+
+
+def check_an_empty_table_is_an_engine_with_no_table(path, command, label):
     """The same lines with no prefixes, where every unsolicited line is plain.
 
-    The C reaches this through a NULL table and the Rust cannot, because a slice
-    is never null, so an empty slice is where that behaviour lives. The two
-    have to agree, which is what this compares.
+    The C reaches this through a NULL table and neither of the other two can:
+    a Rust slice is never null and the C++ takes a sized vector, so an empty
+    table is where that behaviour lives in both. All three have to agree, which
+    is what this compares.
     """
-    require_artefact(AT_RUST_FILTER, "cargo build --release --workspace")
+    require_artefact(path, command)
     lines = [classify_request(c, []) for c in ORACLE["classify"]]
-    answers = run_filter(AT_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
     moved = 0
     for case, answer in zip(ORACLE["classify"], answers):
@@ -391,5 +406,16 @@ def test_the_rust_filter_reads_an_empty_table_as_an_engine_with_no_table():
     assert moved == sum(1 for c in ORACLE["classify"] if c["class"] == "urc")
     assert moved > 0, (
         "no case in the oracle is unsolicited, so this test compares nothing")
-    print(NEWLINE + "  with no table the Rust moves {} unsolicited lines to "
-          "intermediate and leaves every other class where it was".format(moved))
+    print(NEWLINE + "  with no table the {} moves {} unsolicited lines to "
+          "intermediate and leaves every other class where it was"
+          .format(label, moved))
+
+
+def test_the_rust_filter_reads_an_empty_table_as_an_engine_with_no_table():
+    check_an_empty_table_is_an_engine_with_no_table(
+        AT_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_filter_reads_an_empty_table_as_an_engine_with_no_table():
+    check_an_empty_table_is_an_engine_with_no_table(AT_CPP_FILTER,
+                                                    BUILD_HOST_CMD, "C++")

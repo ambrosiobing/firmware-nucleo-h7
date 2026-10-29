@@ -1,6 +1,6 @@
 # P11: An AT engine that never blocks
 
-Status: c=host cpp=none python=host rust=host
+Status: c=host cpp=host python=host rust=host
 
 **Started on the host, Monday 26 October 2026, with the three pieces of chapter 11
 that need no module.** The engine itself needs a modem on a serial line. Its line
@@ -36,6 +36,7 @@ wrong, so the wrap cases cannot quietly become decoration.
 | `c/atparse.c`, the classifier, the deadline test, the backoff | 36 oracle cases, four property tests, and `-Wconversion -Wsign-conversion -Wpedantic`, which CI passes over it |
 | `python/atparse.py`, the twin | the same cases; the 32 bit wrap is written out because Python has no 32 bit integers |
 | `rust/src/lib.rs`, `no_std`, and `rust/src/main.rs`, the filter | the same cases through a three verb protocol, nine unit tests, and the deadline subtraction written `wrapping_sub` because the dev profile checks overflow |
+| `cpp/atparse.hpp` and `cpp/atparse_filter.cpp` | the same cases through the same three verb protocol, with the sentinel return and the sentinel terminated table both replaced by types |
 | `vectors.json`, the oracle | checked against a modular distance and against the formula longhand, which **found an error in it** |
 
 ## Two things reading the chapter closely turned up
