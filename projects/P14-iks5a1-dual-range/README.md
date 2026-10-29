@@ -101,8 +101,13 @@ project**, and the status line says host for that reason. The drain time above i
 computed from a bus rate, which is what step 10 asks for and explicitly not a
 measurement.
 
-**What it needs on the bench.** The X-NUCLEO-IKS5A1 shield, which the inventory
-does not hold.
+**What it needs on the bench.** The NUCLEO-H7A3ZI-Q and the X-NUCLEO-IKS5A1
+shield, **which the bench does hold**, fitted to the Arduino header with no
+second shield, which is chapter 14's own constraint. This paragraph said the
+inventory does not hold it until Thursday 29 October 2026, and that was wrong:
+the shield has been on the bench throughout. The board half is not blocked on a
+part. It is blocked on the same thing P13's is, the I2C pin mapping, which
+chapter 14 writes as a convention to be checked against the MB1363 user manual.
 
 Chapter 14 of [the book][book] is the written design.
 

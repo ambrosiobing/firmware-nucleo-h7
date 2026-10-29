@@ -71,8 +71,20 @@ as a success**, which is a real consequence of matching prefixes rather than who
 lines; the oracle pins it rather than hiding it, and whether a module ever emits
 such a line is a question for its manual.
 
-**What it needs on the bench.** Nucleo plus a cellular module on its own supply,
-which the inventory does not currently hold.
+**What it needs on the bench.** The NUCLEO-H7A3ZI-Q plus a cellular module on
+its own supply. **This said the inventory does not hold one until Thursday 29
+October 2026, and that was wrong**: the bench holds three, the SIM7600E-H 4G
+HAT, the SIM7070G Cat-M, NB-IoT and GPRS HAT and the SIM7020E NB-IoT HAT.
+
+What is true, and is the thing the old sentence was reaching for, is that all
+three are **Raspberry Pi 40-pin HATs and not Arduino shields**, so none of them
+stacks on this board. Reaching one from the Nucleo means flying leads from a
+USART to the HAT's own UART pins with a common ground, and a supply that is not
+the Nucleo's 3.3 V rail, because a 4G module's transmit burst draws amps and
+browning out the module is the failure this chapter would then spend an evening
+misreading. That has never been wired, so it is a plan and not a measurement.
+The alternative that needs no leads is to drive the HAT from the Raspberry Pi it
+fits, which answers a different chapter than this one.
 
 Chapter 11 of [the book][book] is the written design.
 

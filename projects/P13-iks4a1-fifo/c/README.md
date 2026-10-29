@@ -36,7 +36,9 @@ in CI.
 The bus shim, the identification registers, the batching and watermark
 configuration, the interrupt route, the empty handler, the overrun flag, the
 ten-minute run and the comparison against polling. All of them need the
-X-NUCLEO-IKS4A1 shield, which the inventory does not hold.
+X-NUCLEO-IKS4A1 shield, which the bench holds; see
+[../README.md](../README.md) for what the board half is actually waiting on,
+which is the I2C pin mapping rather than the part.
 
 [../README.md](../README.md) is the project, its status line and the chapter it
 implements.

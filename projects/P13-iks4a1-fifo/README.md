@@ -105,8 +105,15 @@ project**, and the status line says host for that reason. The decode cost per wo
 that `fifo_budget` takes as a parameter is exactly what step 8 says to measure
 with the cycle counter rather than assume, and it has not been measured.
 
-**What it needs on the bench.** The X-NUCLEO-IKS4A1 shield, which the inventory
-does not hold.
+**What it needs on the bench.** The NUCLEO-H7A3ZI-Q and the X-NUCLEO-IKS4A1
+shield, **which the bench does hold**, on the Arduino header as the only shield
+on the board. This paragraph said the inventory does not hold it until Thursday
+29 October 2026, and that was simply wrong: the shield has been on the bench
+throughout, along with the X-NUCLEO-IKS5A1, the X-NUCLEO-53L8A1 and the
+STEVAL-STWINBX1. The board half is not blocked on a part. What it is blocked on
+is the bus: chapter 13's peripheral table writes the I2C pins as Arduino D14 and
+D15 **by convention, to be checked against the MB1363 user manual**, and nothing
+in this repository has read those pins yet.
 
 Chapter 13 of [the book][book] is the written design.
 

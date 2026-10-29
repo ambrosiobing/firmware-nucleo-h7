@@ -20,7 +20,7 @@ laptop with no compiler, which is why the oracle is checked here first.
 
 ## What is not here
 
-The engine, its queue, the hundred injected faults and the no-SIM stop. All four need the cellular module, which the inventory does not hold.
+The engine, its queue, the hundred injected faults and the no-SIM stop. All four need a cellular module reached from a USART; the bench holds three, in Raspberry Pi HAT form rather than as a shield. See [../README.md](../README.md) for what that costs.
 
 [../README.md](../README.md) is the project, its status line and the chapter it
 implements.

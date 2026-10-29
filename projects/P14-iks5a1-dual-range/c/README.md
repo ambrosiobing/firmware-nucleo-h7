@@ -45,7 +45,9 @@ no compiler, naming the WSL command, and runs in full in CI.
 Both channels proved live, the watermark line, the pre-trigger ring, the arming
 on the high-g line, the price of changing the barometer's full scale, the
 foam-pad event, the sealed bag and the rate at which the bus stops keeping up.
-All of them need the X-NUCLEO-IKS5A1 shield, which the inventory does not hold.
+All of them need the X-NUCLEO-IKS5A1 shield, which the bench holds; see
+[../README.md](../README.md) for what the board half is actually waiting on,
+which is the I2C pin mapping rather than the part.
 
 [../README.md](../README.md) is the project, its status line and the chapter it
 implements.
