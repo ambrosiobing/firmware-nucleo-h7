@@ -27,6 +27,10 @@ name = "p06-rate"
 version = "0.1.0"
 
 [[package]]
+name = "p07-cyclecharge"
+version = "0.1.0"
+
+[[package]]
 name = "p08-node-sm"
 version = "0.1.0"
 dependencies = [

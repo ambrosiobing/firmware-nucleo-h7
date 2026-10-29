@@ -1,0 +1,36 @@
+[package]
+name = "p07-cyclecharge"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P07's cycle segmentation, the spread report and the battery arithmetic, against the same oracle as the C and the Python and compared exactly"
+license = "MIT"
+publish = false
+
+# No dependencies, and no_std even though this crate computes in f64. Every
+# operation here is add, subtract, multiply, divide and compare, all of which
+# are in core; sqrt and log10 are not, which is what makes P06's and P18's
+# crates std. P17's manifest said that first and this is the second project to
+# reach the same conclusion.
+#
+# AND THERE IS NO CONTRACTION FLAG TO PASS, which is the finding the lib's
+# documentation records: gcc at -O2 fuses a multiply and an add unless told not
+# to, every floating point host build here passes -ffp-contract=off for that
+# reason, and Rust fuses only where the author writes mul_add.
+[dependencies]
+
+[lints]
+workspace = true
+
+[lib]
+name = "p07_cyclecharge"
+path = "src/lib.rs"
+
+# Three verbs, one per function, and the parity test drives the filter over the
+# same oracle the C and the Python answer to.
+[[bin]]
+name = "p07-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.

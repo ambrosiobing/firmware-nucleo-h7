@@ -1,6 +1,6 @@
 # P07: Stop mode, RTC wake, and a battery number
 
-Status: c=host cpp=none python=host rust=none
+Status: c=host cpp=none python=host rust=host
 
 **Started on the host, Monday 26 October 2026, and chapter 7 asked for it in
 these words.** Step 9: "Test the analysis on a synthetic trace. The segmentation
@@ -21,6 +21,7 @@ is not restored.
 |---|---|
 | `c/cyclecharge.c`, the segmentation, the report, the battery sum | 5 traces, 5 reports, 4 lifetimes and 14 refusals |
 | `python/cyclecharge.py`, the twin, standard library only | the same cases, and both of the chapter's printed functions kept unused |
+| `rust/src/lib.rs`, `no_std` with `f64`, and `rust/src/main.rs`, the filter | the same cases through a three verb protocol, every float exact, and six unit tests |
 | `vectors.json`, the oracle | **every case exact in binary**: currents are powers of two and the sample rate is 1024 Hz |
 
 **How this differs from P10**, which also integrates a current trace. P10 decodes

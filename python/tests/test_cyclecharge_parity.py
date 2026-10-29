@@ -40,7 +40,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (BUILD, CYC_RUST_FILTER, require_artefact,
+                      run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P07-stop-mode"
@@ -370,3 +371,182 @@ def test_the_sleep_current_is_the_assumption_that_makes_the_printed_form_right()
     print("\n  control: with no sleep current assumed the two forms agree at "
           "{:.1f} days, even with {:.0f} seconds of the day uncovered"
           .format(got["days"], got["uncovered_s"]))
+
+
+# ---------------------------------------------------------------------------
+# The Rust, driven as a filter over the same oracle. One process for the whole
+# run, which is conftest's rule.
+#
+# Three verbs, one per function:
+#
+#     C <fs_hz> <cycle_bit> <max_out> <n> <current digital>*n
+#     R <volts> <min_cycles> <count> <count charges>
+#     L <energy_uj> <cycles_per_day> <period_s> <sleep_ua> <sleep_v> <mah> <cell_v>
+#
+# EVERY FLOATING POINT VALUE CROSSES THE PROTOCOL EXACTLY, which matters here
+# more than in any other filter in this volume: this file compares f64 with ==
+# and no tolerance, so a value losing one bit on the wire would fail a
+# comparison the arithmetic passed. Python writes with repr and reads with
+# float, Rust parses with str::parse and prints with {:?}, and both of those
+# pairs are shortest-round-trip guarantees rather than conveniences.
+
+NEWLINE = chr(10)
+
+LIFETIME_FIELDS = ("energy_per_cycle_uj", "cycles_per_day", "cycle_period_s",
+                   "sleep_ua", "sleep_volts", "cell_mah", "cell_volts")
+
+# The answer names each field without the unit suffix the structs carry, so one
+# map keeps the two spellings from drifting apart.
+REPORT_FROM_ANSWER = {"cycles": "cycles", "median": "median_uc",
+                      "min": "min_uc", "max": "max_uc",
+                      "spread": "spread_pct", "energy": "energy_median_uj"}
+LIFETIME_FROM_ANSWER = {"cell_j": "cell_j", "covered": "covered_s",
+                        "uncovered": "uncovered_s",
+                        "cycle_j": "cycle_j_per_day",
+                        "uncovered_j": "uncovered_j_per_day",
+                        "days": "days", "days_chapter": "days_chapter",
+                        "covers": "covers_the_day"}
+
+
+def charge_request(current, digital, fs_hz, cycle_bit):
+    body = " ".join("{!r} {}".format(c, d) for c, d in zip(current, digital))
+    return "C {!r} {} {} {} {}".format(fs_hz, cycle_bit, CYC_MAX_CYCLES,
+                                       len(digital), body).strip()
+
+
+def report_request(charges, volts, min_cycles):
+    body = " ".join(repr(float(c)) for c in charges)
+    return "R {!r} {} {} {}".format(volts, min_cycles, len(charges),
+                                    body).strip()
+
+
+def lifetime_request(spec):
+    return "L " + " ".join(repr(float(spec[k])) for k in LIFETIME_FIELDS)
+
+
+def fields_of(answer):
+    out = {}
+    for token in answer.split():
+        key, value = token.split("=", 1)
+        out[key] = value
+    return out
+
+
+def all_requests():
+    """Every request line, built where a test with no cargo can reach them.
+
+    Separated from the test below because that test SKIPS on win11 aquamarine,
+    where there is no cargo, and a skipped body is never executed at all. On
+    Thursday 29 October 2026 P04's version of this file referred to a module
+    level name that file does not define, and the skip hid it completely until
+    the laptop with a compiler ran it. Anything checkable without the artefact
+    is checked without it.
+    """
+    lines = []
+    for case in ORACLE["traces"]:
+        current, digital = build(case["spec"])
+        lines.append(charge_request(current, digital, case["fs_hz"],
+                                    case["cycle_bit"]))
+    for case in ORACLE["trace_refusals"]:
+        lines.append(charge_request([0.0] * case["n"], [0] * case["n"],
+                                    case["fs_hz"], case["cycle_bit"]))
+    for case in ORACLE["reports"] + ORACLE["report_refusals"]:
+        lines.append(report_request(case["charges_uc"], case["volts"],
+                                    case["min_cycles"]))
+    for case in ORACLE["lifetimes"] + ORACLE["lifetime_refusals"]:
+        lines.append(lifetime_request(case["spec"]))
+    return lines
+
+
+def test_the_requests_round_trip_every_float_without_running_anything():
+    """Runs everywhere, including where no filter exists, on purpose.
+
+    It also checks the one property the protocol must have and the arithmetic
+    cannot supply: every float written into a request reads back as the same
+    value. A tolerance anywhere in this file would hide that, and there is
+    none.
+    """
+    lines = all_requests()
+    expected = (len(ORACLE["traces"]) + len(ORACLE["trace_refusals"])
+                + len(ORACLE["reports"]) + len(ORACLE["report_refusals"])
+                + len(ORACLE["lifetimes"]) + len(ORACLE["lifetime_refusals"]))
+    assert len(lines) == expected
+
+    floats = 0
+    for line in lines:
+        parts = line.split()
+        assert parts[0] in ("C", "R", "L"), line[:40]
+        for token in parts[1:]:
+            if "." in token or "e" in token or "E" in token:
+                assert float(repr(float(token))) == float(token), token
+                floats += 1
+    assert floats > 100, (
+        "only {} floats appear in the requests, which is fewer than this "
+        "oracle holds, so the builder has stopped emitting them".format(floats))
+    print(NEWLINE + "  {} requests built with no filter and no compiler, and "
+          "{} floating point tokens each read back as the value written"
+          .format(len(lines), floats))
+
+
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    """One process, every case of all six kinds, in the oracle's order."""
+    require_artefact(CYC_RUST_FILTER, "cargo build --release --workspace")
+    lines = []
+    for case in ORACLE["traces"]:
+        current, digital = build(case["spec"])
+        lines.append(charge_request(current, digital, case["fs_hz"],
+                                    case["cycle_bit"]))
+    for case in ORACLE["trace_refusals"]:
+        lines.append(charge_request([0.0] * case["n"], [0] * case["n"],
+                                    case["fs_hz"], case["cycle_bit"]))
+    for case in ORACLE["reports"] + ORACLE["report_refusals"]:
+        lines.append(report_request(case["charges_uc"], case["volts"],
+                                    case["min_cycles"]))
+    for case in ORACLE["lifetimes"] + ORACLE["lifetime_refusals"]:
+        lines.append(lifetime_request(case["spec"]))
+
+    answers = run_filter(CYC_RUST_FILTER, lines)
+    assert len(answers) == len(lines)
+
+    at = 0
+    for case in ORACLE["traces"]:
+        got = fields_of(answers[at])
+        assert int(got["count"]) == case["count"], case["why"]
+        charges = [float(v) for v in got["uc"].split(",")] if got["uc"] else []
+        assert charges == case["charges_uc"], case["why"]
+        at += 1
+    for case in ORACLE["trace_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    for case in ORACLE["reports"]:
+        got = fields_of(answers[at])
+        for name, field in REPORT_FROM_ANSWER.items():
+            want = case[field]
+            value = int(got[name]) if field == "cycles" else float(got[name])
+            assert value == want, (field, case["why"])
+        at += 1
+    for case in ORACLE["report_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    for case in ORACLE["lifetimes"]:
+        got = fields_of(answers[at])
+        for name, field in LIFETIME_FROM_ANSWER.items():
+            want = case[field]
+            if field == "covers_the_day":
+                value = int(got[name])
+            else:
+                value = float(got[name])
+            assert value == want, (field, case["why"])
+        at += 1
+    for case in ORACLE["lifetime_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        at += 1
+    assert at == len(lines)
+
+    refusals = (len(ORACLE["trace_refusals"]) + len(ORACLE["report_refusals"])
+                + len(ORACLE["lifetime_refusals"]))
+    print(NEWLINE + "  the Rust answered all {} requests exactly, {} traces, "
+          "{} reports, {} lifetimes and {} refusals, every float compared "
+          "with no tolerance"
+          .format(len(lines), len(ORACLE["traces"]), len(ORACLE["reports"]),
+                  len(ORACLE["lifetimes"]), refusals))
