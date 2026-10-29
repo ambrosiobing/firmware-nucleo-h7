@@ -1,6 +1,6 @@
 # P14: The IKS5A1, low and high g at once
 
-Status: c=host cpp=none python=host rust=none
+Status: c=host cpp=none python=host rust=host
 
 **Started on the host, Monday 26 October 2026.** Chapter 14's step 7 says to
 write the record's decoder at the same time as the firmware, because "a format
@@ -21,6 +21,7 @@ running the whole time.
 |---|---|
 | `c/recdecode.c`, the parse, the conversions, the relation, the drain | 11 header cases, 6 conversions, 5 altitudes, 3 resolutions, 4 drains, 8 refusals |
 | `python/recdecode.py`, the twin, standard library only | the same cases, and both of the chapter's printed forms kept unused |
+| `rust/src/lib.rs`, **std** because `powf` is, and `rust/src/main.rs`, the filter | the same cases through a six verb protocol, nine unit tests, and the table carried in every request rather than held |
 | `vectors.json`, the oracle | integers compared exactly, altitudes to a relative 1e-12 and nothing tighter |
 
 **What is exact and what is not, stated once.** Header fields and counts are

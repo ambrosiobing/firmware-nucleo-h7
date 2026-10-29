@@ -55,8 +55,12 @@
  * WHAT IS NOT HERE. Both acceleration channels live, the watermark line, the
  * pre-trigger ring, the arming on the high-g line, the cost of changing the
  * barometer's full scale, the foam-pad event, the sealed bag, and the rate at
- * which the bus stops keeping up. Those need the X-NUCLEO-IKS5A1, which the
- * inventory does not hold. There is no measured number in this project.
+ * which the bus stops keeping up. Those need the X-NUCLEO-IKS5A1 fitted to the
+ * Arduino header, with no second shield, and the bench holds that part: this
+ * comment said the inventory does not hold it until Thursday 29 October 2026,
+ * which was wrong. What the board half waits on is the I2C pin mapping, which
+ * chapter 14 writes as a convention to be checked against the MB1363 user
+ * manual. There is no measured number in this project.
  */
 #ifndef RECDECODE_H
 #define RECDECODE_H

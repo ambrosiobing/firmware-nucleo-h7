@@ -27,6 +27,7 @@ members = [
     "projects/P11-at-engine/rust",
     "projects/P12-energy-regression/rust",
     "projects/P13-iks4a1-fifo/rust",
+    "projects/P14-iks5a1-dual-range/rust",
     "projects/P16-classifier-placement/rust",
     "projects/P17-hal-against-registers/rust",
     "projects/P18-transforms-filters/rust",

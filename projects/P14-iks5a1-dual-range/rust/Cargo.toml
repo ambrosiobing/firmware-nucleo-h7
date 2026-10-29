@@ -1,0 +1,41 @@
+[package]
+name = "p14-recdecode"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P14's record header, the conversion of counts through the scale codes the record carries, the barometric relation and the drain time, against the same oracle as the C and the Python"
+license = "MIT"
+publish = false
+
+# No dependencies.
+#
+# THIS CRATE IS std AND NOT no_std, AND THE REASON IS ONE FUNCTION. Step 9's
+# barometric relation raises a pressure ratio to a fractional power, and
+# f64::powf lives in std for the same reason sqrt and log10 do: core carries the
+# arithmetic operators and the comparisons, and the transcendental functions are
+# the standard library's. There is no way to write this project's altitude
+# without it that would still be the chapter's relation, so the crate is std and
+# says why, rather than reimplementing pow and claiming agreement with a twin
+# that calls the library.
+#
+# That makes three std crates in this volume, P06, P18 and this one, against six
+# that stay no_std. The running list is in README.md.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p14_recdecode"
+path = "src/lib.rs"
+
+# The filter speaks five verbs, one per function the oracle exercises, and the
+# parity test drives it beside the C and the Python.
+[[bin]]
+name = "p14-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.
