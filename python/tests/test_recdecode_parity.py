@@ -352,9 +352,9 @@ def test_step_tens_printed_figure_omits_the_overhead_its_comment_names():
 #
 # Six verbs, one per function the oracle exercises:
 #
-#     H <14 bytes>
-#     M <14 bytes> <table> <counts> <fine>
-#     P <14 bytes> <table> <counts>
+#     H <n> <byte>*n
+#     M <n> <byte>*n <table> <counts> <fine>
+#     P <n> <byte>*n <table> <counts>
 #     A <p_hpa> <p0_hpa>
 #     R <lsb_per_hpa> <p_hpa> <p0_hpa>
 #     D <samples> <bytes_per_sample> <overhead> <bus_hz>
@@ -385,18 +385,30 @@ def table_tokens():
     return out
 
 
+def byte_field(case):
+    """The count and then the bytes.
+
+    THE COUNT TRAVELS BECAUSE ONE CASE IS THIRTEEN BYTES. "A buffer shorter
+    than the header" exists to be refused before any field is read, and the
+    first version of this protocol carried exactly fourteen bytes, so the
+    filter answered BAD_REQUEST for it on skyhorizon on Thursday 29 October
+    2026. A filter that cannot carry a case cannot test it.
+    """
+    return [str(len(case["bytes"]))] + [str(b) for b in case["bytes"]]
+
+
 def header_request(case):
-    return " ".join(["H"] + [str(b) for b in case["bytes"]])
+    return " ".join(["H"] + byte_field(case))
 
 
 def mg_request(case, counts, fine):
-    parts = ["M"] + [str(b) for b in case["bytes"]] + table_tokens()
+    parts = ["M"] + byte_field(case) + table_tokens()
     parts += [str(counts), "1" if fine else "0"]
     return " ".join(parts)
 
 
 def hpa_request(case, counts):
-    parts = ["P"] + [str(b) for b in case["bytes"]] + table_tokens()
+    parts = ["P"] + byte_field(case) + table_tokens()
     parts += [str(counts)]
     return " ".join(parts)
 
@@ -445,11 +457,19 @@ def test_every_request_says_what_its_case_says_without_running_anything():
     """
     lines = all_requests()
     at = 0
+    short = 0
     for case in ORACLE["headers"]:
         t = lines[at].split()
         assert t[0] == "H", case["why"]
-        assert [int(x) for x in t[1:]] == case["bytes"], case["why"]
+        assert int(t[1]) == len(case["bytes"]), case["why"]
+        assert [int(x) for x in t[2:]] == case["bytes"], case["why"]
+        if len(case["bytes"]) != 14:
+            short += 1
         at += 1
+    assert short == 1, (
+        "one header case is shorter than the fourteen the format declares, and "
+        "it is the case the byte count exists to carry; {} were built"
+        .format(short))
 
     def check_table(tokens):
         want = table_tokens()
@@ -459,28 +479,35 @@ def test_every_request_says_what_its_case_says_without_running_anything():
         for got, expect in zip(tokens[12:], want[12:]):
             assert int(got) == int(expect)
 
+    def check_bytes(tokens, case):
+        """The count, the bytes, and where the table starts after them."""
+        n = int(tokens[1])
+        assert n == len(case["bytes"]), case["why"]
+        assert [int(x) for x in tokens[2:2 + n]] == case["bytes"], case["why"]
+        return 2 + n
+
     for case in ORACLE["conversions"]:
         t = lines[at].split()
         assert t[0] == "M", case["why"]
-        assert [int(x) for x in t[1:15]] == case["bytes"], case["why"]
-        check_table(t[15:30])
-        assert int(t[30]) == case["counts"], case["why"]
-        assert int(t[31]) == (1 if case["fine"] else 0), case["why"]
-        assert len(t) == 32, case["why"]
+        after = check_bytes(t, case)
+        check_table(t[after:after + 15])
+        assert int(t[after + 15]) == case["counts"], case["why"]
+        assert int(t[after + 16]) == (1 if case["fine"] else 0), case["why"]
+        assert len(t) == after + 17, case["why"]
         at += 1
 
     for case in ORACLE["pressures"]:
         t = lines[at].split()
         assert t[0] == "P", case["why"]
-        assert [int(x) for x in t[1:15]] == case["bytes"], case["why"]
-        check_table(t[15:30])
-        assert int(t[30]) == case["counts"], case["why"]
+        after = check_bytes(t, case)
+        check_table(t[after:after + 15])
+        assert int(t[after + 15]) == case["counts"], case["why"]
         at += 1
 
     for case in ORACLE["conversion_refusals"]:
         t = lines[at].split()
         assert t[0] == "M", case["why"]
-        assert [int(x) for x in t[1:15]] == case["bytes"], case["why"]
+        check_bytes(t, case)
         at += 1
 
     for case in ORACLE["altitudes"] + ORACLE["altitude_refusals"]:

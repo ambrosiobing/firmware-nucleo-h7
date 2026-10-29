@@ -91,14 +91,23 @@ four implementations to know which language they are in.
 ## The filter protocol
 
 ```text
-H <14 bytes>                       -> tick=.. pre=.. post=.. baro=..
+H <n> <byte>*n                     -> tick=.. pre=.. post=.. baro=..
                                       lo=.. hi=.. range=.. flags=..
-M <14 bytes> <table> <counts> <fine>   -> mg=..
-P <14 bytes> <table> <counts>          -> hpa=..
+M <n> <byte>*n <table> <counts> <fine>   -> mg=..
+P <n> <byte>*n <table> <counts>          -> hpa=..
 A <p_hpa> <p0_hpa>                     -> m=..
 R <lsb_per_hpa> <p_hpa> <p0_hpa>       -> m=..
 D <samples> <bytes_per_sample> <overhead> <bus_hz>  -> ms=..
 ```
+
+**The byte count travels with the bytes**, and one oracle case is the whole
+reason: "a buffer shorter than the header" is **thirteen** bytes, and its point
+is that the parse refuses before reading a field. This protocol carried exactly
+fourteen until Thursday 29 October 2026, when skyhorizon answered BAD_REQUEST
+for that case: the filter could not carry it, and **a filter that cannot carry a
+case cannot test it**. That rule is written in P13's own filter, two projects
+away, in the same words and about a different parameter, which is why it is
+recorded here as a recurrence rather than as news.
 
 **The table travels in every request that needs it**, fifteen tokens, and the
 filter holds nothing between lines. That is deliberate rather than frugal: a
