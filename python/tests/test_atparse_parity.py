@@ -30,7 +30,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (AT_RUST_FILTER, BUILD, require_artefact, run_filter,
+                      shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P11-at-engine"
@@ -201,3 +202,194 @@ def test_the_delay_never_decreases_as_the_attempt_rises():
         assert values[a] >= values[a - 1], (a, values[a - 1], values[a])
     assert values[-1] == values[10], "the sequence had not settled at the cap by 10"
     assert values[0] < values[-1], "the backoff never grew at all"
+
+
+# ---------------------------------------------------------------------------
+# The Rust, driven as a filter over the same oracle. One process for the whole
+# run, which is conftest's rule.
+#
+# Three verbs, one per piece of the chapter that needs no module:
+#
+#     C <n_urcs> <urc field>*n <line field>   -> class=<name>
+#     D <now_ms> <deadline_ms>                -> due=1 | due=0
+#     B <attempt> <base_ms> <cap_ms> <rand>   -> delay=NNN | REFUSED backoff
+#
+# A FIELD IS A LENGTH AND THEN HEX, AND THE REASON IS THE ORACLE RATHER THAN A
+# TASTE FOR HEX. Nine of the seventeen classify cases contain a space, four
+# contain a comma or a double quote, and one is the EMPTY line, which is a class
+# of its own here. TEN OF THE SEVENTEEN CANNOT CROSS A WHITESPACE-SEPARATED
+# PROTOCOL AT ALL and only seven can, and a
+# filter that cannot carry a case cannot test it: an oracle case a signature
+# could not express has already cost this volume two red commits, and the answer
+# then was to change the signature rather than to exempt the case. The length
+# travels with the hex because a whitespace split cannot produce an empty token.
+#
+# THE REFUSAL IS A WORD AND NOT 0xFFFFFFFF. The C returns AT_BACKOFF_REFUSED,
+# which is a legal delay of about forty-nine days, so a protocol carrying it as
+# a number would make the refusal indistinguishable from an answer. The Rust
+# returns Option<u32> and the filter prints a word.
+
+NEWLINE = chr(10)
+REFUSED = "REFUSED backoff"
+
+
+def hex_field(text):
+    """One length-and-hex field, which is empty as a length of zero alone."""
+    raw = text.encode()
+    if not raw:
+        return "0"
+    return "{} {}".format(len(raw), raw.hex().upper())
+
+
+def classify_request(case, urcs):
+    parts = ["C", str(len(urcs))]
+    parts += [hex_field(u) for u in urcs]
+    parts.append(hex_field(case["line"]))
+    return " ".join(parts)
+
+
+def due_request(case):
+    return "D {} {}".format(case["now"], case["deadline"])
+
+
+def backoff_request(case):
+    return "B {} {} {} {}".format(case["attempt"], case["base_ms"],
+                                  case["cap_ms"], case["rand"])
+
+
+def all_requests(urcs):
+    """Every request, in the order the answers are read back.
+
+    Built where a test with no cargo can reach them, because a filter test
+    SKIPS where there is no cargo and a skipped body never runs at all.
+    """
+    lines = [classify_request(c, urcs) for c in ORACLE["classify"]]
+    lines += [due_request(c) for c in ORACLE["due"]]
+    lines += [backoff_request(c) for c in ORACLE["backoff"]]
+    return lines
+
+
+def decode_field(tokens, at):
+    """Read one length-and-hex field back, returning (text, next index).
+
+    The inverse of hex_field, written here so the test can assert what the
+    request SAYS rather than only that it is well formed. P10's version of this
+    file checked the shape of every request and still sent the wrong interval
+    to two cases, on Thursday 29 October 2026, because a wrong value is as well
+    formed as a right one.
+    """
+    want = int(tokens[at])
+    if want == 0:
+        return "", at + 1
+    raw = bytes.fromhex(tokens[at + 1])
+    assert len(raw) == want, (want, tokens[at + 1])
+    return raw.decode(), at + 2
+
+
+def test_every_request_says_what_its_case_says_without_running_anything():
+    """Runs everywhere, including where no filter exists, on purpose."""
+    urcs = ORACLE["urcs"]
+    lines = all_requests(urcs)
+    assert len(lines) == (len(ORACLE["classify"]) + len(ORACLE["due"])
+                          + len(ORACLE["backoff"]))
+
+    empties = 0
+    for case, line in zip(ORACLE["classify"], lines):
+        tokens = line.split()
+        assert tokens[0] == "C", case["why"]
+        assert int(tokens[1]) == len(urcs), case["why"]
+        at = 2
+        for prefix in urcs:
+            got, at = decode_field(tokens, at)
+            assert got == prefix, case["why"]
+        got, at = decode_field(tokens, at)
+        # The line itself, back out of the hex and compared with the case.
+        assert got == case["line"], case["why"]
+        assert at == len(tokens), case["why"]
+        if case["line"] == "":
+            empties += 1
+    assert empties == 1, (
+        "the oracle's empty line case is the one a whitespace protocol cannot "
+        "carry, and {} of them were found rather than one".format(empties))
+
+    at = len(ORACLE["classify"])
+    for case in ORACLE["due"]:
+        tokens = lines[at].split()
+        assert tokens[0] == "D", case["why"]
+        assert int(tokens[1]) == case["now"], case["why"]
+        assert int(tokens[2]) == case["deadline"], case["why"]
+        at += 1
+    for case in ORACLE["backoff"]:
+        tokens = lines[at].split()
+        assert tokens[0] == "B", case["why"]
+        assert int(tokens[1]) == case["attempt"], case["why"]
+        assert int(tokens[2]) == case["base_ms"], case["why"]
+        assert int(tokens[3]) == case["cap_ms"], case["why"]
+        assert int(tokens[4]) == case["rand"], case["why"]
+        at += 1
+    assert at == len(lines)
+
+    print(NEWLINE + "  {} requests built with no filter and no compiler, every "
+          "line read back out of its hex and compared with the case, the empty "
+          "line included".format(len(lines)))
+
+
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    """One process, the three sections in the oracle's order."""
+    require_artefact(AT_RUST_FILTER, "cargo build --release --workspace")
+    urcs = ORACLE["urcs"]
+    lines = all_requests(urcs)
+    answers = run_filter(AT_RUST_FILTER, lines)
+    assert len(answers) == len(lines)
+
+    at = 0
+    for case in ORACLE["classify"]:
+        want = "class={}".format(case["class"])
+        assert answers[at] == want, case["why"]
+        at += 1
+    for case in ORACLE["due"]:
+        want = "due={}".format(1 if case["due"] else 0)
+        assert answers[at] == want, case["why"]
+        at += 1
+    refusals = 0
+    for case in ORACLE["backoff"]:
+        if case["value"] == py.BACKOFF_REFUSED:
+            assert answers[at] == REFUSED, case["why"]
+            refusals += 1
+        else:
+            assert answers[at] == "delay={}".format(case["value"]), case["why"]
+        at += 1
+    assert at == len(answers)
+    assert refusals == 3, (
+        "three of the backoff cases are refusals, a base of zero, a cap below "
+        "the base and a cap above half the range, and {} were seen"
+        .format(refusals))
+    print(NEWLINE + "  the Rust answered all {} cases, {} classify, {} "
+          "deadline and {} backoff of which {} refused"
+          .format(len(answers), len(ORACLE["classify"]), len(ORACLE["due"]),
+                  len(ORACLE["backoff"]), refusals))
+
+
+def test_the_rust_filter_reads_an_empty_table_as_an_engine_with_no_table():
+    """The same lines with no prefixes, where every unsolicited line is plain.
+
+    The C reaches this through a NULL table and the Rust cannot, because a slice
+    is never null, so an empty slice is where that behaviour lives. The two
+    have to agree, which is what this compares.
+    """
+    require_artefact(AT_RUST_FILTER, "cargo build --release --workspace")
+    lines = [classify_request(c, []) for c in ORACLE["classify"]]
+    answers = run_filter(AT_RUST_FILTER, lines)
+    assert len(answers) == len(lines)
+    moved = 0
+    for case, answer in zip(ORACLE["classify"], answers):
+        expected = case["class"]
+        if expected == "urc":
+            expected = "intermediate"
+            moved += 1
+        assert answer == "class={}".format(expected), case["why"]
+    assert moved == sum(1 for c in ORACLE["classify"] if c["class"] == "urc")
+    assert moved > 0, (
+        "no case in the oracle is unsolicited, so this test compares nothing")
+    print(NEWLINE + "  with no table the Rust moves {} unsolicited lines to "
+          "intermediate and leaves every other class where it was".format(moved))
