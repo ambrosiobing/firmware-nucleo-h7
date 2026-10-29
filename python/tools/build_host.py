@@ -578,6 +578,18 @@ def main() -> int:
     # project is denser in floating point than either of those and was registered
     # without the flag, so its exact cases passed, where no rounding happens at
     # all, and the 1024-sample design comparison did not.
+    # P04's C++ variant, Thursday 29 October 2026. std::variant is the same sum
+    # type the Rust gets from an enum, and std::visit over it is checked for
+    # exhaustiveness at compile time; the crate README records what the
+    # ceremony costs. Integer arithmetic throughout, so no contraction flag.
+    print("P04, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         *STATIC,
+         "-I", proj("P04", "cpp"),
+         proj("P04", "cpp") / "rxspan_filter.cpp",
+         "-o", BUILD / ("rxspan_filter" + exe)],
+        "rxspan_filter")
+
     print("P18, the cascade in three formats and the acceptance metrics:")
     shared_lib("dspaccept", [proj("P18", "c") / "dspaccept.c"],
                ["-ffp-contract=off"], includes=[proj("P18", "c")])

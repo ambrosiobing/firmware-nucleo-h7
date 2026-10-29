@@ -33,8 +33,9 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, SPAN_RUST_FILTER, require_artefact,
-                      run_filter, shared_library_name)
+from conftest import (BUILD, BUILD_HOST_CMD, SPAN_CPP_FILTER,
+                      SPAN_RUST_FILTER, require_artefact, run_filter,
+                      shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P04-dma-idle-line"
@@ -258,12 +259,21 @@ def test_the_requests_are_well_formed_without_running_anything():
           "compiler".format(len(lines)))
 
 
-def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+# The C++ and the Rust speak one protocol, so the test below runs over both and
+# the language is in the test id, which is what names the one that disagreed.
+FILTERS = [(SPAN_CPP_FILTER, "cpp", BUILD_HOST_CMD),
+           (SPAN_RUST_FILTER, "rust", "cargo build --release --workspace")]
+FILTER_ARGS = [(path, command) for path, _, command in FILTERS]
+FILTER_IDS = [name for _, name, _ in FILTERS]
+
+
+@pytest.mark.parametrize("path,command", FILTER_ARGS, ids=FILTER_IDS)
+def test_each_filter_answers_every_case_as_the_oracle_says(path, command):
     """One process, every case in the oracle's order, refusals included."""
-    require_artefact(SPAN_RUST_FILTER, "cargo build --release --workspace")
+    require_artefact(path, command)
     oracle_cases = cases()
     lines = requests_for(oracle_cases)
-    answers = run_filter(SPAN_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
 
     delivered = 0
@@ -288,5 +298,5 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
         delivered += len(spans)
 
     refusals = sum(1 for c in oracle_cases if "error" in c)
-    print("\n  the Rust answered all {} cases, {} of them refusals, handing "
+    print("\n  the filter answered all {} cases, {} of them refusals, handing "
           "out {} spans in total".format(len(lines), refusals, delivered))

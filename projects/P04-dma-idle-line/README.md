@@ -1,6 +1,6 @@
 # P04: Circular DMA and the idle line
 
-Status: c=host cpp=none python=host rust=host
+Status: c=host cpp=host python=host rust=host
 
 **Started on the host, Monday 26 October 2026, and not on the board.** One part of
 chapter 4 needs no hardware at all: the arithmetic that turns two transfer-counter
@@ -18,6 +18,7 @@ transfer counter. The compiler-only barrier of P02 stops being sufficient here.
 | `c/rxspan.c`, the span split and the two guards | host and target alike | 18 oracle cases, a 4 096 pair exhaustive walk, and `-Wconversion -Wsign-conversion -Wpedantic`, which CI passes over it |
 | `python/rxspan.py`, the twin | host | the same 18 cases, and a pairwise comparison with the C |
 | `rust/src/lib.rs`, `no_std`, and `rust/src/main.rs`, the filter | host | the same 18 cases through a one verb protocol, and six unit tests |
+| `cpp/rxspan.hpp`, header only, and `cpp/rxspan_filter.cpp` | host | the same 18 cases through the same protocol, the answer a `std::variant` |
 | `vectors.json`, the oracle | the project owns it | checked against invariants that come from neither implementation |
 
 **Why an oracle and not a copy of the implementation.** The eighteen cases were
