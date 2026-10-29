@@ -140,12 +140,7 @@ pub struct Stats {
 /// One step. `stats` is updated on every call that is not refused, including
 /// calls that find nothing, because the count of calls is what the chapter's
 /// half and full transfer interrupts exist to keep above a floor.
-pub fn next_spans(
-    size: u16,
-    old_pos: u16,
-    pos: u16,
-    stats: &mut Stats,
-) -> Result<Delivery, Error> {
+pub fn next_spans(size: u16, old_pos: u16, pos: u16, stats: &mut Stats) -> Result<Delivery, Error> {
     // A power of two, and the refusal is load bearing rather than decorative:
     // the advance is computed by masking, exactly as the chapter's step 7
     // does, and masking with size - 1 is the advance only when the size is a
