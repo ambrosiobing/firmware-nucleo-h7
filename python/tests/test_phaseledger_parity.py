@@ -237,10 +237,21 @@ def test_the_chapters_sketch_rejects_by_rounding_and_this_is_why_runs_are_counte
 NEWLINE = chr(10)
 
 
+def interval_of(case):
+    """The case's own interval, which two refusal cases override.
+
+    The first version of this used ORACLE["dt_s"] for every case, so the case
+    whose whole point is an interval of zero was sent the valid one and the
+    filter answered it with a ledger. Found on skyhorizon on Thursday 29
+    October 2026, by the only run that drives the filter.
+    """
+    return case.get("dt_s", ORACLE["dt_s"])
+
+
 def ledger_request(case):
     body = " ".join("{!r} {}".format(float(a), c)
                     for a, c in zip(case["current_a"], case["codes"]))
-    return "L {!r} {} {} {}".format(ORACLE["dt_s"], case["min_samples"],
+    return "L {!r} {} {} {}".format(interval_of(case), case["min_samples"],
                                     len(case["codes"]), body).strip()
 
 
@@ -271,6 +282,11 @@ def test_the_requests_round_trip_every_float_without_running_anything():
     for line, case in zip(lines, ORACLE["cases"]):
         parts = line.split()
         assert parts[0] == "L", case["why"]
+        # The request must carry the CASE's parameters and not the oracle's
+        # defaults, which is what the first version of the builder got wrong:
+        # it sent the valid interval to the case whose point is a zero one.
+        assert float(parts[1]) == interval_of(case), case["why"]
+        assert int(parts[2]) == case["min_samples"], case["why"]
         assert int(parts[3]) == len(case["codes"]), case["why"]
         for token in parts[1:]:
             if "." in token or "e" in token or "E" in token:
