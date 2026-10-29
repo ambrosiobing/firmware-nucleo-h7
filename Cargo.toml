@@ -23,6 +23,7 @@ members = [
     "projects/P07-stop-mode/rust",
     "projects/P08-node-state-machine/rust",
     "projects/P09-payload-codec/rust",
+    "projects/P10-energy-phases/rust",
     "projects/P12-energy-regression/rust",
     "projects/P16-classifier-placement/rust",
     "projects/P17-hal-against-registers/rust",

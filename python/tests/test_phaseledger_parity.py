@@ -1,4 +1,4 @@
-"""P10's per-phase charge, in C and Python, against an oracle checked in fractions.
+"""P10's per-phase charge, in three languages, against an oracle in fractions.
 
 **Why the oracle is trustworthy.** Every case was recomputed in exact rational
 arithmetic with `fractions.Fraction`, which neither implementation uses, and every
@@ -28,7 +28,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (BUILD, PHASE_RUST_FILTER, require_artefact,
+                      run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P10-energy-phases"
@@ -219,3 +220,102 @@ def test_the_chapters_sketch_rejects_by_rounding_and_this_is_why_runs_are_counte
           " counting samples rejects all {}"
           .format(kept_singles, len(singles), len(singles) - kept_singles,
                   out.rejected))
+
+
+# ---------------------------------------------------------------------------
+# The Rust, driven as a filter over the same oracle. One process for the whole
+# run, which is conftest's rule.
+#
+# One verb, because this project is one function:
+#
+#     L <dt_s> <min_samples> <n> <current code>*n
+#
+# The answer always carries all eight per-code charges, zeros included, because
+# codes 5 and 6 are unused in the chapter and a trace containing one is a
+# finding the report has to be able to show.
+
+NEWLINE = chr(10)
+
+
+def ledger_request(case):
+    body = " ".join("{!r} {}".format(float(a), c)
+                    for a, c in zip(case["current_a"], case["codes"]))
+    return "L {!r} {} {} {}".format(ORACLE["dt_s"], case["min_samples"],
+                                    len(case["codes"]), body).strip()
+
+
+def all_ledger_requests():
+    """Every request line, built where a test with no cargo can reach them.
+
+    Separated from the filter test because that test SKIPS where there is no
+    cargo and a skipped body never runs at all, which hid a plain NameError in
+    P04's version of this file on Thursday 29 October 2026 until the laptop
+    with a compiler found it.
+    """
+    return [ledger_request(c) for c in ORACLE["cases"]]
+
+
+def fields_of(answer):
+    out = {}
+    for token in answer.split():
+        key, value = token.split("=", 1)
+        out[key] = value
+    return out
+
+
+def test_the_requests_round_trip_every_float_without_running_anything():
+    """Runs everywhere, including where no filter exists, on purpose."""
+    lines = all_ledger_requests()
+    assert len(lines) == len(ORACLE["cases"])
+    floats = 0
+    for line, case in zip(lines, ORACLE["cases"]):
+        parts = line.split()
+        assert parts[0] == "L", case["why"]
+        assert int(parts[3]) == len(case["codes"]), case["why"]
+        for token in parts[1:]:
+            if "." in token or "e" in token or "E" in token:
+                assert float(repr(float(token))) == float(token), token
+                floats += 1
+    assert floats >= len(ORACLE["cases"]), (
+        "only {} floating point tokens appear across {} requests, which is "
+        "fewer than one each, so the builder has stopped emitting them"
+        .format(floats, len(ORACLE["cases"])))
+    print(NEWLINE + "  {} requests built with no filter and no compiler, and "
+          "{} floating point tokens each read back as the value written"
+          .format(len(lines), floats))
+
+
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    """One process, every case in the oracle's order, refusals included."""
+    require_artefact(PHASE_RUST_FILTER, "cargo build --release --workspace")
+    lines = all_ledger_requests()
+    answers = run_filter(PHASE_RUST_FILTER, lines)
+    assert len(answers) == len(lines)
+
+    refusals = 0
+    for case, answer in zip(ORACLE["cases"], answers):
+        if "error" in case:
+            assert answer == "REFUSED {}".format(case["error"]), case["why"]
+            refusals += 1
+            continue
+        got = fields_of(answer)
+        # total and the per-code charges exactly, which is what this oracle is
+        # built from powers of two for.
+        assert float(got["total"]) == case["total"], case["why"]
+        assert int(got["runs"]) == case["runs"], case["why"]
+        assert int(got["rejected"]) == case["rejected"], case["why"]
+        want_samples = case["rejected_samples"]
+        assert int(got["rejected_samples"]) == want_samples, case["why"]
+        for code in range(PHASE_CODES):
+            want = case["per_code"].get(str(code), 0.0)
+            assert float(got["per{}".format(code)]) == want, (code,
+                                                              case["why"])
+        # The residual is the one figure the C and the Python compare with a
+        # tolerance, because it is a quotient rather than a sum of powers of
+        # two, so the Rust is held to the same bound rather than a tighter one.
+        assert float(got["residual"]) == pytest.approx(case["residual"],
+                                                       abs=1e-15), case["why"]
+    assert refusals == sum(1 for c in ORACLE["cases"] if "error" in c)
+    print(NEWLINE + "  the Rust answered all {} cases, {} of them refusals, "
+          "with total and all eight per-code charges compared exactly"
+          .format(len(lines), refusals))
