@@ -86,8 +86,7 @@ fn do_ledger(req: &mut Request) -> Option<String> {
             let mut out = format!(
                 "total={:?} split={:?} residual={:?} runs={} rejected={} \
                  rejected_samples={}",
-                l.total, l.split, l.residual, l.runs, l.rejected,
-                l.rejected_samples
+                l.total, l.split, l.residual, l.runs, l.rejected, l.rejected_samples
             );
             // Enumerated over the array rather than indexed by a range, so
             // there is no question of needless_range_loop, which corrected two
