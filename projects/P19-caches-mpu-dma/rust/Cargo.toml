@@ -1,0 +1,37 @@
+[package]
+name = "p19-mpualign"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P19's alignment arithmetic, chapter 19's criteria 4 and 5, against the same oracle as the C and the Python"
+license = "MIT"
+publish = false
+
+# No dependencies, and the library is no_std: every quantity is an unsigned
+# 32 bit address, a length or a count of lines, and nothing here is floating
+# point. The board can link it, which matters more for this project than for
+# most: P19 is the one project whose C half already runs on the board.
+#
+# rust-version is 1.75 and two of the functions this crate uses need less than
+# that: u32::checked_next_multiple_of and u32::ilog2 were both stabilised in
+# 1.73. They are named here because they are the reason this crate is shorter
+# than the C, and because a floor that is not the workspace's would otherwise
+# look arbitrary.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p19_mpualign"
+path = "src/lib.rs"
+
+# The filter speaks three verbs, one per function the oracle exercises.
+[[bin]]
+name = "p19-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.

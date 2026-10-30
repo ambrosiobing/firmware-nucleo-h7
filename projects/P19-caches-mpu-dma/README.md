@@ -1,6 +1,6 @@
 # P19: Caches, the MPU, and why DMA reads stale bytes
 
-Status: c=board cpp=none python=host rust=none
+Status: c=board cpp=none python=host rust=host
 
 **Half done, and measured on the board Saturday 3 October 2026.** Taken out of
 sequence because it blocked every cycle figure in the volume: a cycle count that
@@ -33,6 +33,7 @@ RM0455.
 |---|---|
 | `c/mpualign.c`, the maintenance range, criterion 4 and the region encoding | 6 ranges, 6 range refusals, 4 criterion 4 rows, 3 region encodings, 4 region refusals |
 | `python/mpualign.py`, the twin, standard library only | the same cases, and the two readings the chapter's wording invites kept unused |
+| `rust/src/lib.rs`, `no_std` and unsigned throughout, and `rust/src/main.rs`, the filter | the same cases through a three verb protocol, seven unit tests, and finding four refused by `checked_next_multiple_of` rather than by widening to 64 bits |
 | `vectors.json`, the oracle | **compared exactly**, because all of it is unsigned integer arithmetic |
 
 **This was the only project in the volume with one implementation**, and

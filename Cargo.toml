@@ -32,6 +32,7 @@ members = [
     "projects/P16-classifier-placement/rust",
     "projects/P17-hal-against-registers/rust",
     "projects/P18-transforms-filters/rust",
+    "projects/P19-caches-mpu-dma/rust",
     "projects/P20-rtos-task-set/rust",
 ]
 

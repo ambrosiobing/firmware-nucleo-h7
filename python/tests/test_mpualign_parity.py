@@ -36,7 +36,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (BUILD, MPU_RUST_FILTER, require_artefact, run_filter,
+                      shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P19-caches-mpu-dma"
@@ -257,3 +258,178 @@ def test_a_range_that_ends_at_the_top_is_refused_rather_than_encoded():
           "fewer ends at {:#x} and is accepted"
           .format(case["len"], case["addr"], 0x100000000, MPU_LINE,
                   0xFFFFFFE0))
+
+
+# ---------------------------------------------------------------------------
+# The Rust, driven as a filter over the same oracle. One process for the whole
+# run, which is conftest's rule.
+#
+# Three verbs, one per function the oracle exercises:
+#
+#     M <addr> <len> <line>   -> base=.. end=.. bytes=.. lines=.. head=.. tail=..
+#     B <addr> <len> <line>   -> ok=1
+#     R <base> <size>         -> field=N
+#
+# EVERY VALUE IS DECIMAL, addresses included, which is P01's decision for
+# register words applied again: hexadecimal would read better to a person and
+# would add a second parser to every implementation for no gain.
+#
+# THE THIRD WIDTH IN THIS COMPARISON IS THE POINT. The C computes the end in
+# uint64_t so that the test itself cannot wrap, the Python has no width at all,
+# and the Rust asks the 32 bit type whether it can hold the answer, with
+# checked_add and checked_next_multiple_of. Three different ways of reaching
+# one refusal, compared against the same oracle, which is worth more than two.
+
+NEWLINE = chr(10)
+
+
+def maint_request(case):
+    return "M {} {} {}".format(case["addr"], case["len"], case["line"])
+
+
+def buffer_request(case):
+    return "B {} {} {}".format(case["addr"], case["len"], case["line"])
+
+
+def region_request(case):
+    return "R {} {}".format(case["base"], case["size"])
+
+
+def all_requests():
+    """Every request, in the oracle's own order.
+
+    Built where a test with no cargo can reach them, because the filter test
+    SKIPS where there is no cargo and a skipped body never runs at all.
+    """
+    lines = [maint_request(c) for c in ORACLE["ranges"]]
+    lines += [maint_request(c) for c in ORACLE["range_refusals"]]
+    lines += [buffer_request(c) for c in ORACLE["buffers"]]
+    lines += [region_request(c) for c in ORACLE["regions"]]
+    lines += [region_request(c) for c in ORACLE["region_refusals"]]
+    return lines
+
+
+def fields_of(answer):
+    out = {}
+    for token in answer.split():
+        key, value = token.split("=", 1)
+        out[key] = value
+    return out
+
+
+def test_every_request_says_what_its_case_says_without_running_anything():
+    """Runs everywhere, including where no filter exists, on purpose."""
+    lines = all_requests()
+    at = 0
+    for case in ORACLE["ranges"] + ORACLE["range_refusals"]:
+        t = lines[at].split()
+        assert t[0] == "M", case["why"]
+        assert int(t[1]) == case["addr"], case["why"]
+        assert int(t[2]) == case["len"], case["why"]
+        assert int(t[3]) == case["line"], case["why"]
+        assert len(t) == 4, case["why"]
+        at += 1
+    for case in ORACLE["buffers"]:
+        t = lines[at].split()
+        assert t[0] == "B", case["why"]
+        assert int(t[1]) == case["addr"], case["why"]
+        assert int(t[2]) == case["len"], case["why"]
+        assert int(t[3]) == case["line"], case["why"]
+        at += 1
+    for case in ORACLE["regions"] + ORACLE["region_refusals"]:
+        t = lines[at].split()
+        assert t[0] == "R", case["why"]
+        assert int(t[1]) == case["base"], case["why"]
+        assert int(t[2]) == case["size"], case["why"]
+        assert len(t) == 3, case["why"]
+        at += 1
+    assert at == len(lines)
+
+    # The line length travels in every range request, and it is a parameter
+    # rather than the measured 32: two of the refusal cases pass a line of
+    # zero and one of 48, so a filter with the line compiled in could not
+    # carry them.
+    lines_asked = {int(line.split()[3]) for line in lines
+                   if line.startswith(("M ", "B "))}
+    assert len(lines_asked) > 1, (
+        "every request asks for the same cache line, so the parameter is not "
+        "being exercised: {}".format(sorted(lines_asked)))
+    print(NEWLINE + "  {} requests built with no filter and no compiler, "
+          "asking for {} different cache lines"
+          .format(len(lines), len(lines_asked)))
+
+
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    """One process, the five sections in the oracle's order."""
+    require_artefact(MPU_RUST_FILTER, "cargo build --release --workspace")
+    lines = all_requests()
+    answers = run_filter(MPU_RUST_FILTER, lines)
+    assert len(answers) == len(lines)
+
+    at = 0
+    refused = 0
+    for case in ORACLE["ranges"]:
+        got = fields_of(answers[at])
+        assert int(got["base"]) == case["base"], case["why"]
+        assert int(got["end"]) == case["end"], case["why"]
+        assert int(got["bytes"]) == case["bytes"], case["why"]
+        assert int(got["lines"]) == case["lines"], case["why"]
+        assert int(got["head"]) == case["head_shared"], case["why"]
+        assert int(got["tail"]) == case["tail_shared"], case["why"]
+        at += 1
+    for case in ORACLE["range_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        refused += 1
+        at += 1
+    for case in ORACLE["buffers"]:
+        if case["error"] is None:
+            assert answers[at] == "ok=1", case["why"]
+        else:
+            assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+            refused += 1
+        at += 1
+    for case in ORACLE["regions"]:
+        got = fields_of(answers[at])
+        assert int(got["field"]) == case["size_field"], case["why"]
+        at += 1
+    for case in ORACLE["region_refusals"]:
+        assert answers[at] == "REFUSED {}".format(case["error"]), case["why"]
+        refused += 1
+        at += 1
+
+    assert at == len(answers)
+    expected = (len(ORACLE["range_refusals"]) + len(ORACLE["region_refusals"])
+                + sum(1 for c in ORACLE["buffers"] if c["error"] is not None))
+    assert refused == expected, (refused, expected)
+    print(NEWLINE + "  the Rust answered all {} requests across three verbs, "
+          "{} of them refusals, every field compared exactly"
+          .format(len(answers), refused))
+
+
+def test_the_rust_refuses_the_end_that_cannot_be_expressed():
+    """Finding four and its boundary, through the filter.
+
+    The Rust reaches this refusal with checked_add and
+    checked_next_multiple_of rather than by computing in 64 bits, so the
+    boundary is worth driving through the filter rather than trusting that two
+    different techniques land in the same place. Three requests: the range
+    whose rounded end is exactly 2 to the 32nd, the range whose unrounded sum
+    already wraps, and the one line below, which must be answered.
+    """
+    require_artefact(MPU_RUST_FILTER, "cargo build --release --workspace")
+    top = 0xFFFFFFFF
+    lines = ["M {} 32 32".format(top - 31),   # ends exactly at 2 ** 32
+             "M {} 32 32".format(top - 15),   # the unrounded sum wraps
+             "M {} 32 32".format(top - 63),   # one line lower, answerable
+             "M {} 32 32".format(top - 62)]   # fits unrounded, rounds past
+    answers = run_filter(MPU_RUST_FILTER, lines)
+    assert answers[0] == "REFUSED wrap", "an end of 2 ** 32 has no u32"
+    assert answers[1] == "REFUSED wrap", "the sum itself wraps"
+    got = fields_of(answers[2])
+    assert int(got["end"]) == top - 31, "one line lower is inside the space"
+    assert answers[3] == "REFUSED wrap", (
+        "the unrounded sum fits and the ROUNDED end does not, which is the "
+        "case a 32 bit addr + len < addr test would pass")
+    print(NEWLINE + "  finding four through the filter: an end at 2 ** 32 is "
+          "refused, so is a sum that wraps, so is a rounding that crosses the "
+          "boundary, and one line lower answers end={}".format(top - 31))
