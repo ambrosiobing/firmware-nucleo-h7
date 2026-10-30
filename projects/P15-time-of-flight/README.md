@@ -1,6 +1,6 @@
 # P15: Eight by eight time of flight, decided on the MCU
 
-Status: c=host cpp=none python=host rust=none
+Status: c=host cpp=none python=host rust=host
 
 **Started on the host, Monday 26 October 2026, and scoped to what the chapter
 actually specifies.** The sensor reports sixty-four zones several times a second
@@ -18,6 +18,7 @@ sensor at every power-on and reduces sixty-four zones to one status byte.
 |---|---|
 | `c/zonetrack.c`, the four states and their six edges | 19 oracle cases, a 600 frame hysteresis property with its own falsifier, and `-Wconversion -Wsign-conversion -Wpedantic`, which CI passes over it |
 | `python/zonetrack.py`, the twin | the same 19 cases, and a pairwise comparison with the C |
+| `rust/src/lib.rs`, `no_std` and integer throughout, and `rust/src/main.rs`, the filter | the same 19 cases through a one verb protocol, eight unit tests, and no arm for a state the type cannot hold |
 | `vectors.json`, the oracle | checked against the figure's edge set before either implementation was allowed to agree with it |
 
 ## Where the specification came from, and the two sources disagree in coverage

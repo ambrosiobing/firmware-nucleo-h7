@@ -1,0 +1,31 @@
+[package]
+name = "p15-zonetrack"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "P15's hysteresis, the four states of chapter 15 figure 15.4, against the same oracle as the C and the Python"
+license = "MIT"
+publish = false
+
+# No dependencies, and the library is no_std with no floating point anywhere:
+# every quantity here is a distance in millimetres, a count of frames or a
+# bitmask. That makes it the simplest crate in the volume to place, and the
+# board can link it.
+[dependencies]
+
+# Without this the workspace's lint table is silently ignored, which is the kind
+# of configuration that looks applied and is not.
+[lints]
+workspace = true
+
+[lib]
+name = "p15_zonetrack"
+path = "src/lib.rs"
+
+# One verb, because this project is one state machine fed a sequence.
+[[bin]]
+name = "p15-filter"
+path = "src/main.rs"
+
+# No [profile.release] here. In a workspace cargo reads profiles from the root
+# Cargo.toml only and ignores a member's with a warning.

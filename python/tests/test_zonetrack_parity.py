@@ -30,7 +30,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import BUILD, require_artefact, shared_library_name
+from conftest import (BUILD, ZONE_RUST_FILTER, require_artefact,
+                      run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P15-time-of-flight"
@@ -214,3 +215,169 @@ def test_a_single_threshold_would_chatter_and_this_is_why_there_are_two():
         "a policy with a 1 mm gap did not chatter, so the gap test is vacuous: "
         "{} changes".format(t.changes))
     print("  the same target with a 1 mm gap: {} state changes".format(t.changes))
+
+
+# ---------------------------------------------------------------------------
+# The Rust, driven as a filter over the same oracle. One process for the whole
+# run, which is conftest's rule.
+#
+# One verb, because this project is one state machine fed a sequence:
+#
+#     T <far> <enter> <leave> <confirm_n> <confirm_m> <n> <distance>*n
+#         -> frames=N changes=N ready=0|1 states=clear,approaching,..
+#         -> REFUSED policy
+#
+# THE POLICY TRAVELS IN EVERY REQUEST, because it is a parameter in all four
+# implementations and six of the nineteen cases override the chapter's own
+# numbers. A filter holding a policy between lines would answer a request that
+# never named one.
+#
+# THE WHOLE SEQUENCE OF STATES COMES BACK, not the final one, because a state
+# machine that reaches the right end through the wrong middle is wrong. Three
+# cases exist to pin a middle: the window cleared on an edge, a target that
+# returns while leaving, and a hover between the thresholds that confirms
+# nothing.
+#
+# AND changes IS CHECKED AGAINST THE ORACLE'S OWN SEQUENCE rather than against
+# a number written beside it. The chapter says the change count is the figure a
+# policy is judged by; here it is derived from the states the oracle states, by
+# counting adjacent pairs that differ and adding one if the first state is not
+# clear, since every tracker starts clear. Neither implementation can satisfy
+# that by accident.
+
+NEWLINE = chr(10)
+
+
+def track_request(case, loaded):
+    p = policy_of(case, loaded)
+    parts = ["T", str(p["far_mm"]), str(p["enter_mm"]), str(p["leave_mm"]),
+             str(p["confirm_n"]), str(p["confirm_m"]),
+             str(len(case["distances"]))]
+    parts += [str(d) for d in case["distances"]]
+    return " ".join(parts)
+
+
+def all_requests(loaded):
+    """Every request, in the oracle's own order.
+
+    Built where a test with no cargo can reach them, because the filter test
+    SKIPS where there is no cargo and a skipped body never runs at all.
+    """
+    return [track_request(c, loaded) for c in loaded["cases"]]
+
+
+def fields_of(answer):
+    out = {}
+    for token in answer.split():
+        key, value = token.split("=", 1)
+        out[key] = value
+    return out
+
+
+def changes_in(states):
+    """The state changes a sequence of state names implies.
+
+    Every tracker starts clear, so a first state that is not clear is itself a
+    change, and after that every adjacent pair that differs is one.
+    """
+    if not states:
+        return 0
+    total = 1 if states[0] != "clear" else 0
+    for before, after in zip(states, states[1:]):
+        if before != after:
+            total += 1
+    return total
+
+
+def test_every_request_says_what_its_case_says_without_running_anything():
+    """Runs everywhere, including where no filter exists, on purpose."""
+    loaded = oracle()
+    lines = all_requests(loaded)
+    assert len(lines) == len(loaded["cases"])
+    overrides = 0
+    for case, line in zip(loaded["cases"], lines):
+        t = line.split()
+        p = policy_of(case, loaded)
+        assert t[0] == "T", case["why"]
+        assert int(t[1]) == p["far_mm"], case["why"]
+        assert int(t[2]) == p["enter_mm"], case["why"]
+        assert int(t[3]) == p["leave_mm"], case["why"]
+        assert int(t[4]) == p["confirm_n"], case["why"]
+        assert int(t[5]) == p["confirm_m"], case["why"]
+        assert int(t[6]) == len(case["distances"]), case["why"]
+        assert [int(x) for x in t[7:]] == case["distances"], case["why"]
+        if "policy" in case:
+            overrides += 1
+            assert p != loaded["default_policy"], (
+                "a case that names a policy must differ from the default, or "
+                "it is not testing an override: {}".format(case["why"]))
+    assert overrides == sum(1 for c in loaded["cases"] if "policy" in c)
+    assert overrides >= 6, (
+        "six of the cases override the chapter's numbers, and {} were built "
+        "with an override".format(overrides))
+    print(NEWLINE + "  {} requests built with no filter and no compiler, {} of "
+          "them carrying a policy of their own".format(len(lines), overrides))
+
+
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    """One process, every case in the oracle's order, refusals included."""
+    require_artefact(ZONE_RUST_FILTER, "cargo build --release --workspace")
+    loaded = oracle()
+    lines = all_requests(loaded)
+    answers = run_filter(ZONE_RUST_FILTER, lines)
+    assert len(answers) == len(lines)
+
+    refusals = 0
+    for case, answer in zip(loaded["cases"], answers):
+        if "error" in case:
+            assert answer == "REFUSED {}".format(case["error"]), case["why"]
+            refusals += 1
+            continue
+        got = fields_of(answer)
+        states = got["states"].split(",")
+        assert states == case["states"], case["why"]
+        assert int(got["frames"]) == len(case["distances"]), case["why"]
+        # The change count, derived from the oracle's own states rather than
+        # read from a field beside them.
+        assert int(got["changes"]) == changes_in(case["states"]), case["why"]
+        p = policy_of(case, loaded)
+        # ready says a full window has been seen since the last edge, so it
+        # cannot be set unless at least that many frames have passed.
+        if int(got["ready"]) == 1:
+            assert len(case["distances"]) >= p["confirm_m"], case["why"]
+    assert refusals == sum(1 for c in loaded["cases"] if "error" in c)
+    assert refusals >= 5, (
+        "five of the cases are policy refusals and {} were seen"
+        .format(refusals))
+    print(NEWLINE + "  the Rust answered all {} cases, {} of them refusals, "
+          "with every state in every sequence compared by name and the change "
+          "count derived from the oracle".format(len(answers), refusals))
+
+
+def test_the_rust_chatters_under_one_threshold_and_not_under_two():
+    """Not a parity check: why the hysteresis exists, through the filter.
+
+    A policy whose enter and leave thresholds are one millimetre apart is the
+    nearest this file can get to the single threshold the chapter warns about,
+    and a target hovering there must change state far more often than the same
+    target under the chapter's own numbers. The comparison is a count rather
+    than an argument.
+    """
+    require_artefact(ZONE_RUST_FILTER, "cargo build --release --workspace")
+    loaded = oracle()
+    d = loaded["default_policy"]
+    hover = [870, 880, 870, 880, 870, 880, 870, 880, 870, 880, 870, 880]
+    tight = {"far_mm": d["far_mm"], "enter_mm": 875, "leave_mm": 876,
+             "confirm_n": 1, "confirm_m": 1}
+    lines = [track_request({"distances": hover}, loaded),
+             track_request({"distances": hover, "policy": tight}, loaded)]
+    answers = run_filter(ZONE_RUST_FILTER, lines)
+    wide = int(fields_of(answers[0])["changes"])
+    narrow = int(fields_of(answers[1])["changes"])
+    assert narrow > wide, (
+        "thresholds one millimetre apart must chatter more than the "
+        "chapter's, and they changed {} times against {}"
+        .format(narrow, wide))
+    print(NEWLINE + "  the same hovering target changes state {} times under "
+          "the chapter's thresholds and {} times with them one millimetre "
+          "apart".format(wide, narrow))

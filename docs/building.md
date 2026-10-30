@@ -61,7 +61,7 @@ target or a dropped source, and the test fails, in CI and in WSL alike. The seco
 half is the one worth having: before it, a renamed library would have turned a
 whole file green in CI by never running it, because the files that skipped did so
 regardless of machine. Three tests pin the rule on a temporary tree. The honest
-figure for win11 aquamarine is now 427 of 1016 passing with 589 skipping and none
+figure for win11 aquamarine is now 428 of 1019 passing with 591 skipping and none
 failing, and a green run there is still no evidence about the C, C++ or Rust; it
 is evidence that the Python half and every check that needs no compiler hold.
 **The one place the suite runs in full is WSL on win11 skyhorizon**, where every
