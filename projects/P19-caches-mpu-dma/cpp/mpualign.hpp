@@ -74,7 +74,7 @@ namespace p19 {
 // 2378.99 across all four offsets once cached. EVERY FUNCTION STILL TAKES THE
 // LINE AS AN ARGUMENT, because a figure measured on one part is not a constant
 // of the arithmetic.
-constexpr std::uint32_t kLine = 32;
+constexpr std::uint32_t kCacheLine = 32;
 
 // ARMv7-M's smallest region, and the largest this signature can express. The
 // architecture also allows a region covering the whole address space, 2 to the
@@ -83,6 +83,16 @@ constexpr std::uint32_t kMinRegion = 32;
 constexpr std::uint32_t kMaxRegion = 0x80000000u;
 
 // The same six refusals as the C, in the same order and with its names.
+//
+// kLine and the constant above are deliberately NOT both called kLine, and
+// the reason is a warning rather than a conflict: an enum class enumerator is
+// scoped, so Error::kLine and a file-scope kLine cannot be confused by the
+// compiler, and gcc's -Wshadow reports the enumerator as shadowing the global
+// anyway. This repository compiles C++ with -Wshadow, so the constant is
+// kCacheLine. Found on skyhorizon on Friday 30 October 2026 by the explicit
+// -Werror compile, and NOT by build_host.py, which prints the warning and
+// carries on: the suite was green with 1026 checks while that line scrolled
+// past in the builder's output.
 enum class Error {
     kArgument = 1,
     kLine,
