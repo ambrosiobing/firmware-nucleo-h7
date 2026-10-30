@@ -58,6 +58,7 @@ PHASE_CPP_FILTER = BUILD / executable_name("phaseledger_filter")
 AT_CPP_FILTER = BUILD / executable_name("atparse_filter")
 FIFO_CPP_FILTER = BUILD / executable_name("fifodecode_filter")
 REC_CPP_FILTER = BUILD / executable_name("recdecode_filter")
+ZONE_CPP_FILTER = BUILD / executable_name("zonetrack_filter")
 ZONE_RUST_FILTER = ROOT / "target" / "release" / executable_name("p15-filter")
 REC_RUST_FILTER = ROOT / "target" / "release" / executable_name("p14-filter")
 FIFO_RUST_FILTER = ROOT / "target" / "release" / executable_name("p13-filter")
@@ -261,6 +262,7 @@ FILTER_BUILD_COMMAND = {
     AT_CPP_FILTER: BUILD_HOST_CMD,
     FIFO_CPP_FILTER: BUILD_HOST_CMD,
     REC_CPP_FILTER: BUILD_HOST_CMD,
+    ZONE_CPP_FILTER: BUILD_HOST_CMD,
     ZONE_RUST_FILTER: "cargo build --release --workspace",
     REC_RUST_FILTER: "cargo build --release --workspace",
     FIFO_RUST_FILTER: "cargo build --release --workspace",

@@ -33,6 +33,7 @@ it is now in the order the script produces them:
   node_sm_filter          P08's C++ variant
   rxspan.{dll,so}         P04's span arithmetic
   zonetrack.{dll,so}      P15's hysteresis
+  zonetrack_filter        P15's C++ variant
   rxspan_filter           P04's C++ variant
   atparse.{dll,so}        P11's classifier, deadline test and backoff
   atparse_filter          P11's C++ variant
@@ -614,6 +615,19 @@ def main() -> int:
     print("P15, the hysteresis that stops the status byte chattering:")
     shared_lib("zonetrack", [proj("P15", "c") / "zonetrack.c"],
                includes=[proj("P15", "c")])
+
+    # P15's C++ variant, Friday 30 October 2026, which completes that project
+    # to four languages. An enum class and -Wswitch remove the default arm the
+    # C needs for an impossible state, which is most of what the Rust's
+    # exhaustive match gives and not all of it: the header says which part.
+    # Integer arithmetic throughout, so no contraction flag applies.
+    print("P15, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         *STATIC,
+         "-I", proj("P15", "cpp"),
+         proj("P15", "cpp") / "zonetrack_filter.cpp",
+         "-o", BUILD / ("zonetrack_filter" + exe)],
+        "zonetrack_filter")
 
     print("P04, the span arithmetic of the idle-line receive path:")
     shared_lib("rxspan", [proj("P04", "c") / "rxspan.c"],

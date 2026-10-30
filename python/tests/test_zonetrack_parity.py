@@ -30,8 +30,9 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, ZONE_RUST_FILTER, require_artefact,
-                      run_filter, shared_library_name)
+from conftest import (BUILD, BUILD_HOST_CMD, ZONE_CPP_FILTER,
+                      ZONE_RUST_FILTER, require_artefact, run_filter,
+                      shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P15-time-of-flight"
@@ -319,12 +320,18 @@ def test_every_request_says_what_its_case_says_without_running_anything():
           "them carrying a policy of their own".format(len(lines), overrides))
 
 
-def test_the_rust_filter_answers_every_case_as_the_oracle_says():
-    """One process, every case in the oracle's order, refusals included."""
-    require_artefact(ZONE_RUST_FILTER, "cargo build --release --workspace")
+def check_the_filter_against_the_oracle(path, command, label):
+    """One process, every case in the oracle's order, refusals included.
+
+    One function for both filters, because the C++ and the Rust speak one
+    protocol by design and a second copy of this loop would be two places for
+    a comparison to weaken. Every value in this protocol is an integer, so the
+    two print the same text for the same answer.
+    """
+    require_artefact(path, command)
     loaded = oracle()
     lines = all_requests(loaded)
-    answers = run_filter(ZONE_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
 
     refusals = 0
@@ -349,12 +356,22 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
     assert refusals >= 5, (
         "five of the cases are policy refusals and {} were seen"
         .format(refusals))
-    print(NEWLINE + "  the Rust answered all {} cases, {} of them refusals, "
+    print(NEWLINE + "  the {} answered all {} cases, {} of them refusals, "
           "with every state in every sequence compared by name and the change "
-          "count derived from the oracle".format(len(answers), refusals))
+          "count derived from the oracle"
+          .format(label, len(answers), refusals))
 
 
-def test_the_rust_chatters_under_one_threshold_and_not_under_two():
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(
+        ZONE_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(ZONE_CPP_FILTER, BUILD_HOST_CMD, "C++")
+
+
+def check_chatter_through_the_filter(path, command, label):
     """Not a parity check: why the hysteresis exists, through the filter.
 
     A policy whose enter and leave thresholds are one millimetre apart is the
@@ -363,7 +380,7 @@ def test_the_rust_chatters_under_one_threshold_and_not_under_two():
     target under the chapter's own numbers. The comparison is a count rather
     than an argument.
     """
-    require_artefact(ZONE_RUST_FILTER, "cargo build --release --workspace")
+    require_artefact(path, command)
     loaded = oracle()
     d = loaded["default_policy"]
     hover = [870, 880, 870, 880, 870, 880, 870, 880, 870, 880, 870, 880]
@@ -371,13 +388,22 @@ def test_the_rust_chatters_under_one_threshold_and_not_under_two():
              "confirm_n": 1, "confirm_m": 1}
     lines = [track_request({"distances": hover}, loaded),
              track_request({"distances": hover, "policy": tight}, loaded)]
-    answers = run_filter(ZONE_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     wide = int(fields_of(answers[0])["changes"])
     narrow = int(fields_of(answers[1])["changes"])
     assert narrow > wide, (
         "thresholds one millimetre apart must chatter more than the "
         "chapter's, and they changed {} times against {}"
         .format(narrow, wide))
-    print(NEWLINE + "  the same hovering target changes state {} times under "
-          "the chapter's thresholds and {} times with them one millimetre "
-          "apart".format(wide, narrow))
+    print(NEWLINE + "  through the {}, the same hovering target changes state "
+          "{} times under the chapter's thresholds and {} times with them one "
+          "millimetre apart".format(label, wide, narrow))
+
+
+def test_the_rust_chatters_under_one_threshold_and_not_under_two():
+    check_chatter_through_the_filter(
+        ZONE_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_chatters_under_one_threshold_and_not_under_two():
+    check_chatter_through_the_filter(ZONE_CPP_FILTER, BUILD_HOST_CMD, "C++")
