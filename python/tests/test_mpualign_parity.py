@@ -36,8 +36,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import (BUILD, MPU_RUST_FILTER, require_artefact, run_filter,
-                      shared_library_name)
+from conftest import (BUILD, BUILD_HOST_CMD, MPU_CPP_FILTER, MPU_RUST_FILTER,
+                      require_artefact, run_filter, shared_library_name)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "projects" / "P19-caches-mpu-dma"
@@ -359,11 +359,16 @@ def test_every_request_says_what_its_case_says_without_running_anything():
           .format(len(lines), len(lines_asked)))
 
 
-def test_the_rust_filter_answers_every_case_as_the_oracle_says():
-    """One process, the five sections in the oracle's order."""
-    require_artefact(MPU_RUST_FILTER, "cargo build --release --workspace")
+def check_the_filter_against_the_oracle(path, command, label):
+    """One process, the five sections in the oracle's order.
+
+    One function for both filters, because the C++ and the Rust speak one
+    protocol by design. Every value is an unsigned integer, so the two print
+    the same text for the same answer.
+    """
+    require_artefact(path, command)
     lines = all_requests()
-    answers = run_filter(MPU_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert len(answers) == len(lines)
 
     at = 0
@@ -401,12 +406,21 @@ def test_the_rust_filter_answers_every_case_as_the_oracle_says():
     expected = (len(ORACLE["range_refusals"]) + len(ORACLE["region_refusals"])
                 + sum(1 for c in ORACLE["buffers"] if c["error"] is not None))
     assert refused == expected, (refused, expected)
-    print(NEWLINE + "  the Rust answered all {} requests across three verbs, "
+    print(NEWLINE + "  the {} answered all {} requests across three verbs, "
           "{} of them refusals, every field compared exactly"
-          .format(len(answers), refused))
+          .format(label, len(answers), refused))
 
 
-def test_the_rust_refuses_the_end_that_cannot_be_expressed():
+def test_the_rust_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(
+        MPU_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_filter_answers_every_case_as_the_oracle_says():
+    check_the_filter_against_the_oracle(MPU_CPP_FILTER, BUILD_HOST_CMD, "C++")
+
+
+def check_the_boundary_through_the_filter(path, command, label):
     """Finding four and its boundary, through the filter.
 
     The Rust reaches this refusal with checked_add and
@@ -416,13 +430,13 @@ def test_the_rust_refuses_the_end_that_cannot_be_expressed():
     whose rounded end is exactly 2 to the 32nd, the range whose unrounded sum
     already wraps, and the one line below, which must be answered.
     """
-    require_artefact(MPU_RUST_FILTER, "cargo build --release --workspace")
+    require_artefact(path, command)
     top = 0xFFFFFFFF
     lines = ["M {} 32 32".format(top - 31),   # ends exactly at 2 ** 32
              "M {} 32 32".format(top - 15),   # the unrounded sum wraps
              "M {} 32 32".format(top - 63),   # one line lower, answerable
              "M {} 32 32".format(top - 62)]   # fits unrounded, rounds past
-    answers = run_filter(MPU_RUST_FILTER, lines)
+    answers = run_filter(path, lines)
     assert answers[0] == "REFUSED wrap", "an end of 2 ** 32 has no u32"
     assert answers[1] == "REFUSED wrap", "the sum itself wraps"
     got = fields_of(answers[2])
@@ -430,6 +444,17 @@ def test_the_rust_refuses_the_end_that_cannot_be_expressed():
     assert answers[3] == "REFUSED wrap", (
         "the unrounded sum fits and the ROUNDED end does not, which is the "
         "case a 32 bit addr + len < addr test would pass")
-    print(NEWLINE + "  finding four through the filter: an end at 2 ** 32 is "
+    print(NEWLINE + "  finding four through the {}: an end at 2 ** 32 is "
           "refused, so is a sum that wraps, so is a rounding that crosses the "
-          "boundary, and one line lower answers end={}".format(top - 31))
+          "boundary, and one line lower answers end={}"
+          .format(label, top - 31))
+
+
+def test_the_rust_refuses_the_end_that_cannot_be_expressed():
+    check_the_boundary_through_the_filter(
+        MPU_RUST_FILTER, "cargo build --release --workspace", "Rust")
+
+
+def test_the_cpp_refuses_the_end_that_cannot_be_expressed():
+    check_the_boundary_through_the_filter(MPU_CPP_FILTER, BUILD_HOST_CMD,
+                                          "C++")

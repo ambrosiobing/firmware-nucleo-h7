@@ -52,6 +52,7 @@ it is now in the order the script produces them:
   tbmath.{dll,so}         P17's elapsed ticks, wrap periods and report
   tbmath_filter           P17's C++ variant
   mpualign.{dll,so}       P19's maintenance range and region encoding
+  mpualign_filter         P19's C++ variant
   latstat.{dll,so}        P20's latency histogram, percentiles and verdict
   latstat_filter          P20's C++ variant
   rate.{dll,so}           P06's rate witness
@@ -800,6 +801,20 @@ def main() -> int:
     print("P19, the maintenance range, criterion 4 and the region encoding:")
     shared_lib("mpualign", [proj("P19", "c") / "mpualign.c"],
                includes=[proj("P19", "c")])
+
+    # P19's C++ variant, Friday 30 October 2026, and it is the LAST of eighty
+    # implementations: four languages across twenty projects. What C++ adds here
+    # is almost nothing, because C++17 has no checked arithmetic and no
+    # next_multiple_of, so finding four is computed in 64 bits exactly as the C
+    # does it; the header says so at length. Integer arithmetic throughout, so
+    # no contraction flag applies.
+    print("P19, the C++ variant as a filter driven by the tests:")
+    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+         *STATIC,
+         "-I", proj("P19", "cpp"),
+         proj("P19", "cpp") / "mpualign_filter.cpp",
+         "-o", BUILD / ("mpualign_filter" + exe)],
+        "mpualign_filter")
 
     print("P20, the latency histogram, its percentiles and the budget verdict:")
     shared_lib("latstat", [proj("P20", "c") / "latstat.c"],
