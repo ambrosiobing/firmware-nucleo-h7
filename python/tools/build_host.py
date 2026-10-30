@@ -136,6 +136,34 @@ WARNINGS = [
     "-Wsign-conversion", "-Wpedantic",
 ]
 
+# THE C++ BUILDS ADD -Werror AND THE C BUILDS DO NOT, since Friday 30 October
+# 2026, and the asymmetry is deliberate rather than tidy.
+#
+# WHY IT WAS ADDED. On Friday 30 October 2026 P19's C++ header named a constant
+# kLine beside an enum class member Error::kLine. gcc's -Wshadow reported it,
+# this script printed the warning in the middle of forty build lines and carried
+# on, and the suite then reported 1026 checks passing with every parity row
+# agreeing in four languages. Nothing was red. The only thing that refused was a
+# g++ -Werror command typed by hand beside the hand-over.
+#
+# WHAT THE GAP WAS, EXACTLY. The warning set above is applied to every build
+# here, C and C++ alike, and carries no -Werror. The warnings-as-errors step in
+# code.yml names twelve C sources and NO C++ at all. So a warning in any of the
+# twenty-one C++ sources printed and the build succeeded, and had done since the
+# first C++ filter was registered on Sunday 4 October 2026.
+#
+# WHY ONLY THE C++ HALF. Every C source here is also compiled by
+# check_c_syntax.py, and twelve of them by that workflow step, so the C has two
+# other gates with their own histories; turning this script's C builds into
+# errors as well is a larger change that would want its own measurement first.
+# The C++ sources had no gate at all, and a survey on skyhorizon on Friday
+# 30 October 2026 compiled all twenty-one under this set plus -Werror and found
+# them clean, so this costs nothing today and refuses the next one.
+#
+# python/tests/test_cpp_builds_are_errors.py asserts that every C++ invocation
+# in this file carries it, so the rule is checked rather than remembered.
+CXX_WARNINGS = WARNINGS + ["-Werror"]
+
 # Windows only, and the reason is specific. A produced executable that links
 # pthread needs libwinpthread-1.dll from the compiler's bin directory at run
 # time, and without it Windows refuses to start the process with
@@ -522,7 +550,7 @@ def main() -> int:
                includes=[C_DIR / "clock"])
 
     print("P01, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", proj("P01", "cpp"),
          proj("P01", "cpp") / "clocktree_filter.cpp",
@@ -533,7 +561,7 @@ def main() -> int:
     shared_lib("payload", [C_DIR / "payload" / "payload.c"], includes=[C_DIR / "payload"])
 
     print("P09, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", C_DIR / "payload", "-I", proj("P09", "cpp"),
          proj("P09", "cpp") / "cpp_filter.cpp",
@@ -541,7 +569,7 @@ def main() -> int:
         "cpp_filter")
 
     print("P05, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", proj("P05", "cpp"),
          proj("P05", "cpp") / "frame_filter.cpp",
@@ -589,7 +617,7 @@ def main() -> int:
     # total are the shape gcc fuses at -O2; the guard requires it by reading the
     # header as well as this source.
     print("P10, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          "-ffp-contract=off", *STATIC,
          "-I", proj("P10", "cpp"),
          proj("P10", "cpp") / "phaseledger_filter.cpp",
@@ -606,7 +634,7 @@ def main() -> int:
     # string_view for the null terminated array of prefixes. Integer arithmetic
     # throughout, so no contraction flag applies.
     print("P11, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", proj("P11", "cpp"),
          proj("P11", "cpp") / "atparse_filter.cpp",
@@ -623,7 +651,7 @@ def main() -> int:
     # exhaustive match gives and not all of it: the header says which part.
     # Integer arithmetic throughout, so no contraction flag applies.
     print("P15, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", proj("P15", "cpp"),
          proj("P15", "cpp") / "zonetrack_filter.cpp",
@@ -652,7 +680,7 @@ def main() -> int:
     # exhaustiveness at compile time; the crate README records what the
     # ceremony costs. Integer arithmetic throughout, so no contraction flag.
     print("P04, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", proj("P04", "cpp"),
          proj("P04", "cpp") / "rxspan_filter.cpp",
@@ -668,7 +696,7 @@ def main() -> int:
     # the one place in this project where the language says something about the
     # problem. -ffp-contract=off for the same reason the C has it.
     print("P18, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          "-ffp-contract=off", *STATIC,
          "-I", proj("P18", "cpp"),
          proj("P18", "cpp") / "dspaccept_filter.cpp",
@@ -691,7 +719,7 @@ def main() -> int:
     # which is the shape gcc fuses at -O2, and the guard requires the flag by
     # reading the header as well as this source.
     print("P13, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          "-ffp-contract=off", *STATIC,
          "-I", proj("P13", "cpp"),
          proj("P13", "cpp") / "fifodecode_filter.cpp",
@@ -713,7 +741,7 @@ def main() -> int:
     # is a multiply followed by an add, and the guard requires the flag by
     # reading the header as well as this source.
     print("P14, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          "-ffp-contract=off", *STATIC,
          "-I", proj("P14", "cpp"),
          proj("P14", "cpp") / "recdecode_filter.cpp",
@@ -741,7 +769,7 @@ def main() -> int:
     # source since Wednesday 28 October 2026, so it requires this flag rather
     # than merely not noticing its absence.
     print("P07, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          "-ffp-contract=off", *STATIC,
          "-I", proj("P07", "cpp"),
          proj("P07", "cpp") / "cyclecharge_filter.cpp",
@@ -765,7 +793,7 @@ def main() -> int:
     # which it did not open. The guard now follows a local include, and that
     # gap is written up in the test.
     print("P16, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          "-ffp-contract=off", *STATIC,
          "-I", proj("P16", "cpp"),
          proj("P16", "cpp") / "winfeat_filter.cpp",
@@ -782,7 +810,7 @@ def main() -> int:
                ["-ffp-contract=off"], includes=[proj("P17", "c")])
 
     print("P17, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          "-ffp-contract=off", *STATIC,
          "-I", proj("P17", "cpp"),
          proj("P17", "cpp") / "tbmath_filter.cpp",
@@ -809,7 +837,7 @@ def main() -> int:
     # does it; the header says so at length. Integer arithmetic throughout, so
     # no contraction flag applies.
     print("P19, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", proj("P19", "cpp"),
          proj("P19", "cpp") / "mpualign_filter.cpp",
@@ -825,7 +853,7 @@ def main() -> int:
     # test_float_builds_disable_contraction.py now reads the header as well as
     # the source, so it agrees rather than merely not noticing.
     print("P20, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", proj("P20", "cpp"),
          proj("P20", "cpp") / "latstat_filter.cpp",
@@ -833,7 +861,7 @@ def main() -> int:
         "latstat_filter")
 
     print("P08, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", proj("P08", "cpp"), "-I", proj("P09", "cpp"),
          proj("P08", "cpp") / "node_sm_filter.cpp",
@@ -855,7 +883,7 @@ def main() -> int:
                ["-ffp-contract=off"], includes=[proj("P06", "c")])
 
     print("P06, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          "-ffp-contract=off", *STATIC,
          "-I", proj("P06", "cpp"),
          proj("P06", "cpp") / "rate_filter.cpp",
@@ -871,7 +899,7 @@ def main() -> int:
                ["-ffp-contract=off"], includes=[proj("P12", "c")])
 
     print("P12, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          "-ffp-contract=off", *STATIC,
          "-I", proj("P12", "cpp"),
          proj("P12", "cpp") / "gates_filter.cpp",
@@ -883,7 +911,7 @@ def main() -> int:
                includes=[proj("P03", "c")])
 
     print("P03, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", proj("P03", "cpp"),
          proj("P03", "cpp") / "attribute_filter.cpp",
@@ -891,7 +919,7 @@ def main() -> int:
         "attribute_filter")
 
     print("P02, the C++ variant as a filter driven by the tests:")
-    run([cxx, "-std=c++17", "-O2", *WARNINGS, "-fno-exceptions", "-fno-rtti",
+    run([cxx, "-std=c++17", "-O2", *CXX_WARNINGS, "-fno-exceptions", "-fno-rtti",
          *STATIC,
          "-I", proj("P02", "cpp"),
          proj("P02", "cpp") / "ring_filter.cpp",
