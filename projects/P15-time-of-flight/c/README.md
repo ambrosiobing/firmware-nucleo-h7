@@ -4,10 +4,15 @@
 which compiles nothing and never will; the first compiler to see it is gcc in
 WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
 `python3 python/tools/build_host.py`, and after that CI, which compiles the same
-source with that whole warning set. It is not in the workflow's
-warnings-as-errors step yet: it compiles clean under `-Werror` on gcc 15.2.0,
-and adding it there turned the runner's own gcc red on Monday
-26 October 2026, so that step waits on the diagnostic.
+source with that whole warning set. **It is in the workflow's
+warnings-as-errors step as of Sunday 1 November 2026, so that whole set is an
+error here and not a message.** The step stopped naming files that day and now
+compiles every host-compilable C source, so this one is covered by existing.
+Confirmed on the runner's own compiler by run 41326617169, which printed
+`41 C sources compiled with warnings as errors`. The figure is quoted from the
+runner rather than from the laptop on purpose: an earlier attempt on Monday
+26 October 2026 was clean under gcc 15.2.0 in WSL and red on the runner, which
+is the difference this sentence used to be waiting on.
 
 | File | What it is |
 |---|---|

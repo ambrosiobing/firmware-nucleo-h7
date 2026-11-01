@@ -16,7 +16,7 @@ one number.
 
 | Piece | What proves it |
 |---|---|
-| `c/phaseledger.c`, the decode, the integration and the residual | 13 oracle cases, five property tests, and `-Wconversion -Wsign-conversion -Wdouble-promotion -Wpedantic`, which CI passes over it |
+| `c/phaseledger.c`, the decode, the integration and the residual | 13 oracle cases, five property tests, and `-Wconversion -Wsign-conversion -Wdouble-promotion -Wpedantic`, which CI applies to it as errors |
 | `python/phaseledger.py`, the twin | the same cases, and a pairwise comparison |
 | `rust/src/lib.rs`, `no_std` with `f64`, and `rust/src/main.rs`, the filter | the same cases through a one verb protocol, and six unit tests |
 | `cpp/phaseledger.hpp` and `cpp/phaseledger_filter.cpp` | the same cases through the same one verb protocol, the answer a `std::variant` |

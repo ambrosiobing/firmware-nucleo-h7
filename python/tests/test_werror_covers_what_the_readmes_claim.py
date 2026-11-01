@@ -17,11 +17,17 @@ the compiler that the compiler was never asked to make.
 
 **The first attempt to satisfy it by adding those eight sources to the step turned
 main red**, because all eight compile clean under gcc 15.2.0 in WSL and the CI
-runner's gcc is a different version. The nine claims were corrected instead, to
+runner's gcc is a different version. The nine claims were weakened instead, to
 say that CI passes the whole warning set over those sources without `-Werror`,
-which is true. Making the stronger claim true again waits on that diagnostic, and
-it cannot be verified on the demo laptop: a change to a workflow step is answered
-only by the runner.
+which was true. Making the stronger claim true again waited on that diagnostic,
+and it could not be verified on the demo laptop: a change to a workflow step is
+answered only by the runner.
+
+**The nine were restored on Sunday 1 November 2026**, by dispatching the workflow
+against a branch rather than pushing main and reading the consequence. Run
+41326617169 printed `41 C sources compiled with warnings as errors` on the
+runner's own compiler, and the nine sentences now quote that run rather than a
+figure from either laptop. Six projects carry the claim where one did.
 
 **THE STEP STOPPED BEING A LIST ON SUNDAY 1 NOVEMBER 2026.** It now loops over
 `check_c_syntax.py --list`, so every host-compilable C source is compiled with
@@ -54,6 +60,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github" / "workflows" / "code.yml"
 PROJECTS = ROOT / "projects"
+BUILD_HOST = ROOT / "python" / "tools" / "build_host.py"
 CHECKER = ROOT / "python" / "tools" / "check_c_syntax.py"
 
 # The step that compiles with -Werror, by its name in the workflow.
@@ -85,9 +92,16 @@ EXPECTED_EXCLUSIONS = {
     "c/board/system.c",
 }
 
-# How a README claims the guarantee. A corrected README must not contain this
-# phrase even in a denial, which is why the nine corrected on Monday
-# 26 October 2026 say "which CI passes over it" and name the step with hyphens.
+# How a README claims the guarantee. A README that does NOT have the guarantee
+# must not contain this phrase even in a denial, which is why the nine weakened
+# on Monday 26 October 2026 said "which CI passes over it" and named the step
+# with hyphens, the hyphens keeping "warnings-as-errors" from matching.
+#
+# THOSE NINE WERE RESTORED ON SUNDAY 1 NOVEMBER 2026, their five C sources being
+# in the step's sweep and their five C++ filters in the builder's -Werror builds,
+# so six projects now carry the claim where one did. The phrase is still the
+# trigger, and a project that loses coverage fails here rather than in a reader's
+# head.
 CLAIMS = ("as errors",)
 
 # The whole token after -c, filtered by suffix afterwards. The first version of
@@ -97,6 +111,20 @@ CLAIMS = ("as errors",)
 # inside the word "floating", which produced a wrong audit the same day: a
 # pattern that can match less than the token it is aimed at.
 SOURCE_IN_STEP = re.compile(r"-c\s+(\S+)")
+
+# The builder's C++ invocations, and the sources named inside one. The same
+# shape test_cpp_builds_are_errors.py reads, deliberately: one of these tests
+# proves every such call carries the flag and the other counts what they cover.
+CXX_CALL = re.compile(r"run\(\[cxx.*?\)\n", re.S)
+
+# How that script spells a source: proj("P10", "cpp") / "phaseledger_filter.cpp".
+# The project key and the file name are separate tokens, so they are captured as
+# one pair rather than separately. Matching the file name alone produced twenty
+# names that joined nothing against repository paths, and the per-project report
+# still showed fourteen filters uncovered while the count said twenty, which is
+# the only reason it was noticed.
+CPP_SOURCE = re.compile(
+    r'proj\(\s*"(P\d\d)"\s*,\s*"cpp"\s*\)\s*/\s*"([A-Za-z0-9_.+-]+\.cpp)"')
 SOURCE_SUFFIXES = (".c", ".cpp")
 
 
@@ -137,14 +165,53 @@ def excluded():
     return {p for p in found.group(1).split() if p}
 
 
+def builder_cpp_sources():
+    """The C++ sources build_host.py compiles with its warnings as errors.
+
+    SECOND ENFORCEMENT POINT, read since Sunday 1 November 2026. Until e72d080
+    on Friday 30 October 2026 the workflow step was the only place any source met
+    -Werror, and this test read only that step. The builder's C++ builds now
+    carry it too, through CXX_WARNINGS, and twenty of the tree's twenty-one C++
+    sources are built there; the twenty-first, P09's cpp_encode_only.cpp, is
+    named in the step. Counting only the step would therefore report fourteen
+    projects as uncovered when the compiler has in fact been refusing their
+    warnings on every runner.
+
+    The flag is checked per call rather than assumed, so a call added later
+    without it credits nothing. That a name called CXX_WARNINGS still contains
+    -Werror is the separate claim of test_cpp_builds_are_errors.py, which also
+    refuses any cxx call lacking both.
+    """
+    text = BUILD_HOST.read_text(encoding="utf-8")
+    out = set()
+    for call in CXX_CALL.findall(text):
+        if "CXX_WARNINGS" not in call and "-Werror" not in call:
+            continue
+        for key, name in CPP_SOURCE.findall(call):
+            # The project key resolves to one directory, and exactly one, or the
+            # path this returns would be a guess.
+            dirs = sorted(PROJECTS.glob(key + "-*"))
+            assert len(dirs) == 1, (
+                "build_host.py names project {!r} and {} directories match it, "
+                "so this cannot say which file it compiles"
+                .format(key, len(dirs)))
+            out.add((dirs[0] / "cpp" / name).relative_to(ROOT).as_posix())
+    return out
+
+
 def werror_sources():
-    """Every source the warnings-as-errors step compiles, by repository path."""
+    """Every source compiled with warnings as errors, by repository path.
+
+    The union of the two enforcement points: the workflow step's sweep, and the
+    builder's C++ builds.
+    """
     body = step_body()
     named = {m.group(1) for m in SOURCE_IN_STEP.finditer(body)
              if m.group(1).endswith(SOURCE_SUFFIXES)}
+    covered = named | builder_cpp_sources()
     if not DISCOVERS.search(body):
-        return named
-    return named | (host_compilable() - excluded())
+        return covered
+    return covered | (host_compilable() - excluded())
 
 
 def readmes_of(project):

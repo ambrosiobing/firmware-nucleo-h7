@@ -16,7 +16,7 @@ sensor at every power-on and reduces sixty-four zones to one status byte.
 
 | Piece | What proves it |
 |---|---|
-| `c/zonetrack.c`, the four states and their six edges | 19 oracle cases, a 600 frame hysteresis property with its own falsifier, and `-Wconversion -Wsign-conversion -Wpedantic`, which CI passes over it |
+| `c/zonetrack.c`, the four states and their six edges | 19 oracle cases, a 600 frame hysteresis property with its own falsifier, and `-Wconversion -Wsign-conversion -Wpedantic`, which CI applies to it as errors |
 | `python/zonetrack.py`, the twin | the same 19 cases, and a pairwise comparison with the C |
 | `rust/src/lib.rs`, `no_std` and integer throughout, and `rust/src/main.rs`, the filter | the same 19 cases through a one verb protocol, eight unit tests, and no arm for a state the type cannot hold |
 | `cpp/zonetrack.hpp` and `cpp/zonetrack_filter.cpp` | the same 19 cases through the same protocol, with an `enum class` and `-Wswitch` removing the default arm the C needs |

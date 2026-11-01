@@ -15,7 +15,7 @@ transfer counter. The compiler-only barrier of P02 stops being sufficient here.
 
 | Piece | Where | What proves it |
 |---|---|---|
-| `c/rxspan.c`, the span split and the two guards | host and target alike | 18 oracle cases, a 4 096 pair exhaustive walk, and `-Wconversion -Wsign-conversion -Wpedantic`, which CI passes over it |
+| `c/rxspan.c`, the span split and the two guards | host and target alike | 18 oracle cases, a 4 096 pair exhaustive walk, and `-Wconversion -Wsign-conversion -Wpedantic`, which CI applies to it as errors |
 | `python/rxspan.py`, the twin | host | the same 18 cases, and a pairwise comparison with the C |
 | `rust/src/lib.rs`, `no_std`, and `rust/src/main.rs`, the filter | host | the same 18 cases through a one verb protocol, and six unit tests |
 | `cpp/rxspan.hpp`, header only, and `cpp/rxspan_filter.cpp` | host | the same 18 cases through the same protocol, the answer a `std::variant` |
