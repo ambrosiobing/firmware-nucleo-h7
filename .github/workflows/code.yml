@@ -51,15 +51,63 @@ jobs:
         run: python python/tools/build_host.py
 
       # Warnings as errors, separately, because build_host.py deliberately does
-      # not use -Werror: a warning should not stop somebody working locally, and
-      # it should stop a merge.
+      # not use -Werror for its C builds: a warning should not stop somebody
+      # working locally, and it should stop a merge. Its C++ builds do carry it,
+      # through CXX_WARNINGS, since Friday 30 October 2026.
       - name: The same sources with warnings as errors
         run: |
           set -e
           W="-Wall -Wextra -Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion -Wpedantic -Werror"
           mkdir -p build-host/werror
-          gcc -std=c11 -O2 $W -Ic/payload -c c/payload/payload.c -o build-host/werror/payload.o
-          gcc -std=c11 -O2 $W -Ic/ring -c c/ring/ring.c -o build-host/werror/ring.o
+          # EVERY host-compilable C source, DISCOVERED AND NOT LISTED. Until
+          # Sunday 1 November 2026 this step named five C files by hand and the
+          # other thirty-eight were covered by nothing, which is the same list
+          # drift that let P19's shadow warning through on the C++ side two days
+          # earlier. The set comes from check_c_syntax.py --list, which applies
+          # the three skips that checker already applies, reads includes rather
+          # than compiling, and therefore answers the same on every laptop. One
+          # definition of "a C file a host compiler can see", and not two.
+          #
+          # -ffp-contract=off on all of them. P06's and P12's C halves needed it
+          # by name, because the contraction of a multiply and an add is not the
+          # same across gcc, g++ and rustc and every library here exists to be
+          # compared against a twin; on an integer source it costs nothing, and
+          # applying it uniformly removes the question of who remembered it.
+          #
+          # TWO FILES ARE EXCLUDED, and the reason is this host's pointer width
+          # rather than anything about the code. Both are target-only sources
+          # that the tree syntax-checks on the host and never runs there:
+          #
+          #   c/board/board.c   REG32 in c/board/stm32h7a3_regs.h casts a
+          #                     uint32_t register address to a pointer, which is
+          #                     exact on a 32 bit target and narrower than a
+          #                     pointer here, so -Wint-to-pointer-cast fires
+          #   projects/P06-timer-sampling/c/main.c
+          #                     (uint32_t) &_sidata, a linker symbol's address
+          #                     taken as 32 bits, the same fact the other way
+          #                     round, so -Wpointer-to-int-cast fires
+          #
+          # The cross build compiles both for arm-none-eabi with this warning
+          # set, where neither diagnostic exists. It does not pass -Werror, so
+          # the target side of this gap is open and is not closed here.
+          EXCLUDE="c/board/board.c projects/P06-timer-sampling/c/main.c"
+          n=0
+          for f in $(python python/tools/check_c_syntax.py --list); do
+            case " $EXCLUDE " in *" $f "*) continue ;; esac
+            gcc -std=c11 -O2 $W -ffp-contract=off \
+              -Ic/board -Ic/clock -Ic/payload -Ic/ring -Ic/instr \
+              -Iprojects/P06-timer-sampling/c -Iprojects/P03-interrupt-receive/c \
+              -Iprojects/P05-framing-crc/c -Iprojects/P08-node-state-machine/c \
+              -Iprojects/P09-payload-codec/cpp \
+              -c "$f" -o "build-host/werror/$(echo "$f" | tr / _).o"
+            n=$((n+1))
+          done
+          echo "$n C sources compiled with warnings as errors"
+          # A floor and not an exact count. A new C file joins the sweep by
+          # existing, which is the point of the loop, but a discovery that has
+          # broken must not pass as a clean run: forty-three were clean when
+          # this was measured on skyhorizon on Sunday 1 November 2026.
+          test "$n" -ge 40
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
             -Ic/payload -Iprojects/P09-payload-codec/cpp \
             -c projects/P09-payload-codec/cpp/cpp_encode_only.cpp -o build-host/werror/cpp.o
@@ -75,22 +123,19 @@ jobs:
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
             -Iprojects/P03-interrupt-receive/cpp \
             -c projects/P03-interrupt-receive/cpp/attribute_filter.cpp -o build-host/werror/p03_cpp.o
-          gcc -std=c11 -O2 $W -Iprojects/P03-interrupt-receive/c \
-            -c projects/P03-interrupt-receive/c/attribute.c -o build-host/werror/p03_c.o
-          # -ffp-contract=off on both P06 files, for the comparison rather than
+          # -ffp-contract=off on P06's filter, for the comparison rather than
           # as a preference: the witness is floating point and the contraction
           # of a multiply and an add is not the same across gcc, g++ and rustc.
-          gcc -std=c11 -O2 $W -ffp-contract=off -Iprojects/P06-timer-sampling/c \
-            -c projects/P06-timer-sampling/c/rate.c -o build-host/werror/p06_c.o
+          # Its C half carries the flag in the loop above, with every other C
+          # source in the tree.
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti -ffp-contract=off \
             -Iprojects/P06-timer-sampling/cpp \
             -c projects/P06-timer-sampling/cpp/rate_filter.cpp -o build-host/werror/p06_cpp.o
-          # P12's two gates. -ffp-contract=off on both, for the same reason
-          # P06 has it: the charge gate reconciles a total against the sum of
-          # its parts and reports percentages, and the contraction of a
-          # multiply and an add is not the same across gcc, g++ and rustc.
-          gcc -std=c11 -O2 $W -ffp-contract=off -Iprojects/P12-energy-regression/c \
-            -c projects/P12-energy-regression/c/gates.c -o build-host/werror/p12_c.o
+          # P12's gate filter, with -ffp-contract=off for the same reason P06
+          # has it: the charge gate reconciles a total against the sum of its
+          # parts and reports percentages, and the contraction of a multiply
+          # and an add is not the same across gcc, g++ and rustc. Its C half is
+          # in the loop above.
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti -ffp-contract=off \
             -Iprojects/P12-energy-regression/cpp \
             -c projects/P12-energy-regression/cpp/gates_filter.cpp -o build-host/werror/p12_cpp.o

@@ -159,7 +159,74 @@ def c_files():
     return sorted(out)
 
 
+def host_compilable():
+    """The C files a host compiler can see, and why each of the others is left
+    out.
+
+    Returns (keep, skip): `keep` is a list of repository-relative paths, `skip`
+    a list of (label, path, reason) in the order they are reported. The three
+    reasons are exactly the three main() applies, and they are decided by
+    reading files rather than by compiling, so this answers the same on every
+    laptop and is the one definition of the set. The warnings-as-errors step in
+    .github/workflows/code.yml consumes it through --list, so that step and this
+    checker cannot disagree about which files exist to be checked.
+
+    The raw carriage return test is deliberately NOT here. That is a failure and
+    not a skip: such a file is still host-compilable, and a listing that hid it
+    would quietly shrink the sweep instead of reporting the defect.
+    """
+    keep, skip = [], []
+    for label, rel, reason in decisions():
+        if label == "keep":
+            keep.append(rel)
+        else:
+            skip.append((label, rel, reason))
+    return keep, skip
+
+
+def decisions():
+    """Every C file in file order, as (label, path, reason).
+
+    label is "keep" for a file a host compiler can see, otherwise "skip" or
+    "SKIP" and reason says why. Separated from host_compilable() so main() can
+    report skips and files in the order it walks them, which is how the output
+    has read since Saturday 3 October 2026.
+    """
+    for path in c_files():
+        rel = os.path.relpath(path, REPO).replace("\\", "/")
+        try:
+            text = open(path, encoding="utf-8").read()
+        except UnicodeDecodeError:
+            yield ("SKIP", rel, "not UTF-8")
+            continue
+
+        via = vendor_header_via(path, text)
+        if via is not None:
+            how = "" if via == "" else " through %s" % via
+            yield ("skip", rel, "needs stm32h7xx.h%s, absent by design" % how)
+            continue
+
+        if SYSCALL_DEF.search(text):
+            yield ("skip", rel,
+                   "defines newlib syscalls; the host CRT declares"
+                   " the same names with different signatures")
+            continue
+
+        yield ("keep", rel, None)
+
+
 def main():
+    # --list runs no compiler, so it is allowed on the authoring laptop and the
+    # refusal below does not apply to it. That is not a loophole in the rule: the
+    # rule is that nothing compiles on win11 aquamarine, and reading includes is
+    # not compiling. Listing on both laptops is useful precisely because the set
+    # has to be the same on both.
+    if "--list" in sys.argv[1:]:
+        keep, _ = host_compilable()
+        for rel in keep:
+            print(rel)
+        return 0
+
     # The rule, enforced rather than written in the docstring and hoped for.
     # Compiling happens in WSL on win11 skyhorizon, bing@JPTOUPM678, and nowhere
     # else. Refusing here is not an inconvenience to work around: see the
@@ -192,27 +259,14 @@ def main():
         args += ["-I", os.path.join(REPO, d)]
 
     checked, skipped, failed = 0, 0, 0
-    for path in c_files():
-        rel = os.path.relpath(path, REPO).replace("\\", "/")
-        try:
-            text = open(path, encoding="utf-8").read()
-        except UnicodeDecodeError:
-            print("  SKIP    %s  (not UTF-8)" % rel)
+    for label, rel, reason in decisions():
+        if label != "keep":
+            print("  %s    %s  (%s)" % (label, rel, reason))
             skipped += 1
             continue
 
-        via = vendor_header_via(path, text)
-        if via is not None:
-            how = "" if via == "" else " through %s" % via
-            print("  skip    %s  (needs stm32h7xx.h%s, absent by design)" % (rel, how))
-            skipped += 1
-            continue
-
-        if SYSCALL_DEF.search(text):
-            print("  skip    %s  (defines newlib syscalls; the host CRT declares"
-                  " the same names with different signatures)" % rel)
-            skipped += 1
-            continue
+        path = os.path.join(REPO, rel)
+        text = open(path, encoding="utf-8").read()
 
         # A raw carriage return inside a source file is never intended here and is
         # the exact defect this tool was written for, so it is reported as such
