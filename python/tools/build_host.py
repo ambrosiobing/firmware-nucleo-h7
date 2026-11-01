@@ -146,11 +146,18 @@ WARNINGS = [
 # agreeing in four languages. Nothing was red. The only thing that refused was a
 # g++ -Werror command typed by hand beside the hand-over.
 #
-# WHAT THE GAP WAS, EXACTLY. The warning set above is applied to every build
-# here, C and C++ alike, and carries no -Werror. The warnings-as-errors step in
-# code.yml names twelve C sources and NO C++ at all. So a warning in any of the
-# twenty-one C++ sources printed and the build succeeded, and had done since the
-# first C++ filter was registered on Sunday 4 October 2026.
+# WHAT THE GAP WAS, EXACTLY, AND THE FIRST VERSION OF THIS PARAGRAPH GOT IT
+# WRONG. The warning set above is applied to every build here, C and C++ alike,
+# and carries no -Werror. The warnings-as-errors step in code.yml names TWELVE
+# SOURCES, FIVE C AND SEVEN C++, counted from the step's own text on Friday
+# 30 October 2026 with run_workflow_step.py --print. This comment said it named
+# twelve C sources and no C++ at all, which is false: P09's encode-only, P05's,
+# P08's, P02's, P03's, P06's and P12's C++ filters have been compiled with
+# -Werror in CI since they were written.
+#
+# The true gap is the other FOURTEEN of the twenty-one C++ sources, which were
+# covered by nothing, and P19's filter was one of them, which is why its shadow
+# warning survived both this script and that step.
 #
 # WHY ONLY THE C++ HALF. Every C source here is also compiled by
 # check_c_syntax.py, and twelve of them by that workflow step, so the C has two

@@ -10,11 +10,17 @@ refused was a `g++ -Werror` command typed by hand beside the hand-over, which
 had been added to five previous hand-overs and had never found anything until
 that one.
 
-**What the gap was.** `build_host.py`'s warning set is applied to every build it
-makes, C and C++ alike, and carried no `-Werror`. The warnings-as-errors step in
-`code.yml` names twelve C sources and no C++ at all. So a warning in any of the
-twenty-one C++ sources printed and the build succeeded, and had done since the
-first C++ filter was registered on Sunday 4 October 2026.
+**What the gap was, corrected on Friday 30 October 2026.** `build_host.py`'s
+warning set is applied to every build it makes, C and C++ alike, and carried no
+`-Werror`. The warnings-as-errors step in `code.yml` names **twelve sources,
+five C and seven C++**, counted from the step's own text with
+`run_workflow_step.py --print`. The first version of this docstring said twelve
+C sources and no C++ at all, which is false: seven C++ filters have been
+compiled with `-Werror` in CI since they were written.
+
+The true gap was the other **fourteen** of the twenty-one C++ sources, covered
+by nothing, and P19's filter was one of them, which is why its shadow warning
+survived both the builder and that step.
 
 **Why this test rather than trust.** The remedy is one constant, `CXX_WARNINGS`,
 and twenty call sites that use it. A twenty-first C++ build added later, by
