@@ -26,12 +26,17 @@ only by the runner.
 **THE STEP STOPPED BEING A LIST ON SUNDAY 1 NOVEMBER 2026.** It now loops over
 `check_c_syntax.py --list`, so every host-compilable C source is compiled with
 `-Werror` by existing rather than by being named, and the five it used to name
-became forty-three. This test therefore reads the step two ways: the discovered
+became forty-one. This test therefore reads the step two ways: the discovered
 set, computed from the same function the step calls, and the sources still named
-explicitly, which are the seven C++ filters. A survey in WSL on skyhorizon on
-Sunday 1 November 2026 found forty-three of the forty-five accepted sources clean
-under the full flag string, and the two that warn are excluded by name with the
-reason written in the step.
+explicitly, which are the seven C++ filters.
+
+**The first figure was forty-three and it was measured with the wrong verb.** The
+survey compiled with `-fsyntax-only`, which stops before the assembler; the step
+compiles with `-c`, which runs it. Two of the forty-three hold Cortex-M `dsb` and
+`isb`, so run 41324507888 failed at the third file and forty of the forty-three
+were never attempted. Re-measured with `-c` the answer is forty-one clean, two
+that the host assembler cannot take, and two whose pointer width differs, which
+is the arithmetic the four exclusions below carry.
 
 **What it cannot do.** It reads a workflow and some Markdown, so it sees
 spellings. It does not know whether the step it reads is the step that runs, and
@@ -68,11 +73,16 @@ DISCOVERS = re.compile(
 DISCOVERS_SHAPE = "for f in $(python python/tools/check_c_syntax.py --list)"
 EXCLUDE_LINE = re.compile(r'^\s*EXCLUDE="([^"]*)"', re.M)
 
-# The two the survey of Sunday 1 November 2026 found warning, both because this
-# host's pointers are wider than the target's. The step says why beside each.
+# The four the survey of Sunday 1 November 2026 could not compile on a host, in
+# two classes: two because this host's pointers are wider than the target's, and
+# two because the host assembler is not a Cortex-M assembler. The step says why
+# beside each, and the second class was found by the runner rather than by the
+# survey, because the survey used -fsyntax-only and the step uses -c.
 EXPECTED_EXCLUSIONS = {
     "c/board/board.c",
     "projects/P06-timer-sampling/c/main.c",
+    "c/board/icache.c",
+    "c/board/system.c",
 }
 
 # How a README claims the guarantee. A corrected README must not contain this

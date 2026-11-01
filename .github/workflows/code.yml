@@ -74,9 +74,11 @@ jobs:
           # compared against a twin; on an integer source it costs nothing, and
           # applying it uniformly removes the question of who remembered it.
           #
-          # TWO FILES ARE EXCLUDED, and the reason is this host's pointer width
-          # rather than anything about the code. Both are target-only sources
-          # that the tree syntax-checks on the host and never runs there:
+          # FOUR FILES ARE EXCLUDED, IN TWO CLASSES, and neither class is a
+          # defect in the code. All four are target-only sources that this
+          # tree compiles on the host and never runs there.
+          #
+          # The host's pointer is wider than the target's:
           #
           #   c/board/board.c   REG32 in c/board/stm32h7a3_regs.h casts a
           #                     uint32_t register address to a pointer, which is
@@ -87,10 +89,28 @@ jobs:
           #                     taken as 32 bits, the same fact the other way
           #                     round, so -Wpointer-to-int-cast fires
           #
-          # The cross build compiles both for arm-none-eabi with this warning
-          # set, where neither diagnostic exists. It does not pass -Werror, so
-          # the target side of this gap is open and is not closed here.
-          EXCLUDE="c/board/board.c projects/P06-timer-sampling/c/main.c"
+          # The host assembler is not a Cortex-M assembler:
+          #
+          #   c/board/icache.c  inline dsb and isb at lines 90 to 97
+          #   c/board/system.c  the same barriers
+          #
+          # THE SECOND CLASS IS WHY THIS COMPILES WITH -c AND IS MEASURED WITH
+          # -c. The survey behind this step first used -fsyntax-only, which
+          # stops before the assembler, answered 43 clean, and the step then
+          # failed on run 41324507888 at the third file with 'invalid
+          # instruction suffix for ds'. Forty of the forty-three had not been
+          # attempted when -e stopped the loop. The honest figure for -c is 41.
+          # Switching the step to -fsyntax-only would have made that survey
+          # right and the step weaker: -Wmaybe-uninitialized and
+          # -Wstringop-overflow come from the optimizer, which -fsyntax-only
+          # does not run, and this step has compiled real objects since Sunday
+          # 4 October 2026.
+          #
+          # The cross build compiles all four for arm-none-eabi with this
+          # warning set, where no diagnostic above exists. It does not pass
+          # -Werror, so the target side of this gap is open and is not closed
+          # here.
+          EXCLUDE="c/board/board.c projects/P06-timer-sampling/c/main.c c/board/icache.c c/board/system.c"
           n=0
           for f in $(python python/tools/check_c_syntax.py --list); do
             case " $EXCLUDE " in *" $f "*) continue ;; esac
@@ -105,9 +125,9 @@ jobs:
           echo "$n C sources compiled with warnings as errors"
           # A floor and not an exact count. A new C file joins the sweep by
           # existing, which is the point of the loop, but a discovery that has
-          # broken must not pass as a clean run: forty-three were clean when
+          # broken must not pass as a clean run: forty-one were clean when
           # this was measured on skyhorizon on Sunday 1 November 2026.
-          test "$n" -ge 40
+          test "$n" -ge 38
           g++ -std=c++17 -O2 $W -fno-exceptions -fno-rtti \
             -Ic/payload -Iprojects/P09-payload-codec/cpp \
             -c projects/P09-payload-codec/cpp/cpp_encode_only.cpp -o build-host/werror/cpp.o
