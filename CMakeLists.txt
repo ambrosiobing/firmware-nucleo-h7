@@ -148,6 +148,7 @@ add_library(board OBJECT
     c/board/system.c
     c/board/board.c
     c/board/uart.c
+    c/board/i2c.c
     c/board/cycles.c
     c/board/icache.c
     c/board/clock280.c
@@ -471,3 +472,16 @@ foreach(PAD IN LISTS P09_PADS)
         INCLUDES ${CMAKE_SOURCE_DIR}/c/payload
         DEFINES P09_PAD_BYTES=${PAD})
 endforeach()
+
+# P13, the identification roll call, and nothing else of chapter 13 yet.
+#
+# It is a separate target from the logger that will follow, for the reason P01
+# has two: this one answers a question about the BUS and the shield, and the
+# logger will answer a question about the FIFO. An image that did both would
+# make a failed roll call look like a failed logger, and the roll call is the
+# thing that has to be believed first.
+#
+# It needs no vendor pack. Every register it writes is in c/board, sourced from
+# RM0455 Rev 13 and from UM2408 Rev 6 for the pins.
+add_firmware(p13-rollcall
+    SOURCES projects/P13-iks4a1-fifo/c/rollcall.c)
