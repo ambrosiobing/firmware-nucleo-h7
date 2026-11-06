@@ -270,9 +270,16 @@
 #define BUTTON_PORT      GPIOC
 #define BUTTON_PIN       13u     /* the user button */
 
-/* The console. The pins are Nucleo-144 convention and NOT read from the MB1363
- * board manual, which is a separate document from RM0455 and the only thing
- * that settles them. uart.c refuses on this. */
+/* The console. The pins were read from the MB1363 board manual on Friday
+ * 6 November 2026 and are settled: UM2408 Rev 6, Table 12 on page 30, gives PD8
+ * as USART3 TX and PD9 as USART3 RX under the column headed "Virtual COM port
+ * (Default configuration)", and page 33's SB16 and SB17 row says the same thing
+ * from the other side, with its default marked bold, by connecting PA2 and PA3
+ * on the ST-LINK to PD8 and PD9. These three lines said the pins were NOT read
+ * from that manual and that uart.c refuses on this, which had been stale since
+ * Friday 2 October 2026: the paragraph immediately below already recorded them
+ * as confirmed from ST's board support package, so the file contradicted itself
+ * for five weeks in the direction of understating what it knew. */
 #define CONSOLE_USART_BASE 0x40004800u  /* CD_APB1PERIPH_BASE + 0x4800, USART3.
                                          * Settled. The pins below are not, and
                                          * uart.c needs both. */

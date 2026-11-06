@@ -65,7 +65,7 @@ The seam is two functions, read and write, and it is worth noticing how much tha
 
 | Peripheral | Mode | Clock source | Pins and function | Interrupt and transfers |
 | --- | --- | --- | --- | --- |
-| I2C | Fast mode, 400 kHz, repeated start | Peripheral bus | Arduino D14 and D15 by the usual convention for this board family, checked in the board manual before use | Polled for setup; DMA for the burst drain |
+| I2C | Fast mode, 400 kHz, repeated start | Peripheral bus | Arduino D15 is SCL on PB8 and D14 is SDA on PB9, both I2C1, read Friday 6 November 2026 from UM2408 Rev 6, Table 18, page 44, connector CN7 pin 2 and pin 4 | Polled for setup; DMA for the burst drain |
 | External interrupt | Rising edge, one line | Peripheral bus | The sensor's first interrupt line, on whichever free header pin the shield routes it to | The handler sets a flag and returns |
 | Timer | Up counter, 1 kHz | Peripheral bus | None | Timebase for the transcript |
 | USART3 | Asynchronous, 115200 | Peripheral bus | Confirm in the board manual | Interrupt driven, chapter 3 |

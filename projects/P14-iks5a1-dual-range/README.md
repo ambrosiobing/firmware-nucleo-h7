@@ -108,8 +108,12 @@ shield, **which the bench does hold**, fitted to the Arduino header with no
 second shield, which is chapter 14's own constraint. This paragraph said the
 inventory does not hold it until Thursday 29 October 2026, and that was wrong:
 the shield has been on the bench throughout. The board half is not blocked on a
-part. It is blocked on the same thing P13's is, the I2C pin mapping, which
-chapter 14 writes as a convention to be checked against the MB1363 user manual.
+part. It was blocked on the same thing P13's was, the I2C pin
+mapping, and that was read from the MB1363 user manual on Friday 6 November
+2026: UM2408 Rev 6, Table 18, page 44, connector CN7 pin 2 is D15 as I2C_A_SCL
+on PB8 and pin 4 is D14 as I2C_A_SDA on PB9, both I2C1. P13's page records the
+one question the manual leaves open, the A4 and A5 strapping, which applies here
+equally.
 
 Chapter 14 of [the book][book] is the written design.
 

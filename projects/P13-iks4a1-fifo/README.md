@@ -112,10 +112,21 @@ shield, **which the bench does hold**, on the Arduino header as the only shield
 on the board. This paragraph said the inventory does not hold it until Thursday
 29 October 2026, and that was simply wrong: the shield has been on the bench
 throughout, along with the X-NUCLEO-IKS5A1, the X-NUCLEO-53L8A1 and the
-STEVAL-STWINBX1. The board half is not blocked on a part. What it is blocked on
-is the bus: chapter 13's peripheral table writes the I2C pins as Arduino D14 and
-D15 **by convention, to be checked against the MB1363 user manual**, and nothing
-in this repository has read those pins yet.
+STEVAL-STWINBX1. The board half is not blocked on a part. It was blocked on the bus, and **it is not any
+more**: the MB1363 user manual was read on Friday 6 November 2026 and Table 18
+on page 44 gives connector CN7 pin 2 as D15, signal I2C_A_SCL, on PB8, and pin 4
+as D14, signal I2C_A_SDA, on PB9, both I2C1. The convention was right, and the
+manual adds the MCU pins the convention did not carry.
+
+One question the manual does NOT answer, recorded because it is the kind that
+costs a bench session. Table 16 on page 35 pairs SB69 and SB40, which put the
+ADC on A4 and A5, against SB62 and SB39, which put PB9 and PB8, the same two
+I2C1 pins, on A4 and A5 of connector CN9 instead. **Neither state is marked as
+the default**: on that page the only bold entries are the bridge names SB73,
+SB93 and SB78, while pages 33 and 34 do mark their defaults in bold. So whether
+this board also presents SCL and SDA at A4 and A5 is unread, and if it does, a
+shield reading A4 or A5 as an analogue input collides with the bus. Settle it on
+the board or from the schematic, not from this manual.
 
 Chapter 13 of [the book][book] is the written design.
 

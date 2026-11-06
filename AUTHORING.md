@@ -361,10 +361,13 @@ Rules:
   `tikz_preamble.tex`, which both `main.tex` and the per-figure wrapper input.
   A package added to `main.tex` alone builds the PDF and silently breaks every
   figure in the HTML.
-- Pin numbers must be real. Arduino D14 and D15 reach PB9 and PB8 on the
-  Nucleo-144 convention; the virtual COM port is usually USART3 on PD8 and PD9.
-  **Both are flagged in the confirm list below and neither is written as fact
-  until checked in the board manual.**
+- Pin numbers must be real. Arduino D14 reaches PB9 and D15 reaches PB8, both
+  I2C1; the virtual COM port is USART3 on PD8 and PD9. **Both were convention
+  until Friday 6 November 2026 and both are now read from the board manual**,
+  UM2408 Rev 6, Table 18 on page 44 and Table 12 on page 30. The rule that
+  produced them stands and is the reason they were marked rather than used: a
+  pin position is written as fact only once the board manual has been opened at
+  the page that gives it.
 
 ---
 
@@ -466,9 +469,26 @@ machine-readable and were read directly, not from a summary.
     whether backup SRAM can hold a crash record across a power cycle.
 11. User LED count, colours and pins; the user button pin; and whether any
     collide with a fitted shield.
-12. Arduino header to MCU pin mapping: D14 and D15 as I2C1, which SPI instance
-    is on D11 to D13, which USART on D0 and D1, which analogue pins reach which
-    converter channels.
+12. Arduino header to MCU pin mapping. **Answered on Friday 6 November 2026
+    from UM2408 Rev 6, Table 18, pages 42 to 45**, and left here with its
+    answers rather than deleted, because the next shield asks the same four
+    questions. D15 is I2C1_SCL on PB8 and D14 is I2C1_SDA on PB9, at CN7 pins 2
+    and 4. The SPI is SPI1: D13 is SCK on PA5, D12 is MISO on PA6, D11 is MOSI
+    on PA7, that last by SB56 and SB57, which this board sets to PA7 while the
+    H745ZI and H755ZI use PB5. D0 and D1 are **not a USART at all**: D1 is TX
+    on PB6 and D0 is RX on PB7, both LPUART1. The analogue pins are A0 on PA3
+    as ADC_12_INP15, A1 on PC0 as ADC_123_INP10, A2 on PC3_C as ADC_3_INP1 and
+    A3 on PB1 as ADC_12_INP5.
+
+    **A4 and A5 are the one part still open, and the manual says so by saying
+    nothing.** Table 16 on page 35 offers SB69 and SB40, putting PC2_C and PF11
+    on A4 and A5, against SB62 and SB39, putting PB9 and PB8, the I2C1 pair, on
+    A4 and A5 instead. Neither row is bold, and bold is how that table marks a
+    default: the only bold entries on page 35 are the bridge names SB73, SB93
+    and SB78, while pages 33 and 34 do mark theirs. So a shield using A4 or A5
+    as an analogue input may or may not be sharing them with the bus, and that
+    is a continuity measurement on the board or a reading of the schematic,
+    not a question this manual answers.
 13. Which Zio pins with timer channels and spare GPIO remain free while a shield
     is fitted, for the PPK2 marker pins.
 14. Whether the drag-and-drop disk appears, and whether using it conflicts with

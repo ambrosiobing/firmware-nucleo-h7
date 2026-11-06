@@ -52,14 +52,16 @@
  *     NUCLEO-H743ZI2, and UM2408 documents MB1363, which is this board. Zephyr
  *     cites UM2408 for this board as well
  *
- * Open, and therefore refused rather than guessed:
- *   - the virtual COM port pins, believed USART3 on PD8 and PD9 by Nucleo-144
- *     convention and not read from the MB1363 board manual. Zephyr's board
- *     documentation for this exact part names PD8 and PD9 for USART3, along
- *     with PC13 for the button and PB0, PE1 and PB14 for the three LEDs, all
- *     four of which agree with what this board has already printed. That is
- *     corroboration from outside this repository and it is still not ST, so
- *     this stays in the open list
+ * Settled on Friday 6 November 2026, having been the oldest open item here:
+ *   - the virtual COM port pins are USART3 on PD8 and PD9, read from the MB1363
+ *     board manual itself. UM2408 Rev 6, Table 12 on page 30, names PD8 as
+ *     USART3 TX and PD9 as USART3 RX in the column headed "Virtual COM port
+ *     (Default configuration)", and page 33's SB16 and SB17 row reaches the
+ *     same pair from the ST-LINK side with its default in bold. Zephyr's board
+ *     documentation and ST's own board support package had already agreed, and
+ *     this entry stayed open because neither was the board manual. Three
+ *     independent sources now say PD8 and PD9, and the board has printed over
+ *     them since Friday 2 October 2026
  *
  * No longer open, and the line that used to say so was wrong twice over. It read
  * "the timer registers freqcount.c needs, which is why no frequency in this
@@ -88,7 +90,13 @@ typedef enum {
     BOARD_OK                   =  0,
     BOARD_CLOCK_AT_RESET_SPEED =  1,   /* frequency known, but not the target */
     BOARD_ERR_CLOCK_UNCONFIRMED = -1,  /* RM0455 PLL, latency, voltage scaling */
-    BOARD_ERR_UART_PINS_UNCONFIRMED = -2,  /* MB1363 virtual COM port pins */
+    /* The name is historical as of Friday 6 November 2026. The pins ARE
+     * confirmed, in UM2408 Table 12; what uart.c actually reports through this
+     * is a console it could not bring up, either because the vendor header is
+     * absent or because USART3's CR1 read back without UE set, which means the
+     * peripheral clock is not running. Renaming it is a separate change,
+     * deliberately not folded into the commit that read the manual. */
+    BOARD_ERR_UART_PINS_UNCONFIRMED = -2,
     BOARD_ERR_NOT_INITIALISED  = -3,
 } board_status_t;
 
@@ -199,9 +207,10 @@ void board_led_toggle(board_led_t led);
 /* The user button on PC13, polled. True while pressed. */
 bool board_button_pressed(void);
 
-/* The console. BOARD_ERR_UART_PINS_UNCONFIRMED until the pins are read from
- * MB1363, in which case printf goes nowhere and says so through this rather
- * than appearing to work. Note that the console also depends on the clock being
+/* The console. BOARD_ERR_UART_PINS_UNCONFIRMED when it could not be brought
+ * up, in which case printf goes nowhere and says so through this rather than
+ * appearing to work. The pins themselves are no longer in doubt: see the enum,
+ * whose name now outlives its reason. Note that the console also depends on the clock being
  * established, since the baud rate divider comes from it, so the two refusals
  * are not independent. */
 void           board_console_init(void);

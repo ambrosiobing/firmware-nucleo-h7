@@ -71,14 +71,14 @@ The shape is conventional and the interesting part is what is not in it. There i
 
 | Peripheral | Mode | Clock source | Pins and function | Interrupt and transfers |
 | --- | --- | --- | --- | --- |
-| I2C1 | Fast mode, 400 kHz | Peripheral bus, source selected in RCC | D14 and D15 on the Arduino header, which are PB9 and PB8 by the Nucleo-144 convention. Confirm in MB1363 | Interrupt-driven transfers. No DMA in this chapter |
+| I2C1 | Fast mode, 400 kHz | Peripheral bus, source selected in RCC | D15 is SCL on PB8 and D14 is SDA on PB9, both I2C1, read Friday 6 November 2026 from UM2408 Rev 6, Table 18, page 44, connector CN7 pin 2 and pin 4 | Interrupt-driven transfers. No DMA in this chapter |
 | GPIO input | Rising edge, external interrupt | Peripheral bus | Low-g watermark line from the ISM6HG256X | EXTI, pre-emption priority 6 |
 | GPIO input | Rising edge, external interrupt | Peripheral bus | High-g event line from the same part | EXTI, pre-emption priority 5 |
 | TIM2 | Free running, 32-bit, 1 MHz tick | Peripheral bus | None | Read by both handlers. No interrupt |
 | GPIO output | Push-pull marker pins | Peripheral bus | Two free Zio pins into the PPK2 digital inputs | None |
 | USART3 | Asynchronous, 115200 8N1 | Peripheral bus | The console pins of chapter 1 | Polled |
 
-*Table 14.3. Peripheral configuration. The high-g line is given the higher pre-emption priority because it is rare and time critical, while the watermark line is frequent and tolerant of a few microseconds of latency. The Arduino header mapping is convention until it is read in MB1363.*
+*Table 14.3. Peripheral configuration. The high-g line is given the higher pre-emption priority because it is rare and time critical, while the watermark line is frequent and tolerant of a few microseconds of latency. The Arduino header mapping was convention until Friday 6 November 2026 and is now read from MB1363, UM2408 Rev 6, Table 18 on page 44.*
 
 The bus runs at 400 kHz rather than 100 kHz because the FIFO drain is the chapter's throughput constraint and the difference is a factor of four in the time the handler occupies. Three things decide whether that rate is actually available. The pull-up resistors on the shield set the rise time, and they are the shield's and not yours, so the practical ceiling is a property of the board you are holding. The peripheral's timing register has to be programmed from the peripheral clock that RCC is actually delivering, which on this part is not the same branch as on its better-known sibling and is read in RM0455. And any device on the bus may stretch the clock, so a transfer that completes in a computed time on paper does not necessarily complete in that time on the bench. The chapter computes the expected drain time, then measures it, and the difference between the two is a result rather than an inconvenience.
 
@@ -384,7 +384,7 @@ Normative references:
 - UM3550, the user manual for the X-NUCLEO-IKS5A1, for the fitted parts, the addresses, the jumper options and the interrupt routing to header pins.
 - The datasheets of the ISM6HG256X, ISM330IS, IIS2DULPX, IIS2MDC and ILPS22QS, for the full-scale lists, the output word format, the output data rates and the interrupt behaviour.
 - Reference manual RM0455 for I2C1 and the external interrupt controller on this part. Not RM0433, which documents its better-known sibling.
-- The board user manual for MB1363, for the Arduino header mapping, which pins D14 and D15 reach, and which Zio pins stay free while a shield is fitted.
+- The board user manual for MB1363, read on Friday 6 November 2026 for the Arduino header mapping. Table 18 on page 44 gives D15 as I2C\_A\_SCL on PB8 and D14 as I2C\_A\_SDA on PB9, at CN7 pins 2 and 4. It leaves one thing open: Table 16 on page 35 can strap those same two pins to A4 and A5 of CN9 instead of the ADC pins, and marks neither arrangement as the default, so a shield using A4 or A5 as an analogue input may be sharing them with this bus.
 
 Reusable implementations:
 
