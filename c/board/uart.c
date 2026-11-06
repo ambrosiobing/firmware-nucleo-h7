@@ -38,7 +38,7 @@
 #include "board.h"
 #include "stm32h7a3_regs.h"
 
-static board_status_t g_console = BOARD_ERR_UART_PINS_UNCONFIRMED;
+static board_status_t g_console = BOARD_ERR_CONSOLE_UNAVAILABLE;
 
 #if defined(BOARD_REGS_CONFIRMED) && defined(BOARD_CONSOLE_PINS_CONFIRMED)
 
@@ -130,7 +130,7 @@ void board_console_init(void)
      * times it had been written, and that is worth catching at init rather than
      * discovering as a silent console. */
     if ((USART_REG(CONSOLE_USART_BASE, USART_CR1) & (1u << USART_CR1_UE_POS)) == 0u) {
-        g_console = BOARD_ERR_UART_PINS_UNCONFIRMED;
+        g_console = BOARD_ERR_CONSOLE_UNAVAILABLE;
         return;
     }
 
@@ -143,7 +143,7 @@ void board_console_init(void)
 
     g_console = BOARD_OK;
 #else
-    g_console = BOARD_ERR_UART_PINS_UNCONFIRMED;
+    g_console = BOARD_ERR_CONSOLE_UNAVAILABLE;
 #endif
 }
 

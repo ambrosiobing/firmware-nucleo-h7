@@ -90,13 +90,15 @@ typedef enum {
     BOARD_OK                   =  0,
     BOARD_CLOCK_AT_RESET_SPEED =  1,   /* frequency known, but not the target */
     BOARD_ERR_CLOCK_UNCONFIRMED = -1,  /* RM0455 PLL, latency, voltage scaling */
-    /* The name is historical as of Friday 6 November 2026. The pins ARE
-     * confirmed, in UM2408 Table 12; what uart.c actually reports through this
-     * is a console it could not bring up, either because the vendor header is
-     * absent or because USART3's CR1 read back without UE set, which means the
-     * peripheral clock is not running. Renaming it is a separate change,
-     * deliberately not folded into the commit that read the manual. */
-    BOARD_ERR_UART_PINS_UNCONFIRMED = -2,
+    /* Renamed from BOARD_ERR_UART_PINS_UNCONFIRMED on Friday 6 November 2026,
+     * because the pins stopped being unconfirmed that morning: UM2408 Table 12
+     * on page 30 names PD8 and PD9 for the virtual COM port. The old name said
+     * what was open when it was written in October 2026 and uart.c has never
+     * returned it for that reason. What it reports is a console that could not
+     * be brought up, which is two things: the vendor header absent, so nothing
+     * was attempted, or USART3's CR1 reading back without UE set, which means
+     * the peripheral clock is not running. Neither is a pin. */
+    BOARD_ERR_CONSOLE_UNAVAILABLE = -2,
     BOARD_ERR_NOT_INITIALISED  = -3,
 } board_status_t;
 
@@ -207,10 +209,9 @@ void board_led_toggle(board_led_t led);
 /* The user button on PC13, polled. True while pressed. */
 bool board_button_pressed(void);
 
-/* The console. BOARD_ERR_UART_PINS_UNCONFIRMED when it could not be brought
- * up, in which case printf goes nowhere and says so through this rather than
- * appearing to work. The pins themselves are no longer in doubt: see the enum,
- * whose name now outlives its reason. Note that the console also depends on the clock being
+/* The console. BOARD_ERR_CONSOLE_UNAVAILABLE when it could not be brought up,
+ * in which case printf goes nowhere and says so through this rather than
+ * appearing to work. Note that the console also depends on the clock being
  * established, since the baud rate divider comes from it, so the two refusals
  * are not independent. */
 void           board_console_init(void);
