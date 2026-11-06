@@ -118,6 +118,34 @@ on page 44 gives connector CN7 pin 2 as D15, signal I2C_A_SCL, on PB8, and pin 4
 as D14, signal I2C_A_SDA, on PB9, both I2C1. The convention was right, and the
 manual adds the MCU pins the convention did not carry.
 
+**The bus ran the same day.** `p13-rollcall`, image 3AF8847E, brought up I2C1 at
+100 kHz, scanned 0x08 to 0x77 and identified seven devices, which is chapter
+13's acceptance criteria 5 and 6 met on hardware. The capture is in
+`console/rollcall_2026-11-06_pass.txt`:
+
+| Address | Register | Value | Part |
+| --- | --- | --- | --- |
+| 0x19 | 0x0F | 0x47 | LIS2DUXS12 accelerometer |
+| 0x1E | 0x4F | 0x40 | LIS2MDL magnetometer |
+| 0x38 | 0x01 | 0xA0 | STTS22H temperature |
+| 0x44 | none | none | SHT40AD1B, which takes commands and not register indices |
+| 0x5D | 0x0F | 0xB4 | LPS22DF barometer |
+| 0x6A | 0x0F | 0x22 | LSM6DSO16IS inertial |
+| 0x6B | 0x0F | 0x70 | LSM6DSV16X inertial |
+
+**Two of those disagree with the sibling lab set, and chapter 13 was right.**
+That set lists one inertial row at 0x6A and the pressure part at 0x5C. The
+shield in fact presents **two** inertial units, at 0x6A and 0x6B answering
+different identification values, which is what chapter 13 said all along and
+what two parts sharing one address could never have been, and its pressure part
+is at **0x5D**. The 0x22 is the LSM6DSO16IS by the bench record of Tuesday
+27 October 2026; the 0x70 is the LSM6DSV16X by elimination, which is an
+inference and is labelled as one in the source.
+
+**Still not the FIFO.** This image polls nothing and logs nothing. Criteria 1
+to 4 and 7, the ten-minute run, the watermark interrupt, the drain time and the
+charge comparison, are the rest of the chapter and are untouched.
+
 One question the manual does NOT answer, recorded because it is the kind that
 costs a bench session. Table 16 on page 35 pairs SB69 and SB40, which put the
 ADC on A4 and A5, against SB62 and SB39, which put PB9 and PB8, the same two

@@ -79,16 +79,17 @@
  *
  *   0x38's IDENTIFICATION REGISTER IS NOT 0x0F. It answered the address and
  *   returned zero from 0x0F, which is a register that happens to read zero
- *   rather than an identity. The STTS22H keeps its WHO_AM_I at 0x01, so the
- *   row now asks there, and the expected value stays zero because this bench
- *   has not yet measured it.
+ *   rather than an identity. The STTS22H keeps its WHO_AM_I at 0x01, and
+ *   asking there returned 0xA0 in image 3AF8847E, so the row carries that
+ *   value measured on this board rather than quoted from a datasheet.
  *
- * THE EXPECTED VALUES ARE LEFT AT ZERO WHERE THIS BENCH HAS NOT MEASURED THEM,
- * and zero means "print it, do not judge it". Claiming a WHO_AM_I value from a
- * datasheet this laptop cannot open would be the kind of unchecked figure this
- * volume keeps having to withdraw. The two that ARE known come from that same
- * bench record, taken from the IKS5A1, whose LIS2MDL and pressure part are the
- * same silicon. */
+ * EVERY VALUE IN THE TABLE IS NOW MEASURED ON THIS BOARD except 0x44's, which
+ * has none to measure: six of the seven rows carry a value this bench read,
+ * and the SHT40AD1B has no register interface to read one from. The rule that
+ * produced that state is kept because the next shield will need it: a zero
+ * means "print it, do not judge it", and a WHO_AM_I quoted from a datasheet
+ * this laptop cannot open would be the kind of unchecked figure this volume
+ * keeps having to withdraw. */
 typedef struct {
     uint8_t     addr7;
     uint8_t     who_reg;
@@ -99,7 +100,7 @@ typedef struct {
 static const expected_t EXPECTED[] = {
     { 0x19u, 0x0Fu, 0x47u, "LIS2DUXS12 accelerometer" },
     { 0x1Eu, 0x4Fu, 0x40u, "LIS2MDL magnetometer" },
-    { 0x38u, 0x01u, 0x00u, "STTS22H temperature" },
+    { 0x38u, 0x01u, 0xA0u, "STTS22H temperature" },
     { 0x44u, 0x00u, 0x00u, "SHT40AD1B humidity, no register interface" },
     { 0x5Du, 0x0Fu, 0xB4u, "LPS22DF barometer" },
     { 0x6Au, 0x0Fu, 0x22u, "LSM6DSO16IS inertial" },
