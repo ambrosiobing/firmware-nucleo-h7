@@ -64,7 +64,7 @@ The board's side is a chain with no software in it: a timer reaches its reload v
 
 | Peripheral | Mode | Clock source | Pins and function | Interrupt and transfers |
 | --- | --- | --- | --- | --- |
-| TIM3 | Up counter, update event on TRGO, channel 1 in toggle output-compare | APB1 timer clock | PB4 as TIM3_CH1 on alternate function 2, which is the marker | No interrupt in any of the three builds |
+| TIM3 | Up counter, update event on TRGO, channel 1 in toggle output-compare | APB1 timer clock | PB4 as TIM3\_CH1 on alternate function 2, which is the marker | No interrupt in any of the three builds |
 | ADC1 | Single channel, hardware trigger on the timer's TRGO | ADC kernel clock, confirm the source in RM0455 | One analogue input, channel confirmed in the datasheet | Transfer request to a DMA stream |
 | DMA1 stream | Double buffer, two memory pointers | Bus clock | None | Half and full transfer interrupts |
 | GPIO marker | Alternate function 2 in the two timer-triggered builds, so the timer drives the pin and no software is in the path; a push-pull output toggled in the tick exception in the tick build, where the processor is in the path by design | Peripheral bus | PB4, item 13 on the confirm list, reached at Morpho CN12 pin 27 when a shield covers the Zio position | None |
@@ -570,45 +570,13 @@ void DMA1_Stream0_IRQHandler(void)
 }
 ```
 
-**A `marker_toggle()` stood in that handler, it was one of three options, and it
-was never the right one.** An edge there fires once per 64 samples, so it
-measures block completions and not the instants of individual conversions, which
-is what the variants table at the end of this chapter predicts about this build.
-**A per-sample edge cannot exist in software in this build at all**: nothing
-happens in software per sample, which is its reason for existing. So the three
-options were an edge per block, which measures the wrong thing; no edge at all,
-which the implementation shipped from Friday 16 October 2026 and which measures
-nothing; and a timer channel driving the pin, which measures the right thing.
+**A `marker_toggle()` stood in that handler, it was one of three options, and it was never the right one.** An edge there fires once per 64 samples, so it measures block completions and not the instants of individual conversions, which is what the variants table at the end of this chapter predicts about this build. **A per-sample edge cannot exist in software in this build at all**: nothing happens in software per sample, which is its reason for existing. So the three options were an edge per block, which measures the wrong thing; no edge at all, which the implementation shipped from Friday 16 October 2026 and which measures nothing; and a timer channel driving the pin, which measures the right thing.
 
-**The third was chosen on Tuesday 20 October 2026 and could not be written that
-day.** RM0455 Rev 13 section 46.2 page 1754 says TIM6 and TIM7 are basic timers
-with no capture or compare channels and no pin, and TIM6 was what triggered the
-conversions, so the timer in the design could not mark anything. **The gap was a
-missing fact rather than a missing idea**, and two readings closed it: the
-part's alternate-function table gives PB4 as TIM3_CH1 on function 2, and the
-converter's trigger list includes TIM3_TRGO, so one general-purpose timer can
-start the conversion and mark it. The build landed on Sunday 25 October 2026 and
-the writes are in step 5 above; both timer-triggered builds share them.
+**The third was chosen on Tuesday 20 October 2026 and could not be written that day.** RM0455 Rev 13 section 46.2 page 1754 says TIM6 and TIM7 are basic timers with no capture or compare channels and no pin, and TIM6 was what triggered the conversions, so the timer in the design could not mark anything. **The gap was a missing fact rather than a missing idea**, and two readings closed it: the part's alternate-function table gives PB4 as TIM3\_CH1 on function 2, and the converter's trigger list includes TIM3\_TRGO, so one general-purpose timer can start the conversion and mark it. The build landed on Sunday 25 October 2026 and the writes are in step 5 above; both timer-triggered builds share them.
 
-**What the no-edge version measured is worth keeping, because it was a real
-control.** On Tuesday 20 October 2026 this build was recorded for sixty seconds
-on the same lead that had carried 60 185 edges from the timer build an hour
-earlier, and the analyser refused the capture at a swing of 5.1 millivolts
-against a 100 millivolt floor. Two of the three causes a flat recording can have
-were excluded by the preceding run, the wire and the shared ground, so what was
-left was the claim under test: this build drove no marker. **A flat recording on
-its own would mean a broken bench; a flat recording an hour after a working one,
-from the same bench with a different image, means the image.**
+**What the no-edge version measured is worth keeping, because it was a real control.** On Tuesday 20 October 2026 this build was recorded for sixty seconds on the same lead that had carried 60 185 edges from the timer build an hour earlier, and the analyser refused the capture at a swing of 5.1 millivolts against a 100 millivolt floor. Two of the three causes a flat recording can have were excluded by the preceding run, the wire and the shared ground, so what was left was the claim under test: this build drove no marker. **A flat recording on its own would mean a broken bench; a flat recording an hour after a working one, from the same bench with a different image, means the image.**
 
-**And one consequence of the hardware marker belongs here rather than in a
-footnote.** Both timer-triggered builds now mark from the same channel of the
-same timer, so their marker signals are identical BY CONSTRUCTION and no witness
-can separate them. That is correct rather than disappointing: with a hardware
-trigger the sampling instants are the timer's, so two builds that share a timer
-share their instants. What still separates them is the counters, blocks delivered
-and overruns of both kinds, which is where the difference between a per-sample
-interrupt and a double-buffer transfer actually lives. A reader who expects the
-marker to rank those two builds is holding the wrong instrument.
+**And one consequence of the hardware marker belongs here rather than in a footnote.** Both timer-triggered builds now mark from the same channel of the same timer, so their marker signals are identical BY CONSTRUCTION and no witness can separate them. That is correct rather than disappointing: with a hardware trigger the sampling instants are the timer's, so two builds that share a timer share their instants. What still separates them is the counters, blocks delivered and overruns of both kinds, which is where the difference between a per-sample interrupt and a double-buffer transfer actually lives. A reader who expects the marker to rank those two builds is holding the wrong instrument.
 
 **The first and third writes above were missing from this step until Tuesday 20 October 2026**, and the omission is recorded rather than quietly repaired, because it is the most useful thing in the step. As first published it set the pointers, the counter and the peripheral address, assembled a control word with `DBM`, and named the request number only in a comment. Either gap alone is enough: with the data management field at its reset 00 the converter raises no request whatever, so the stream sits enabled and idle, all eight bring-up steps report success, every configuration read-back is correct, and the block counter never moves. **A build that reads back perfectly and transfers nothing is the hardest failure in this chapter to diagnose from the console alone**, which is why those writes are now numbered with the reason beside each one.
 
