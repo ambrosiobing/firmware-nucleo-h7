@@ -41,8 +41,10 @@ survey compiled with `-fsyntax-only`, which stops before the assembler; the step
 compiles with `-c`, which runs it. Two of the forty-three hold Cortex-M `dsb` and
 `isb`, so run 41324507888 failed at the third file and forty of the forty-three
 were never attempted. Re-measured with `-c` the answer is forty-one clean, two
-that the host assembler cannot take, and two whose pointer width differs, which
-is the arithmetic the four exclusions below carry.
+that the host assembler cannot take, and two whose pointer width differs. A
+fifth joined them on Friday 6 November 2026, `c/board/i2c.c`, written that day
+and refused by the sweep on its own branch for the same pointer-width cast as
+`board.c`, which is this step catching new work rather than history.
 
 **What it cannot do.** It reads a workflow and some Markdown, so it sees
 spellings. It does not know whether the step it reads is the step that runs, and
@@ -80,16 +82,21 @@ DISCOVERS = re.compile(
 DISCOVERS_SHAPE = "for f in $(python python/tools/check_c_syntax.py --list)"
 EXCLUDE_LINE = re.compile(r'^\s*EXCLUDE="([^"]*)"', re.M)
 
-# The four the survey of Sunday 1 November 2026 could not compile on a host, in
-# two classes: two because this host's pointers are wider than the target's, and
-# two because the host assembler is not a Cortex-M assembler. The step says why
-# beside each, and the second class was found by the runner rather than by the
-# survey, because the survey used -fsyntax-only and the step uses -c.
+# The five that cannot compile on a host, in two classes: three because this
+# host's pointers are wider than the target's, and two because the host
+# assembler is not a Cortex-M assembler. The step says why beside each. The
+# assembler class was found by the runner rather than by the survey of Sunday
+# 1 November 2026, because that survey used -fsyntax-only and the step uses -c.
 EXPECTED_EXCLUSIONS = {
     "c/board/board.c",
     "projects/P06-timer-sampling/c/main.c",
     "c/board/icache.c",
     "c/board/system.c",
+    # Added Friday 6 November 2026 with the file itself. The sweep refused
+    # c/board/i2c.c on its branch for the same REG32 cast that excludes
+    # board.c, which is the sweep doing its job on new work rather than on
+    # history: the pointer width is the host's, not a defect in the code.
+    "c/board/i2c.c",
 }
 
 # How a README claims the guarantee. A README that does NOT have the guarantee

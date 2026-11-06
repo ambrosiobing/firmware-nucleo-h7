@@ -88,6 +88,11 @@ jobs:
           #                     (uint32_t) &_sidata, a linker symbol's address
           #                     taken as 32 bits, the same fact the other way
           #                     round, so -Wpointer-to-int-cast fires
+          #   c/board/i2c.c     the same REG32 cast as board.c, reached through
+          #                     GPIO_REG(port, off) with the port as a value.
+          #                     Added Friday 6 November 2026, when the file was
+          #                     written: the sweep refused it on the branch,
+          #                     which is the sweep working
           #
           # The host assembler is not a Cortex-M assembler:
           #
@@ -110,7 +115,7 @@ jobs:
           # warning set, where no diagnostic above exists. It does not pass
           # -Werror, so the target side of this gap is open and is not closed
           # here.
-          EXCLUDE="c/board/board.c projects/P06-timer-sampling/c/main.c c/board/icache.c c/board/system.c"
+          EXCLUDE="c/board/board.c projects/P06-timer-sampling/c/main.c c/board/icache.c c/board/system.c c/board/i2c.c"
           n=0
           for f in $(python python/tools/check_c_syntax.py --list); do
             case " $EXCLUDE " in *" $f "*) continue ;; esac
