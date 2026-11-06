@@ -41,15 +41,47 @@
 
 /* The 7-bit addresses the X-NUCLEO-IKS4A1 is expected to answer at.
  *
- * SOURCED, not remembered: the sibling lab set's chapter 7, which chapter 13
- * names as authoritative for this shield's addresses and which took them from
- * a bus the parts were actually on. UM3239 is the vendor's normative reference
- * and is not held on the authoring laptop.
+ * THE TABLE STARTED AS THE SIBLING LAB SET'S AND IS NOW THIS BOARD'S. Chapter
+ * 13 names that lab set as authoritative for this shield's addresses, and the
+ * first version here used it: 0x6A, 0x1E, 0x44, 0x5C and 0x38. Two of those
+ * five were wrong for this shield, which the first trustworthy capture showed
+ * and which the next paragraph sets out. The lab set's figures came from a Pi
+ * looking at a bus these parts sit behind, so it was a reasonable source and
+ * not a careless one; it was simply not a measurement of this arrangement.
+ * UM3239 is the vendor's normative reference and is not held on the authoring
+ * laptop, so nothing here rests on it.
  *
  * THE IDENTIFICATION REGISTER IS NOT ALWAYS 0x0F, which is the detail that
  * makes a roll call report a present part as missing. The bench record of
  * Tuesday 27 October 2026 found the LIS2MDL answering its WHO_AM_I at 0x4F.
  * Both registers are therefore read from every responder and both are printed.
+ *
+ * MEASURED ON THIS BOARD ON FRIDAY 6 NOVEMBER 2026, and the table below is now
+ * that measurement rather than the lab set's. The first trustworthy capture,
+ * image B55D8693, found seven devices and settled two disagreements:
+ *
+ *   TWO INERTIAL UNITS, AT 0x6A AND 0x6B, answering 0x22 and 0x70. Chapter 13
+ *   says the shield carries two and the lab set's table lists one row at 0x6A,
+ *   and two parts cannot share an address. The chapter was right. 0x22 is the
+ *   LSM6DSO16IS by the bench record of Tuesday 27 October 2026, which found
+ *   that value on the IKS5A1; 0x70 is therefore the LSM6DSV16X BY ELIMINATION,
+ *   the shield carrying exactly those two, and that is an inference rather
+ *   than a datasheet reading, which is why it is said here.
+ *
+ *   THE PRESSURE PART IS AT 0x5D AND NOT 0x5C. The same bench record says the
+ *   difference between these two shields includes "pressure at 0x5c not 0x5d",
+ *   and this measurement puts the 0xB4 at 0x5D, which is the IKS4A1 side of
+ *   that sentence.
+ *
+ *   0x44 ANSWERS AND REFUSES A REGISTER READ, which is correct rather than
+ *   broken: the SHT40AD1B takes commands, not register indices, so there is no
+ *   index to send it. Its row asks for no register at all.
+ *
+ *   0x38's IDENTIFICATION REGISTER IS NOT 0x0F. It answered the address and
+ *   returned zero from 0x0F, which is a register that happens to read zero
+ *   rather than an identity. The STTS22H keeps its WHO_AM_I at 0x01, so the
+ *   row now asks there, and the expected value stays zero because this bench
+ *   has not yet measured it.
  *
  * THE EXPECTED VALUES ARE LEFT AT ZERO WHERE THIS BENCH HAS NOT MEASURED THEM,
  * and zero means "print it, do not judge it". Claiming a WHO_AM_I value from a
@@ -65,11 +97,13 @@ typedef struct {
 } expected_t;
 
 static const expected_t EXPECTED[] = {
-    { 0x6Au, 0x0Fu, 0x00u, "inertial, LSM6DSV16X or LSM6DSO16IS" },
+    { 0x19u, 0x0Fu, 0x47u, "LIS2DUXS12 accelerometer" },
     { 0x1Eu, 0x4Fu, 0x40u, "LIS2MDL magnetometer" },
-    { 0x44u, 0x00u, 0x00u, "SHT40AD1B humidity, no WHO_AM_I register" },
-    { 0x5Cu, 0x0Fu, 0xB4u, "LPS22DF barometer" },
-    { 0x38u, 0x0Fu, 0x00u, "STTS22H temperature, 0x38 class" },
+    { 0x38u, 0x01u, 0x00u, "STTS22H temperature" },
+    { 0x44u, 0x00u, 0x00u, "SHT40AD1B humidity, no register interface" },
+    { 0x5Du, 0x0Fu, 0xB4u, "LPS22DF barometer" },
+    { 0x6Au, 0x0Fu, 0x22u, "LSM6DSO16IS inertial" },
+    { 0x6Bu, 0x0Fu, 0x70u, "LSM6DSV16X inertial" },
 };
 #define EXPECTED_COUNT  (sizeof EXPECTED / sizeof EXPECTED[0])
 
@@ -87,6 +121,18 @@ static void banner(const i2c_timing_t *t)
     printf("P13 roll call, X-NUCLEO-IKS4A1 expected, one shield only\r\n");
     printf("  bus      I2C1 on PB8 SCL and PB9 SDA, Arduino D15 and D14,\r\n");
     printf("           CN7 pins 2 and 4, alternate function 4, open drain\r\n");
+    /* THE BUILD STAMP, and the reason it is here rather than in a later
+     * tidy-up. On Friday 6 November 2026 a flash step was skipped twice and
+     * the board answered with the previous image, printing a banner identical
+     * to the new one down to the last character; only a file hash taken
+     * outside the board could tell the two runs apart. __DATE__ and __TIME__
+     * are this FILE's compile time and not the link time, which P06's banner
+     * explains is the weaker of the two stamps, and they move whenever this
+     * file is recompiled, which is every time the expected table changes.
+     * P06's stronger stamp reads the linker symbols, and that needs the
+     * pointer cast which keeps its main.c out of the host warning sweep; that
+     * trade is not worth making for this image. */
+    printf("  built    %s %s, this file's compile time\r\n", __DATE__, __TIME__);
     printf("  core     %lu Hz\r\n", (unsigned long) board_core_hz());
     printf("  i2c_ker  %lu Hz, taken as rcc_pclk1\r\n",
            (unsigned long) t->kernel_hz);
