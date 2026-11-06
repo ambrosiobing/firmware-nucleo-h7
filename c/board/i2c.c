@@ -244,7 +244,24 @@ static i2c_status_t i2c_wait(uint32_t mask, uint32_t *isr_out)
             return I2C_ERR_ARBITRATION;
         }
         if ((isr & I2C_ISR_NACKF) != 0u) {
+            /* AUTOEND STOPS THE TRANSFER AFTER A REFUSAL, so NACKF never
+             * arrives alone: STOPF follows it. Clearing only NACKF leaves
+             * STOPF set, and the NEXT transfer then sees it the instant it
+             * looks and reports a device that is not there.
+             *
+             * That is not hypothetical. The first capture, on Friday
+             * 6 November 2026, reported 47 devices on a five-sensor shield,
+             * every false one at an address immediately after a refused one.
+             * Chapter 6's converter bring-up carries a paragraph headed STALE
+             * FLAGS FIRST for the same mechanism on a different peripheral,
+             * and it was not applied here. */
             I2C_REG(I2C_ICR) = I2C_ICR_NACKCF;
+            for (uint32_t m = 0u; m < I2C_POLL_LIMIT; m++) {
+                if ((I2C_REG(I2C_ISR) & I2C_ISR_STOPF) != 0u) {
+                    break;
+                }
+            }
+            I2C_REG(I2C_ICR) = I2C_ICR_STOPCF;
             return I2C_ERR_NACK;
         }
         if ((isr & mask) != 0u) {
@@ -268,6 +285,15 @@ static i2c_status_t i2c_idle(void)
 }
 
 /* Start a transfer: nbytes, direction, automatic stop. */
+/* Every flag this driver reads, cleared, so a transfer is answered only by
+ * itself. Belt as well as braces: the NACK path above clears what it sets, and
+ * this makes a missed one harmless rather than a phantom device. */
+static void i2c_clear_flags(void)
+{
+    I2C_REG(I2C_ICR) = I2C_ICR_STOPCF | I2C_ICR_NACKCF
+                     | I2C_ICR_BERRCF | I2C_ICR_ARLOCF;
+}
+
 static void i2c_start(uint8_t addr7, uint32_t nbytes, bool read)
 {
     uint32_t cr2 = ((uint32_t) addr7 << 1) << I2C_CR2_SADD_POS;
@@ -287,6 +313,8 @@ i2c_status_t i2c_probe(uint8_t addr7)
     if (idle != I2C_OK) {
         return idle;
     }
+
+    i2c_clear_flags();
 
     /* A write of zero bytes. The address goes out and the automatic stop
      * follows the acknowledgement, so STOPF is the whole answer. */
@@ -308,6 +336,8 @@ i2c_status_t i2c_read_reg(uint8_t addr7, uint8_t reg, uint8_t *value)
     if (idle != I2C_OK) {
         return idle;
     }
+
+    i2c_clear_flags();
 
     /* One byte out, the register index, with no automatic stop so the read can
      * take the bus with a repeated start. */
