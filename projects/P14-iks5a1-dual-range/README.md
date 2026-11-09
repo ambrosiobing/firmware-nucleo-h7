@@ -124,6 +124,29 @@ of Tuesday 27 October 2026: 0x19 answering 0x47, 0x1E answering 0x40 at
 register 0x4F, 0x5C answering 0xB4, 0x6A answering 0x73 and 0x6B answering
 0x22.
 
+**THE REFUSAL IS PROVEN ON HARDWARE, Monday 9 November 2026**, image
+11E437FF, flashed with the X-NUCLEO-IKS4A1 deliberately left fitted. The
+capture is `console/rollcall_2026-11-09_wrong_shield.txt` and it refused, which
+makes this the first guard in the volume shown the thing it exists to catch
+rather than broken on purpose to see it fire.
+
+It produced six signals where three were written. The three designed: 0x38 and
+0x44 present, and pressure at 0x5D. The three the roll call added by itself:
+0x5C missing, and both inertial units reporting the wrong value.
+
+**And those last two are a hardware fact worth more than the guard.** The
+LSM6DSO16IS answers 0x22 at **0x6A** on the IKS4A1 and at **0x6B** on the
+IKS5A1. The same part is strapped to a different address on the two cards, and
+0x6B carries 0x70 on one and 0x22 on the other. So the two shields do not
+merely hold different parts at different addresses; they hold a shared part at
+swapped addresses, which is why an address scan can never separate them and why
+the identification values had to be the discriminator.
+
+**The passing capture is still outstanding.** Until the IKS5A1 is fitted alone
+and this image prints PASS, nothing here claims the expected table is right:
+the table is a claim from a Pi measurement of Tuesday 27 October 2026 and the
+board has not yet agreed with it. The state line stays host for that reason.
+
 **It can fail in a way P13's cannot, and that is why it is worth building.**
 Both shields answer at 0x19, 0x1E, 0x6A and 0x6B, so an address scan cannot
 tell them apart; the identification values can. Fitting the IKS4A1 by mistake
