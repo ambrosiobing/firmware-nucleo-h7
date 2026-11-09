@@ -56,6 +56,14 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 # ends: zero warnings. So this line turns nothing red today and refuses the
 # next thing that would have been.
 #
+# AND A SECOND, DIFFERENT COMPILER AGREED, which is the part worth more than
+# the survey. Those two trees used CubeIDE 2.2.0's arm-none-eabi-gcc 14.3.1,
+# the only cross compiler on the bench. The firmware workflow installs
+# gcc-arm-none-eabi from apt on the runner, a different version, and run
+# 42603068072 passed with this flag in place. The repository already records
+# P06's three back ends as built by one toolchain on one machine with nothing
+# independent checking them; this is the first time anything independent has.
+#
 # The three P06 targets were measured deliberately rather than assumed. They
 # are skipped when no pack is passed, which is what continuous integration
 # does, so they are built by one toolchain on one machine; adding -Werror
