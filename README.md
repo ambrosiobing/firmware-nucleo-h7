@@ -112,6 +112,10 @@ sensor shields, and the inside of the Cortex-M7.
 | 19 | [Caches, the MPU, and why DMA reads stale bytes](chapters/19-caches.md) | D-cache maintenance, MPU regions, which engine reaches which memory | 5/5 | 4 evenings |
 | 20 | [Three jobs at once: the node as an RTOS application](chapters/20-three-jobs-at-once.md) | Static allocation, synchronisation, measured latency distribution | 5/5 | 6 evenings |
 
+[The appendix](chapters/21-appendix.md) follows the twenty and is in neither
+this table nor the generated one: it scores the wider project catalogue, which
+is where a chapter that did not make the twenty is accounted for.
+
 Every chapter has the same sections: why it exists, the prior art and what to
 reuse, the parts it uses, a system architecture figure, the peripheral
 configuration, the wiring, a memory and timing budget, a software design in UML,
