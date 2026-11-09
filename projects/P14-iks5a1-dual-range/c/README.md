@@ -1,14 +1,23 @@
 # P14 in C
 
-**State: host, since Monday 26 October 2026.** Written on win11 aquamarine,
-which compiles nothing and never will; the first compiler to see it is gcc in
-WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
-`python3 python/tools/build_host.py`, and after that CI.
+**State: host, since Monday 26 October 2026**, and that is still the state
+although a board image now exists here. `rollcall.c` was written on Monday
+9 November 2026 and has not been built or flashed, so it is written and nothing
+more; the state moves when a capture exists and not when a file does. P13's
+equivalent took three flash cycles and two defects of mine to earn its board
+state, which is the reason this line is not moved in advance.
+
+Written on win11 aquamarine, which compiles nothing and never will; the first
+compiler to see the host half is gcc in WSL on the win11 skyhorizon demo laptop,
+bing@JPTOUPM678, through `python3 python/tools/build_host.py`, and after that
+CI. The board half is built with
+`cmake --build build-fw --target p14-rollcall` on win11 skyhorizon.
 
 | File | What it is |
 |---|---|
 | `recdecode.h` | the record's contract, the three findings at length, the six refusals |
 | `recdecode.c` | the byte-by-byte parse, the lookup through the record's codes, the relation, the drain |
+| `rollcall.c` | the board image: the five expected devices, and the refusal when the IKS4A1 is fitted instead |
 
 **The sensitivity table is a parameter.** Chapter 14's step 9 converts counts
 "using the scale codes in the header rather than a constant compiled into the

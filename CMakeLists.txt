@@ -501,6 +501,16 @@ foreach(PAD IN LISTS P09_PADS)
         DEFINES P09_PAD_BYTES=${PAD})
 endforeach()
 
+# P14, the same roll call against the other shield.
+#
+# A second image rather than one with a switch, which is P01's reason again and
+# a sharper one here: the two shields answer at four of the same addresses, so
+# an image that could expect either would have to be told which, and the thing
+# it would be told is the thing worth measuring. Two images, each naming its
+# shield in its banner, means a capture says which card it was taken with.
+add_firmware(p14-rollcall
+    SOURCES projects/P14-iks5a1-dual-range/c/rollcall.c)
+
 # P13, the identification roll call, and nothing else of chapter 13 yet.
 #
 # It is a separate target from the logger that will follow, for the reason P01

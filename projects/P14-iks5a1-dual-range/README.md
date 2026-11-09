@@ -115,6 +115,24 @@ on PB8 and pin 4 is D14 as I2C_A_SDA on PB9, both I2C1. P13's page records the
 one question the manual leaves open, the A4 and A5 strapping, which applies here
 equally.
 
+**The roll call is written and not yet built**, as `c/rollcall.c` and the
+`p14-rollcall` target, on Monday 9 November 2026. It shares `c/board/i2c.c`
+with P13 unchanged, which is the test of that layer: a bus driver that needed
+editing for a second shield would have been a shield driver wearing the wrong
+name. Only the expected table differs, and it comes from the bench measurement
+of Tuesday 27 October 2026: 0x19 answering 0x47, 0x1E answering 0x40 at
+register 0x4F, 0x5C answering 0xB4, 0x6A answering 0x73 and 0x6B answering
+0x22.
+
+**It can fail in a way P13's cannot, and that is why it is worth building.**
+Both shields answer at 0x19, 0x1E, 0x6A and 0x6B, so an address scan cannot
+tell them apart; the identification values can. Fitting the IKS4A1 by mistake
+produces four independent signals here, a missing 0x5C, an unlisted 0x5D, two
+unlisted addresses at 0x38 and 0x44, and the wrong value at 0x6A, and the image
+names the likely cause before refusing. The one-shield-at-a-time rule is
+chapter 13's, and this is the first time the firmware enforces it rather than a
+sentence asking a reader to.
+
 Chapter 14 of [the book][book] is the written design.
 
 [book]: ../../chapters/14-the-iks5a1.md
