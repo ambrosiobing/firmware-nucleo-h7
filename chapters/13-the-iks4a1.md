@@ -73,7 +73,11 @@ The seam is two functions, read and write, and it is worth noticing how much tha
 
 *Table 13.3. Peripheral configuration for chapter 13. Two entries are deliberately not written as facts: which pins the bus reaches and which header pin the interrupt line arrives on are checked against the board manual and UM3239 respectively.*
 
-The bus addresses are not reprinted in this chapter. They are in UM3239 and in the sibling lab set, which is authoritative for them, and reproducing a table of hexadecimal addresses from memory is the single easiest way to cost somebody an evening. Read them from the manual, put them in one header, and have the identification step below prove that every one of them is right before anything else runs.
+The bus addresses are not reprinted in this chapter. They are in UM3239 and in the sibling lab set, and reproducing a table of hexadecimal addresses from memory is the single easiest way to cost somebody an evening. Read them from the manual, put them in one header, and have the identification step below prove that every one of them is right before anything else runs.
+
+That advice was taken on Friday 6 November 2026 and it earned its place twice over, because the source this paragraph used to call authoritative was wrong. The sibling lab set lists one inertial row at 0x6A and the pressure part at 0x5C. The board answers with *two* inertial units, at 0x6A and 0x6B, returning 0x22 and 0x70, and its pressure part is at 0x5D. The contradiction was readable before any hardware was touched: this chapter's own prose says the shield carries two inertial units, and two parts cannot share one address.
+
+So the rule is the stronger one. A written address table is a claim, including this volume's own and including a sibling volume's; the identification step is the evidence. It is written to report every address that answers rather than only the ones expected, which is what turned a disagreement between two documents into a measurement. The lab set was not careless: its figures came from a Raspberry Pi looking at a bus these parts sit behind, so it was never a measurement of this arrangement.
 
 ## Wiring
 

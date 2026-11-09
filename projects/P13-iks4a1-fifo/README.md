@@ -1,6 +1,6 @@
 # P13: The IKS4A1, FIFO, watermark, interrupt
 
-Status: c=host cpp=host python=host rust=host
+Status: c=board cpp=host python=host rust=host
 
 **Started on the host, Monday 26 October 2026.** Three pieces of chapter 13 are
 arithmetic on a block of bytes and need no shield: the bounded decode of a

@@ -1,14 +1,24 @@
 # P13 in C
 
-**State: host, since Monday 26 October 2026.** Written on win11 aquamarine,
-which compiles nothing and never will; the first compiler to see it is gcc in
-WSL on the win11 skyhorizon demo laptop, bing@JPTOUPM678, through
-`python3 python/tools/build_host.py`, and after that CI.
+**State: board, since Friday 6 November 2026**, and host before that since
+Monday 26 October 2026. What runs on the hardware is `rollcall.c`, the
+identification roll call, and NOT the logger: `fifodecode.c` is still proven
+only on a laptop against synthetic input. The distinction matters because this
+project's deliverable is the logger, so a reader who sees board here and expects
+a running FIFO would be misled, which is the same care P06's row takes over its
+one flashed back end and its two unflashed ones.
+
+Everything here is written on win11 aquamarine, which compiles nothing and never
+will; the first compiler to see it is gcc in WSL on the win11 skyhorizon demo
+laptop, bing@JPTOUPM678, through `python3 python/tools/build_host.py`, and after
+that CI. The target build is `cmake --build build-fw --target p13-rollcall` on
+win11 skyhorizon, and the capture is in `../console/`.
 
 | File | What it is |
 |---|---|
 | `fifodecode.h` | the layout as a parameter, the four findings at length, the five refusals |
 | `fifodecode.c` | the bounded decode, the gap in the counter's own modulus, the fill-to-drain ratio |
+| `rollcall.c` | the board image: I2C1 up at 100 kHz, the scan, the seven expected devices, the refusals |
 
 **Why the field widths are arguments rather than constants.** Chapter 13 writes
 `TAG_SHIFT`, `CNT_SHIFT` and `CNT_MASK` as symbols and sends the tag format to

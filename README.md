@@ -217,8 +217,10 @@ one to start. The order was not arbitrary: every project has a deciding piece of
 arithmetic that can be written and proven without the board, and that piece is
 what each one started with.
 
-Five have run on the hardware: P01, P02, P09, P06's timer back end since
-Wednesday 7 October 2026, and P19's instruction-cache half. Ten carry all four
+Six have run on the hardware: P01, P02, P09, P06's timer back end since
+Wednesday 7 October 2026, P19's instruction-cache half, and P13's identification
+roll call since Friday 6 November 2026, which is the first thing here to talk to
+a device over a bus and is the roll call rather than that project's logger. Ten carry all four
 languages: P01, P02, P03, P05, P06, P08, P09, P12, P17 and P18. Every project's
 own status line says which languages it has and whether each one has reached the
 board, `python python/tools/check_status.py` checks those lines against the table
