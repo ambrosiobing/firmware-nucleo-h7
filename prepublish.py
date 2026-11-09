@@ -139,6 +139,40 @@ def no_source_committed():
     return True
 
 
+def readmes_resolve():
+    """Every published chapter is reachable, and the front page's links exist.
+
+    chapters/21-appendix.md was published and named by neither README.md nor
+    CONTENTS.md, which is the table of the twenty numbered chapters, so it was
+    reachable from no page at all. Every check here passed while that was true,
+    because an orphan has no link to be broken. A dead link still reads as a
+    link and somebody eventually clicks it; an orphan reads as nothing. Found
+    Sunday 8 November 2026, in this volume and in four siblings, all from one
+    cause: the table is generated from the numbered chapters and every volume
+    also publishes front matter and an appendix outside that range.
+    """
+    import re
+    front = (ROOT / "README.md").read_text(encoding="utf-8")
+    contents = ROOT / "CONTENTS.md"
+    reachable = front + (
+        contents.read_text(encoding="utf-8") if contents.exists() else "")
+    problems = []
+    for page in sorted((ROOT / "chapters").glob("*.md")):
+        if page.name not in reachable:
+            problems.append(
+                f"chapters/{page.name} is published and named by neither "
+                "README.md nor CONTENTS.md, so it is reachable from no page")
+    for target in re.findall(r"\]\(([^)\s]+)\)", front):
+        if target.startswith(("http://", "https://", "#", "mailto:")):
+            continue
+        head = target.split("#", 1)[0]
+        if head and not (ROOT / head).exists():
+            problems.append(f"README.md links {target}, which does not exist")
+    for problem in problems:
+        print("  " + problem)
+    return not problems
+
+
 def main():
     if not sources_present():
         return 2
@@ -153,6 +187,8 @@ def main():
     ok &= chapters_complete()
     print("\n=== No authoring source is committed")
     ok &= no_source_committed()
+    print("\n=== Every README resolves, and no chapter is orphaned")
+    ok &= readmes_resolve()
     ok &= run("House rules over every chapter", [sys.executable, "lint.py"])
     ok &= run("Book-level consistency", [sys.executable, "crosscheck.py"])
 
