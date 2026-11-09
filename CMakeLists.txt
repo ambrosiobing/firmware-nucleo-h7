@@ -7,7 +7,7 @@
 # ST install root, confirmed by inventory on Friday 2 October 2026. On win11
 # skyhorizon it builds, with STM32CubeIDE 2.2.0's bundled gcc 14.3.1, cmake and
 # ninja, which are on no PATH until
-# projects/P01-toolchain-first-light/Use-CubeIDEToolchain.ps1 is dot-sourced. And
+# Use-CubeIDEToolchain.ps1 is dot-sourced. And
 # on the continuous integration runner, which installs its own.
 #
 # The host half of this repository needs none of that and is built by
@@ -41,9 +41,29 @@ endif()
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+# -Werror SINCE MONDAY 9 NOVEMBER 2026, AND MEASURED BEFORE IT WAS ADDED. This
+# set had carried no -Werror since the file was written, so every firmware
+# source was compiled for the target with warnings that nothing refused, and
+# that included the four files the host sweep in code.yml excludes because
+# their pointer casts are exact only on this part. The target build was the one
+# place those four were compiled in anger and the one place nothing checked
+# them.
+#
+# The measurement came first, in two scratch build trees on the win11
+# skyhorizon demo laptop with -DCMAKE_C_FLAGS=-Werror and ninja -k 0 so a first
+# failure could not hide the rest. Eleven targets without the CMSIS pack: zero
+# warnings. Fourteen with it, which adds P06's systick, timer and dma back
+# ends: zero warnings. So this line turns nothing red today and refuses the
+# next thing that would have been.
+#
+# The three P06 targets were measured deliberately rather than assumed. They
+# are skipped when no pack is passed, which is what continuous integration
+# does, so they are built by one toolchain on one machine; adding -Werror
+# without compiling them would have applied a rule to code this survey could
+# not see.
 set(WARNINGS
     -Wall -Wextra -Wshadow -Wconversion -Wsign-conversion
-    -Wdouble-promotion -Wpedantic)
+    -Wdouble-promotion -Wpedantic -Werror)
 
 add_compile_options(${WARNINGS} -ffunction-sections -fdata-sections -fno-common)
 

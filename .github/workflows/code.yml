@@ -112,9 +112,11 @@ jobs:
           # 4 October 2026.
           #
           # The cross build compiles all four for arm-none-eabi with this
-          # warning set, where no diagnostic above exists. It does not pass
-          # -Werror, so the target side of this gap is open and is not closed
-          # here.
+          # warning set, where no diagnostic above exists, AND IT PASSES
+          # -Werror SINCE MONDAY 9 NOVEMBER 2026. So an exclusion here is not a
+          # file nobody checks: it is a file checked by the compiler it is
+          # written for rather than by the one it never runs on. Fourteen
+          # targets, zero warnings, measured before the flag was added.
           EXCLUDE="c/board/board.c projects/P06-timer-sampling/c/main.c c/board/icache.c c/board/system.c c/board/i2c.c"
           n=0
           for f in $(python python/tools/check_c_syntax.py --list); do

@@ -46,6 +46,14 @@ fifth joined them on Friday 6 November 2026, `c/board/i2c.c`, written that day
 and refused by the sweep on its own branch for the same pointer-width cast as
 `board.c`, which is this step catching new work rather than history.
 
+**The target side closed on Monday 9 November 2026.** `CMakeLists.txt` carried
+no `-Werror`, so the four files excluded from the sweep above were compiled in
+anger only by the cross build and checked by nothing. Two scratch build trees
+on skyhorizon measured it first: eleven targets without the CMSIS pack and
+fourteen with it, zero warnings either way, so the flag was added knowing what
+it would refuse. An exclusion here now means a file checked by the compiler it
+is written for instead of by the one it never runs on.
+
 **What it cannot do.** It reads a workflow and some Markdown, so it sees
 spellings. It does not know whether the step it reads is the step that runs, and
 it cannot tell whether a file compiles clean: that needs a compiler, and the

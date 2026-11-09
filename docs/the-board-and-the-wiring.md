@@ -139,7 +139,7 @@ finding.
 In this repository the finding is done by a script you **dot-source** rather than
 run:
 
-    . .\projects\P01-toolchain-first-light\Use-CubeIDEToolchain.ps1
+    . .\Use-CubeIDEToolchain.ps1
 
 Please note the leading dot and space. Run without dot-sourcing, it sets `PATH`
 in a child scope and loses it on exit, **which looks exactly like having done

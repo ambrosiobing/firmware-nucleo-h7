@@ -157,7 +157,7 @@ nucleo-h7a3-firstlight/
 This step was written assuming nothing here needs the vendor IDE. On the machine this volume is actually built on, that is not true, and the correction is more useful than the original claim. STM32CubeIDE 2.2.0 ships its own `arm-none-eabi-gcc`, CMake and Ninja, registers none of them system-wide, and installing a second standalone toolchain alongside it invites two compilers with different libc assumptions. So the IDE's own tools are used, found by name rather than by a path with version numbers in it, and put on PATH for one shell session by a script in the repository.
 
 ```bash
-. ./projects/P01-toolchain-first-light/Use-CubeIDEToolchain.ps1
+. ./Use-CubeIDEToolchain.ps1
 arm-none-eabi-gcc --version
 cmake --version
 ninja --version
@@ -252,7 +252,7 @@ python tools/reconcile_size.py build-fw/firmware.map build-fw/firmware.elf
 An earlier version of this step said two commands, on a machine with no vendor IDE installed. Both halves were wrong and the repository proved it: the toolchain comes from the IDE and has to be put on PATH first, which is the third command and the one that was missing.
 
 ```bash
-. ./projects/P01-toolchain-first-light/Use-CubeIDEToolchain.ps1
+. ./Use-CubeIDEToolchain.ps1
 cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"
 cmake --build build-fw --target p01-first-light
 ```

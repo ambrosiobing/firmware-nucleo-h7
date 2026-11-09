@@ -84,7 +84,7 @@ Put the bundled toolchain on PATH first. Dot-source it; running it sets PATH in 
 child scope that exits immediately, which looks exactly like the script having
 done nothing.
 
-    . .\projects\P01-toolchain-first-light\Use-CubeIDEToolchain.ps1
+    . .\Use-CubeIDEToolchain.ps1
 
 Configure, once per clone. It is harmless to repeat.
 
@@ -216,7 +216,7 @@ cmdlet, which in this command was a successful `cmake --build`. A cmdlet needs
 The drive letter is also found by label rather than assumed, so a board that
 enumerated elsewhere is reported rather than silently missed:
 
-    . .\projects\P01-toolchain-first-light\Use-CubeIDEToolchain.ps1; $cfg = $true; if (-not (Test-Path build-fw\CMakeCache.txt)) { cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"; $cfg = ($LASTEXITCODE -eq 0) }; if (-not $cfg) { Write-Host 'CONFIGURE FAILED, nothing built, board untouched' } else { cmake --build build-fw --target p09-codec; if ($LASTEXITCODE -ne 0) { Write-Host 'BUILD FAILED, board untouched, old image still on it' } else { $v = Get-Volume | Where-Object { $_.FileSystemLabel -eq 'NOD_H7A3ZIQ' }; if (-not $v) { Write-Host 'BUILT BUT NOT FLASHED: no volume labelled NOD_H7A3ZIQ, so the board is off, unplugged or still enumerating. The old image is still on it.' } else { $d = "$($v.DriveLetter):\"; try { Copy-Item build-fw\p09-codec.bin $d -Force -ErrorAction Stop; Write-Host "built and copied to $d, the board is programming" } catch { Write-Host "BUILT BUT COPY FAILED, board untouched: $_" } } } }
+    . .\Use-CubeIDEToolchain.ps1; $cfg = $true; if (-not (Test-Path build-fw\CMakeCache.txt)) { cmake -B build-fw -G Ninja "-DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake"; $cfg = ($LASTEXITCODE -eq 0) }; if (-not $cfg) { Write-Host 'CONFIGURE FAILED, nothing built, board untouched' } else { cmake --build build-fw --target p09-codec; if ($LASTEXITCODE -ne 0) { Write-Host 'BUILD FAILED, board untouched, old image still on it' } else { $v = Get-Volume | Where-Object { $_.FileSystemLabel -eq 'NOD_H7A3ZIQ' }; if (-not $v) { Write-Host 'BUILT BUT NOT FLASHED: no volume labelled NOD_H7A3ZIQ, so the board is off, unplugged or still enumerating. The old image is still on it.' } else { $d = "$($v.DriveLetter):\"; try { Copy-Item build-fw\p09-codec.bin $d -Force -ErrorAction Stop; Write-Host "built and copied to $d, the board is programming" } catch { Write-Host "BUILT BUT COPY FAILED, board untouched: $_" } } } }
 
 Note what the success message now says: copied, and the board is programming. Not
 "reflashed". The copy is the last thing this laptop can observe; whether the probe

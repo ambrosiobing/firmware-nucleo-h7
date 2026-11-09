@@ -982,7 +982,13 @@ failure with the register's value attached.
 
 It is built on the **win11 skyhorizon demo laptop**, where STM32CubeIDE 2.2.0
 supplies `arm-none-eabi-gcc` 14.3.1, `cmake` and `ninja`, none of them on PATH;
-`Use-CubeIDEToolchain.ps1` finds them. It
+`Use-CubeIDEToolchain.ps1` finds them, dot-sourced from the repository root:
+running it instead of dot-sourcing sets PATH in a child scope and looks like
+having done nothing. **It lived in this project's directory until Monday
+9 November 2026**, which made every cross-build command in the volume read as
+though it were building P01 when it was only putting three tools on PATH. It
+serves every project, so it sits at the root with the other repository-wide
+scripts. It
 cannot be built on win11 aquamarine, which has no cross toolchain at all, and
 flashing needs no tool anywhere: the probe presents a disk and a `.bin` copied
 onto it is programmed.
@@ -1136,10 +1142,6 @@ This project's own, in this directory:
     rust/src/main.rs              and its filter binary, p01-filter
     rust/Cargo.toml               the crate, a workspace member since
                                   Sunday 4 October 2026
-    Use-CubeIDEToolchain.ps1      puts CubeIDE's bundled gcc, cmake and ninja on
-                                  PATH for one session. Dot-source it; running it
-                                  sets PATH in a child scope and looks like having
-                                  done nothing
     Find-STM32Tooling.ps1         inventories every STM32, ST-LINK, Cube and
                                   SEGGER tool on a Windows machine, and the
                                   removable disk the probe presents, which is how
