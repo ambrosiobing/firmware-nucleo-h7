@@ -48,8 +48,25 @@
  * and which the next paragraph sets out. The lab set's figures came from a Pi
  * looking at a bus these parts sit behind, so it was a reasonable source and
  * not a careless one; it was simply not a measurement of this arrangement.
- * UM3239 is the vendor's normative reference and is not held on the authoring
- * laptop, so nothing here rests on it.
+ * UM3239 IS HELD ON THE AUTHORING LAPTOP AND NOW CONFIRMS EVERY ROW. This
+ * paragraph said it was not, which was wrong twice over: the manual was in the
+ * same Downloads folder as UM2408 throughout, and the same mistake had already
+ * been made with UM2408 six days earlier. Read on Thursday 12 November 2026.
+ *
+ * Table 1 on page 7 gives the solder bridges that set each address, with the
+ * factory default in bold, and the addresses as 8 bit read values. Halved, all
+ * seven match the measurement of Friday 6 November 2026 exactly:
+ *
+ *   LIS2DUXS12    SB20  33h -> 0x19      LIS2MDL   fixed  3Ch -> 0x1E
+ *   STTS22H       fixed 71h -> 0x38      SHT40AD1B fixed  89h -> 0x44
+ *   LPS22DF       SB29  BBh -> 0x5D
+ *   LSM6DSO16IS   SB35  D5h -> 0x6A      LSM6DSV16X SB15 D7h -> 0x6B
+ *
+ * AND PAGE 6 GIVES THE REASON THE TWO INERTIAL UNITS DIFFER, which this project
+ * had worked out from the bus and the manual states outright: both parts answer
+ * at D5h and D7h, so the board carries bridges "to avoid an address conflict on
+ * I2C bus with the LSM6DSO16IS and the LSM6DSV16X". The addresses are not
+ * properties of the parts; they are what this board's bridges select.
  *
  * THE IDENTIFICATION REGISTER IS NOT ALWAYS 0x0F, which is the detail that
  * makes a roll call report a present part as missing. The bench record of
@@ -63,10 +80,16 @@
  *   TWO INERTIAL UNITS, AT 0x6A AND 0x6B, answering 0x22 and 0x70. Chapter 13
  *   says the shield carries two and the lab set's table lists one row at 0x6A,
  *   and two parts cannot share an address. The chapter was right. 0x22 is the
- *   LSM6DSO16IS by the bench record of Tuesday 27 October 2026, which found
- *   that value on the IKS5A1; 0x70 is therefore the LSM6DSV16X BY ELIMINATION,
- *   the shield carrying exactly those two, and that is an inference rather
- *   than a datasheet reading, which is why it is said here.
+ *   LSM6DSO16IS BY UM3239, SB35 at D5h, which is 0x6A. This paragraph used to
+ *   name it from the bench record of Tuesday 27 October 2026, which found 0x22
+ *   on the IKS5A1, and that reasoning was wrong even though the answer is
+ *   right: chapter 14 holds four sources saying the IKS5A1 does not carry this
+ *   part, so a value carried across from the other card could not have named
+ *   it. 0x70 WAS AN INFERENCE AND IS NOW SOURCED: this
+ *   paragraph said the LSM6DSV16X was identified by elimination because the
+ *   shield carries exactly those two, and UM3239's Table 1 settles it, putting
+ *   that part on SB15 at D7h, which is 0x6B. The inference happened to be
+ *   right and was still an inference until Thursday 12 November 2026.
  *
  *   THE PRESSURE PART IS AT 0x5D AND NOT 0x5C. The same bench record says the
  *   difference between these two shields includes "pressure at 0x5c not 0x5d",

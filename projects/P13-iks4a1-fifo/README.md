@@ -139,8 +139,36 @@ shield in fact presents **two** inertial units, at 0x6A and 0x6B answering
 different identification values, which is what chapter 13 said all along and
 what two parts sharing one address could never have been, and its pressure part
 is at **0x5D**. The 0x22 is the LSM6DSO16IS by the bench record of Tuesday
-27 October 2026; the 0x70 is the LSM6DSV16X by elimination, which is an
-inference and is labelled as one in the source.
+27 October 2026; the 0x70 was the LSM6DSV16X by elimination, an inference
+labelled as one in the source, and **it is sourced now**, see the next
+paragraph.
+
+**UM3239 confirms all seven rows, and it was on this laptop the whole time.**
+The shield's own user manual was read on Thursday 12 November 2026, found in
+`Downloads` after this project had written that it was not held here, which is
+the second time in six days a document was called unreachable while sitting in
+that folder. Table 1 on page 7 gives the factory address of every part in bold,
+and every one of the seven measured rows matches. The addresses that a solder
+bridge sets are the four that chapter 13's criterion 6 asks to be recorded with
+their positions and the reason:
+
+| Part | Bridge | Manual, 8 bit | 7 bit | Measured here |
+| --- | --- | --- | --- | --- |
+| LIS2DUXS12 | SB20 | 33h | 0x19 | 0x19 |
+| LIS2MDL | fixed, no bridge | 3Ch | 0x1E | 0x1E |
+| STTS22H | fixed, no bridge | 71h | 0x38 | 0x38 |
+| SHT40AD1B | fixed, no bridge | 89h | 0x44 | 0x44 |
+| LPS22DF | SB29 | BBh | 0x5D | 0x5D |
+| LSM6DSO16IS | SB35 | D5h | 0x6A | 0x6A |
+| LSM6DSV16X | SB15 | D7h | 0x6B | 0x6B |
+
+**The reason the arrangement was chosen is the vendor's own, and it is the one
+this project inferred from the bus.** Page 6 states that the bridges exist to
+avoid an address conflict on the I2C bus between the LSM6DSO16IS and the
+LSM6DSV16X. Those are exactly the two parts that the sibling lab set collapsed
+into one row at 0x6A, so the straps are what make two of the same class of part
+addressable at once, and the arrangement in use is the factory one: every bridge
+left as shipped. Nothing on this shield was moved to make the roll call pass.
 
 **Still not the FIFO.** This image polls nothing and logs nothing. Criteria 1
 to 4 and 7, the ten-minute run, the watermark interrupt, the drain time and the

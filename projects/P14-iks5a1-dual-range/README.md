@@ -115,14 +115,16 @@ on PB8 and pin 4 is D14 as I2C_A_SDA on PB9, both I2C1. P13's page records the
 one question the manual leaves open, the A4 and A5 strapping, which applies here
 equally.
 
-**The roll call is written and not yet built**, as `c/rollcall.c` and the
-`p14-rollcall` target, on Monday 9 November 2026. It shares `c/board/i2c.c`
+**The roll call is written, built and flashed**, as `c/rollcall.c` and the
+`p14-rollcall` target, on Monday 9 November 2026. This line said "not yet
+built" for three days while the paragraph below it recorded the image number of
+the run. It shares `c/board/i2c.c`
 with P13 unchanged, which is the test of that layer: a bus driver that needed
 editing for a second shield would have been a shield driver wearing the wrong
 name. Only the expected table differs, and it comes from the bench measurement
 of Tuesday 27 October 2026: 0x19 answering 0x47, 0x1E answering 0x40 at
 register 0x4F, 0x5C answering 0xB4, 0x6A answering 0x73 and 0x6B answering
-0x22.
+0x22. Neither inertial row carries a part name, for the reason set out below.
 
 **THE REFUSAL IS PROVEN ON HARDWARE, Monday 9 November 2026**, image
 11E437FF, flashed with the X-NUCLEO-IKS4A1 deliberately left fitted. The
@@ -134,13 +136,30 @@ It produced six signals where three were written. The three designed: 0x38 and
 0x44 present, and pressure at 0x5D. The three the roll call added by itself:
 0x5C missing, and both inertial units reporting the wrong value.
 
-**And those last two are a hardware fact worth more than the guard.** The
-LSM6DSO16IS answers 0x22 at **0x6A** on the IKS4A1 and at **0x6B** on the
-IKS5A1. The same part is strapped to a different address on the two cards, and
-0x6B carries 0x70 on one and 0x22 on the other. So the two shields do not
-merely hold different parts at different addresses; they hold a shared part at
-swapped addresses, which is why an address scan can never separate them and why
-the identification values had to be the discriminator.
+**And those last two were read as a hardware fact, which is WITHDRAWN on
+Thursday 12 November 2026.** This README said the LSM6DSO16IS answers 0x22 at
+0x6A on the IKS4A1 and at 0x6B on the IKS5A1, so that one shared part was
+strapped to two different addresses. The withdrawal takes the same evidence a
+claim does, and here it is. UM3239 was read on Thursday 12 November 2026 and
+puts the LSM6DSO16IS on the IKS4A1 at SB35, D5h, which is 0x6A. Chapter 14
+holds four sources, the vendor's product page among them, giving this shield's
+complement as ISM6HG256X, ISM330IS, IIS2DULPX, IIS2MDC and ILPS22QS, and its
+step 1 states that finding an LSM6DSO16IS means holding a different board. Both
+cannot be true of one part, and the name came from neither: it came from a
+Raspberry Pi driver table that mapped the value 0x22 to that catalogue number.
+
+**What the two measurements actually show is worse than a swapped address.**
+The cards carry **different** parts answering the **same** identification
+value, the ISM330IS being the industrial sibling of the LSM6DSO16IS, which is
+the other card's part and not on this one, with the same programmable core. A swapped address can be found by a scan. Two siblings
+sharing an identification value cannot be separated by any register this image
+reads, so `c/rollcall.c` now prints the 0x6B row as an unnamed value and the
+name waits for UM3550, which is not on the authoring laptop.
+
+**The asymmetry in sourcing is now on the page.** P13's table is confirmed row
+by row by UM3239, including the solder bridge that sets each address. This
+project's table has no vendor manual behind it at all, only the one Pi
+measurement, which is why it is the table that produced a wrong part name.
 
 **The passing capture is still outstanding.** Until the IKS5A1 is fitted alone
 and this image prints PASS, nothing here claims the expected table is right:

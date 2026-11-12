@@ -551,9 +551,26 @@ machine-readable and were read directly, not from a summary.
 
 ### Shields
 
-29. The IKS4A1 sensor complement and I2C addresses, and the jumper settings for
-    its three bus topologies (all sensors on one bus, or either IMU as hub).
-    Reference: UM3239.
+29. **SETTLED on Thursday 12 November 2026**, from UM3239 on this laptop, and
+    independently agreed by the board measurement of Friday 6 November 2026.
+    Table 1 on page 7 gives the factory address of each part in bold, and
+    `projects/P13-iks4a1-fifo/` carries the same table beside the measured
+    column. Four addresses are set by a solder bridge, left as shipped:
+
+    | Part | Bridge | Manual, 8 bit | 7 bit |
+    |---|---|---|---|
+    | LIS2DUXS12 | SB20 | 33h | `0x19` |
+    | LIS2MDL | fixed | 3Ch | `0x1E` |
+    | STTS22H | fixed | 71h | `0x38` |
+    | SHT40AD1B | fixed | 89h | `0x44` |
+    | LPS22DF | SB29 | BBh | `0x5D` |
+    | LSM6DSO16IS | SB35 | D5h | `0x6A` |
+    | LSM6DSV16X | SB15 | D7h | `0x6B` |
+
+    Page 6 gives the reason the bridges exist: to avoid an address conflict on
+    the I2C bus between the LSM6DSO16IS and the LSM6DSV16X. What remains unread
+    is the hub topologies, which is a different question on a different page and
+    is still open where chapter 13 needs it.
 30. The IKS5A1 complement. **Settled from the vendor's product page and three
     corroborating sources**: ISM6HG256X, ISM330IS with ISPU, IIS2DULPX, IIS2MDC,
     ILPS22QS. The LSM6DSV32X and LSM6DSO16IS claims in local notes are wrong.

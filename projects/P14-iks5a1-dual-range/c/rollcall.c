@@ -14,17 +14,26 @@
  * and the sibling lab set records the symptom of breaking it; here the firmware
  * enforces it instead of a sentence asking a reader to.
  *
- * THE THREE DISCRIMINATORS, from the two measurements:
+ * THE DISCRIMINATORS, from the two measurements and UM3239. There are five
+ * rows and the heading used to say three, which was the count of the ones
+ * written into IKS4A1_SIGNS below rather than the count of the table:
  *
  *             IKS5A1 (this)        IKS4A1 (P13's)
  *   0x38      absent               present, 0x01 = 0xA0
  *   0x44      absent               present, no register interface
  *   pressure  0x5C                 0x5D
- *   0x6A      0x73                 0x22
+ *   0x6A      0x73                 0x22, the LSM6DSO16IS by UM3239
+ *   0x6B      0x22, unnamed here   0x70, the LSM6DSV16X by UM3239
  *
- * So fitting the IKS4A1 by mistake reports a missing 0x5C, an unlisted 0x5D,
- * two unlisted addresses at 0x38 and 0x44, and the wrong value at 0x6A. Four
- * independent ways to notice, printed before the refusal.
+ * Both named parts in that right-hand column are the other card's and neither
+ * is on this shield, which is the whole reason the left column names nothing.
+ *
+ * So fitting the IKS4A1 by mistake is noticed six independent ways, which is
+ * the number the capture of Monday 9 November 2026 actually printed: 0x5C
+ * missing, 0x5D unlisted, 0x38 unlisted, 0x44 unlisted, the wrong value at
+ * 0x6A and the wrong value at 0x6B. This sentence said four and listed five,
+ * having dropped the second inertial row twice over; the count is written out
+ * item by item now so the number cannot drift from the list again.
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -46,10 +55,42 @@
  * connector. The addresses are the devices' own and do not depend on the
  * master, so they carry over; anything that does not is what this image is for.
  *
- * 0x6A IS AN IMU NOTHING ON THAT PI COULD NAME. It answered 0x73 and is not in
- * the kernel driver's table, so the row carries the value without a part name.
- * Printing an unnamed value is honest; guessing a part number from a datasheet
- * this laptop cannot open is how a wrong figure becomes a cited one.
+ * NO VENDOR MANUAL BACKS THIS TABLE, and that is now a deliberate difference
+ * rather than an oversight. P13's equivalent is confirmed row by row by
+ * UM3239, read on Thursday 12 November 2026, which gives the solder bridge
+ * setting each address on the IKS4A1. The corresponding manual for this shield
+ * is UM3550, named in AUTHORING.md, and it is NOT on the authoring laptop:
+ * Downloads holds UM2408, UM3239 and the IKS4A1 data brief and nothing for the
+ * IKS5A1. So this table rests on one measurement from one bus, and the capture
+ * that would confirm it from a second master does not exist yet. Say which
+ * document is missing rather than that none exists; the first can be fetched.
+ *
+ * NEITHER INERTIAL ROW CARRIES A PART NAME, AND ONE OF THEM USED TO.
+ *
+ *   0x6A answered 0x73, which is in no driver table the Pi held, so that row
+ *   never had a name. Printing an unnamed value is honest; guessing a part
+ *   number from a datasheet this laptop cannot open is how a wrong figure
+ *   becomes a cited one.
+ *
+ *   0x6B answered 0x22 and this table called it the LSM6DSO16IS until
+ *   Thursday 12 November 2026, because the Pi's driver table mapped 0x22 to
+ *   that part. CHAPTER 14 RULES THAT PART OFF THIS SHIELD: four sources,
+ *   the vendor's product page among them, give the complement as ISM6HG256X,
+ *   ISM330IS, IIS2DULPX, IIS2MDC and ILPS22QS, and the chapter's step 1 says
+ *   in as many words that finding an LSM6DSO16IS means holding a different
+ *   board. The ISM330IS is that part's industrial sibling with the same core,
+ *   which is the likeliest reason one identification value matched two
+ *   catalogue numbers. So 0x22 here is NOT evidence of the LSM6DSO16IS; it is
+ *   evidence that an identification value does not name a part across a
+ *   product family, and until UM3550 is on this laptop the row stays unnamed.
+ *
+ * THE WIDER CORRECTION. P14's own README and the journal of Monday 9 November
+ * 2026 presented the two cards as strapping ONE SHARED PART to swapped
+ * addresses, 0x6A on the IKS4A1 and 0x6B here. That reading is withdrawn. The
+ * cards carry DIFFERENT PARTS that answer the same value, which is a sharper
+ * version of the same lesson and a worse trap: a swapped address can be found
+ * by a scan, while two siblings sharing an identification value cannot be
+ * separated by any register this image reads.
  *
  * THE 0x4F ROW IS THE ONE THAT CATCHES PEOPLE. The LIS2MDL keeps its WHO_AM_I
  * at 0x4F and not at 0x0F, so a roll call reading only 0x0F reports a present
@@ -66,7 +107,7 @@ static const expected_t EXPECTED[] = {
     { 0x1Eu, 0x4Fu, 0x40u, "LIS2MDL magnetometer" },
     { 0x5Cu, 0x0Fu, 0xB4u, "LPS22DF or LPS28DFW pressure" },
     { 0x6Au, 0x0Fu, 0x73u, "inertial, unnamed: 0x73 is in no driver table here" },
-    { 0x6Bu, 0x0Fu, 0x22u, "LSM6DSO16IS inertial" },
+    { 0x6Bu, 0x0Fu, 0x22u, "inertial, unnamed: 0x22 named a part not on this card" },
 };
 #define EXPECTED_COUNT  (sizeof EXPECTED / sizeof EXPECTED[0])
 
