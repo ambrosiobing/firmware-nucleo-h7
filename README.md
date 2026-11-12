@@ -24,7 +24,7 @@ code for the same subject.
 [![firmware](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml/badge.svg)](https://github.com/ambrosiobing/firmware-nucleo-h7/actions/workflows/firmware.yml)
 
 **What those three check, and what a green badge does not mean.** `book` is the
-prose, the figures and the links. `code` is the host suite, 1028 checks on a runner
+prose, the figures and the links. `code` is the host suite, 1030 checks on a runner
 with no board. `firmware` cross-compiles for the target. None of the three can see
 the board, so none of them can turn red when a measurement is wrong. Which
 projects have actually run on hardware, which only link, and which are host only
