@@ -160,13 +160,18 @@ nucleo-h7a3-iks4a1-fifo/
 
 **Step 1.** **Choose the bus arrangement before writing code and write down why.** There are three and they are not interchangeable. Everything on one bus is the simplest to debug and the most transactions. Either inertial unit as the hub reduces transactions and moves configuration into the hub device. The jumper map is in UM3239 and the arrangements are set out more clearly in the upstream shield description in the other operating system's tree, which is worth reading first even though it is not C.
 
+**On this bench only one of the three is reachable, and the choice is therefore already made.** The hub arrangements are selected by moving a solder bridge, and no soldering is done here, a constraint fixed on Thursday 12 November 2026 and recorded in `AUTHORING.md`. So the shield stays in its shipped state, which is all sensors directly on the bus, and the write-up below records a constraint rather than a preference. Say which it is: a reason that was really a restriction, written as though it had been weighed, is the kind of sentence this book exists to avoid. The transaction count the hub arrangements would reduce stays a calculation and never becomes a measurement here, and chapter 16 inherits that limit.
+
 ```text
 docs/topology.md
   chosen: all sensors directly on the bus
-  why:    the acceptance run needs one interrupt source and the simplest
-          possible failure mode; the hub arrangements are chapter 16's
-          question, where the transaction count is the thing being measured
-  jumpers: per UM3239, recorded here after being read off the silkscreen
+  why:    the only arrangement reachable without soldering, which is a
+          constraint and not a preference; it also happens to be the one
+          the acceptance run wants, needing one interrupt source and the
+          simplest possible failure mode
+  not:    either inertial unit as a hub, both selected by a solder bridge,
+          so the transaction count they would reduce stays a calculation
+  jumpers: per UM3239, as shipped, read off the silkscreen and not moved
 ```
 
 **Step 2.** **Vendor the driver collection and write the shim.** Two functions, and they are the only place this chapter touches the bus peripheral directly.

@@ -170,6 +170,17 @@ into one row at 0x6A, so the straps are what make two of the same class of part
 addressable at once, and the arrangement in use is the factory one: every bridge
 left as shipped. Nothing on this shield was moved to make the roll call pass.
 
+**And nothing will be, which narrows criterion 6's first clause.** No soldering
+is done on this bench, fixed as a hardware constraint on Thursday 12 November
+2026 and recorded in `AUTHORING.md`: no bridge is closed with tin, opened or
+reworked, and every connection is a removable jumper wire on accessible pins.
+Chapter 13's step 1 offers three bus arrangements and two of them, either
+inertial unit as a hub, are selected by moving a bridge, so **one of the three
+is reachable** and it is the one already in use. The recorded choice is
+therefore a constraint and not a preference, which is the honest way to write
+it, and the transaction count the hub arrangements would reduce stays a
+calculation here rather than becoming a measurement.
+
 **Still not the FIFO.** This image polls nothing and logs nothing. Criteria 1
 to 4 and 7, the ten-minute run, the watermark interrupt, the drain time and the
 charge comparison, are the rest of the chapter and are untouched.

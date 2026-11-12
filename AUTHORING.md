@@ -221,8 +221,28 @@ Joseph on Sunday 20 September 2026. Every timing and energy claim comes from:
 - the board's own **timers and the DWT cycle counter**.
 
 A chapter that would be easier with a scope says so in one sentence and gives
-the substitute. There is also **no soldering iron**, so nothing that needs a
-solder bridge moved is proposed.
+the substitute.
+
+**NO SOLDERING, AND REMOVABLE WIRE JUMPERS ONLY.** Fixed as a hardware
+constraint on Thursday 12 November 2026, binding for every board and shield
+here. No solder bridge is closed with tin, opened, or reworked, and no pad or
+zero-ohm link is touched. Every connection is made with removable jumper wires
+on accessible connector pins, and must not short an existing connection.
+
+This splits every wiring question into two that otherwise read as one:
+
+| Question | What answers it |
+| --- | --- |
+| Electrical | Which signals must be connected or separated |
+| Physical | How that is reached with removable jumpers on accessible pins only |
+
+A vendor manual answers the first, and for these boards it answers the second
+with a solder bridge. That second answer is not available, so **a documented
+bridge is not automatically a permitted solution**: an arrangement whose only
+documented route is a bridge is out of scope rather than merely inconvenient,
+and a page offering it as a choice has to say so. Reading a manual's bridge
+table is still right, because the shipped state is a fact worth knowing. Acting
+on it is not.
 
 ---
 
@@ -489,6 +509,14 @@ machine-readable and were read directly, not from a summary.
     as an analogue input may or may not be sharing them with the bus, and that
     is a continuity measurement on the board or a reading of the schematic,
     not a question this manual answers.
+
+    **AND SWITCHING BETWEEN THEM IS OUT OF SCOPE** under the no-soldering
+    constraint above, which narrows this question rather than answering it.
+    Both routes are reached only by changing a bridge, so the board stays in
+    whatever state it shipped in and the only thing left to establish is WHICH
+    state that is. That matters as much as before: it decides whether a shield
+    reading A4 or A5 as an analogue input collides with the bus, and if it
+    does, the answer is to avoid those pins rather than to rework the board.
 13. Which Zio pins with timer channels and spare GPIO remain free while a shield
     is fitted, for the PPK2 marker pins.
 14. Whether the drag-and-drop disk appears, and whether using it conflicts with
@@ -568,15 +596,24 @@ machine-readable and were read directly, not from a summary.
     | LSM6DSV16X | SB15 | D7h | `0x6B` |
 
     Page 6 gives the reason the bridges exist: to avoid an address conflict on
-    the I2C bus between the LSM6DSO16IS and the LSM6DSV16X. What remains unread
-    is the hub topologies, which is a different question on a different page and
-    is still open where chapter 13 needs it.
+    the I2C bus between the LSM6DSO16IS and the LSM6DSV16X.
+
+    **The bridges stay as shipped and the hub topologies are out of scope**,
+    under the no-soldering constraint. That is not a loss here: the shipped
+    state is the one the board measurement of Friday 6 November 2026 used and
+    the one P13 runs on. It does remove two of the three bus arrangements
+    chapter 13 offers, leaving all sensors on one bus, which is what P13 chose
+    anyway and for its own reasons.
 30. The IKS5A1 complement. **Settled from the vendor's product page and three
     corroborating sources**: ISM6HG256X, ISM330IS with ISPU, IIS2DULPX, IIS2MDC,
     ILPS22QS. The LSM6DSV32X and LSM6DSO16IS claims in local notes are wrong.
     Confirm on the silkscreen in a paragraph, then move on. Reference: UM3550.
-31. Whether the 53L8A1's bus selection is a jumper and not a solder bridge, and
-    which SPI signals it uses. If it needs soldering, chapter 15 is I2C only.
+31. Whether the 53L8A1's bus selection is a **plug** jumper and not a solder
+    bridge, and which SPI signals it uses. The conditional half of this question
+    is now decided in advance rather than on discovery: under the no-soldering
+    constraint of Thursday 12 November 2026, a bridge means chapter 15 is I2C
+    only, so the reading settles which chapter gets written and not whether a
+    rework is worth it.
     Reference: UM3120.
 32. The time-of-flight sensor's firmware image size and upload time, and how much
     flash it costs. Expected: about 84 kB, on the order of seconds, every
