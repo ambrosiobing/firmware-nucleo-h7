@@ -185,15 +185,38 @@ calculation here rather than becoming a measurement.
 to 4 and 7, the ten-minute run, the watermark interrupt, the drain time and the
 charge comparison, are the rest of the chapter and are untouched.
 
-One question the manual does NOT answer, recorded because it is the kind that
-costs a bench session. Table 16 on page 35 pairs SB69 and SB40, which put the
-ADC on A4 and A5, against SB62 and SB39, which put PB9 and PB8, the same two
-I2C1 pins, on A4 and A5 of connector CN9 instead. **Neither state is marked as
-the default**: on that page the only bold entries are the bridge names SB73,
-SB93 and SB78, while pages 33 and 34 do mark their defaults in bold. So whether
-this board also presents SCL and SDA at A4 and A5 is unread, and if it does, a
-shield reading A4 or A5 as an analogue input collides with the bus. Settle it on
-the board or from the schematic, not from this manual.
+**The A4 and A5 question is answered, and the earlier reading stopped one page
+too early.** This paragraph said the manual does not answer it. Table 16 on page
+35 pairs SB69 and SB40, putting the ADC on A4 and A5, against SB62 and SB39,
+putting PB9 and PB8, the same two I2C1 pins, there instead, and neither state is
+marked as the default on that page: the only bold entries are the bridge names
+SB73, SB93 and SB78, while pages 33 and 34 do mark their defaults in bold. All
+of that is still true. What was missed is that the answer is on the NEXT page.
+
+Figure 18, the extension connectors **for the NUCLEO-H7A3ZI-Q specifically**,
+prints PC2 on A4 and PF11 on A5, and its own footnote reads: SB39 and SB62 must
+be ON, SB40 and SB69 must be OFF, to connect I2C on A4 and A5. A route
+described as something that must first be made is not the route that ships, and
+Table 16 lists the ADC combination first as ON, ON, OFF, OFF. Three
+indications for this board agree, so **the shipped state puts the ADC on A4 and
+A5 and the bus is not there**. A shield reading A4 or A5 as an analogue input
+therefore does not collide with I2C1, which is the practical answer the question
+was asked for. It is a figure reading plus a footnote rather than a bold-marked
+default, so it is written as what it is; and under the no-soldering constraint
+the alternative is out of scope regardless, which makes this the end state
+rather than a decision still to take.
+
+**Read the figure for the right board.** Figure 17 on the page before is the
+NUCLEO-H745ZI-Q and NUCLEO-H755ZI-Q, and it carries the same A4 and A5 rows,
+so a reading taken from it would look identical and mean nothing for this part.
+
+**One thing stays unsettled, and it is a conflict inside the manual.** Table 16
+places A4 and A5 at CN9 pins 9 and 11, while Figure 18's footnote places them
+at pin 5 and pin 6 of CN9. Both cannot be CN9's own numbering. The likeliest
+reading is that the footnote counts A4 and A5 as the fifth and sixth analogue
+signals of the Arduino subset, which occupy the odd pins 1, 3, 5, 7, 9 and 11,
+but that is an inference and is not written here as a fact. Settle the pin
+numbers on the board or from the schematic.
 
 Chapter 13 of [the book][book] is the written design.
 

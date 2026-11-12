@@ -384,7 +384,7 @@ Normative references:
 - UM3550, the user manual for the X-NUCLEO-IKS5A1, for the fitted parts, the addresses, the jumper options and the interrupt routing to header pins.
 - The datasheets of the ISM6HG256X, ISM330IS, IIS2DULPX, IIS2MDC and ILPS22QS, for the full-scale lists, the output word format, the output data rates and the interrupt behaviour.
 - Reference manual RM0455 for I2C1 and the external interrupt controller on this part. Not RM0433, which documents its better-known sibling.
-- The board user manual for MB1363, read on Friday 6 November 2026 for the Arduino header mapping. Table 18 on page 44 gives D15 as I2C\_A\_SCL on PB8 and D14 as I2C\_A\_SDA on PB9, at CN7 pins 2 and 4. It leaves one thing open: Table 16 on page 35 can strap those same two pins to A4 and A5 of CN9 instead of the ADC pins, and marks neither arrangement as the default, so a shield using A4 or A5 as an analogue input may be sharing them with this bus.
+- The board user manual for MB1363, read on Friday 6 November 2026 for the Arduino header mapping. Table 18 on page 44 gives D15 as I2C\_A\_SCL on PB8 and D14 as I2C\_A\_SDA on PB9, at CN7 pins 2 and 4. Table 16 on page 35 can strap those same two pins to A4 and A5 of CN9 instead of the ADC pins and marks neither arrangement as the default, which was read on Friday 6 November 2026 as leaving the question open. Figure 18 on the next page, the one for this board and not Figure 17's siblings, closes it: it prints PC2 on A4 and PF11 on A5, and its footnote says SB39 and SB62 must be ON and SB40 and SB69 OFF to connect I2C there. The shipped state is the ADC, so a shield using A4 or A5 as an analogue input is not sharing them with this bus.
 
 Reusable implementations:
 

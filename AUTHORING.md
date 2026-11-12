@@ -500,15 +500,36 @@ machine-readable and were read directly, not from a summary.
     as ADC_12_INP15, A1 on PC0 as ADC_123_INP10, A2 on PC3_C as ADC_3_INP1 and
     A3 on PB1 as ADC_12_INP5.
 
-    **A4 and A5 are the one part still open, and the manual says so by saying
-    nothing.** Table 16 on page 35 offers SB69 and SB40, putting PC2_C and PF11
-    on A4 and A5, against SB62 and SB39, putting PB9 and PB8, the I2C1 pair, on
-    A4 and A5 instead. Neither row is bold, and bold is how that table marks a
-    default: the only bold entries on page 35 are the bridge names SB73, SB93
-    and SB78, while pages 33 and 34 do mark theirs. So a shield using A4 or A5
-    as an analogue input may or may not be sharing them with the bus, and that
-    is a continuity measurement on the board or a reading of the schematic,
-    not a question this manual answers.
+    **A4 and A5 are SETTLED on Thursday 12 November 2026, one page later than
+    the first reading looked.** Table 16 on page 35 offers SB69 and SB40,
+    putting PC2 and PF11 on A4 and A5, against SB62 and SB39, putting PB9 and
+    PB8, the I2C1 pair, there instead, and neither row is bold, which is how
+    that table marks a default: the only bold entries on page 35 are the bridge
+    names SB73, SB93 and SB78, while pages 33 and 34 do mark theirs. That much
+    was read on Friday 6 November 2026 and the conclusion drawn was that the
+    manual does not answer it. The answer is on the next page.
+
+    Figure 18, the extension connectors for the NUCLEO-H7A3ZI-Q, prints PC2 on
+    A4 and PF11 on A5, and its footnote reads that SB39 and SB62 must be ON and
+    SB40 and SB69 must be OFF to connect I2C on A4 and A5. A route described as
+    one that must first be made is not the route that ships, the page before
+    Table 16 says the board is delivered with its bridges set for the supported
+    target, and Table 16 lists the ADC combination first. **The shipped state is
+    the ADC on A4 and A5, so the bus is not there**, and a shield reading either
+    as an analogue input does not collide with I2C1. Written as what it is: a
+    figure plus a footnote, not a bold-marked default. Under the no-soldering
+    constraint the alternative is out of scope anyway.
+
+    Read Figure 18 and not Figure 17, which is the NUCLEO-H745ZI-Q and
+    NUCLEO-H755ZI-Q and carries A4 and A5 rows that look the same.
+
+    **What stays open is a conflict inside the manual**: Table 16 places A4 and
+    A5 at CN9 pins 9 and 11, Figure 18's footnote at pin 5 and pin 6 of CN9.
+    Both cannot be CN9's own numbering. A4 and A5 being the fifth and sixth
+    analogue signals of the Arduino subset, which sits on the odd pins 1 to 11,
+    would explain it, and that is an inference rather than a reading. The pin
+    numbers are a continuity measurement on the board or a reading of the
+    schematic.
 
     **AND SWITCHING BETWEEN THEM IS OUT OF SCOPE** under the no-soldering
     constraint above, which narrows this question rather than answering it.
