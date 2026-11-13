@@ -1,0 +1,115 @@
+
+P13 roll call, X-NUCLEO-IKS4A1 expected, one shield only
+  bus      I2C1 on PB8 SCL and PB9 SDA, Arduino D15 and D14,
+           CN7 pins 2 and 4, alternate function 4, open drain
+  core     64000000 Hz
+  i2c_ker  64000000 Hz, taken as rcc_pclk1
+  asked    100000 Hz
+  TIMINGR  wrote 10118BB3 read back 10118BB3
+           PRESC 1 SCLL 179 SCLH 139 SDADEL 1 SCLDEL 1
+  computed 100000 Hz, an upper bound: no rise time in the model
+
+scan 0x08 to 0x77:
+  0x09  answers   reg 0x0F nack   reg 0x4F nack
+  0x0A  answers   reg 0x0F nack   reg 0x4F nack
+  0x0E  answers   reg 0x0F nack   reg 0x4F nack
+  0x0F  answers   reg 0x0F nack   reg 0x4F nack
+  0x13  answers   reg 0x0F nack   reg 0x4F nack
+  0x14  answers   reg 0x0F nack   reg 0x4F nack
+  0x18  answers   reg 0x0F nack   reg 0x4F nack
+  0x19  answers   reg 0x0F = 0x47   reg 0x4F = 0xAA
+  0x1A  answers   reg 0x0F nack   reg 0x4F nack
+  0x1E  answers   reg 0x0F = 0x00   reg 0x4F = 0x40
+  0x1F  answers   reg 0x0F nack   reg 0x4F nack
+  0x23  answers   reg 0x0F nack   reg 0x4F nack
+  0x24  answers   reg 0x0F nack   reg 0x4F nack
+  0x28  answers   reg 0x0F nack   reg 0x4F nack
+  0x29  answers   reg 0x0F nack   reg 0x4F nack
+  0x2D  answers   reg 0x0F nack   reg 0x4F nack
+  0x2E  answers   reg 0x0F nack   reg 0x4F nack
+  0x32  answers   reg 0x0F nack   reg 0x4F nack
+  0x33  answers   reg 0x0F nack   reg 0x4F nack
+  0x37  answers   reg 0x0F nack   reg 0x4F nack
+  0x38  answers   reg 0x0F = 0x00   reg 0x4F = 0xFF
+  0x39  answers   reg 0x0F nack   reg 0x4F nack
+  0x3D  answers   reg 0x0F nack   reg 0x4F nack
+  0x3E  answers   reg 0x0F nack   reg 0x4F nack
+  0x42  answers   reg 0x0F nack   reg 0x4F nack
+  0x43  answers   reg 0x0F nack   reg 0x4F nack
+  0x45  answers   reg 0x0F nack   reg 0x4F nack
+  0x49  answers   reg 0x0F nack   reg 0x4F nack
+  0x4A  answers   reg 0x0F nack   reg 0x4F nack
+  0x4E  answers   reg 0x0F nack   reg 0x4F nack
+  0x4F  answers   reg 0x0F nack   reg 0x4F nack
+  0x53  answers   reg 0x0F nack   reg 0x4F nack
+  0x54  answers   reg 0x0F nack   reg 0x4F nack
+  0x58  answers   reg 0x0F nack   reg 0x4F nack
+  0x59  answers   reg 0x0F nack   reg 0x4F nack
+  0x5D  answers   reg 0x0F = 0xB4   reg 0x4F = 0x00
+  0x5E  answers   reg 0x0F nack   reg 0x4F nack
+  0x62  answers   reg 0x0F nack   reg 0x4F nack
+  0x63  answers   reg 0x0F nack   reg 0x4F nack
+  0x67  answers   reg 0x0F nack   reg 0x4F nack
+  0x68  answers   reg 0x0F nack   reg 0x4F nack
+  0x6B  answers   reg 0x0F = 0x70   reg 0x4F = 0xEC
+  0x6D  answers   reg 0x0F nack   reg 0x4F nack
+  0x6E  answers   reg 0x0F nack   reg 0x4F nack
+  0x72  answers   reg 0x0F nack   reg 0x4F nack
+  0x73  answers   reg 0x0F nack   reg 0x4F nack
+  0x77  answers   reg 0x0F nack   reg 0x4F nack
+  47 device(s) answered
+
+roll call against the expected X-NUCLEO-IKS4A1:
+  0x6A  MISSING   inertial, LSM6DSV16X or LSM6DSO16IS
+  0x1E  confirmed reg 0x4F = 0x40, LIS2MDL magnetometer
+  0x44  MISSING   SHT40AD1B humidity, no WHO_AM_I register
+  0x5C  MISSING   LPS22DF barometer
+  0x38  present   reg 0x0F = 0x00, unmeasured here, STTS22H temperature, 0x38 class
+  0x09  UNLISTED  answered and no entry expects it
+  0x0A  UNLISTED  answered and no entry expects it
+  0x0E  UNLISTED  answered and no entry expects it
+  0x0F  UNLISTED  answered and no entry expects it
+  0x13  UNLISTED  answered and no entry expects it
+  0x14  UNLISTED  answered and no entry expects it
+  0x18  UNLISTED  answered and no entry expects it
+  0x19  UNLISTED  answered and no entry expects it
+  0x1A  UNLISTED  answered and no entry expects it
+  0x1F  UNLISTED  answered and no entry expects it
+  0x23  UNLISTED  answered and no entry expects it
+  0x24  UNLISTED  answered and no entry expects it
+  0x28  UNLISTED  answered and no entry expects it
+  0x29  UNLISTED  answered and no entry expects it
+  0x2D  UNLISTED  answered and no entry expects it
+  0x2E  UNLISTED  answered and no entry expects it
+  0x32  UNLISTED  answered and no entry expects it
+  0x33  UNLISTED  answered and no entry expects it
+  0x37  UNLISTED  answered and no entry expects it
+  0x39  UNLISTED  answered and no entry expects it
+  0x3D  UNLISTED  answered and no entry expects it
+  0x3E  UNLISTED  answered and no entry expects it
+  0x42  UNLISTED  answered and no entry expects it
+  0x43  UNLISTED  answered and no entry expects it
+  0x45  UNLISTED  answered and no entry expects it
+  0x49  UNLISTED  answered and no entry expects it
+  0x4A  UNLISTED  answered and no entry expects it
+  0x4E  UNLISTED  answered and no entry expects it
+  0x4F  UNLISTED  answered and no entry expects it
+  0x53  UNLISTED  answered and no entry expects it
+  0x54  UNLISTED  answered and no entry expects it
+  0x58  UNLISTED  answered and no entry expects it
+  0x59  UNLISTED  answered and no entry expects it
+  0x5D  UNLISTED  answered and no entry expects it
+  0x5E  UNLISTED  answered and no entry expects it
+  0x62  UNLISTED  answered and no entry expects it
+  0x63  UNLISTED  answered and no entry expects it
+  0x67  UNLISTED  answered and no entry expects it
+  0x68  UNLISTED  answered and no entry expects it
+  0x6B  UNLISTED  answered and no entry expects it
+  0x6D  UNLISTED  answered and no entry expects it
+  0x6E  UNLISTED  answered and no entry expects it
+  0x72  UNLISTED  answered and no entry expects it
+  0x73  UNLISTED  answered and no entry expects it
+  0x77  UNLISTED  answered and no entry expects it
+
+REFUSED: the bus is not the expected X-NUCLEO-IKS4A1.
+

@@ -75,7 +75,9 @@
  *
  * MEASURED ON THIS BOARD ON FRIDAY 6 NOVEMBER 2026, and the table below is now
  * that measurement rather than the lab set's. The first trustworthy capture,
- * image B55D8693, found seven devices and settled two disagreements:
+ * image B55D8693, found seven devices and settled two disagreements. It is
+ * console/rollcall_2026-11-06_fixed.txt, and the refusal it replaced, 47
+ * devices on a bus holding seven, is console/rollcall_2026-11-06.txt:
  *
  *   TWO INERTIAL UNITS, AT 0x6A AND 0x6B, answering 0x22 and 0x70. Chapter 13
  *   says the shield carries two and the lab set's table lists one row at 0x6A,

@@ -250,8 +250,14 @@ static i2c_status_t i2c_wait(uint32_t mask, uint32_t *isr_out)
              * looks and reports a device that is not there.
              *
              * That is not hypothetical. The first capture, on Friday
-             * 6 November 2026, reported 47 devices on a five-sensor shield,
+             * 6 November 2026, reported 47 devices on a SEVEN-sensor shield,
              * every false one at an address immediately after a refused one.
+             * It is in the repository as
+             * projects/P13-iks4a1-fifo/console/rollcall_2026-11-06.txt, read
+             * it beside this. This comment said five sensors until Friday
+             * 13 November 2026, carried over from the sibling lab set's table
+             * that undercounted the inertial units, which is the same wrong
+             * table this project corrected on the day it measured the bus.
              * Chapter 6's converter bring-up carries a paragraph headed STALE
              * FLAGS FIRST for the same mechanism on a different peripheral,
              * and it was not applied here. */

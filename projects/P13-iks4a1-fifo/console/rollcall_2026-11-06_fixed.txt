@@ -1,0 +1,66 @@
+image B55D869347121FDA5014FA516813527FD735B25E69A3E14755CD9149F0A624CD
+
+P13 roll call, X-NUCLEO-IKS4A1 expected, one shield only
+  bus      I2C1 on PB8 SCL and PB9 SDA, Arduino D15 and D14,
+           CN7 pins 2 and 4, alternate function 4, open drain
+  core     64000000 Hz
+  i2c_ker  64000000 Hz, taken as rcc_pclk1
+  asked    100000 Hz
+  TIMINGR  wrote 10118BB3 read back 10118BB3
+           PRESC 1 SCLL 179 SCLH 139 SDADEL 1 SCLDEL 1
+  computed 100000 Hz, an upper bound: no rise time in the model
+
+scan 0x08 to 0x77:
+  0x19  answers   reg 0x0F = 0x47   reg 0x4F = 0xAA
+  0x1E  answers   reg 0x0F = 0x00   reg 0x4F = 0x40
+  0x38  answers   reg 0x0F = 0x00   reg 0x4F = 0xFF
+  0x44  answers   reg 0x0F nack   reg 0x4F nack
+  0x5D  answers   reg 0x0F = 0xB4   reg 0x4F = 0x00
+  0x6A  answers   reg 0x0F = 0x22   reg 0x4F = 0x00
+  0x6B  answers   reg 0x0F = 0x70   reg 0x4F = 0xEC
+  7 device(s) answered
+
+roll call against the expected X-NUCLEO-IKS4A1:
+  0x6A  present   reg 0x0F = 0x22, unmeasured here, inertial, LSM6DSV16X or LSM6DSO16IS
+  0x1E  confirmed reg 0x4F = 0x40, LIS2MDL magnetometer
+  0x44  present   SHT40AD1B humidity, no WHO_AM_I register
+  0x5C  MISSING   LPS22DF barometer
+  0x38  present   reg 0x0F = 0x00, unmeasured here, STTS22H temperature, 0x38 class
+  0x19  UNLISTED  answered and no entry expects it
+  0x5D  UNLISTED  answered and no entry expects it
+  0x6B  UNLISTED  answered and no entry expects it
+
+REFUSED: the bus is not the expected X-NUCLEO-IKS4A1.
+
+P13 roll call, X-NUCLEO-IKS4A1 expected, one shield only
+  bus      I2C1 on PB8 SCL and PB9 SDA, Arduino D15 and D14,
+           CN7 pins 2 and 4, alternate function 4, open drain
+  core     64000000 Hz
+  i2c_ker  64000000 Hz, taken as rcc_pclk1
+  asked    100000 Hz
+  TIMINGR  wrote 10118BB3 read back 10118BB3
+           PRESC 1 SCLL 179 SCLH 139 SDADEL 1 SCLDEL 1
+  computed 100000 Hz, an upper bound: no rise time in the model
+
+scan 0x08 to 0x77:
+  0x19  answers   reg 0x0F = 0x47   reg 0x4F = 0xAA
+  0x1E  answers   reg 0x0F = 0x00   reg 0x4F = 0x40
+  0x38  answers   reg 0x0F = 0x00   reg 0x4F = 0xFF
+  0x44  answers   reg 0x0F nack   reg 0x4F nack
+  0x5D  answers   reg 0x0F = 0xB4   reg 0x4F = 0x00
+  0x6A  answers   reg 0x0F = 0x22   reg 0x4F = 0x00
+  0x6B  answers   reg 0x0F = 0x70   reg 0x4F = 0xEC
+  7 device(s) answered
+
+roll call against the expected X-NUCLEO-IKS4A1:
+  0x6A  present   reg 0x0F = 0x22, unmeasured here, inertial, LSM6DSV16X or LSM6DSO16IS
+  0x1E  confirmed reg 0x4F = 0x40, LIS2MDL magnetometer
+  0x44  present   SHT40AD1B humidity, no WHO_AM_I register
+  0x5C  MISSING   LPS22DF barometer
+  0x38  present   reg 0x0F = 0x00, unmeasured here, STTS22H temperature, 0x38 class
+  0x19  UNLISTED  answered and no entry expects it
+  0x5D  UNLISTED  answered and no entry expects it
+  0x6B  UNLISTED  answered and no entry expects it
+
+REFUSED: the bus is not the expected X-NUCLEO-IKS4A1.
+

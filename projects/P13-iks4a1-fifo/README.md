@@ -181,6 +181,24 @@ therefore a constraint and not a preference, which is the honest way to write
 it, and the transaction count the hub arrangements would reduce stays a
 calculation here rather than becoming a measurement.
 
+**All three captures of that day are here, and two of them were not until
+Friday 13 November 2026.** They had been sitting untracked on the bench laptop
+while this repository's own source cited them, which is the failure this volume
+keeps naming in other people's work: a claim whose evidence lives on one
+machine. No page named the files, so `check_status.py` could not notice either,
+because it checks that a named path exists and is blind to a file nobody names.
+
+| Capture | Image | What it shows |
+| --- | --- | --- |
+| `console/rollcall_2026-11-06.txt` | none printed | **47 devices on a bus holding seven**, every false one at an address immediately after a refused one. This is the stale-flag defect `c/board/i2c.c` describes, and it is that comment's evidence |
+| `console/rollcall_2026-11-06_fixed.txt` | B55D8693 | seven devices after the fix, the run `c/rollcall.c` calls the first trustworthy capture |
+| `console/rollcall_2026-11-06_pass.txt` | 3AF8847E | the run above, carrying the build stamp the first two lack |
+
+**The first capture has no `built` line**, which is itself a record of something:
+the `__DATE__ __TIME__` stamp was added to the banner later that evening, after a
+repeat capture came back byte-identical and could not be told apart from a
+skipped rebuild. The three files read in order show that fix arriving.
+
 **Still not the FIFO.** This image polls nothing and logs nothing. Criteria 1
 to 4 and 7, the ten-minute run, the watermark interrupt, the drain time and the
 charge comparison, are the rest of the chapter and are untouched.
