@@ -1,6 +1,6 @@
 # P14: The IKS5A1, low and high g at once
 
-Status: c=host cpp=host python=host rust=host
+Status: c=board cpp=host python=host rust=host
 
 **Started on the host, Monday 26 October 2026.** Chapter 14's step 7 says to
 write the record's decoder at the same time as the firmware, because "a format
@@ -99,7 +99,10 @@ Both acceleration channels proved live, the watermark line, the circular
 pre-trigger ring, the arming on the high-g line, the cost of changing the
 barometer's full scale, the foam-pad event, the sealed bag, and the rate at which
 the bus stops keeping up. **There is no measured number anywhere in this
-project**, and the status line says host for that reason. The drain time above is
+project**, and the status line said host for that reason until Friday
+13 November 2026, when the identification roll call passed on the board. It says
+`c=board` now and the sentence still holds for every figure: an identification
+value read off a part is not a measurement of anything this chapter is about. The drain time above is
 computed from a bus rate, which is what step 10 asks for and explicitly not a
 measurement.
 
@@ -161,10 +164,44 @@ by row by UM3239, including the solder bridge that sets each address. This
 project's table has no vendor manual behind it at all, only the one Pi
 measurement, which is why it is the table that produced a wrong part name.
 
-**The passing capture is still outstanding.** Until the IKS5A1 is fitted alone
-and this image prints PASS, nothing here claims the expected table is right:
-the table is a claim from a Pi measurement of Tuesday 27 October 2026 and the
-board has not yet agreed with it. The state line stays host for that reason.
+**THE PASSING CAPTURE EXISTS, Friday 13 November 2026**, image
+185D300FDC8690D2, with the X-NUCLEO-IKS5A1 fitted alone, built Nov 13 2026
+11:06:38 so it is not Monday's image reappearing. Five devices answered and all
+five identified. The capture is
+`console/rollcall_2026-11-13_pass.txt`, and the C status moves from host to
+board.
+
+| Address | Register | Value | Row |
+| --- | --- | --- | --- |
+| 0x19 | 0x0F | 0x47 | LIS2DUXS12 accelerometer |
+| 0x1E | 0x4F | 0x40 | LIS2MDL magnetometer |
+| 0x5C | 0x0F | 0xB4 | LPS22DF or LPS28DFW pressure |
+| 0x6A | 0x0F | 0x73 | inertial, unnamed here |
+| 0x6B | 0x0F | 0x22 | inertial, unnamed here |
+
+**What the pass adds is a second master, not a second look.** Every row came
+from a Raspberry Pi 3B+ reaching the shield on its own header pins on Tuesday
+27 October 2026. This board reaches it through the Arduino connector with a
+different controller, different pads and a different clock, and the five
+addresses and five values are the same. An address is a property of the device,
+which is what that was supposed to show, and it is now shown rather than
+assumed.
+
+**And the guard is measured on both sides.** On Monday 9 November 2026 this
+image refused with the IKS4A1 fitted, naming the card from six signals. Today it
+stays silent with the IKS5A1 fitted and passes. A check proven only against the
+input it must refuse is half proven: the other half is that it must still let the
+correct input through, and three addresses carry that half here, 0x38, 0x44 and
+0x5D all absent, so `wrong_shield()` printed nothing at all.
+
+**No acceptance criterion of chapter 14 is met by this**, and that is worth
+saying plainly because a PASS line invites the opposite reading. All seven of
+them are about the dual-range logger: the two acceleration channels at one
+timestamp, the pre-trigger window, the window extension flag, the measured
+blanking period, the decoder reading scale codes, the two single-channel events,
+and every figure naming its instrument. Chapter 14 has no identification
+criterion, unlike chapter 13 which has two. The roll call is the prerequisite
+every one of those steps rests on, and it is not one of them.
 
 **It can fail in a way P13's cannot, and that is why it is worth building.**
 Both shields answer at 0x19, 0x1E, 0x6A and 0x6B, so an address scan cannot

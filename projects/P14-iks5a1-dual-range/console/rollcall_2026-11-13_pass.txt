@@ -1,0 +1,29 @@
+image 185D300FDC8690D24427A5B533B90C1F4447B26095E00FCA3A1AEE8A562E3226
+
+P14 roll call, X-NUCLEO-IKS5A1 expected, one shield only
+  bus      I2C1 on PB8 SCL and PB9 SDA, Arduino D15 and D14,
+           CN7 pins 2 and 4, alternate function 4, open drain
+  built    Nov 13 2026 11:06:38, this file's compile time
+  core     64000000 Hz
+  i2c_ker  64000000 Hz, taken as rcc_pclk1
+  asked    100000 Hz
+  TIMINGR  wrote 10118BB3 read back 10118BB3
+           PRESC 1 SCLL 179 SCLH 139 SDADEL 1 SCLDEL 1
+  computed 100000 Hz, an upper bound: no rise time in the model
+
+scan 0x08 to 0x77:
+  0x19  answers   reg 0x0F = 0x47   reg 0x4F = 0xBB
+  0x1E  answers   reg 0x0F = 0x00   reg 0x4F = 0x40
+  0x5C  answers   reg 0x0F = 0xB4   reg 0x4F = 0x4D
+  0x6A  answers   reg 0x0F = 0x73   reg 0x4F = 0xF9
+  0x6B  answers   reg 0x0F = 0x22   reg 0x4F = 0x00
+  5 device(s) answered
+
+roll call against the expected X-NUCLEO-IKS5A1:
+  0x19  confirmed reg 0x0F = 0x47, LIS2DUXS12 accelerometer
+  0x1E  confirmed reg 0x4F = 0x40, LIS2MDL magnetometer
+  0x5C  confirmed reg 0x0F = 0xB4, LPS22DF or LPS28DFW pressure
+  0x6A  confirmed reg 0x0F = 0x73, inertial, unnamed: 0x73 is in no driver table here
+  0x6B  confirmed reg 0x0F = 0x22, inertial, unnamed: 0x22 named a part not on this card
+
+PASS: every expected device answered and identified.
