@@ -241,6 +241,36 @@ Two further details that turn a working reader into a trustworthy one:
   An application that prints and returns is over in well under a second, so a
   console opened afterwards sees nothing at all.
 
+### Every line arrives with TWO carriage returns, and the stored captures have one
+
+Measured on Friday 13 November 2026 while checking a capture byte for byte
+against the file written by the console block. The wire carries 1379 bytes where
+the stored file holds 1351, and the difference is exactly 28 bytes across 29
+lines: **57 carriage returns against 29 line feeds.**
+
+The cause is in this repository and is not a terminal setting. `c/board/retarget.c`
+expands a line feed, putting a carriage return before every `'
+'` it is given,
+which is the right thing for a hook that owns the line ending. The projects then
+also write `"
+"` in their own `printf` format strings. Both are applied, so a
+board image sends `
+` on every line.
+
+It is harmless on a terminal, which is why six images went by without it being
+noticed, and it is not harmless to a comparison: a reconstruction of a capture
+from terminal output, or any parser counting carriage returns, disagrees with the
+wire on every single line. That cost two round trips before it was measured.
+
+**So the capture files under `projects/*/console/` are normalised, not raw.** All
+three of them carry one carriage return per line against the wire's two. A
+capture is still evidence of what the board printed; it is not a byte image of
+what the port delivered, and a page that treats it as one is wrong.
+
+The redundant `""` in the format strings is a cleanup this has not done, because
+it touches every firmware source that prints and the host-side filters share the
+same habit without sharing the defect: they do not link this hook.
+
 And one property of our own report, discovered twice before it was believed: the
 full report takes about ten seconds to go out of the port, and **a second RESET
 press inside that window loses the second half of it.** Two separate captures

@@ -171,6 +171,16 @@ five identified. The capture is
 `console/rollcall_2026-11-13_pass.txt`, and the C status moves from host to
 board.
 
+**The stored capture is normalised and not a byte image of the port.** It was
+checked against the file the console block wrote on the bench laptop: every
+content byte agrees and the only difference is 28 bytes over 29 lines, because
+the wire carries two carriage returns per line where the file carries one. The
+board image writes `"
+"` in its format strings and `c/board/retarget.c`
+expands the line feed as well, so both are applied. That is recorded in
+`docs/the-board-and-the-wiring.md`, and it applies to all three captures in this
+repository.
+
 | Address | Register | Value | Row |
 | --- | --- | --- | --- |
 | 0x19 | 0x0F | 0x47 | LIS2DUXS12 accelerometer |
