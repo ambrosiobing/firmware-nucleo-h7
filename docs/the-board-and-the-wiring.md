@@ -249,13 +249,10 @@ the stored file holds 1351, and the difference is exactly 28 bytes across 29
 lines: **57 carriage returns against 29 line feeds.**
 
 The cause is in this repository and is not a terminal setting. `c/board/retarget.c`
-expands a line feed, putting a carriage return before every `'
-'` it is given,
+expands a line feed, putting a carriage return before every `'\n'` it is given,
 which is the right thing for a hook that owns the line ending. The projects then
-also write `"
-"` in their own `printf` format strings. Both are applied, so a
-board image sends `
-` on every line.
+also write `"\r\n"` in their own `printf` format strings. Both are applied, so a
+board image sends `\r\r\n` on every line.
 
 It is harmless on a terminal, which is why six images went by without it being
 noticed, and it is not harmless to a comparison: a reconstruction of a capture
@@ -267,7 +264,8 @@ three of them carry one carriage return per line against the wire's two. A
 capture is still evidence of what the board printed; it is not a byte image of
 what the port delivered, and a page that treats it as one is wrong.
 
-The redundant `""` in the format strings is a cleanup this has not done, because
+The redundant `"
+"` in the format strings is a cleanup this has not done, because
 it touches every firmware source that prints and the host-side filters share the
 same habit without sharing the defect: they do not link this hook.
 

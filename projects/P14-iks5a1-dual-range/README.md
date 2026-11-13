@@ -175,8 +175,7 @@ board.
 checked against the file the console block wrote on the bench laptop: every
 content byte agrees and the only difference is 28 bytes over 29 lines, because
 the wire carries two carriage returns per line where the file carries one. The
-board image writes `"
-"` in its format strings and `c/board/retarget.c`
+board image writes `"\r\n"` in its format strings and `c/board/retarget.c`
 expands the line feed as well, so both are applied. That is recorded in
 `docs/the-board-and-the-wiring.md`, and it applies to all three captures in this
 repository.
