@@ -402,7 +402,15 @@ both, and the validity check it specifies for restarts covers this case unchange
 
 115200 baud, 8N1, no flow control, on COM13 on the win11 skyhorizon demo laptop.
 
-    $p = New-Object System.IO.Ports.SerialPort COM13,115200,None,8,one; $p.Open(); $end = (Get-Date).AddSeconds(20); while ((Get-Date) -lt $end) { if ($p.BytesToRead -gt 0) { Write-Host -NoNewline $p.ReadExisting() }; Start-Sleep -Milliseconds 100 }; $p.Close()
+    $p = New-Object System.IO.Ports.SerialPort COM13,115200,None,8,one; $p.DtrEnable = $true; $p.RtsEnable = $true; $p.Open(); $end = (Get-Date).AddSeconds(20); while ((Get-Date) -lt $end) { if ($p.BytesToRead -gt 0) { Write-Host -NoNewline $p.ReadExisting() }; Start-Sleep -Milliseconds 100 }; $p.Close()
+
+**The two assignments before `Open()` are not optional, and this line was
+missing them until Friday 13 November 2026.** A `SerialPort` opened with its
+defaults reads zero bytes forever on this probe's virtual port, which
+`docs/the-board-and-the-wiring.md` section 1.5 records as having cost three
+console runs and very nearly been blamed on the wiring. So one page carried the
+fix while this page handed out the broken command, which is the failure this
+repository keeps finding in its own documentation rather than in its code.
 
 Open the port before the reset that produces the output you want, or the start of
 the report is gone. The port buffers, so output that appears late may have been
