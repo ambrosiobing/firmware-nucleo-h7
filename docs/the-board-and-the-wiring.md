@@ -765,6 +765,85 @@ pin. It does not affect the debugger in use, because the probe
 runs SWD, which needs SWCLK on PA14, SWDIO on PA13 and SWO on PB3, and none of
 those is PB4.
 
+### 2.6.1 The Arduino digital and analogue pins, and what the IKS4A1 claims
+
+Read on Sunday 15 November 2026 from UM2408 Figure 18, which is the extension
+connectors for the NUCLEO-H7A3ZI-Q and not Figure 17's two siblings, and from
+UM3239 Tables 4 and 5, which are the shield's own connector lists.
+
+**The board side, from UM2408 Figure 18.** These are pin numbers printed by ST
+for this exact board, so they carry the same authority as the CN10 positions
+above.
+
+| Arduino | MCU pin | Arduino | MCU pin |
+|---|---|---|---|
+| D0 | PB7 | A0 | PA3 |
+| D1 | PB6 | A1 | PC0 |
+| D2 | PG14 | A2 | PC3 |
+| D3 | PE13 | A3 | PB1 |
+| D4 | PE14 | A4 | PC2 |
+| D5 | PE11 | A5 | PF11 |
+| D6 | PA8 | D14 | PB9, I2C1 SDA |
+| D7 | PG12 | D15 | PB8, I2C1 SCL |
+
+**The shield side, from UM3239 Table 4.** The table gives a connector and a pin
+number and no Arduino name, so the signal column here is quoted and the Arduino
+column is derived, see the paragraph after the table.
+
+| UM3239 | Signal, as printed | Derived Arduino | MCU pin | EXTI line |
+|---|---|---|---|---|
+| CN8 pin 3 | LIS2MDL DRDY | A2 | PC3 | 3 |
+| CN8 pin 4 | LIS2DUXS12 INT | A3 | PB1 | 1 |
+| CN8 pin 5 | STTS22H INT | A4 | PC2 | 2 |
+| CN8 pin 6 | LSM6DSO16IS INT1 | A5 | PF11 | 11 |
+| CN9 pin 3 | USER INT | D2 | PG14 | 14 |
+| CN9 pin 4 | SPI CLK | D3 | PE13 | |
+| CN9 pin 5 | LSM6DSV16X INT2 | D4 | PE14 | 14 |
+| CN9 pin 6 | LSM6DSV16X INT1 | D5 | PE11 | 11 |
+| CN9 pin 7 | LPS22DF INT1 | D6 | PA8 | 8 |
+| CN9 pin 8 | LSM6DSO16IS INT2 | D7 | PG12 | 12 |
+
+**The Arduino column is an inference, and here is its control.** UM3239 numbers
+the pins of its own connectors and never writes D or A names, so the mapping
+assumes the standard Arduino UNO R3 header layout: the six-pin header carries A0
+to A5 and the eight-pin header carries D0 to D7. The manual checks that
+assumption at two places by itself. Its CN5 pin 9 is I2C SDA and pin 10 is I2C
+SCL, which under the standard ten-pin layout are positions 9 and 10, and UM2408
+Table 18 independently gives SDA as D14 on PB9 and SCL as D15 on PB8. Its CN6
+pins 4, 6 and 7 are 3.3 V, GND and GND, which are the standard power header's
+positions, with pin 2 reported as 3.3 V where the UNO has IOREF, tied to the
+supply on a 3.3 V board, and pin 8 as not connected where the UNO has VIN. So
+the layout holds wherever the manual overlaps with something already known, and
+the two inertial interrupt rows are the ones that matter and the ones that
+nothing cross-checks. Settle them on the board before trusting a figure built on
+them.
+
+**TWO INTERRUPT LINES CANNOT BE USED AT ONCE, and no page said so.** An external
+interrupt line on this family is selected by pin NUMBER across all ports, so two
+pins with the same number share one line:
+
+    EXTI 11   LSM6DSV16X INT1 on PE11   against   LSM6DSO16IS INT1 on PF11
+    EXTI 14   LSM6DSV16X INT2 on PE14   against   USER INT on PG14
+
+That is a property of the pair, shield and board, and it appears in neither
+manual because neither knows about the other. Chapter 13 needs exactly one
+watermark line, so it is unaffected and the choice is made for it: **LSM6DSV16X
+INT1 on PE11, EXTI 11**, which is free as long as the other inertial unit's INT1
+is not also armed. A chapter wanting both inertial units on interrupts has to
+use INT2 on one of them.
+
+**AND D3 IS ALREADY SPOKEN FOR IN THIS REPOSITORY.** PE13 is Arduino D3 and is
+the signal source of section 2.6's table, TIM1 channel 3, used by P06. The
+shield wires that pin to its SPI clock input. Nothing is driven into a conflict
+by that, because the sensors here are addressed over I2C and no SPI device is
+selected, but the marker signal does reach the shield while it is fitted, and a
+page claiming the pin is free while a shield sits on the headers would be wrong.
+
+**No jumper wire is needed for chapter 13.** Its inventory line allows one for
+the sensor interrupt line if the shield's own routing does not reach a usable
+pin. The routing does reach one, so the line is dropped rather than carried, and
+under the no-soldering constraint that is the only acceptable answer anyway.
+
 ## 2.7 One register address worth singling out
 
 `RCC_APB2ENR` is at offset **0x150**, and **not** the 0xF0 that ST's own trailing

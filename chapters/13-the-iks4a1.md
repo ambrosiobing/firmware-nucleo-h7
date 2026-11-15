@@ -47,7 +47,7 @@ What is left to write is the board layer, and that is more than it sounds. It me
 | NUCLEO-H7A3ZI-Q | Runs the logger | Micro USB for flashing and the transcript |
 | X-NUCLEO-IKS4A1 | The shield. Two inertial units with programmable engines, an accelerometer, a magnetometer, a pressure sensor, a humidity and temperature sensor, a second temperature sensor | Arduino header, I2C, plus interrupt lines |
 | The shield's electrode add-on | Detachable, for the electrostatic sensing channel. Not used in the acceptance run, and named so the reader knows it is there | Connector on the shield |
-| One jumper wire | The sensor interrupt line to a free header pin, if the shield's own routing does not reach a usable one | Female both ends |
+| None, and the line it was for is dropped | The shield's own routing reaches a usable pin, so no wire is needed for the interrupt | Read from UM3239 on Sunday 15 November 2026 |
 | nRF-PPK2 | Optional, to price batching against polling with chapter 10's ledger | Leads to the board |
 | Host PC | Receives the transcript and checks it | USB |
 
@@ -66,12 +66,12 @@ The seam is two functions, read and write, and it is worth noticing how much tha
 | Peripheral | Mode | Clock source | Pins and function | Interrupt and transfers |
 | --- | --- | --- | --- | --- |
 | I2C | Fast mode, 400 kHz, repeated start | Peripheral bus | Arduino D15 is SCL on PB8 and D14 is SDA on PB9, both I2C1, read Friday 6 November 2026 from UM2408 Rev 6, Table 18, page 44, connector CN7 pin 2 and pin 4 | Polled for setup; DMA for the burst drain |
-| External interrupt | Rising edge, one line | Peripheral bus | The sensor's first interrupt line, on whichever free header pin the shield routes it to | The handler sets a flag and returns |
+| External interrupt | Rising edge, one line | Peripheral bus | LSM6DSV16X INT1, which UM3239 Table 4 routes to its CN9 pin 6, Arduino D5, which UM2408 Figure 18 gives as PE11, so EXTI line 11 | The handler sets a flag and returns |
 | Timer | Up counter, 1 kHz | Peripheral bus | None | Timebase for the transcript |
 | USART3 | Asynchronous, 115200 | Peripheral bus | Confirm in the board manual | Interrupt driven, chapter 3 |
 | DWT cycle counter | Free running | Core clock | None | Measures the drain, if it works with no debugger attached |
 
-*Table 13.3. Peripheral configuration for chapter 13. Two entries are deliberately not written as facts: which pins the bus reaches and which header pin the interrupt line arrives on are checked against the board manual and UM3239 respectively.*
+*Table 13.3. Peripheral configuration for chapter 13. Both entries that this table once refused to state as facts are now read: the bus pins from UM2408 Table 18 on Friday 6 November 2026, and the interrupt pin from UM3239 Table 4 joined to UM2408 Figure 18 on Sunday 15 November 2026. The Arduino name in the middle of that join is an inference from the standard header layout, checked where the two manuals overlap, and the repository's wiring page carries the control.*
 
 The bus addresses are not reprinted in this chapter. They are in UM3239 and in the sibling lab set, and reproducing a table of hexadecimal addresses from memory is the single easiest way to cost somebody an evening. Read them from the manual, put them in one header, and have the identification step below prove that every one of them is right before anything else runs.
 

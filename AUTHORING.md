@@ -539,7 +539,18 @@ machine-readable and were read directly, not from a summary.
     reading A4 or A5 as an analogue input collides with the bus, and if it
     does, the answer is to avoid those pins rather than to rework the board.
 13. Which Zio pins with timer channels and spare GPIO remain free while a shield
-    is fitted, for the PPK2 marker pins.
+    is fitted, for the PPK2 marker pins. **ANSWERED FOR THE IKS4A1 on Sunday
+    15 November 2026**: UM3239's Tables 4 and 5 list every pin that shield
+    claims and nothing else is connected, so the free set is the complement of
+    ten Arduino positions. Two consequences are worth carrying rather than
+    rediscovering. **D3, which is PE13, is this repository's TIM1 channel 3
+    signal source and is also the shield's SPI clock input**, so a page calling
+    it free while a shield is fitted is wrong even though nothing conflicts
+    electrically on an I2C-only run. And two interrupt pairs collide on one
+    external interrupt line each, PE11 against PF11 and PE14 against PG14,
+    because that controller selects by pin number across every port. Both are
+    written up with their sources in `docs/the-board-and-the-wiring.md` section
+    2.6.1. The question stays open for the other three shields.
 14. Whether the drag-and-drop disk appears, and whether using it conflicts with
     anything in chapter 1.
 

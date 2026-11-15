@@ -199,6 +199,24 @@ the `__DATE__ __TIME__` stamp was added to the banner later that evening, after 
 repeat capture came back byte-identical and could not be told apart from a
 skipped rebuild. The three files read in order show that fix arriving.
 
+**The interrupt pin is read, Sunday 15 November 2026, and the FIFO work is no
+longer blocked on a document.** Chapter 13's peripheral table refused to state
+which header pin the watermark line arrives on, and UM3239's Table 4 answers it:
+the shield routes LSM6DSV16X INT1 to its CN9 pin 6, which the standard Arduino
+layout makes D5, which UM2408's Figure 18 gives as **PE11 on this board, so
+external interrupt line 11**. No jumper wire is needed, which also means nothing
+has to be soldered, and chapter 13's inventory line for that wire is dropped.
+
+**Two collisions came with it, and neither manual could have mentioned them.**
+PE11 shares interrupt line 11 with PF11, where the shield puts the other
+inertial unit's INT1, and PE14 shares line 14 with PG14, the shield's user
+interrupt, because the controller selects a line by pin number across all ports.
+One watermark line is all this chapter needs, so the choice is settled rather
+than constrained, and a chapter wanting both inertial units on interrupts has to
+move one of them to its second line. The full table, with the part of the chain
+that is an inference and the control for it, is in
+`../../docs/the-board-and-the-wiring.md` section 2.6.1.
+
 **Still not the FIFO.** This image polls nothing and logs nothing. Criteria 1
 to 4 and 7, the ten-minute run, the watermark interrupt, the drain time and the
 charge comparison, are the rest of the chapter and are untouched.
