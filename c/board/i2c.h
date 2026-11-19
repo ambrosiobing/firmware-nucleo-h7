@@ -64,6 +64,13 @@ typedef enum {
                                     * malformed condition on the wire */
     I2C_ERR_TIMEOUT         = -7,  /* a flag did not appear within the bounded
                                     * poll count, which is printed */
+    I2C_ERR_ARG             = -8,  /* a null destination, or a length this
+                                    * peripheral cannot express in one transfer.
+                                    * Added Sunday 15 November 2026 with the
+                                    * block transfers: a bad argument used to
+                                    * return NOT_INITIALISED, which named the
+                                    * wrong thing and would have sent a reader
+                                    * to i2c_init */
 } i2c_status_t;
 
 const char *i2c_status_name(i2c_status_t s);
@@ -105,7 +112,35 @@ i2c_status_t i2c_init(uint32_t kernel_hz, uint32_t target_hz, i2c_timing_t *out)
 i2c_status_t i2c_probe(uint8_t addr7);
 
 /* Read one register: write the register index, repeated start, read one byte.
- * The sensors on both shields use this form. */
+ * The sensors on both shields use this form. Since Sunday 15 November 2026 this
+ * is i2c_read_block with a length of one and has no sequence of its own, so the
+ * two cannot drift apart. */
 i2c_status_t i2c_read_reg(uint8_t addr7, uint8_t reg, uint8_t *value);
+
+/* Read a run of registers in ONE transfer: the register index out, a repeated
+ * start, then len bytes in, automatic stop. This is what chapter 13's step 6
+ * requires of a buffer drain, in those words: one transaction rather than a
+ * byte at a time, because the point of a watermark is that the cost is paid
+ * once. Devices that auto-increment their register pointer, which is every
+ * sensor on these two shields, are read this way.
+ *
+ * len is 1 to 255. The limit is not a policy: NBYTES in CR2 is eight bits, so
+ * a longer run needs the RELOAD mechanism, which is a different sequence and is
+ * not written here. A length outside that range is I2C_ERR_ARG rather than a
+ * silently clamped read, because a clamped drain loses samples and reports
+ * success. */
+i2c_status_t i2c_read_block(uint8_t addr7, uint8_t reg, uint8_t *dst,
+                            uint16_t len);
+
+/* Write a run of registers in ONE transfer: the register index and then len
+ * bytes, automatic stop. Configuring a sensor's buffer takes several adjacent
+ * registers and this is the form the driver collection's porting shim expects.
+ *
+ * len is 1 to 254, one less than the read, because the register index travels
+ * inside the same NBYTES count. Saying 254 rather than rounding both to 255 is
+ * the honest number, and the off-by-one is exactly the kind a shared constant
+ * would hide. */
+i2c_status_t i2c_write_block(uint8_t addr7, uint8_t reg, const uint8_t *src,
+                             uint16_t len);
 
 #endif /* BOARD_I2C_H */

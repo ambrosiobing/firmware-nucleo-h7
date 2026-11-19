@@ -217,6 +217,28 @@ move one of them to its second line. The full table, with the part of the chain
 that is an inference and the control for it, is in
 `../../docs/the-board-and-the-wiring.md` section 2.6.1.
 
+**The bus layer can now drain in one transfer, Thursday 19 November 2026.**
+`c/board/i2c.c` gained `i2c_read_block` and `i2c_write_block`, which is what
+chapter 13's step 6 requires in its own words: the buffer is emptied in one
+transaction rather than a byte at a time, because the whole point of a watermark
+is that the cost is paid once. `i2c_read_reg` is now that block read with a
+length of one and keeps no sequence of its own, so the next fix to the transfer
+path cannot reach one copy and miss another.
+
+Three things about it are worth a reader's time rather than being left in the
+header. The length limit is **1 to 255 for a read and 1 to 254 for a write**,
+because `NBYTES` is eight bits and the register index travels inside the write's
+count; the two limits genuinely differ by one byte and are written out rather
+than rounded together. A length outside the range is a refusal named
+`I2C_ERR_ARG` and never a clamped transfer, since a clamped drain loses samples
+and reports success. And a refusal part way through a burst leaves whatever
+arrived in the caller's buffer with no count of how much, so a partial read has
+to be treated as no read, which is what the drain will do.
+
+`I2C_ERR_ARG` is the eighth refusal and it also replaced a wrong one: a null
+pointer used to come back as `I2C_ERR_NOT_INITIALISED`, which named the wrong
+thing and would have sent a reader to look at `i2c_init`.
+
 **Still not the FIFO.** This image polls nothing and logs nothing. Criteria 1
 to 4 and 7, the ten-minute run, the watermark interrupt, the drain time and the
 charge comparison, are the rest of the chapter and are untouched.

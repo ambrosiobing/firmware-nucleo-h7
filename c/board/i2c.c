@@ -23,6 +23,7 @@ const char *i2c_status_name(i2c_status_t s)
     case I2C_ERR_NACK:            return "nack";
     case I2C_ERR_ARBITRATION:     return "arbitration";
     case I2C_ERR_TIMEOUT:         return "timeout";
+    case I2C_ERR_ARG:             return "argument";
     }
     return "unknown";
 }
@@ -330,13 +331,21 @@ i2c_status_t i2c_probe(uint8_t addr7)
     return s;
 }
 
-i2c_status_t i2c_read_reg(uint8_t addr7, uint8_t reg, uint8_t *value)
+/* NBYTES is eight bits wide, so one transfer carries at most 255 bytes. A run
+ * longer than that needs CR2's RELOAD mechanism, where the peripheral stops at
+ * the count and waits for the next one to be written, and that is a different
+ * sequence with a different set of flags to wait on. It is not written here,
+ * and the limit is a refusal rather than a clamp. */
+#define I2C_NBYTES_MAX  255u
+
+i2c_status_t i2c_read_block(uint8_t addr7, uint8_t reg, uint8_t *dst,
+                            uint16_t len)
 {
     if (!g_ready) {
         return I2C_ERR_NOT_INITIALISED;
     }
-    if (value == 0) {
-        return I2C_ERR_NOT_INITIALISED;
+    if (dst == 0 || len == 0u || len > I2C_NBYTES_MAX) {
+        return I2C_ERR_ARG;
     }
     const i2c_status_t idle = i2c_idle();
     if (idle != I2C_OK) {
@@ -361,17 +370,78 @@ i2c_status_t i2c_read_reg(uint8_t addr7, uint8_t reg, uint8_t *value)
         return s;
     }
 
-    /* The repeated start, one byte in, automatic stop. */
-    i2c_start(addr7, 1u, true);
-    s = i2c_wait(I2C_ISR_RXNE, 0);
-    if (s != I2C_OK) {
-        return s;
+    /* The repeated start, len bytes in, automatic stop. The device advances its
+     * own register pointer; nothing here sends an index again. */
+    i2c_start(addr7, (uint32_t) len, true);
+    for (uint16_t i = 0u; i < len; i++) {
+        s = i2c_wait(I2C_ISR_RXNE, 0);
+        if (s != I2C_OK) {
+            /* A refusal part way through leaves the bytes already taken in
+             * dst, and the caller is told how far by nothing at all, which is
+             * why a partial read must be treated as no read. Chapter 13's drain
+             * discards the burst on any refusal for that reason. */
+            return s;
+        }
+        dst[i] = (uint8_t) (I2C_REG(I2C_RXDR) & 0xFFu);
     }
-    *value = (uint8_t) (I2C_REG(I2C_RXDR) & 0xFFu);
 
     s = i2c_wait(I2C_ISR_STOPF, 0);
     I2C_REG(I2C_ICR) = I2C_ICR_STOPCF;
     return s;
+}
+
+i2c_status_t i2c_write_block(uint8_t addr7, uint8_t reg, const uint8_t *src,
+                             uint16_t len)
+{
+    if (!g_ready) {
+        return I2C_ERR_NOT_INITIALISED;
+    }
+    /* One less than the read: the register index travels inside the same count.
+     * Writing the subtraction out rather than hiding it behind a constant is
+     * deliberate, because the two limits differ by exactly this byte. */
+    if (src == 0 || len == 0u || len > (I2C_NBYTES_MAX - 1u)) {
+        return I2C_ERR_ARG;
+    }
+    const i2c_status_t idle = i2c_idle();
+    if (idle != I2C_OK) {
+        return idle;
+    }
+
+    i2c_clear_flags();
+
+    /* One transfer, the index and the payload together, automatic stop. There
+     * is no repeated start here and there must not be: a write that releases
+     * the bus between the index and the data lets another controller address
+     * the same device and leaves the pointer somewhere nobody chose. */
+    i2c_start(addr7, (uint32_t) len + 1u, false);
+    i2c_status_t s = i2c_wait(I2C_ISR_TXIS, 0);
+    if (s != I2C_OK) {
+        return s;
+    }
+    I2C_REG(I2C_TXDR) = reg;
+
+    for (uint16_t i = 0u; i < len; i++) {
+        s = i2c_wait(I2C_ISR_TXIS, 0);
+        if (s != I2C_OK) {
+            return s;
+        }
+        I2C_REG(I2C_TXDR) = src[i];
+    }
+
+    s = i2c_wait(I2C_ISR_STOPF, 0);
+    I2C_REG(I2C_ICR) = I2C_ICR_STOPCF;
+    return s;
+}
+
+/* The single register read is the block read with a length of one, and has no
+ * sequence of its own. The alternative was to leave the old body alongside the
+ * new one, and the reason not to is this file itself: the stale-flag fix of
+ * Friday 6 November 2026 had to be applied to every path that waits on a
+ * refusal, and a second copy of the sequence is a second place for the next
+ * such fix to miss. */
+i2c_status_t i2c_read_reg(uint8_t addr7, uint8_t reg, uint8_t *value)
+{
+    return i2c_read_block(addr7, reg, value, 1u);
 }
 
 #else  /* the register addresses are not confirmed */
@@ -395,6 +465,29 @@ i2c_status_t i2c_read_reg(uint8_t addr7, uint8_t reg, uint8_t *value)
     (void) addr7;
     (void) reg;
     (void) value;
+    return I2C_ERR_NOT_INITIALISED;
+}
+
+/* Both block transfers need a stub here too. A function added to the confirmed
+ * branch alone links on the board and breaks only the host syntax check, which
+ * is the one place this file is compiled with the registers absent. */
+i2c_status_t i2c_read_block(uint8_t addr7, uint8_t reg, uint8_t *dst,
+                            uint16_t len)
+{
+    (void) addr7;
+    (void) reg;
+    (void) dst;
+    (void) len;
+    return I2C_ERR_NOT_INITIALISED;
+}
+
+i2c_status_t i2c_write_block(uint8_t addr7, uint8_t reg, const uint8_t *src,
+                             uint16_t len)
+{
+    (void) addr7;
+    (void) reg;
+    (void) src;
+    (void) len;
     return I2C_ERR_NOT_INITIALISED;
 }
 

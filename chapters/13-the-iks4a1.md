@@ -182,15 +182,17 @@ docs/topology.md
 int32_t bus_write(void *handle, uint8_t reg, const uint8_t *data, uint16_t len)
 {
     const uint8_t addr = *(const uint8_t *) handle;
-    return i2c_mem_write(addr, reg, data, len) ? 0 : -1;
+    return (i2c_write_block(addr, reg, data, len) == I2C_OK) ? 0 : -1;
 }
 
 int32_t bus_read(void *handle, uint8_t reg, uint8_t *data, uint16_t len)
 {
     const uint8_t addr = *(const uint8_t *) handle;
-    return i2c_mem_read(addr, reg, data, len) ? 0 : -1;   /* repeated start */
+    return (i2c_read_block(addr, reg, data, len) == I2C_OK) ? 0 : -1;
 }
 ```
+
+These were written with placeholder names until Thursday 19 November 2026, when the board layer grew the two block transfers the shim needs. They are `i2c_read_block` and `i2c_write_block`, they return `i2c_status_t` rather than a truth value, and the comparison against `I2C_OK` above is not decoration: the collection's drivers carry only zero or nonzero, so the shim is where eight named refusals collapse into one minus sign. Print the status at the shim if a driver starts failing, because by the time the collection reports it the name is gone.
 
 The read must use a repeated start rather than a stop between the register address and the data phase, and the sensors must be left with register auto-increment enabled, or a burst read returns the same register many times. Both failures produce data that looks like a stuck sensor rather than like a bus fault.
 
